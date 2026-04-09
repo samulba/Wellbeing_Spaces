@@ -1,0 +1,307 @@
+import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { produktSoftDelete } from '@/app/actions/produkte'
+import type { ProduktMitDetails } from '@/lib/supabase/types'
+
+// ── Konstanten ────────────────────────────────────────────────
+const MWST = 0.19
+const r2 = (n: number) => Math.round(n * 100) / 100
+const eur = (n: number) =>
+  new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
+
+const statusBadge: Record<string, string> = {
+  ausstehend:     'bg-stone-100 text-stone-500',
+  freigegeben:    'bg-green-50 text-green-600',
+  abgelehnt:      'bg-red-50 text-red-500',
+  ueberarbeitung: 'bg-amber-50 text-amber-600',
+}
+const statusLabel: Record<string, string> = {
+  ausstehend:     'Ausstehend',
+  freigegeben:    'Freigegeben',
+  abgelehnt:      'Abgelehnt',
+  ueberarbeitung: 'Überarbeitung',
+}
+
+// ── Datenabruf ────────────────────────────────────────────────
+type RaumMitProjekt = {
+  id: string
+  name: string
+  beschreibung: string | null
+  projekt_id: string
+  reihenfolge: number
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+  projekte: { id: string; name: string; kunden: { id: string; name: string } | null } | null
+}
+
+async function getRaum(raumId: string, projektId: string): Promise<RaumMitProjekt | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('raeume')
+    .select('*, projekte(id, name, kunden(id, name))')
+    .eq('id', raumId)
+    .eq('projekt_id', projektId)
+    .is('deleted_at', null)
+    .single()
+  return data as RaumMitProjekt | null
+}
+
+async function getProdukte(raumId: string): Promise<ProduktMitDetails[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('produkte')
+    .select('*, partner(id, name), produktstatus(status, kommentar)')
+    .eq('raum_id', raumId)
+    .is('deleted_at', null)
+    .order('reihenfolge')
+    .order('created_at')
+  return (data ?? []) as ProduktMitDetails[]
+}
+
+// ── Seite ─────────────────────────────────────────────────────
+export default async function RaumDetailPage({
+  params,
+}: {
+  params: { id: string; raumId: string }
+}) {
+  const [raum, produkte] = await Promise.all([
+    getRaum(params.raumId, params.id),
+    getProdukte(params.raumId),
+  ])
+
+  if (!raum) notFound()
+
+  const projekt = raum.projekte
+  const kunde = projekt?.kunden
+
+  // ── Berechnungen ──────────────────────────────────────────
+  const sumEpGesamt     = produkte.reduce((s, p) => s + (p.einkaufspreis ?? 0) * p.menge, 0)
+  const sumVpNettoGesamt = produkte.reduce((s, p) => s + (p.verkaufspreis ?? 0) * p.menge, 0)
+  const sumVpBruttoGesamt = r2(sumVpNettoGesamt * (1 + MWST))
+  const sumProvisionGesamt = produkte.reduce(
+    (s, p) => s + r2((p.verkaufspreis ?? 0) * ((p.provision_prozent ?? 0) / 100) * p.menge),
+    0
+  )
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto">
+      {/* Breadcrumb + Header */}
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <nav className="flex items-center gap-1.5 text-xs text-stone-400 mb-3">
+            {kunde && (
+              <>
+                <Link href={`/dashboard/kunden/${kunde.id}`} className="hover:text-stone-600 transition-colors">
+                  {kunde.name}
+                </Link>
+                <span>›</span>
+              </>
+            )}
+            <Link href={`/dashboard/projekte/${params.id}`} className="hover:text-stone-600 transition-colors">
+              {projekt?.name ?? 'Projekt'}
+            </Link>
+            <span>›</span>
+            <span className="text-stone-600">{raum.name}</span>
+          </nav>
+          <h1 className="text-xl font-semibold text-stone-800">{raum.name}</h1>
+          {raum.beschreibung && (
+            <p className="text-sm text-stone-400 mt-0.5">{raum.beschreibung}</p>
+          )}
+        </div>
+        <Link
+          href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
+          className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+        >
+          + Produkt hinzufügen
+        </Link>
+      </div>
+
+      {/* Leerzustand */}
+      {produkte.length === 0 && (
+        <div className="text-center py-16 bg-white border border-stone-100 rounded-xl">
+          <p className="text-stone-400 text-sm">Noch keine Produkte in diesem Raum.</p>
+          <Link
+            href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
+            className="inline-block mt-3 text-sm text-stone-600 underline underline-offset-2"
+          >
+            Erstes Produkt hinzufügen
+          </Link>
+        </div>
+      )}
+
+      {/* Produkttabelle */}
+      {produkte.length > 0 && (
+        <>
+          <div className="bg-white border border-stone-100 rounded-xl overflow-hidden mb-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[900px]">
+                <thead>
+                  <tr className="border-b border-stone-100 bg-stone-50/50">
+                    <th className={th + ' text-left'}>Produkt</th>
+                    <th className={th}>Menge</th>
+                    <th className={`${th} text-amber-600`} title="Intern – nicht für Kunden">EP netto</th>
+                    <th className={`${th} text-amber-600`} title="Intern – nicht für Kunden">Marge</th>
+                    <th className={th}>VP netto</th>
+                    <th className={th}>VP brutto</th>
+                    <th className={`${th} text-amber-600`} title="Intern – nicht für Kunden">Provision</th>
+                    <th className={th}>Gesamt netto</th>
+                    <th className={th}>Status</th>
+                    <th className="w-16" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {produkte.map((p, i) => {
+                    const vpBrutto     = r2((p.verkaufspreis ?? 0) * (1 + MWST))
+                    const gesamtNetto  = r2((p.verkaufspreis ?? 0) * p.menge)
+                    const provisionEur = r2((p.verkaufspreis ?? 0) * ((p.provision_prozent ?? 0) / 100))
+                    const produktLoeschenAktion = produktSoftDelete.bind(null, p.id, params.raumId, params.id)
+                    const status = p.produktstatus?.status ?? 'ausstehend'
+
+                    return (
+                      <tr
+                        key={p.id}
+                        className={`hover:bg-stone-50/70 transition-colors group ${
+                          i < produkte.length - 1 ? 'border-b border-stone-50' : ''
+                        }`}
+                      >
+                        {/* Name + Partner */}
+                        <td className="px-4 py-3.5">
+                          <div className="font-medium text-stone-800 leading-snug">{p.name}</div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {p.partner && (
+                              <span className="text-xs text-stone-400">{p.partner.name}</span>
+                            )}
+                            {p.kategorie && (
+                              <span className="text-xs text-stone-300">{p.kategorie}</span>
+                            )}
+                            {p.produkt_url && (
+                              <a
+                                href={p.produkt_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-stone-400 hover:text-stone-600 underline underline-offset-2"
+                              >
+                                Link
+                              </a>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Menge */}
+                        <td className={td + ' text-center'}>
+                          {p.menge} {p.einheit}
+                        </td>
+
+                        {/* EP netto – intern */}
+                        <td className={`${td} text-center font-mono text-amber-700`}>
+                          {p.einkaufspreis != null ? eur(p.einkaufspreis) : '–'}
+                        </td>
+
+                        {/* Marge – intern */}
+                        <td className={`${td} text-center font-mono text-amber-700`}>
+                          {p.marge_prozent != null
+                            ? new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }).format(p.marge_prozent) + ' %'
+                            : '–'}
+                        </td>
+
+                        {/* VP netto */}
+                        <td className={`${td} text-center font-mono`}>
+                          {p.verkaufspreis != null ? eur(p.verkaufspreis) : '–'}
+                        </td>
+
+                        {/* VP brutto */}
+                        <td className={`${td} text-center font-mono font-medium text-stone-700`}>
+                          {p.verkaufspreis != null ? eur(vpBrutto) : '–'}
+                        </td>
+
+                        {/* Provision – intern */}
+                        <td className={`${td} text-center font-mono text-amber-700`}>
+                          {p.provision_prozent != null && p.verkaufspreis != null
+                            ? eur(provisionEur)
+                            : '–'}
+                        </td>
+
+                        {/* Gesamt netto */}
+                        <td className={`${td} text-center font-mono font-semibold text-stone-800`}>
+                          {p.verkaufspreis != null ? eur(gesamtNetto) : '–'}
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-4 py-3.5 text-center">
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusBadge[status] ?? 'bg-stone-100 text-stone-500'}`}>
+                            {statusLabel[status] ?? status}
+                          </span>
+                        </td>
+
+                        {/* Aktionen */}
+                        <td className="px-3 py-3.5">
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Link
+                              href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/${p.id}/bearbeiten`}
+                              className="text-xs text-stone-400 hover:text-stone-700 transition-colors whitespace-nowrap"
+                            >
+                              Bearb.
+                            </Link>
+                            <form action={produktLoeschenAktion}>
+                              <button
+                                type="submit"
+                                className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                                onClick={(e) => {
+                                  if (!confirm(`„${p.name}" löschen?`)) e.preventDefault()
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </form>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Summenzeile */}
+            <div className="border-t border-stone-100 bg-stone-50/50 px-4 py-3">
+              <div className="flex items-center gap-8 justify-end min-w-[900px] overflow-x-auto">
+                <SummeZelle label="EP gesamt" wert={eur(r2(sumEpGesamt))} intern />
+                <SummeZelle label="Provision gesamt" wert={eur(r2(sumProvisionGesamt))} intern />
+                <SummeZelle label="VP netto gesamt" wert={eur(r2(sumVpNettoGesamt))} />
+                <SummeZelle label="VP brutto gesamt" wert={eur(sumVpBruttoGesamt)} hervorheben />
+              </div>
+            </div>
+          </div>
+
+          {/* Interne Felder Legende */}
+          <p className="text-xs text-amber-600/70 text-right">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-400/50 mr-1" />
+            Orange markierte Spalten sind interne Felder und werden Kunden nie angezeigt
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Sub-Komponenten ───────────────────────────────────────────
+function SummeZelle({
+  label, wert, intern, hervorheben,
+}: {
+  label: string; wert: string; intern?: boolean; hervorheben?: boolean
+}) {
+  return (
+    <div className="text-right">
+      <p className={`text-xs mb-0.5 ${intern ? 'text-amber-600/70' : 'text-stone-400'}`}>{label}</p>
+      <p className={`text-sm font-mono font-semibold ${hervorheben ? 'text-stone-800' : intern ? 'text-amber-700' : 'text-stone-700'}`}>
+        {wert}
+      </p>
+    </div>
+  )
+}
+
+// ── Tailwind ──────────────────────────────────────────────────
+const th = 'px-4 py-3 text-xs font-medium text-stone-400 uppercase tracking-wide'
+const td = 'px-4 py-3.5 text-stone-600'
