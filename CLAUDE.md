@@ -137,6 +137,8 @@ src/
 - Session 3: Vollständige App gebaut – Kunden/Projekte/Räume/Produkte/Partner CRUD, Preiskalkulation, Freigabe-System. Build fehlerfrei. Push auf GitHub.
 - Session 4: Vercel Deployment eingerichtet (vercel.json, fra1, Env-Vars). App ist live. CLAUDE.md aktualisiert. Nächste Schritte: Design, CSV-Export, Bildupload, echte Daten.
 - Session 5: Komplettes CI-Redesign – Wellbeing-Concepts Farbpalette (Creme/Dunkelgrün/Mint/Terrakotta/Sand), Google Fonts (Cormorant Garamond + Montserrat), WBC Tailwind Custom Colors. Alle Seiten und Komponenten überarbeitet (Login, Dashboard, Kunden, Projekte, Räume, Produkte, Partner, Freigabe-Ansicht). Build fehlerfrei (0 Errors/Warnings). Nächste Schritte: CSV-Export, Produktbilder-Upload.
+- Session 6: Sidebar überarbeitet (Syne-Font, DepthStack-Icon links→rechts, w-72, aktiv=bg-[#6366F1]), Einstellungen 5-Tab-Layout (Allgemein/Kategorien/Team/Sicherheit/Abrechnung), Recharts-Dashboard (BalkenChart/DonutChart/LinienChart, 5-Zeilen-Layout), Favicon WBC-Logo. Bug-Fix ConfirmDeleteButton client-seitig. Profil-Seite, Team-Invite via Supabase Admin. Supabase Migrations 005+006.
+- Session 7: 'WBC Studio' Branding (NavSidebar, layout.tsx, Login), DepthStack-Icon korrigiert, Dashboard 100vh flex-Layout (kein Außen-Scroll, Charts mit height='100%'), Kunden-Seite als Karten-Grid (grid-cols-3, 56px Avatar, Echtzeit-Suche, Projekt-Badge), Migration 007 Testdaten (8 Kunden, 13 Projekte, 27 Räume, 35 Produkte). Build fehlerfrei. Push auf GitHub/Vercel. Nächste Schritte: CSV-Export, Produktbilder-Upload, Testdaten in Supabase einspielen.
 
 ## Anweisung
 Am Ende jeder Session diesen Session-Log mit einem kurzen Eintrag aktualisieren was gemacht wurde und was als nächstes kommt.
