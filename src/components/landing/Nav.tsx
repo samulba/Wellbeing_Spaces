@@ -69,7 +69,7 @@ export default function Nav() {
                 key={l.href}
                 href={l.href}
                 onClick={(e) => {
-                  if (l.href.startsWith('/#')) {
+                  if (l.href.startsWith('/#') && window.location.pathname === '/') {
                     e.preventDefault()
                     smoothScroll(l.href)
                   }
@@ -121,7 +121,7 @@ export default function Nav() {
               key={l.href}
               href={l.href}
               onClick={(e) => {
-                if (l.href.startsWith('/#')) {
+                if (l.href.startsWith('/#') && window.location.pathname === '/') {
                   e.preventDefault()
                   setMobileOpen(false)
                   setTimeout(() => smoothScroll(l.href), 300)

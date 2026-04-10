@@ -65,17 +65,17 @@ export default function Footer() {
         </div>
 
         {/* ── Main link grid ───────────────────────────────── */}
-        <div className="py-14 grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-12 md:gap-10">
+        <div className="py-14 flex flex-col md:flex-row md:justify-between gap-12">
 
-          {/* Brand */}
-          <div>
+          {/* Brand – left */}
+          <div className="shrink-0">
             <Link href="/" className="inline-flex items-center gap-2.5 mb-5 group">
               <DepthStackIcon />
               <span className="font-syne font-bold text-[17px] text-white group-hover:text-indigo-300 transition-colors">
                 WBC Studio
               </span>
             </Link>
-            <p className="text-[13px] text-white/30 leading-relaxed max-w-[260px] mb-7">
+            <p className="text-[13px] text-white/30 leading-relaxed max-w-[240px] mb-7">
               Projektmanagement für Interior Designer. Produktlisten, Preiskalkulation und Kundenfreigabe – alles in einem.
             </p>
             <ul className="space-y-2.5">
@@ -88,48 +88,53 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Produkt */}
-          <div>
-            <h4 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.16em] mb-5">
-              Produkt
-            </h4>
-            <ul className="space-y-3.5">
-              {produktLinks.map((l) => (
-                <li key={l.label}>
-                  <Link
-                    href={l.href}
-                    className="text-[13px] text-white/35 hover:text-white transition-colors duration-150"
-                  >
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Produkt + Rechtliches – right, grouped */}
+          <div className="flex gap-16 shrink-0">
 
-          {/* Rechtliches */}
-          <div>
-            <h4 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.16em] mb-5">
-              Rechtliches
-            </h4>
-            <ul className="space-y-3.5 mb-10">
-              {legalLinks.map((l) => (
-                <li key={l.label}>
-                  <Link
-                    href={l.href}
-                    className="text-[13px] text-white/35 hover:text-white transition-colors duration-150"
-                  >
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            {/* Live badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] rounded-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <span className="text-[11px] text-white/25 whitespace-nowrap">Live · Frankfurt EU</span>
+            {/* Produkt */}
+            <div>
+              <h4 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.16em] mb-5">
+                Produkt
+              </h4>
+              <ul className="space-y-3.5">
+                {produktLinks.map((l) => (
+                  <li key={l.label}>
+                    <Link
+                      href={l.href}
+                      className="text-[13px] text-white/35 hover:text-white transition-colors duration-150"
+                    >
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
+
+            {/* Rechtliches */}
+            <div>
+              <h4 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.16em] mb-5">
+                Rechtliches
+              </h4>
+              <ul className="space-y-3.5 mb-10">
+                {legalLinks.map((l) => (
+                  <li key={l.label}>
+                    <Link
+                      href={l.href}
+                      className="text-[13px] text-white/35 hover:text-white transition-colors duration-150"
+                    >
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Live badge */}
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] rounded-lg">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="text-[11px] text-white/25 whitespace-nowrap">Live · Frankfurt EU</span>
+              </div>
+            </div>
+
           </div>
         </div>
 
