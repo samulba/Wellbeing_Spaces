@@ -19,6 +19,11 @@ function csvCell(val: string | number | null | undefined): string {
     : s
 }
 
+function csvNum(val: number | null | undefined): string {
+  if (val == null) return ''
+  return val.toFixed(2).replace('.', ',')
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: { id: string } }
@@ -47,7 +52,7 @@ export async function GET(
   const { data: produkte } = raumIds.length
     ? await supabase
         .from('produkte')
-        .select('*, produktstatus(status)')
+        .select('*, partner(name), produktstatus(status)')
         .in('raum_id', raumIds)
         .is('deleted_at', null)
         .order('raum_id')
@@ -55,33 +60,47 @@ export async function GET(
     : { data: [] }
 
   const header = [
-    'Produktname', 'Raum', 'Kategorie', 'Menge', 'Einheit',
-    'VP netto (€)', 'VP brutto (€)', 'Gesamtpreis netto (€)', 'Status',
+    'Produktname', 'Raum', 'Kategorie', 'Partner',
+    'Menge', 'Einheit',
+    'EP netto (€)',
+    'Marge (%)',
+    'VP netto (€)', 'VP brutto (€)',
+    'Gesamtpreis netto (€)', 'Gesamtpreis brutto (€)',
+    'Status',
   ].join(';')
 
   const rows = (produkte ?? []).map((p) => {
-    const vp = p.verkaufspreis ?? 0
-    const vpBrutto = r2(vp * (1 + MWST))
-    const gesamtNetto = r2(vp * p.menge)
-    // produktstatus may be array or object depending on Supabase join
-    const statusObj = Array.isArray(p.produktstatus) ? p.produktstatus[0] : p.produktstatus
-    const status = statusObj?.status ?? 'ausstehend'
+    const ep  = p.einkaufspreis ?? null
+    const vp  = p.verkaufspreis ?? 0
+    const vpBrutto     = vp != null ? r2(vp * (1 + MWST)) : null
+    const gesamtNetto  = r2(vp * p.menge)
+    const gesamtBrutto = r2(gesamtNetto * (1 + MWST))
+    const statusObj    = Array.isArray(p.produktstatus) ? p.produktstatus[0] : p.produktstatus
+    const status       = statusObj?.status ?? 'ausstehend'
+    const partnerName  = p.partner ? (Array.isArray(p.partner) ? p.partner[0]?.name : p.partner.name) : null
+
     return [
       csvCell(p.name),
       csvCell(raumMap[p.raum_id]),
       csvCell(p.kategorie),
+      csvCell(partnerName),
       p.menge,
       csvCell(p.einheit),
-      vp.toFixed(2).replace('.', ','),
-      vpBrutto.toFixed(2).replace('.', ','),
-      gesamtNetto.toFixed(2).replace('.', ','),
+      csvNum(ep),
+      p.marge_prozent != null ? String(p.marge_prozent).replace('.', ',') : '',
+      csvNum(vp),
+      csvNum(vpBrutto),
+      csvNum(gesamtNetto),
+      csvNum(gesamtBrutto),
       csvCell(STATUSLABEL[status] ?? status),
     ].join(';')
   })
 
   const csv = '\uFEFF' + [header, ...rows].join('\r\n')
-  const safeName = projekt.name.replace(/[^\w\s\-äöüÄÖÜß]/g, '_')
-  const filename = encodeURIComponent(`${safeName}_Produktliste.csv`)
+
+  const heute     = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+  const safeName  = projekt.name.replace(/[^\w\s\-äöüÄÖÜß]/g, '_')
+  const filename  = encodeURIComponent(`${safeName}-${heute}.csv`)
 
   return new NextResponse(csv, {
     headers: {

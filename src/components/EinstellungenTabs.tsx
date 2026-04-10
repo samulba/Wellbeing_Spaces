@@ -4,8 +4,6 @@ import Link from 'next/link'
 import { useFormState, useFormStatus } from 'react-dom'
 import {
   saveAllgemein,
-  addListItem,
-  deleteListItem,
   saveFreigabe,
   type EinstellungActionState,
 } from '@/app/actions/einstellungen'
@@ -23,7 +21,6 @@ import type { User } from '@supabase/supabase-js'
 
 const TABS = [
   { key: 'allgemein',   label: 'Allgemein' },
-  { key: 'kategorien',  label: 'Kategorien' },
   { key: 'team',        label: 'Team' },
   { key: 'sicherheit',  label: 'Sicherheit' },
   { key: 'abrechnung',  label: 'Abrechnung' },
@@ -263,116 +260,7 @@ function AllgemeinTab({ einstellungen }: { einstellungen: Record<string, string>
   )
 }
 
-// ── Tab: Kategorien ───────────────────────────────────────────
 
-function ListeAbschnitt({
-  titel,
-  beschreibung,
-  schluessel,
-  items,
-  platzhalter,
-}: {
-  titel: string
-  beschreibung?: string
-  schluessel: string
-  items: string[]
-  platzhalter: string
-}) {
-  const boundAdd = addListItem.bind(null, schluessel)
-  const [state, action] = useFormState(boundAdd, null)
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-        <h3 className="text-sm font-semibold text-gray-900">{titel}</h3>
-        {beschreibung && (
-          <p className="text-xs text-gray-500 mt-0.5">{beschreibung}</p>
-        )}
-      </div>
-
-      <div className="px-6 py-5 space-y-4">
-        {/* Grid der Einträge */}
-        {items.length === 0 ? (
-          <p className="text-sm text-gray-400">Noch keine Einträge vorhanden.</p>
-        ) : (
-          <div className="grid grid-cols-3 gap-3">
-            {items.map((item) => {
-              const deleteAction = deleteListItem.bind(null, schluessel, item)
-              return (
-                <div
-                  key={item}
-                  className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3.5 py-2.5 gap-2"
-                >
-                  <span className="text-sm text-gray-800 truncate font-medium">{item}</span>
-                  <form action={deleteAction} className="shrink-0">
-                    <button
-                      type="submit"
-                      className="text-[11px] text-red-400/60 hover:text-red-500 transition-colors whitespace-nowrap"
-                      onClick={(e) => {
-                        if (!confirm(`„${item}" löschen?`)) e.preventDefault()
-                      }}
-                    >
-                      Entfernen
-                    </button>
-                  </form>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Hinzufügen – volle Breite */}
-        <form action={action} className="flex items-center gap-2 pt-1">
-          <input
-            name="name"
-            placeholder={platzhalter}
-            required
-            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
-          />
-          <SubmitButton label="Hinzufügen" />
-        </form>
-        <Meldung state={state} />
-      </div>
-    </div>
-  )
-}
-
-function KategorienTab({
-  kategorien,
-  raumtypen,
-  projektarten,
-}: {
-  kategorien: string[]
-  raumtypen: string[]
-  projektarten: string[]
-}) {
-  return (
-    <div className="space-y-6">
-      <ListeAbschnitt
-        titel="Produktkategorien"
-        beschreibung="Kategorien für Produkte in Räumen (z.B. Möbel, Leuchten)"
-        schluessel="produktkategorien"
-        items={kategorien}
-        platzhalter="z.B. Spiegel"
-      />
-      <ListeAbschnitt
-        titel="Raumtypen"
-        beschreibung="Typen für neue Räume in Projekten"
-        schluessel="raumtypen"
-        items={raumtypen}
-        platzhalter="z.B. Empfang"
-      />
-      <ListeAbschnitt
-        titel="Projektarten"
-        beschreibung="Klassifizierung von Projekten"
-        schluessel="projektarten"
-        items={projektarten}
-        platzhalter="z.B. Umbau"
-      />
-    </div>
-  )
-}
 
 // ── Tab: Team ─────────────────────────────────────────────────
 
@@ -680,18 +568,12 @@ function AbrechnungTab() {
 export default function EinstellungenTabs({
   aktuellerTab,
   einstellungen,
-  kategorien,
-  raumtypen,
-  projektarten,
   team,
   userEmail,
   lastSignIn,
 }: {
   aktuellerTab: string
   einstellungen: Record<string, string>
-  kategorien: string[]
-  raumtypen: string[]
-  projektarten: string[]
   team: User[]
   userEmail: string
   lastSignIn: string | null
@@ -717,9 +599,6 @@ export default function EinstellungenTabs({
 
       {/* Inhalt */}
       {aktuellerTab === 'allgemein'  && <AllgemeinTab einstellungen={einstellungen} />}
-      {aktuellerTab === 'kategorien' && (
-        <KategorienTab kategorien={kategorien} raumtypen={raumtypen} projektarten={projektarten} />
-      )}
       {aktuellerTab === 'team'       && <TeamTab team={team} />}
       {aktuellerTab === 'sicherheit' && (
         <SicherheitTab userEmail={userEmail} lastSignIn={lastSignIn} einstellungen={einstellungen} />

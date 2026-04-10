@@ -14,13 +14,6 @@ async function getTeamMitglieder() {
   }
 }
 
-function parseList(wert: string | undefined, fallback: string): string[] {
-  return (wert ?? fallback)
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
-
 export default async function EinstellungenPage({
   searchParams,
 }: {
@@ -36,19 +29,12 @@ export default async function EinstellungenPage({
     getTeamMitglieder(),
   ])
 
-  const kategorien  = parseList(einstellungen.produktkategorien, 'Möbel,Leuchten,Textilien,Accessoires,Pflanzen,Sonstiges')
-  const raumtypen   = parseList(einstellungen.raumtypen,   'Büro,Studio,Wellness,Hotel,Privat,Wohnung,Sonstiges')
-  const projektarten = parseList(einstellungen.projektarten, 'Neubau,Renovation,Konzept,Beratung,Sonstiges')
-
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
       <h1 className="text-xl font-semibold text-gray-900 mb-6">Einstellungen</h1>
       <EinstellungenTabs
         aktuellerTab={tab}
         einstellungen={einstellungen}
-        kategorien={kategorien}
-        raumtypen={raumtypen}
-        projektarten={projektarten}
         team={team}
         userEmail={user?.email ?? ''}
         lastSignIn={user?.last_sign_in_at ?? null}

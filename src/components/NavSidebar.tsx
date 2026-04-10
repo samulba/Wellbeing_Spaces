@@ -8,16 +8,20 @@ import {
   Users,
   FolderOpen,
   Handshake,
+  CheckSquare,
+  Tag,
   Settings,
   LogOut,
 } from 'lucide-react'
 
 // ── Nav-Konfiguration ────────────────────────────────────────
 const navLinks = [
-  { label: 'Dashboard', href: '/dashboard',         icon: LayoutDashboard },
-  { label: 'Kunden',    href: '/dashboard/kunden',  icon: Users },
-  { label: 'Projekte',  href: '/dashboard/projekte', icon: FolderOpen },
-  { label: 'Partner',   href: '/dashboard/partner', icon: Handshake },
+  { label: 'Dashboard',  href: '/dashboard',            icon: LayoutDashboard },
+  { label: 'Kunden',     href: '/dashboard/kunden',     icon: Users },
+  { label: 'Projekte',   href: '/dashboard/projekte',   icon: FolderOpen },
+  { label: 'Partner',    href: '/dashboard/partner',    icon: Handshake },
+  { label: 'Freigaben',  href: '/dashboard/freigaben',  icon: CheckSquare },
+  { label: 'Kategorien', href: '/dashboard/kategorien', icon: Tag },
 ]
 
 // ── Avatar-Hilfsfunktionen ───────────────────────────────────

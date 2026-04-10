@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Mail, Phone, FolderOpen, Search } from 'lucide-react'
+import { Mail, Phone, FolderOpen, Search, LayoutGrid, List } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type KundeKarte = {
@@ -31,6 +31,17 @@ function initials(name: string) {
 // ── Komponente ────────────────────────────────────────────────
 export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
   const [suche, setSuche] = useState('')
+  const [ansicht, setAnsicht] = useState<'grid' | 'list'>('grid')
+
+  useEffect(() => {
+    const gespeichert = localStorage.getItem('kunden-ansicht')
+    if (gespeichert === 'list' || gespeichert === 'grid') setAnsicht(gespeichert)
+  }, [])
+
+  function toggleAnsicht(neu: 'grid' | 'list') {
+    setAnsicht(neu)
+    localStorage.setItem('kunden-ansicht', neu)
+  }
 
   const gefiltert = suche.trim()
     ? kunden.filter((k) =>
@@ -42,16 +53,42 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
 
   return (
     <>
-      {/* Suchfeld */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Kunden suchen…"
-          value={suche}
-          onChange={(e) => setSuche(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition"
-        />
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 mb-6">
+        {/* Suchfeld */}
+        <div className="relative w-[400px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Kunden suchen…"
+            value={suche}
+            onChange={(e) => setSuche(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition"
+          />
+        </div>
+
+        {/* Anzahl */}
+        <span className="text-sm text-gray-400">
+          {gefiltert.length} {gefiltert.length === 1 ? 'Eintrag' : 'Einträge'}
+        </span>
+
+        {/* View Switcher */}
+        <div className="ml-auto flex items-center border border-gray-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => toggleAnsicht('grid')}
+            className={`px-3 py-2 transition-colors ${ansicht === 'grid' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+            title="Kachelansicht"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => toggleAnsicht('list')}
+            className={`px-3 py-2 transition-colors border-l border-gray-200 ${ansicht === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+            title="Listenansicht"
+          >
+            <List className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Kein Ergebnis */}
@@ -62,7 +99,7 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
       )}
 
       {/* Karten-Grid */}
-      {gefiltert.length > 0 && (
+      {gefiltert.length > 0 && ansicht === 'grid' && (
         <div className="grid grid-cols-3 gap-5">
           {gefiltert.map((kunde) => {
             const farbe = avatarFarbe(kunde.name)
@@ -75,9 +112,7 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
               >
                 {/* Header: Avatar + Name */}
                 <div className="flex items-center gap-3.5">
-                  <div
-                    className={`w-14 h-14 rounded-xl flex items-center justify-center text-[18px] font-bold text-white shrink-0 ${farbe}`}
-                  >
+                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-[18px] font-bold text-white shrink-0 ${farbe}`}>
                     {kuerzel}
                   </div>
                   <div className="min-w-0">
@@ -121,6 +156,62 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
               </Link>
             )
           })}
+        </div>
+      )}
+
+      {/* Listen-Ansicht */}
+      {gefiltert.length > 0 && ansicht === 'list' && (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest">Kunde</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest">Ansprechpartner</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest">E-Mail</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest">Telefon</th>
+                <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest">Projekte</th>
+                <th className="w-16" />
+              </tr>
+            </thead>
+            <tbody>
+              {gefiltert.map((kunde, i) => {
+                const farbe = avatarFarbe(kunde.name)
+                const kuerzel = initials(kunde.name)
+                return (
+                  <tr
+                    key={kunde.id}
+                    className={`hover:bg-gray-50 transition-colors group ${i < gefiltert.length - 1 ? 'border-b border-gray-100' : ''}`}
+                  >
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white shrink-0 ${farbe}`}>
+                          {kuerzel}
+                        </div>
+                        <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{kunde.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-gray-600">{kunde.ansprechpartner ?? '–'}</td>
+                    <td className="px-4 py-3.5 text-gray-500">{kunde.email ?? '–'}</td>
+                    <td className="px-4 py-3.5 text-gray-500">{kunde.telefon ?? '–'}</td>
+                    <td className="px-4 py-3.5 text-center">
+                      <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                        <FolderOpen className="w-3.5 h-3.5 text-gray-400" />
+                        {kunde.projektCount}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3.5">
+                      <Link
+                        href={`/dashboard/kunden/${kunde.id}`}
+                        className="text-xs text-gray-400 hover:text-indigo-600 transition-colors opacity-0 group-hover:opacity-100 whitespace-nowrap"
+                      >
+                        Öffnen →
+                      </Link>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </>
