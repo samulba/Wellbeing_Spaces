@@ -1,7 +1,9 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { Upload, Loader2, X } from 'lucide-react'
 import type { ProduktActionState } from '@/app/actions/produkte'
 import type { Partner, ProduktMitDetails } from '@/lib/supabase/types'
 
@@ -24,12 +26,13 @@ const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
-function SpeichernButton() {
+function SpeichernButton({ disabled }: { disabled?: boolean }) {
   const { pending } = useFormStatus()
+  const isDisabled = pending || disabled
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={isDisabled}
       className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
     >
       {pending ? 'Wird gespeichert…' : 'Speichern'}
@@ -54,6 +57,27 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
   const [vpNetto, setVpNetto] = useState<number>(initialData?.verkaufspreis ?? 0)
   const [provision, setProvision] = useState<number>(initialData?.provision_prozent ?? 0)
   const [menge, setMenge] = useState<number>(initialData?.menge ?? 1)
+  const [bildUrl, setBildUrl] = useState<string>(initialData?.bild_url ?? '')
+  const [bildUploading, setBildUploading] = useState(false)
+  const bildInputRef = useRef<HTMLInputElement>(null)
+
+  const handleBildUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setBildUploading(true)
+    const supabase = createClient()
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const pfad = `produkte/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+    const { data, error } = await supabase.storage
+      .from('produktbilder')
+      .upload(pfad, file, { contentType: file.type, upsert: false })
+    if (!error && data) {
+      const { data: { publicUrl } } = supabase.storage.from('produktbilder').getPublicUrl(data.path)
+      setBildUrl(publicUrl)
+    }
+    setBildUploading(false)
+    if (bildInputRef.current) bildInputRef.current.value = ''
+  }, [])
 
   const vpBrutto    = r2(vpNetto * (1 + MWST))
   const provisionEur = r2(vpNetto * (provision / 100))
@@ -282,13 +306,42 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
           </select>
         </div>
 
+        {/* Produktbild Upload */}
         <div>
-          <label htmlFor="bild_url" className={lbl}>Bild-URL</label>
+          <label className={lbl}>Produktbild</label>
+          <input type="hidden" name="bild_url" value={bildUrl} />
+
+          {bildUrl && (
+            <div className="relative w-20 h-20 mb-2 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={bildUrl} alt="Vorschau" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => setBildUrl('')}
+                className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow text-gray-500 hover:text-red-500 flex items-center justify-center transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => bildInputRef.current?.click()}
+            disabled={bildUploading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            {bildUploading
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Wird hochgeladen…</>
+              : <><Upload className="w-3.5 h-3.5 text-gray-400" /> {bildUrl ? 'Bild ersetzen' : 'Bild hochladen'}</>
+            }
+          </button>
           <input
-            id="bild_url" name="bild_url" type="url"
-            defaultValue={initialData?.bild_url ?? ''}
-            className={inp}
-            placeholder="https://…"
+            ref={bildInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleBildUpload}
+            className="hidden"
           />
         </div>
 
@@ -307,7 +360,7 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
 
       {/* Aktionen */}
       <div className="flex items-center gap-3 pt-1">
-        <SpeichernButton />
+        <SpeichernButton disabled={bildUploading} />
         <a href={abbrechen} className="px-5 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
           Abbrechen
         </a>

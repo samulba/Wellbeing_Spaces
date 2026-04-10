@@ -3,17 +3,19 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import RaumHinzufuegen from '@/components/RaumHinzufuegen'
 import FreigabeLinkKarte from '@/components/FreigabeLinkKarte'
+import DateiUpload from '@/components/DateiUpload'
 import { raumAnlegen, raumSoftDelete } from '@/app/actions/raeume'
 import { projektSoftDelete, projektStatusAendern } from '@/app/actions/projekte'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Download } from 'lucide-react'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
+import type { DateiItem } from '@/components/DateiUpload'
 
 const statusOptionen = [
-  { wert: 'offen',          label: 'Offen',          farbe: 'bg-gray-100 text-gray-600' },
-  { wert: 'in_bearbeitung', label: 'In Bearbeitung',  farbe: 'bg-blue-50 text-blue-700' },
-  { wert: 'freigegeben',    label: 'Freigegeben',     farbe: 'bg-emerald-50 text-emerald-700' },
-  { wert: 'abgeschlossen',  label: 'Abgeschlossen',   farbe: 'bg-gray-100 text-gray-500' },
+  { wert: 'offen',          label: 'Offen',         farbe: 'bg-gray-100 text-gray-600' },
+  { wert: 'in_bearbeitung', label: 'In Bearbeitung', farbe: 'bg-blue-50 text-blue-700' },
+  { wert: 'freigegeben',    label: 'Freigegeben',    farbe: 'bg-emerald-50 text-emerald-700' },
+  { wert: 'abgeschlossen',  label: 'Abgeschlossen',  farbe: 'bg-gray-100 text-gray-500' },
 ]
 
 async function getProjekt(id: string): Promise<ProjektMitKunde | null> {
@@ -34,17 +36,29 @@ async function getAktivenToken(projektId: string) {
   return data
 }
 
+async function getDateien(projektId: string): Promise<DateiItem[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('dateien')
+    .select('id, datei_name, datei_url, datei_typ, dateigroesse')
+    .eq('projekt_id', projektId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+  return (data ?? []) as DateiItem[]
+}
+
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const [projekt, raeume, aktiverToken] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
+    getDateien(params.id),
   ])
 
   if (!projekt) notFound()
 
   const raumHinzufuegenAktion = raumAnlegen.bind(null, projekt.id)
-  const loeschenAktion = projektSoftDelete.bind(null, projekt.id)
+  const loeschenAktion        = projektSoftDelete.bind(null, projekt.id)
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
@@ -67,6 +81,15 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
           <h1 className="text-xl font-semibold text-gray-900">{projekt.name}</h1>
         </div>
         <div className="flex items-center gap-2">
+          {/* CSV Export */}
+          <a
+            href={`/api/projekte/${projekt.id}/export`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02] rounded-lg transition-all duration-200"
+            download
+          >
+            <Download className="w-3.5 h-3.5" />
+            CSV Export
+          </a>
           <Link
             href={`/dashboard/projekte/${projekt.id}/bearbeiten`}
             className="px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02] rounded-lg transition-all duration-200"
@@ -109,7 +132,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Projektdetails</h2>
             <dl className="space-y-3">
               <InfoZeile label="Projektart" wert={projekt.projektart} />
-              <InfoZeile label="Standort" wert={projekt.standort} />
+              <InfoZeile label="Standort"   wert={projekt.standort} />
               {projekt.gesamtbudget != null && (
                 <div>
                   <dt className="text-xs text-gray-500 mb-0.5">Gesamtbudget</dt>
@@ -135,6 +158,8 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
           )}
 
           <FreigabeLinkKarte projektId={projekt.id} initialToken={aktiverToken ?? null} />
+
+          <DateiUpload projektId={projekt.id} initialDateien={dateien} />
         </div>
 
         {/* Rechte Spalte: Räume */}
