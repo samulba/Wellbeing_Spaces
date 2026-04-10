@@ -33,12 +33,17 @@ const faqs = [
 
 export default function FAQ() {
   return (
-    <section id="faq" className="bg-white py-24">
+    <section id="faq" className="bg-[#F8F9FA] py-28">
       <div className="max-w-2xl mx-auto px-5">
-        <AnimateOnScroll>
-          <h2 className="font-syne font-bold text-[36px] md:text-[48px] text-[#0F1117] text-center mb-14 leading-[1.1]">
-            Häufige Fragen
-          </h2>
+        <AnimateOnScroll type="blur-in">
+          <div className="text-center mb-14">
+            <p className="text-[11px] font-bold text-[#6366F1] uppercase tracking-[0.2em] mb-3">
+              FAQ
+            </p>
+            <h2 className="font-syne font-bold text-[36px] md:text-[48px] text-[#0F1117] leading-[1.1]">
+              Häufige Fragen
+            </h2>
+          </div>
         </AnimateOnScroll>
 
         <div className="space-y-3">

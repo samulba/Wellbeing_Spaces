@@ -18,6 +18,7 @@ const plans = [
     ],
     cta: 'Kostenlos starten',
     highlight: false,
+    animType: 'fade-up' as const,
   },
   {
     name: 'Pro',
@@ -34,6 +35,7 @@ const plans = [
     ],
     cta: 'Pro starten',
     highlight: true,
+    animType: 'scale-in' as const,
   },
   {
     name: 'Team',
@@ -50,17 +52,27 @@ const plans = [
     ],
     cta: 'Team starten',
     highlight: false,
+    animType: 'fade-up' as const,
   },
 ]
 
 export default function Pricing() {
   return (
-    <section id="preise" className="bg-[#F8F9FA] py-24">
-      <div className="max-w-5xl mx-auto px-5">
-        <AnimateOnScroll>
-          <div className="text-center mb-14">
+    <section id="preise" className="bg-white py-28 relative overflow-hidden">
+      {/* Background accent */}
+      <div
+        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-indigo-50/80 blur-[80px] rounded-full pointer-events-none"
+        aria-hidden
+      />
+
+      <div className="relative z-10 max-w-5xl mx-auto px-5">
+        <AnimateOnScroll type="blur-in">
+          <div className="text-center mb-16">
+            <p className="text-[11px] font-bold text-[#6366F1] uppercase tracking-[0.2em] mb-3">
+              Preise
+            </p>
             <h2 className="font-syne font-bold text-[36px] md:text-[52px] text-[#0F1117] mb-3 leading-[1.1]">
-              Ehrliche Preise. Kein Abo-Chaos.
+              Ehrliche Preise.<br className="hidden md:block" /> Kein Abo-Chaos.
             </h2>
             <p className="text-gray-500 text-[16px]">
               Alle Preise zzgl. MwSt. · Monatlich kündbar · Keine Jahresbindung.
@@ -70,16 +82,21 @@ export default function Pricing() {
 
         <div className="grid md:grid-cols-3 gap-5 items-start">
           {plans.map((plan, i) => (
-            <AnimateOnScroll key={plan.name} delay={i * 100}>
+            <AnimateOnScroll key={plan.name} delay={i * 110} type={plan.animType}>
               <div
-                className={`relative rounded-2xl p-8 flex flex-col h-full ${
+                className={`relative rounded-2xl p-8 flex flex-col h-full transition-all duration-300 ${
                   plan.highlight
-                    ? 'bg-white border-2 border-[#6366F1] shadow-xl shadow-indigo-100/60'
-                    : 'bg-white border border-gray-200 shadow-sm'
+                    ? 'bg-white border-2 border-[#6366F1] shadow-2xl shadow-indigo-100/80 hover:-translate-y-2'
+                    : 'bg-white border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md hover:-translate-y-1'
                 }`}
               >
+                {/* Pro shimmer top bar */}
+                {plan.highlight && (
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-400 via-indigo-500 to-violet-400 rounded-t-2xl" />
+                )}
+
                 {plan.badge && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#6366F1] text-white text-[11px] font-bold rounded-full whitespace-nowrap uppercase tracking-wide">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#6366F1] text-white text-[11px] font-bold rounded-full whitespace-nowrap uppercase tracking-wide shadow-md shadow-indigo-200">
                     {plan.badge}
                   </div>
                 )}
@@ -90,7 +107,7 @@ export default function Pricing() {
                   </p>
                   <h3 className="font-syne font-bold text-[22px] text-[#0F1117] mb-4">{plan.name}</h3>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-syne font-bold text-[44px] text-[#0F1117] leading-none">
+                    <span className={`font-syne font-bold text-[48px] leading-none ${plan.highlight ? 'text-[#6366F1]' : 'text-[#0F1117]'}`}>
                       {plan.price}€
                     </span>
                     {plan.period && (
@@ -114,7 +131,7 @@ export default function Pricing() {
 
                 <Link
                   href="/login"
-                  className={`w-full flex items-center justify-center py-3 px-4 rounded-xl text-[14px] font-semibold transition-all duration-200 ${
+                  className={`w-full flex items-center justify-center py-3.5 px-4 rounded-xl text-[14px] font-semibold transition-all duration-200 ${
                     plan.highlight
                       ? 'bg-[#6366F1] hover:bg-[#4F46E5] text-white hover:shadow-lg hover:shadow-indigo-200'
                       : 'bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200'
