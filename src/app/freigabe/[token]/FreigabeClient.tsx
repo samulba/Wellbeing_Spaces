@@ -156,10 +156,19 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume }
         })}
 
         {/* Fußzeile */}
-        <div className="text-center pt-8 pb-4 border-t border-gray-200 mt-8">
+        <div className="text-center pt-8 pb-4 border-t border-gray-200 mt-8 space-y-2">
           <p className="text-xs text-gray-400">
             Alle Angaben sind unverbindlich.
           </p>
+          <div className="flex items-center justify-center gap-3">
+            <a href="/impressum" className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors">
+              Impressum
+            </a>
+            <span className="text-gray-300">·</span>
+            <a href="/datenschutz" className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors">
+              Datenschutz
+            </a>
+          </div>
         </div>
       </div>
     </div>
