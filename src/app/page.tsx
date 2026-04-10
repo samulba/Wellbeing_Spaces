@@ -6,8 +6,9 @@ import ProblemSolution  from '@/components/landing/ProblemSolution'
 import Features     from '@/components/landing/Features'
 import HowItWorks   from '@/components/landing/HowItWorks'
 import WhyWBC       from '@/components/landing/WhyWBC'
-import Testimonials from '@/components/landing/Testimonials'
-import Pricing      from '@/components/landing/Pricing'
+import Testimonials         from '@/components/landing/Testimonials'
+import PricingCalculator   from '@/components/landing/PricingCalculator'
+import Pricing             from '@/components/landing/Pricing'
 import FAQ          from '@/components/landing/FAQ'
 import FinalCTA     from '@/components/landing/FinalCTA'
 import Footer       from '@/components/landing/Footer'
@@ -41,6 +42,7 @@ export default function LandingPage() {
       <HowItWorks />
       <WhyWBC />
       <Testimonials />
+      <PricingCalculator />
       <Pricing />
       <FAQ />
       <FinalCTA />
