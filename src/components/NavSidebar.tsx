@@ -14,7 +14,7 @@ import {
 
 // ── Nav-Konfiguration ────────────────────────────────────────
 const navLinks = [
-  { label: 'Übersicht', href: '/dashboard',         icon: LayoutDashboard },
+  { label: 'Dashboard', href: '/dashboard',         icon: LayoutDashboard },
   { label: 'Kunden',    href: '/dashboard/kunden',  icon: Users },
   { label: 'Projekte',  href: '/dashboard/projekte', icon: FolderOpen },
   { label: 'Partner',   href: '/dashboard/partner', icon: Handshake },
@@ -35,13 +35,13 @@ function initials(email: string, name?: string) {
   return email.split('@')[0].slice(0, 2).toUpperCase()
 }
 
-// ── Depth-Stack Icon (3 übereinanderliegende Quadrate) ───────
+// ── Depth-Stack Icon (3 gestaffelte Quadrate, links-oben → rechts-unten) ───
 function DepthStackIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="5" y="1" width="12" height="9" rx="2" fill="#6366F1" opacity="0.35" />
-      <rect x="2.5" y="3.5" width="12" height="9" rx="2" fill="#6366F1" opacity="0.55" />
-      <rect x="0" y="6" width="12" height="9" rx="2" fill="#6366F1" />
+      <rect x="0" y="0" width="10" height="10" rx="2" fill="#6366F1" opacity="0.30" />
+      <rect x="4" y="4" width="10" height="10" rx="2" fill="#6366F1" opacity="0.55" />
+      <rect x="8" y="8" width="10" height="10" rx="2" fill="#6366F1" />
     </svg>
   )
 }
@@ -69,13 +69,13 @@ export default function NavSidebar({
   const farbe       = avatarFarbe(userEmail)
 
   return (
-    <aside className="w-[224px] shrink-0 bg-[#0F1117] flex flex-col h-full">
+    <aside className="w-72 shrink-0 bg-[#0F1117] flex flex-col h-full">
 
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-[18px] border-b border-white/[0.06]">
         <DepthStackIcon />
         <span className="font-syne text-[16px] font-bold text-white tracking-tight leading-none">
-          Studio
+          WBC Studio
         </span>
       </div>
 

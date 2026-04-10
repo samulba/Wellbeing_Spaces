@@ -29,7 +29,7 @@ export default async function ProjektePage() {
   const projekte = await getProjekte()
 
   return (
-    <div className="px-6 py-6 animate-fadeIn">
+    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Projekte</h1>

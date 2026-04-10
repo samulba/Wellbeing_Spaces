@@ -157,7 +157,7 @@ async function getDashboardData() {
     }))
   }
 
-  // ── Budget-Übersicht (Tabelle Zeile 3) ───────────────────
+  // ── Budget-Übersicht ──────────────────────────────────────
   const budgetUebersicht = (projekteDaten ?? [])
     .filter((p) => (p.gesamtbudget ?? 0) > 0)
     .map((p) => {
@@ -172,10 +172,10 @@ async function getDashboardData() {
     })
 
   return {
-    kundenCount:    kundenCount    ?? 0,
-    projekteCount:  projekteCount  ?? 0,
-    partnerCount:   partnerCount   ?? 0,
-    produkteCount:  produkteCount  ?? 0,
+    kundenCount:     kundenCount    ?? 0,
+    projekteCount:   projekteCount  ?? 0,
+    partnerCount:    partnerCount   ?? 0,
+    produkteCount:   produkteCount  ?? 0,
     ausstehendCount: ausstehendIds.length,
     projektKosten,
     statusVerteilung,
@@ -212,20 +212,20 @@ export default async function DashboardPage() {
   } = await getDashboardData()
 
   const kpis = [
-    { label: 'Kunden',          wert: kundenCount,    href: '/dashboard/kunden',   icon: Users,       farbe: 'text-indigo-600', bg: 'bg-indigo-50'  },
-    { label: 'Projekte',         wert: projekteCount,  href: '/dashboard/projekte', icon: FolderOpen,  farbe: 'text-blue-600',   bg: 'bg-blue-50'    },
-    { label: 'Partner',          wert: partnerCount,   href: '/dashboard/partner',  icon: Handshake,   farbe: 'text-violet-600', bg: 'bg-violet-50'  },
+    { label: 'Kunden',          wert: kundenCount,     href: '/dashboard/kunden',   icon: Users,       farbe: 'text-indigo-600', bg: 'bg-indigo-50'  },
+    { label: 'Projekte',         wert: projekteCount,   href: '/dashboard/projekte', icon: FolderOpen,  farbe: 'text-blue-600',   bg: 'bg-blue-50'    },
+    { label: 'Partner',          wert: partnerCount,    href: '/dashboard/partner',  icon: Handshake,   farbe: 'text-violet-600', bg: 'bg-violet-50'  },
     { label: 'Offene Freigaben', wert: ausstehendCount, href: '/dashboard/projekte', icon: AlertCircle, farbe: 'text-amber-600',  bg: 'bg-amber-50'   },
   ]
 
   return (
-    <div className="px-6 py-6 animate-fadeIn space-y-6">
+    <div className="h-full overflow-hidden flex flex-col px-6 py-5 gap-4 animate-fadeIn">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="shrink-0 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Übersicht</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Willkommen im Studio.</p>
+          <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Willkommen im WBC Studio.</p>
         </div>
         <div className="flex items-center gap-2">
           {[
@@ -244,12 +244,12 @@ export default async function DashboardPage() {
       </div>
 
       {/* Zeile 1: KPI-Kacheln */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="shrink-0 grid grid-cols-4 gap-4">
         {kpis.map(({ label, wert, href, icon: Icon, farbe, bg }) => (
           <Link
             key={label}
             href={href}
-            className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md hover:border-gray-300 transition-all duration-200 group flex items-center gap-4"
+            className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md hover:border-gray-300 transition-all duration-200 group flex items-center gap-4"
           >
             <div className={`${bg} p-2.5 rounded-xl shrink-0`}>
               <Icon className={`w-5 h-5 ${farbe}`} />
@@ -264,21 +264,21 @@ export default async function DashboardPage() {
       </div>
 
       {/* Zeile 2: Donut (30%) + Balken (70%) */}
-      <div className="grid grid-cols-10 gap-4" style={{ minHeight: 320 }}>
-        <div className="col-span-3">
+      <div className="flex-[5] min-h-0 grid grid-cols-10 gap-4">
+        <div className="col-span-3 h-full">
           <DonutChart data={statusVerteilung} gesamt={gesamtProdukte} />
         </div>
-        <div className="col-span-7">
+        <div className="col-span-7 h-full">
           <BalkenChart data={projektKosten} />
         </div>
       </div>
 
       {/* Zeile 3: Offene Freigaben (50%) + Budget-Übersicht (50%) */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="flex-[4] min-h-0 grid grid-cols-2 gap-4">
 
         {/* Offene Freigaben */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col">
+          <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-500" />
               <h2 className="text-sm font-semibold text-gray-900">
@@ -296,7 +296,7 @@ export default async function DashboardPage() {
           </div>
 
           {offeneFreigaben.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-2">
+            <div className="flex-1 flex flex-col items-center justify-center gap-2">
               <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-emerald-500" />
               </div>
@@ -304,12 +304,12 @@ export default async function DashboardPage() {
               <p className="text-xs text-gray-400">Keine ausstehenden Produktfreigaben.</p>
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="flex-1 overflow-y-auto divide-y divide-gray-100">
               {offeneFreigaben.map((f) => (
                 <li key={f.id}>
                   <Link
                     href={`/dashboard/projekte/${f.projektId}`}
-                    className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors group"
+                    className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
@@ -330,14 +330,14 @@ export default async function DashboardPage() {
         </div>
 
         {/* Budget-Übersicht */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-gray-100">
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col">
+          <div className="shrink-0 px-5 py-3.5 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-900">Budget-Übersicht</h2>
             <p className="text-xs text-gray-400 mt-0.5">Projekte mit gesetztem Budget</p>
           </div>
 
           {budgetUebersicht.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-2">
+            <div className="flex-1 flex flex-col items-center justify-center gap-2">
               <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
                 <Package className="w-5 h-5 text-gray-400" />
               </div>
@@ -345,13 +345,13 @@ export default async function DashboardPage() {
               <p className="text-xs text-gray-400">Setze ein Gesamtbudget in deinen Projekten.</p>
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100">
-              {budgetUebersicht.slice(0, 6).map((p) => {
+            <ul className="flex-1 overflow-y-auto divide-y divide-gray-100">
+              {budgetUebersicht.map((p) => {
                 const ueberschritten = p.prozent > 100
                 return (
-                  <li key={p.name} className="px-5 py-3.5">
+                  <li key={p.name} className="px-5 py-3">
                     <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-sm font-medium text-gray-900 truncate max-w-[60%]">{p.name}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate max-w-[55%]">{p.name}</p>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
                         <span className={`text-xs font-semibold ${ueberschritten ? 'text-red-500' : 'text-gray-500'}`}>
                           {p.prozent}%
@@ -373,84 +373,88 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Zeile 4: Liniendiagramm volle Breite */}
-      <LinienChart data={aktivitaet} />
+      {/* Zeile 4: Liniendiagramm (40%) + Letzte Projekte (60%) */}
+      <div className="flex-[4] min-h-0 grid grid-cols-5 gap-4">
 
-      {/* Zeile 5: Letzte Projekte Tabelle volle Breite */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-900">
-            Letzte Projekte <span className="text-gray-400 font-normal">({letzteProjekte.length})</span>
-          </h2>
-          <Link href="/dashboard/projekte" className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors font-medium">
-            Alle anzeigen →
-          </Link>
+        {/* Liniendiagramm */}
+        <div className="col-span-2 h-full">
+          <LinienChart data={aktivitaet} />
         </div>
 
-        {letzteProjekte.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-              <FolderOpen className="w-5 h-5 text-indigo-400" />
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-medium text-gray-600">Noch keine Projekte</p>
-              <p className="text-xs text-gray-400 mt-0.5">Lege dein erstes Projekt an.</p>
-            </div>
-            <Link
-              href="/dashboard/projekte/neu"
-              className="text-xs px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
-            >
-              + Neues Projekt
+        {/* Letzte Projekte */}
+        <div className="col-span-3 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col">
+          <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-900">
+              Letzte Projekte <span className="text-gray-400 font-normal">({letzteProjekte.length})</span>
+            </h2>
+            <Link href="/dashboard/projekte" className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors font-medium">
+              Alle anzeigen →
             </Link>
           </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest">Projekt</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest">Kunde</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest">Status</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest">Budget</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest">Angelegt</th>
-                <th className="w-10" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {letzteProjekte.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50 transition-colors group">
-                  <td className="px-5 py-3.5">
-                    <Link
-                      href={`/dashboard/projekte/${p.id}`}
-                      className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors"
-                    >
-                      {p.name}
-                    </Link>
-                  </td>
-                  <td className="px-5 py-3.5 text-gray-500 text-xs">{p.kunden?.name ?? '–'}</td>
-                  <td className="px-5 py-3.5">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {statusLabel[p.status] ?? p.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5 text-xs text-gray-500 font-mono">
-                    {p.gesamtbudget != null ? eur(p.gesamtbudget) : '–'}
-                  </td>
-                  <td className="px-5 py-3.5 text-xs text-gray-400">
-                    {new Date(p.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <Link
-                      href={`/dashboard/projekte/${p.id}`}
-                      className="text-xs text-gray-300 group-hover:text-indigo-500 transition-colors"
-                    >
-                      →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+
+          {letzteProjekte.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                <FolderOpen className="w-5 h-5 text-indigo-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-600">Noch keine Projekte</p>
+                <p className="text-xs text-gray-400 mt-0.5">Lege dein erstes Projekt an.</p>
+              </div>
+              <Link
+                href="/dashboard/projekte/neu"
+                className="text-xs px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+              >
+                + Neues Projekt
+              </Link>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-widest">Projekt</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-widest">Kunde</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-widest">Status</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-widest">Budget</th>
+                    <th className="w-8" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {letzteProjekte.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-50 transition-colors group">
+                      <td className="px-5 py-3">
+                        <Link
+                          href={`/dashboard/projekte/${p.id}`}
+                          className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors"
+                        >
+                          {p.name}
+                        </Link>
+                      </td>
+                      <td className="px-5 py-3 text-gray-500 text-xs">{p.kunden?.name ?? '–'}</td>
+                      <td className="px-5 py-3">
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {statusLabel[p.status] ?? p.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-xs text-gray-500 font-mono">
+                        {p.gesamtbudget != null ? eur(p.gesamtbudget) : '–'}
+                      </td>
+                      <td className="px-3 py-3">
+                        <Link
+                          href={`/dashboard/projekte/${p.id}`}
+                          className="text-xs text-gray-300 group-hover:text-indigo-500 transition-colors"
+                        >
+                          →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
     </div>

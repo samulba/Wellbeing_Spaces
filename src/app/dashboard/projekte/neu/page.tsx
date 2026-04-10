@@ -22,7 +22,7 @@ export default async function NeuesProjektPage({
   const kunden = await getKunden()
 
   return (
-    <div className="px-6 py-6 animate-fadeIn">
+    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
       <div className="mb-8">
         <Link
           href="/dashboard/projekte"

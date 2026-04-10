@@ -87,7 +87,7 @@ export default async function RaumDetailPage({
   )
 
   return (
-    <div className="px-6 py-6 animate-fadeIn">
+    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
       {/* Breadcrumb + Header */}
       <div className="flex items-start justify-between mb-6">
         <div>

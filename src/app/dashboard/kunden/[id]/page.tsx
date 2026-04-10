@@ -57,7 +57,7 @@ export default async function KundeDetailPage({ params }: { params: { id: string
   const loeschenMitId = kundeSoftDelete.bind(null, kunde.id)
 
   return (
-    <div className="px-6 py-6 animate-fadeIn">
+    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">

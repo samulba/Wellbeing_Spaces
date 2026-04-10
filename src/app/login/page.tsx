@@ -38,9 +38,9 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="mb-10 text-center">
           <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-600 rounded-xl mb-4">
-            <span className="text-white font-bold text-lg">S</span>
+            <span className="text-white font-bold text-lg">W</span>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900">Studio</h1>
+          <h1 className="text-xl font-semibold text-gray-900">WBC Studio</h1>
           <p className="mt-1 text-sm text-gray-500">Internes Projekt-Tool</p>
         </div>
 

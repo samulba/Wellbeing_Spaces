@@ -9,7 +9,7 @@ export default async function ProfilPage() {
   const name = (user?.user_metadata?.full_name as string | undefined) ?? ''
 
   return (
-    <div className="px-6 py-6 animate-fadeIn max-w-xl">
+    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn max-w-xl">
       <h1 className="text-xl font-semibold text-gray-900 mb-6">Profil</h1>
 
       <ProfilFormular email={email} name={name} />

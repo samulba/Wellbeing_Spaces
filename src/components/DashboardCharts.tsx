@@ -123,8 +123,8 @@ export function BalkenChart({ data }: { data: ProjektKostenData[] }) {
           ctaHref="/dashboard/projekte/neu"
         />
       ) : (
-        <div className="flex-1 px-4 py-4">
-          <ResponsiveContainer width="100%" height={248}>
+        <div className="flex-1 min-h-0 px-4 py-4">
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} barCategoryGap="30%" barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
               <XAxis
@@ -193,10 +193,10 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
           ctaHref="/dashboard/projekte"
         />
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center px-4 py-3">
+        <div className="flex-1 min-h-0 flex flex-col px-4 py-3">
           {/* Donut mit Overlay */}
-          <div className="relative w-full" style={{ height: 200 }}>
-            <ResponsiveContainer width="100%" height={200}>
+          <div className="flex-1 min-h-0 relative">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={data}
@@ -254,8 +254,8 @@ export function LinienChart({ data }: { data: MonatsData[] }) {
   const hatAktivitaet = data.some((d) => d.projekte > 0 || d.kunden > 0)
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-full flex flex-col">
+      <div className="shrink-0 px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">Aktivität</h3>
           <p className="text-xs text-gray-400 mt-0.5">Neue Projekte und Kunden – letzte 6 Monate</p>
@@ -273,7 +273,7 @@ export function LinienChart({ data }: { data: MonatsData[] }) {
       </div>
 
       {!hatAktivitaet ? (
-        <div className="h-[180px]">
+        <div className="flex-1 min-h-0">
           <LeererZustand
             icon={TrendingUp}
             titel="Noch keine Aktivität"
@@ -281,8 +281,8 @@ export function LinienChart({ data }: { data: MonatsData[] }) {
           />
         </div>
       ) : (
-        <div className="px-4 py-4">
-          <ResponsiveContainer width="100%" height={180}>
+        <div className="flex-1 min-h-0 px-4 py-4">
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="gradProjekte" x1="0" y1="0" x2="0" y2="1">

@@ -35,7 +35,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
   const gesamtProduktwert = (produkte ?? []).reduce((s, p) => s + (p.verkaufspreis ?? 0) * p.menge, 0)
 
   return (
-    <div className="px-6 py-6 animate-fadeIn">
+    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
       <div className="flex items-start justify-between mb-6">
         <div>
           <Link href="/dashboard/partner" className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-1 inline-block">

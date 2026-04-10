@@ -41,7 +41,7 @@ export default async function EinstellungenPage({
   const projektarten = parseList(einstellungen.projektarten, 'Neubau,Renovation,Konzept,Beratung,Sonstiges')
 
   return (
-    <div className="px-6 py-6 animate-fadeIn">
+    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
       <h1 className="text-xl font-semibold text-gray-900 mb-6">Einstellungen</h1>
       <EinstellungenTabs
         aktuellerTab={tab}
