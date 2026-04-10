@@ -14,9 +14,18 @@ export default async function DashboardLayout({
 
   const userName = (user.user_metadata?.full_name as string | undefined) || undefined
 
+  const { count } = await supabase
+    .from('produktstatus')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'ausstehend')
+
   return (
     <div className="flex h-screen bg-gray-50">
-      <NavSidebar userEmail={user.email ?? ''} userName={userName} />
+      <NavSidebar
+        userEmail={user.email ?? ''}
+        userName={userName}
+        offeneFreigaben={count ?? 0}
+      />
       <main className="flex-1 overflow-hidden flex flex-col">
         {children}
       </main>

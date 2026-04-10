@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
-import { Plus, Package } from 'lucide-react'
+import { Package } from 'lucide-react'
 import ProdukteTabelle, { type ProduktZeile } from '@/components/ProdukteTabelle'
+import NeuesProduktModal from '@/components/NeuesProduktModal'
 import type { ProduktStatus } from '@/lib/supabase/types'
 
 async function getProdukte(): Promise<ProduktZeile[]> {
@@ -33,33 +33,30 @@ async function getProdukte(): Promise<ProduktZeile[]> {
   const partnerMap = Object.fromEntries((partnerData ?? []).map((p) => [p.id, p]))
   const statusMap  = Object.fromEntries((statusData  ?? []).map((s) => [s.produkt_id, s.status as ProduktStatus]))
 
-  return (prodData ?? []).flatMap((p) => {
-    const raum    = raumMap[p.raum_id]
-    if (!raum) return []
-    const projekt = projektMap[raum.projekt_id]
-    if (!projekt) return []
-    const kunde   = kundeMap[projekt.kunde_id]
-    if (!kunde) return []
+  return (prodData ?? []).map((p) => {
+    const raum    = p.raum_id ? raumMap[p.raum_id] : null
+    const projekt = raum ? projektMap[raum.projekt_id] : null
+    const kunde   = projekt ? kundeMap[projekt.kunde_id] : null
     const partner = p.partner_id ? partnerMap[p.partner_id] : null
 
-    return [{
-      id:           p.id,
-      name:         p.name,
-      kategorie:    p.kategorie,
-      menge:        p.menge,
-      einheit:      p.einheit,
+    return {
+      id:            p.id,
+      name:          p.name,
+      kategorie:     p.kategorie,
+      menge:         p.menge,
+      einheit:       p.einheit,
       verkaufspreis: p.verkaufspreis,
-      bild_url:     p.bild_url,
-      produkt_url:  p.produkt_url,
-      partnerName:  partner?.name ?? null,
-      partnerId:    p.partner_id,
-      raumId:       raum.id,
-      raumName:     raum.name,
-      projektId:    projekt.id,
-      projektName:  projekt.name,
-      kundeName:    kunde.name,
-      status:       statusMap[p.id] ?? 'ausstehend',
-    }]
+      bild_url:      p.bild_url,
+      produkt_url:   p.produkt_url,
+      partnerName:   partner?.name ?? null,
+      partnerId:     p.partner_id,
+      raumId:        raum?.id ?? null,
+      raumName:      raum?.name ?? null,
+      projektId:     projekt?.id ?? null,
+      projektName:   projekt?.name ?? null,
+      kundeName:     kunde?.name ?? null,
+      status:        statusMap[p.id] ?? 'ausstehend',
+    }
   })
 }
 
@@ -73,13 +70,7 @@ export default async function ProdukteSeite() {
           <h1 className="text-xl font-semibold text-gray-900">Produkte</h1>
           <p className="text-sm text-gray-500 mt-0.5">{produkte.length} Einträge über alle Projekte</p>
         </div>
-        <Link
-          href="/dashboard/produkte/neu"
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Neues Produkt
-        </Link>
+        <NeuesProduktModal />
       </div>
 
       {produkte.length === 0 ? (
@@ -89,14 +80,9 @@ export default async function ProdukteSeite() {
           </div>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-700">Noch keine Produkte angelegt</p>
-            <p className="text-xs text-gray-400 mt-1">Lege Produkte in einem Projekt → Raum an.</p>
+            <p className="text-xs text-gray-400 mt-1">Lege Produkte in einem Projekt → Raum an oder füge zur Bibliothek hinzu.</p>
           </div>
-          <Link
-            href="/dashboard/produkte/neu"
-            className="text-sm px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
-          >
-            + Erstes Produkt anlegen
-          </Link>
+          <NeuesProduktModal />
         </div>
       ) : (
         <ProdukteTabelle produkte={produkte} />

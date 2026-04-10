@@ -13,6 +13,44 @@ function parseOptionalNumber(val: FormDataEntryValue | null): number | null {
   return isNaN(n) ? null : n
 }
 
+export async function produktInBibliothekAnlegen(
+  prevState: ProduktActionState,
+  formData: FormData
+): Promise<ProduktActionState> {
+  const supabase = await createClient()
+
+  const { data: produkt, error } = await supabase
+    .from('produkte')
+    .insert({
+      raum_id: null,
+      partner_id: (formData.get('partner_id') as string) || null,
+      name: formData.get('name') as string,
+      beschreibung: (formData.get('beschreibung') as string) || null,
+      kategorie: (formData.get('kategorie') as string) || null,
+      menge: parseOptionalNumber(formData.get('menge')) ?? 1,
+      einheit: (formData.get('einheit') as string) || 'Stk',
+      einkaufspreis: parseOptionalNumber(formData.get('einkaufspreis')),
+      marge_prozent: parseOptionalNumber(formData.get('marge_prozent')),
+      provision_prozent: parseOptionalNumber(formData.get('provision_prozent')),
+      verkaufspreis: parseOptionalNumber(formData.get('verkaufspreis')),
+      bild_url: (formData.get('bild_url') as string) || null,
+      produkt_url: (formData.get('produkt_url') as string) || null,
+      notizen_intern: (formData.get('notizen_intern') as string) || null,
+    })
+    .select('id')
+    .single()
+
+  if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
+
+  await supabase.from('produktstatus').insert({
+    produkt_id: produkt.id,
+    status: (formData.get('status') as ProduktStatus) || 'ausstehend',
+  })
+
+  revalidatePath('/dashboard/produkte')
+  redirect('/dashboard/produkte')
+}
+
 export async function produktAnlegen(
   raumId: string,
   projektId: string,

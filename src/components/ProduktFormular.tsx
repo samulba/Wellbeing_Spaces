@@ -3,7 +3,7 @@
 import { useFormState, useFormStatus } from 'react-dom'
 import { useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Upload, Loader2, X, Wand2 } from 'lucide-react'
+import { Upload, Loader2, X, Zap } from 'lucide-react'
 import type { ProduktActionState } from '@/app/actions/produkte'
 import type { Partner, ProduktMitDetails } from '@/lib/supabase/types'
 
@@ -131,6 +131,38 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
 
       {/* ── Abschnitt 1: Produktinfo ── */}
       <Abschnitt titel="Produktinformation">
+        {/* Produktlink mit Auto-Fill – ganz oben */}
+        <div className="col-span-2">
+          <label htmlFor="produkt_url" className={lbl}>
+            Produktlink (URL)
+            <span className="ml-1.5 text-gray-400 font-normal normal-case">— Name & Bild automatisch ausfüllen</span>
+          </label>
+          <div className="flex gap-2">
+            <input
+              ref={urlInputRef}
+              id="produkt_url" name="produkt_url" type="url"
+              defaultValue={initialData?.produkt_url ?? ''}
+              className={inp}
+              placeholder="https://…"
+              onBlur={handleUrlScrape}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlScrape() } }}
+            />
+            <button type="button" onClick={handleUrlScrape} disabled={scrapingLoading}
+              title="Produktdaten automatisch auslesen"
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors disabled:opacity-50">
+              {scrapingLoading
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Zap className="w-3.5 h-3.5" />}
+              {!scrapingLoading && <span>Auto-Fill</span>}
+            </button>
+          </div>
+          {scrapingFehler && (
+            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+              <span>⚠</span> {scrapingFehler}
+            </p>
+          )}
+        </div>
+
         {/* Name */}
         <div className="col-span-2">
           <label htmlFor="name" className={lbl}>
@@ -194,37 +226,6 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
           </select>
         </div>
 
-        {/* Produktlink mit Auto-Fill */}
-        <div className="col-span-2">
-          <label htmlFor="produkt_url" className={lbl}>
-            Produktlink (URL)
-            <span className="ml-1.5 text-gray-400 font-normal normal-case">— nach Eingabe automatisch ausfüllen</span>
-          </label>
-          <div className="flex gap-2">
-            <input
-              ref={urlInputRef}
-              id="produkt_url" name="produkt_url" type="url"
-              defaultValue={initialData?.produkt_url ?? ''}
-              className={inp}
-              placeholder="https://…"
-              onBlur={handleUrlScrape}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlScrape() } }}
-            />
-            <button type="button" onClick={handleUrlScrape} disabled={scrapingLoading}
-              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              title="Produktdaten auslesen">
-              {scrapingLoading
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
-                : <Wand2 className="w-3.5 h-3.5 text-gray-400" />}
-            </button>
-          </div>
-          {scrapingFehler && (
-            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-              <span>⚠</span> {scrapingFehler}
-            </p>
-          )}
-        </div>
-
         {/* Beschreibung */}
         <div className="col-span-2">
           <label htmlFor="beschreibung" className={lbl}>Beschreibung (für Kunden sichtbar)</label>
@@ -253,7 +254,7 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
             type="number" min="0" step="0.01"
             value={ep || ''}
             onChange={(e) => handleEpChange(parseFloat(e.target.value) || 0)}
-            className={`${inp} font-mono`}
+            className={`${inpPreis} font-mono`}
             placeholder="0,00"
           />
         </div>
@@ -265,31 +266,34 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
             type="number" step="0.1"
             value={marge || ''}
             onChange={(e) => handleMargeChange(parseFloat(e.target.value) || 0)}
-            className={`${inp} font-mono`}
+            className={`${inpPreis} font-mono`}
             placeholder="0,0"
           />
         </div>
 
         {/* VP netto */}
         <div>
-          <label className={lbl}>Verkaufspreis netto (€)</label>
+          <label className={lbl}>
+            Verkaufspreis netto (€)
+            <span className="ml-1.5 text-indigo-500/70 font-normal normal-case">← direkt eingeben möglich</span>
+          </label>
           <input
             type="number" min="0" step="0.01"
             value={vpNetto || ''}
             onChange={(e) => handleVpNettoChange(parseFloat(e.target.value) || 0)}
-            className={`${inp} font-mono`}
+            className={`${inpPreis} font-mono font-semibold text-indigo-700`}
             placeholder="0,00"
           />
         </div>
 
-        {/* VP brutto (readonly) */}
+        {/* VP brutto (readonly, live) */}
         <div>
           <label className={lbl}>Verkaufspreis brutto (€) <span className="text-gray-400 normal-case font-normal">19% MwSt.</span></label>
           <input
             type="text"
             readOnly
             value={vpNetto > 0 ? eur(vpBrutto) : ''}
-            className={`${inp} font-mono bg-gray-50 text-gray-500 cursor-default`}
+            className={`${inpPreis} font-mono font-semibold text-indigo-700 cursor-default`}
             tabIndex={-1}
           />
         </div>
@@ -301,19 +305,19 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
             type="number" min="0" step="0.1"
             value={provision || ''}
             onChange={(e) => setProvision(parseFloat(e.target.value) || 0)}
-            className={`${inp} font-mono`}
+            className={`${inpPreis} font-mono`}
             placeholder="0,0"
           />
         </div>
 
-        {/* Provision € (readonly) */}
+        {/* Provision € (readonly, live) */}
         <div>
-          <label className={lbl}>Provision (€)</label>
+          <label className={lbl}>Provision (€) <span className="text-gray-400 normal-case font-normal">errechnet</span></label>
           <input
             type="text"
             readOnly
             value={provision > 0 && vpNetto > 0 ? eur(provisionEur) : ''}
-            className={`${inp} font-mono bg-gray-50 text-gray-500 cursor-default`}
+            className={`${inpPreis} font-mono cursor-default`}
             tabIndex={-1}
           />
         </div>
@@ -447,5 +451,6 @@ function KalkulationsZeile({ label, wert, hervorheben }: { label: string; wert: 
 }
 
 // ── Tailwind-Klassen ──────────────────────────────────────────
-const lbl = 'block text-xs font-medium text-gray-700 mb-1.5'
-const inp = 'w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition'
+const lbl     = 'block text-xs font-medium text-gray-700 mb-1.5'
+const inp     = 'w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition'
+const inpPreis = 'w-full px-3 py-2.5 text-sm bg-indigo-50/40 border border-indigo-100 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition'

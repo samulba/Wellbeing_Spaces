@@ -61,6 +61,7 @@ export async function addListItem(
   formData: FormData
 ): Promise<EinstellungActionState> {
   const name = (formData.get('name') as string)?.trim()
+  const icon = (formData.get('icon') as string)?.trim()
   if (!name) return { fehler: 'Name darf nicht leer sein.' }
 
   const supabase = await createClient()
@@ -73,8 +74,14 @@ export async function addListItem(
   const liste = data?.wert
     ? data.wert.split(',').map((s: string) => s.trim()).filter(Boolean)
     : []
-  if (liste.includes(name)) return { fehler: `„${name}" existiert bereits.` }
-  liste.push(name)
+
+  // Doppelten Namen erkennen – nur Name-Teil vor dem Pipe vergleichen
+  const namesVorhanden = liste.map((item: string) => item.split('|')[0].trim())
+  if (namesVorhanden.includes(name)) return { fehler: `„${name}" existiert bereits.` }
+
+  // Mit Icon speichern falls angegeben: "Name|IconName"
+  const eintrag = icon ? `${name}|${icon}` : name
+  liste.push(eintrag)
 
   const { error } = await upsertEinstellung(schluessel, liste.join(','))
   if (error) return { fehler: 'Fehler beim Speichern.' }

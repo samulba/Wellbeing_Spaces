@@ -91,7 +91,7 @@ export interface FreigabeRaum {
 
 export interface Produkt {
   id: string
-  raum_id: string
+  raum_id: string | null  // null = Produktbibliothek (kein Projekt/Raum)
   partner_id: string | null
   name: string
   beschreibung: string | null

@@ -8,21 +8,12 @@ import {
   Users,
   FolderOpen,
   Handshake,
+  Package,
   CheckSquare,
   Tag,
   Settings,
   LogOut,
 } from 'lucide-react'
-
-// ── Nav-Konfiguration ────────────────────────────────────────
-const navLinks = [
-  { label: 'Dashboard',  href: '/dashboard',            icon: LayoutDashboard },
-  { label: 'Kunden',     href: '/dashboard/kunden',     icon: Users },
-  { label: 'Projekte',   href: '/dashboard/projekte',   icon: FolderOpen },
-  { label: 'Partner',    href: '/dashboard/partner',    icon: Handshake },
-  { label: 'Freigaben',  href: '/dashboard/freigaben',  icon: CheckSquare },
-  { label: 'Kategorien', href: '/dashboard/kategorien', icon: Tag },
-]
 
 // ── Avatar-Hilfsfunktionen ───────────────────────────────────
 const avatarFarben = [
@@ -54,12 +45,24 @@ function DepthStackIcon() {
 export default function NavSidebar({
   userEmail,
   userName,
+  offeneFreigaben = 0,
 }: {
   userEmail: string
   userName?: string
+  offeneFreigaben?: number
 }) {
   const pathname = usePathname()
   const router   = useRouter()
+
+  const navLinks = [
+    { label: 'Dashboard',  href: '/dashboard',            icon: LayoutDashboard, badge: 0 },
+    { label: 'Kunden',     href: '/dashboard/kunden',     icon: Users,           badge: 0 },
+    { label: 'Projekte',   href: '/dashboard/projekte',   icon: FolderOpen,      badge: 0 },
+    { label: 'Partner',    href: '/dashboard/partner',    icon: Handshake,       badge: 0 },
+    { label: 'Produkte',   href: '/dashboard/produkte',   icon: Package,         badge: 0 },
+    { label: 'Freigaben',  href: '/dashboard/freigaben',  icon: CheckSquare,     badge: offeneFreigaben },
+    { label: 'Kategorien', href: '/dashboard/kategorien', icon: Tag,             badge: 0 },
+  ]
 
   async function handleLogout() {
     const supabase = createClient()
@@ -85,7 +88,7 @@ export default function NavSidebar({
 
       {/* Hauptnavigation */}
       <nav className="flex-1 px-3 pt-4 pb-2 space-y-0.5">
-        {navLinks.map(({ label, href, icon: Icon }) => {
+        {navLinks.map(({ label, href, icon: Icon, badge }) => {
           const aktiv =
             href === '/dashboard'
               ? pathname === '/dashboard'
@@ -102,7 +105,12 @@ export default function NavSidebar({
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" strokeWidth={aktiv ? 2.5 : 2} />
-              {label}
+              <span className="flex-1">{label}</span>
+              {badge > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
             </Link>
           )
         })}
