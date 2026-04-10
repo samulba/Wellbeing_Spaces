@@ -10,7 +10,7 @@ function HinzufuegenButton() {
     <button
       type="submit"
       disabled={pending}
-      className="px-4 py-2 bg-wbc-gruen hover:bg-wbc-gruen-dark disabled:opacity-50 text-white text-xs font-medium tracking-[0.12em] uppercase rounded-lg transition-colors whitespace-nowrap"
+      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
     >
       {pending ? '…' : 'Hinzufügen'}
     </button>
@@ -30,7 +30,7 @@ export default function RaumHinzufuegen({ aktion }: Props) {
       {!offen ? (
         <button
           onClick={() => setOffen(true)}
-          className="text-xs text-wbc-grau/50 hover:text-wbc-gruen transition-colors"
+          className="text-xs text-gray-400 hover:text-indigo-600 transition-colors"
         >
           + Raum hinzufügen
         </button>
@@ -49,17 +49,17 @@ export default function RaumHinzufuegen({ aktion }: Props) {
               required
               autoFocus
               placeholder="Raumname, z. B. Lobby"
-              className="w-full px-3 py-2 text-sm bg-white border border-[#e8ddd3] rounded-lg text-wbc-gruen placeholder:text-[#c5b8ab] focus:outline-none focus:ring-2 focus:ring-wbc-gruen/20 focus:border-wbc-gruen/40 transition"
+              className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition"
             />
             {state?.fehler && (
-              <p className="text-xs text-wbc-terra mt-1">{state.fehler}</p>
+              <p className="text-xs text-red-500 mt-1">{state.fehler}</p>
             )}
           </div>
           <HinzufuegenButton />
           <button
             type="button"
             onClick={() => setOffen(false)}
-            className="px-4 py-2 text-xs text-wbc-grau/50 hover:text-wbc-grau transition-colors"
+            className="px-4 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
             Abbrechen
           </button>

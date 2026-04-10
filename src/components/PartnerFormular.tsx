@@ -11,7 +11,7 @@ function SpeichernButton() {
     <button
       type="submit"
       disabled={pending}
-      className="px-5 py-2.5 bg-wbc-gruen hover:bg-wbc-gruen-dark disabled:opacity-50 text-white text-xs font-medium tracking-[0.12em] uppercase rounded-lg transition-colors"
+      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
     >
       {pending ? 'Wird gespeichert…' : 'Speichern'}
     </button>
@@ -31,7 +31,7 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
   return (
     <form action={formAction} className="space-y-5">
       {state?.fehler && (
-        <div className="text-sm text-wbc-terra bg-wbc-terra/5 border border-wbc-terra/20 rounded-lg px-4 py-3">
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
           {state.fehler}
         </div>
       )}
@@ -132,7 +132,7 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
 
         {modell === 'Individuell' && (
           <div className="flex items-end">
-            <p className="text-xs text-wbc-grau/50 pb-2.5">
+            <p className="text-xs text-gray-500 pb-2.5">
               Details in den Einkaufskonditionen beschreiben.
             </p>
           </div>
@@ -143,7 +143,7 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
       <div>
         <label htmlFor="einkaufskonditionen" className={lbl}>
           Einkaufskonditionen{' '}
-          <span className="text-wbc-terra/50 normal-case tracking-normal font-normal">(intern)</span>
+          <span className="text-red-400/60 normal-case font-normal">(intern)</span>
         </label>
         <textarea
           id="einkaufskonditionen" name="einkaufskonditionen" rows={3}
@@ -167,7 +167,7 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
       {/* Aktionen */}
       <div className="flex items-center gap-3 pt-2">
         <SpeichernButton />
-        <a href={abbrechen} className="px-5 py-2.5 text-sm text-wbc-grau/60 hover:text-wbc-grau transition-colors">
+        <a href={abbrechen} className="px-5 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
           Abbrechen
         </a>
       </div>
@@ -175,5 +175,5 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
   )
 }
 
-const lbl = 'block text-xs font-medium text-wbc-grau/70 uppercase tracking-widest mb-1.5'
-const inp = 'w-full px-3 py-2.5 text-sm bg-white border border-[#e8ddd3] rounded-lg text-wbc-gruen placeholder:text-[#c5b8ab] focus:outline-none focus:ring-2 focus:ring-wbc-gruen/20 focus:border-wbc-gruen/40 transition'
+const lbl = 'block text-xs font-medium text-gray-700 mb-1.5'
+const inp = 'w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition'

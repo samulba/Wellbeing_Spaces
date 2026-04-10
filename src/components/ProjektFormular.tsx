@@ -27,7 +27,7 @@ function SpeichernButton() {
     <button
       type="submit"
       disabled={pending}
-      className="px-5 py-2.5 bg-wbc-gruen hover:bg-wbc-gruen-dark disabled:opacity-50 text-white text-xs font-medium tracking-[0.12em] uppercase rounded-lg transition-colors"
+      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
     >
       {pending ? 'Wird gespeichert…' : 'Speichern'}
     </button>
@@ -56,14 +56,14 @@ export default function ProjektFormular({
   return (
     <form action={formAction} className="space-y-5">
       {state?.fehler && (
-        <div className="text-sm text-wbc-terra bg-wbc-terra/5 border border-wbc-terra/20 rounded-lg px-4 py-3">
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
           {state.fehler}
         </div>
       )}
 
       {/* Projektname */}
       <div>
-        <label htmlFor="name" className={labelKlasse}>
+        <label htmlFor="name" className={lbl}>
           Projektname <span className="text-red-400">*</span>
         </label>
         <input
@@ -72,14 +72,14 @@ export default function ProjektFormular({
           type="text"
           required
           defaultValue={initialData?.name ?? ''}
-          className={inputKlasse}
+          className={inp}
           placeholder="z. B. Hotel Seeblick – Zimmer 101–120"
         />
       </div>
 
       {/* Kunde */}
       <div>
-        <label htmlFor="kunde_id" className={labelKlasse}>
+        <label htmlFor="kunde_id" className={lbl}>
           Kunde <span className="text-red-400">*</span>
         </label>
         <select
@@ -87,15 +87,11 @@ export default function ProjektFormular({
           name="kunde_id"
           required
           defaultValue={initialData?.kunde_id ?? vorausgewaehlterKundeId ?? ''}
-          className={inputKlasse}
+          className={inp}
         >
-          <option value="" disabled>
-            Kunde auswählen…
-          </option>
+          <option value="" disabled>Kunde auswählen…</option>
           {kunden.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.name}
-            </option>
+            <option key={k.id} value={k.id}>{k.name}</option>
           ))}
         </select>
       </div>
@@ -103,33 +99,27 @@ export default function ProjektFormular({
       {/* Standort & Projektart */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
-          <label htmlFor="standort" className={labelKlasse}>
-            Standort
-          </label>
+          <label htmlFor="standort" className={lbl}>Standort</label>
           <input
             id="standort"
             name="standort"
             type="text"
             defaultValue={initialData?.standort ?? ''}
-            className={inputKlasse}
+            className={inp}
             placeholder="z. B. München, Berlin…"
           />
         </div>
         <div>
-          <label htmlFor="projektart" className={labelKlasse}>
-            Projektart
-          </label>
+          <label htmlFor="projektart" className={lbl}>Projektart</label>
           <select
             id="projektart"
             name="projektart"
             defaultValue={initialData?.projektart ?? ''}
-            className={inputKlasse}
+            className={inp}
           >
             <option value="">Bitte wählen…</option>
             {PROJEKTARTEN.map((art) => (
-              <option key={art} value={art}>
-                {art}
-              </option>
+              <option key={art} value={art}>{art}</option>
             ))}
           </select>
         </div>
@@ -137,9 +127,7 @@ export default function ProjektFormular({
 
       {/* Gesamtbudget */}
       <div>
-        <label htmlFor="gesamtbudget" className={labelKlasse}>
-          Gesamtbudget (€)
-        </label>
+        <label htmlFor="gesamtbudget" className={lbl}>Gesamtbudget (€)</label>
         <input
           id="gesamtbudget"
           name="gesamtbudget"
@@ -147,7 +135,7 @@ export default function ProjektFormular({
           min="0"
           step="0.01"
           defaultValue={initialData?.gesamtbudget ?? ''}
-          className={inputKlasse}
+          className={inp}
           placeholder="0.00"
         />
       </div>
@@ -155,19 +143,15 @@ export default function ProjektFormular({
       {/* Status (nur beim Bearbeiten) */}
       {istBearbeiten && (
         <div>
-          <label htmlFor="status" className={labelKlasse}>
-            Status
-          </label>
+          <label htmlFor="status" className={lbl}>Status</label>
           <select
             id="status"
             name="status"
             defaultValue={initialData?.status ?? 'offen'}
-            className={inputKlasse}
+            className={inp}
           >
             {PROJEKT_STATUS.map((s) => (
-              <option key={s.wert} value={s.wert}>
-                {s.label}
-              </option>
+              <option key={s.wert} value={s.wert}>{s.label}</option>
             ))}
           </select>
         </div>
@@ -175,15 +159,13 @@ export default function ProjektFormular({
 
       {/* Notizen */}
       <div>
-        <label htmlFor="beschreibung" className={labelKlasse}>
-          Notizen
-        </label>
+        <label htmlFor="beschreibung" className={lbl}>Notizen</label>
         <textarea
           id="beschreibung"
           name="beschreibung"
           rows={4}
           defaultValue={initialData?.beschreibung ?? ''}
-          className={`${inputKlasse} resize-none`}
+          className={`${inp} resize-none`}
           placeholder="Interne Notizen zum Projekt…"
         />
       </div>
@@ -193,7 +175,7 @@ export default function ProjektFormular({
         <SpeichernButton />
         <a
           href={abbrechen}
-          className="px-5 py-2.5 text-sm text-wbc-grau/60 hover:text-wbc-grau transition-colors"
+          className="px-5 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
         >
           Abbrechen
         </a>
@@ -202,8 +184,5 @@ export default function ProjektFormular({
   )
 }
 
-const labelKlasse =
-  'block text-xs font-medium text-wbc-grau/70 uppercase tracking-widest mb-1.5'
-
-const inputKlasse =
-  'w-full px-3 py-2.5 text-sm bg-white border border-[#e8ddd3] rounded-lg text-wbc-gruen placeholder:text-[#c5b8ab] focus:outline-none focus:ring-2 focus:ring-wbc-gruen/20 focus:border-wbc-gruen/40 transition'
+const lbl = 'block text-xs font-medium text-gray-700 mb-1.5'
+const inp = 'w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition'

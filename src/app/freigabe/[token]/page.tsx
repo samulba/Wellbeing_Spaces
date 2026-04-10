@@ -120,11 +120,13 @@ export default async function FreigabePage({ params }: Props) {
 // ── Fehler-Seite ──────────────────────────────────────────────
 function Fehlerseite({ meldung }: { meldung: string }) {
   return (
-    <div className="min-h-screen bg-wbc-creme flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-sm text-center">
-        <p className="font-heading text-xs tracking-[0.3em] text-wbc-grau/40 uppercase mb-6">Wellbeing-Concepts</p>
-        <h1 className="font-heading text-2xl font-light text-wbc-gruen tracking-wide mb-2">Link nicht verfügbar</h1>
-        <p className="text-sm text-wbc-grau/60 leading-relaxed">{meldung}</p>
+        <div className="inline-flex items-center justify-center w-10 h-10 bg-gray-200 rounded-xl mb-6">
+          <span className="text-gray-500 font-bold text-lg">S</span>
+        </div>
+        <h1 className="text-xl font-semibold text-gray-900 mb-2">Link nicht verfügbar</h1>
+        <p className="text-sm text-gray-500 leading-relaxed">{meldung}</p>
       </div>
     </div>
   )

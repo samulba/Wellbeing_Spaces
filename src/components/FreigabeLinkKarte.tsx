@@ -42,21 +42,21 @@ export default function FreigabeLinkKarte({ projektId, initialToken }: Props) {
   }
 
   return (
-    <div className="bg-white border border-[#ede4d9] rounded-xl p-5">
-      <h2 className="text-xs font-medium text-wbc-grau/50 uppercase tracking-widest mb-4">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+      <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">
         Kunden-Freigabelink
       </h2>
 
       {!tokenData ? (
         <div>
-          <p className="text-sm text-wbc-grau/70 mb-4 leading-relaxed">
+          <p className="text-sm text-gray-500 mb-4 leading-relaxed">
             Erstellen Sie einen Link, den Sie an Ihren Kunden senden können.
             Der Kunde sieht alle Produkte und kann sie freigeben oder Änderungen anfordern.
           </p>
           <button
             onClick={handleGenerieren}
             disabled={isPending}
-            className="px-4 py-2.5 bg-wbc-gruen hover:bg-wbc-gruen-dark disabled:opacity-50 text-white text-xs font-medium tracking-[0.12em] uppercase rounded-lg transition-colors"
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
           >
             {isPending ? 'Wird erstellt…' : 'Freigabelink erstellen'}
           </button>
@@ -67,14 +67,14 @@ export default function FreigabeLinkKarte({ projektId, initialToken }: Props) {
             <input
               readOnly
               value={freigabeUrl ?? ''}
-              className="flex-1 px-3 py-2 text-xs text-wbc-grau bg-wbc-creme/50 border border-[#e8ddd3] rounded-lg font-mono truncate focus:outline-none"
+              className="flex-1 px-3 py-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg font-mono truncate focus:outline-none"
             />
             <button
               onClick={handleKopieren}
               className={`px-3 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${
                 kopiert
-                  ? 'bg-wbc-mint/20 text-wbc-gruen border-wbc-mint/40'
-                  : 'bg-white text-wbc-grau border-[#e8ddd3] hover:border-wbc-sand/60'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
               }`}
             >
               {kopiert ? '✓ Kopiert' : 'Kopieren'}
@@ -85,7 +85,7 @@ export default function FreigabeLinkKarte({ projektId, initialToken }: Props) {
               href={freigabeUrl ?? '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-wbc-grau/50 hover:text-wbc-gruen underline underline-offset-2 transition-colors"
+              className="text-xs text-gray-400 hover:text-indigo-600 underline underline-offset-2 transition-colors"
             >
               Vorschau öffnen ↗
             </a>
@@ -93,7 +93,7 @@ export default function FreigabeLinkKarte({ projektId, initialToken }: Props) {
               <button
                 onClick={handleDeaktivieren}
                 disabled={isPending}
-                className="text-xs text-wbc-terra/60 hover:text-wbc-terra transition-colors"
+                className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
               >
                 Link deaktivieren
               </button>

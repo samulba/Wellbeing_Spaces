@@ -8,10 +8,10 @@ import { projektSoftDelete, projektStatusAendern } from '@/app/actions/projekte'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
 
 const statusOptionen = [
-  { wert: 'offen',          label: 'Offen',          farbe: 'bg-wbc-creme text-wbc-grau' },
-  { wert: 'in_bearbeitung', label: 'In Bearbeitung',  farbe: 'bg-wbc-mint/25 text-wbc-gruen' },
-  { wert: 'freigegeben',    label: 'Freigegeben',     farbe: 'bg-wbc-mint/40 text-wbc-gruen' },
-  { wert: 'abgeschlossen',  label: 'Abgeschlossen',   farbe: 'bg-[#ede4d9] text-wbc-grau' },
+  { wert: 'offen',          label: 'Offen',          farbe: 'bg-gray-100 text-gray-600' },
+  { wert: 'in_bearbeitung', label: 'In Bearbeitung',  farbe: 'bg-blue-50 text-blue-700' },
+  { wert: 'freigegeben',    label: 'Freigegeben',     farbe: 'bg-emerald-50 text-emerald-700' },
+  { wert: 'abgeschlossen',  label: 'Abgeschlossen',   farbe: 'bg-gray-100 text-gray-500' },
 ]
 
 async function getProjekt(id: string): Promise<ProjektMitKunde | null> {
@@ -71,15 +71,15 @@ export default async function ProjektDetailPage({
         <div>
           <Link
             href="/dashboard/projekte"
-            className="text-xs text-wbc-grau/40 hover:text-wbc-gruen transition-colors mb-3 inline-block"
+            className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-3 inline-block"
           >
             ← Zurück zu Projekte
           </Link>
-          <h1 className="font-heading text-3xl font-light text-wbc-gruen tracking-wide">{projekt.name}</h1>
+          <h1 className="text-xl font-semibold text-gray-900">{projekt.name}</h1>
           {projekt.kunden && (
             <Link
               href={`/dashboard/kunden/${projekt.kunden.id}`}
-              className="text-sm text-wbc-grau/50 hover:text-wbc-gruen transition-colors mt-0.5 inline-block"
+              className="text-sm text-gray-500 hover:text-indigo-600 transition-colors mt-0.5 inline-block"
             >
               {projekt.kunden.name}
             </Link>
@@ -88,14 +88,14 @@ export default async function ProjektDetailPage({
         <div className="flex items-center gap-2">
           <Link
             href={`/dashboard/projekte/${projekt.id}/bearbeiten`}
-            className="px-4 py-2 text-xs text-wbc-grau/70 border border-[#e8ddd3] hover:border-wbc-sand/60 hover:bg-wbc-creme/40 rounded-lg transition-colors tracking-wide"
+            className="px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
           >
             Bearbeiten
           </Link>
           <form action={loeschenAktion}>
             <button
               type="submit"
-              className="px-4 py-2 text-xs text-wbc-terra/60 hover:text-wbc-terra transition-colors"
+              className="px-4 py-2 text-xs text-red-500/70 hover:text-red-600 transition-colors"
               onClick={(e) => {
                 if (!confirm(`„${projekt.name}" wirklich löschen?`)) e.preventDefault()
               }}
@@ -117,8 +117,8 @@ export default async function ProjektDetailPage({
                 type="submit"
                 className={`text-xs px-3.5 py-1.5 rounded-full font-medium transition-all ${
                   istAktiv
-                    ? s.farbe + ' ring-2 ring-offset-1 ring-wbc-sand/40'
-                    : 'bg-white text-wbc-grau/40 border border-[#e8ddd3] hover:border-wbc-sand/60'
+                    ? s.farbe + ' ring-2 ring-offset-1 ring-indigo-200'
+                    : 'bg-white text-gray-400 border border-gray-200 hover:border-gray-300'
                 }`}
               >
                 {s.label}
@@ -131,8 +131,8 @@ export default async function ProjektDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Linke Spalte: Metadaten */}
         <div className="space-y-4">
-          <div className="bg-white border border-[#ede4d9] rounded-xl p-5">
-            <h2 className="text-xs font-medium text-wbc-grau/50 uppercase tracking-widest mb-4">
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">
               Projektdetails
             </h2>
             <dl className="space-y-3">
@@ -140,8 +140,8 @@ export default async function ProjektDetailPage({
               <InfoZeile label="Standort" wert={projekt.standort} />
               {projekt.gesamtbudget != null && (
                 <div>
-                  <dt className="text-xs text-wbc-grau/50 mb-0.5">Gesamtbudget</dt>
-                  <dd className="text-sm font-medium text-wbc-gruen">
+                  <dt className="text-xs text-gray-500 mb-0.5">Gesamtbudget</dt>
+                  <dd className="text-sm font-medium text-gray-900">
                     {new Intl.NumberFormat('de-DE', {
                       style: 'currency',
                       currency: 'EUR',
@@ -150,8 +150,8 @@ export default async function ProjektDetailPage({
                 </div>
               )}
               <div>
-                <dt className="text-xs text-wbc-grau/50 mb-0.5">Angelegt am</dt>
-                <dd className="text-sm text-wbc-grau/70">
+                <dt className="text-xs text-gray-500 mb-0.5">Angelegt am</dt>
+                <dd className="text-sm text-gray-600">
                   {new Date(projekt.created_at).toLocaleDateString('de-DE', {
                     day: '2-digit',
                     month: '2-digit',
@@ -163,11 +163,11 @@ export default async function ProjektDetailPage({
           </div>
 
           {projekt.beschreibung && (
-            <div className="bg-white border border-[#ede4d9] rounded-xl p-5">
-              <h2 className="text-xs font-medium text-wbc-grau/50 uppercase tracking-widest mb-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-3">
                 Notizen
               </h2>
-              <p className="text-sm text-wbc-grau/70 whitespace-pre-wrap leading-relaxed">
+              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
                 {projekt.beschreibung}
               </p>
             </div>
@@ -181,48 +181,48 @@ export default async function ProjektDetailPage({
 
         {/* Rechte Spalte: Räume */}
         <div className="lg:col-span-2">
-          <div className="bg-white border border-[#ede4d9] rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0e8de]">
-              <h2 className="text-sm font-medium text-wbc-gruen">
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-medium text-gray-900">
                 Räume{' '}
-                <span className="text-wbc-grau/40 font-normal">({raeume.length})</span>
+                <span className="text-gray-400 font-normal">({raeume.length})</span>
               </h2>
               <RaumHinzufuegen aktion={raumHinzufuegenAktion} />
             </div>
 
             {raeume.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-sm text-wbc-grau/40">Noch keine Räume angelegt.</p>
-                <p className="text-xs text-wbc-grau/30 mt-1">
+                <p className="text-sm text-gray-400">Noch keine Räume angelegt.</p>
+                <p className="text-xs text-gray-300 mt-1">
                   Räume über &bdquo;+ Raum hinzufügen&ldquo; erstellen.
                 </p>
               </div>
             ) : (
-              <ul className="divide-y divide-[#f5ede4]">
+              <ul className="divide-y divide-gray-100">
                 {raeume.map((raum) => {
                   const raumLoeschenAktion = raumSoftDelete.bind(null, raum.id, projekt.id)
                   return (
                     <li
                       key={raum.id}
-                      className="flex items-center justify-between px-5 py-4 hover:bg-wbc-creme/20 transition-colors group"
+                      className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors group"
                     >
                       <div>
-                        <p className="text-sm font-medium text-wbc-gruen">{raum.name}</p>
+                        <p className="text-sm font-medium text-gray-900">{raum.name}</p>
                         {raum.beschreibung && (
-                          <p className="text-xs text-wbc-grau/50 mt-0.5">{raum.beschreibung}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{raum.beschreibung}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link
                           href={`/dashboard/projekte/${projekt.id}/raeume/${raum.id}`}
-                          className="text-xs text-wbc-grau/40 hover:text-wbc-gruen transition-colors"
+                          className="text-xs text-gray-400 hover:text-indigo-600 transition-colors"
                         >
                           Öffnen →
                         </Link>
                         <form action={raumLoeschenAktion}>
                           <button
                             type="submit"
-                            className="text-xs text-wbc-terra/50 hover:text-wbc-terra transition-colors"
+                            className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
                             onClick={(e) => {
                               if (!confirm(`Raum „${raum.name}" löschen?`)) e.preventDefault()
                             }}
@@ -247,8 +247,8 @@ function InfoZeile({ label, wert }: { label: string; wert: string | null }) {
   if (!wert) return null
   return (
     <div>
-      <dt className="text-xs text-wbc-grau/50 mb-0.5">{label}</dt>
-      <dd className="text-sm text-wbc-grau/80">{wert}</dd>
+      <dt className="text-xs text-gray-500 mb-0.5">{label}</dt>
+      <dd className="text-sm text-gray-700">{wert}</dd>
     </div>
   )
 }

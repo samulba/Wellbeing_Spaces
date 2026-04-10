@@ -46,15 +46,15 @@ export default async function ProduktBearbeitenPage({
       <div className="mb-8">
         <Link
           href={zurueck}
-          className="text-xs text-wbc-grau/40 hover:text-wbc-gruen transition-colors mb-3 inline-block"
+          className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-3 inline-block"
         >
           ← Zurück zum Raum
         </Link>
-        <h1 className="font-heading text-3xl font-light text-wbc-gruen tracking-wide">Produkt bearbeiten</h1>
-        <p className="text-sm text-wbc-grau/50 mt-0.5">{produkt.name}</p>
+        <h1 className="text-xl font-semibold text-gray-900">Produkt bearbeiten</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{produkt.name}</p>
       </div>
 
-      <div className="bg-white border border-[#ede4d9] rounded-xl p-6">
+      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
         <ProduktFormular
           aktion={aktion}
           partner={partner}

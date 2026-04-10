@@ -26,15 +26,15 @@ export default async function NeuesProjektPage({
       <div className="mb-8">
         <Link
           href="/dashboard/projekte"
-          className="text-xs text-wbc-grau/40 hover:text-wbc-gruen transition-colors mb-3 inline-block"
+          className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-3 inline-block"
         >
           ← Zurück zu Projekte
         </Link>
-        <h1 className="font-heading text-3xl font-light text-wbc-gruen tracking-wide">Neues Projekt</h1>
+        <h1 className="text-xl font-semibold text-gray-900">Neues Projekt</h1>
       </div>
 
       {kunden.length === 0 ? (
-        <div className="bg-wbc-terra/5 border border-wbc-terra/20 rounded-xl p-5 text-sm text-wbc-terra/80">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-800">
           Bitte zuerst einen{' '}
           <Link href="/dashboard/kunden/neu" className="underline underline-offset-2">
             Kunden anlegen
@@ -42,7 +42,7 @@ export default async function NeuesProjektPage({
           , bevor ein Projekt erstellt werden kann.
         </div>
       ) : (
-        <div className="bg-white border border-[#ede4d9] rounded-xl p-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <ProjektFormular
             aktion={projektAnlegen}
             kunden={kunden}

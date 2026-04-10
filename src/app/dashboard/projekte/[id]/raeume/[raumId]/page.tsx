@@ -11,10 +11,10 @@ const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
 const statusBadge: Record<string, string> = {
-  ausstehend:     'bg-wbc-creme text-wbc-grau',
-  freigegeben:    'bg-wbc-mint/30 text-wbc-gruen',
-  abgelehnt:      'bg-wbc-terra/10 text-wbc-terra',
-  ueberarbeitung: 'bg-wbc-sand/20 text-wbc-sand',
+  ausstehend:     'bg-gray-100 text-gray-500',
+  freigegeben:    'bg-emerald-50 text-emerald-700',
+  abgelehnt:      'bg-red-50 text-red-600',
+  ueberarbeitung: 'bg-amber-50 text-amber-700',
 }
 const statusLabel: Record<string, string> = {
   ausstehend:     'Ausstehend',
@@ -90,29 +90,29 @@ export default async function RaumDetailPage({
       {/* Breadcrumb + Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <nav className="flex items-center gap-1.5 text-xs text-wbc-grau/40 mb-3">
+          <nav className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
             {kunde && (
               <>
-                <Link href={`/dashboard/kunden/${kunde.id}`} className="hover:text-wbc-gruen transition-colors">
+                <Link href={`/dashboard/kunden/${kunde.id}`} className="hover:text-indigo-600 transition-colors">
                   {kunde.name}
                 </Link>
                 <span>›</span>
               </>
             )}
-            <Link href={`/dashboard/projekte/${params.id}`} className="hover:text-wbc-gruen transition-colors">
+            <Link href={`/dashboard/projekte/${params.id}`} className="hover:text-indigo-600 transition-colors">
               {projekt?.name ?? 'Projekt'}
             </Link>
             <span>›</span>
-            <span className="text-wbc-grau/70">{raum.name}</span>
+            <span className="text-gray-600">{raum.name}</span>
           </nav>
-          <h1 className="font-heading text-3xl font-light text-wbc-gruen tracking-wide">{raum.name}</h1>
+          <h1 className="text-xl font-semibold text-gray-900">{raum.name}</h1>
           {raum.beschreibung && (
-            <p className="text-sm text-wbc-grau/50 mt-0.5">{raum.beschreibung}</p>
+            <p className="text-sm text-gray-500 mt-0.5">{raum.beschreibung}</p>
           )}
         </div>
         <Link
           href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
-          className="px-4 py-2.5 bg-wbc-gruen hover:bg-wbc-gruen-dark text-white text-xs font-medium tracking-[0.12em] uppercase rounded-lg transition-colors whitespace-nowrap"
+          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
         >
           + Produkt hinzufügen
         </Link>
@@ -120,11 +120,11 @@ export default async function RaumDetailPage({
 
       {/* Leerzustand */}
       {produkte.length === 0 && (
-        <div className="text-center py-16 bg-white border border-[#ede4d9] rounded-xl">
-          <p className="text-wbc-grau/50 text-sm">Noch keine Produkte in diesem Raum.</p>
+        <div className="text-center py-16 bg-white border border-gray-200 rounded-xl shadow-sm">
+          <p className="text-gray-500 text-sm">Noch keine Produkte in diesem Raum.</p>
           <Link
             href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
-            className="inline-block mt-3 text-sm text-wbc-gruen underline underline-offset-2"
+            className="inline-block mt-3 text-sm text-indigo-600 underline underline-offset-2"
           >
             Erstes Produkt hinzufügen
           </Link>
@@ -134,18 +134,18 @@ export default async function RaumDetailPage({
       {/* Produkttabelle */}
       {produkte.length > 0 && (
         <>
-          <div className="bg-white border border-[#ede4d9] rounded-xl overflow-hidden mb-4">
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm mb-4">
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[900px]">
                 <thead>
-                  <tr className="border-b border-[#f0e8de] bg-wbc-creme/30">
+                  <tr className="border-b border-gray-100 bg-gray-50">
                     <th className={th + ' text-left'}>Produkt</th>
                     <th className={th}>Menge</th>
-                    <th className={`${th} text-wbc-terra/70`} title="Intern – nicht für Kunden">EP netto</th>
-                    <th className={`${th} text-wbc-terra/70`} title="Intern – nicht für Kunden">Marge</th>
+                    <th className={`${th} text-red-400/70`} title="Intern – nicht für Kunden">EP netto</th>
+                    <th className={`${th} text-red-400/70`} title="Intern – nicht für Kunden">Marge</th>
                     <th className={th}>VP netto</th>
                     <th className={th}>VP brutto</th>
-                    <th className={`${th} text-wbc-terra/70`} title="Intern – nicht für Kunden">Provision</th>
+                    <th className={`${th} text-red-400/70`} title="Intern – nicht für Kunden">Provision</th>
                     <th className={th}>Gesamt netto</th>
                     <th className={th}>Status</th>
                     <th className="w-16" />
@@ -162,26 +162,26 @@ export default async function RaumDetailPage({
                     return (
                       <tr
                         key={p.id}
-                        className={`hover:bg-wbc-creme/20 transition-colors group ${
-                          i < produkte.length - 1 ? 'border-b border-[#f5ede4]' : ''
+                        className={`hover:bg-gray-50 transition-colors group ${
+                          i < produkte.length - 1 ? 'border-b border-gray-100' : ''
                         }`}
                       >
                         {/* Name + Partner */}
                         <td className="px-4 py-3.5">
-                          <div className="font-medium text-wbc-gruen leading-snug">{p.name}</div>
+                          <div className="font-medium text-gray-900 leading-snug">{p.name}</div>
                           <div className="flex items-center gap-2 mt-0.5">
                             {p.partner && (
-                              <span className="text-xs text-wbc-grau/50">{p.partner.name}</span>
+                              <span className="text-xs text-gray-500">{p.partner.name}</span>
                             )}
                             {p.kategorie && (
-                              <span className="text-xs text-wbc-grau/35">{p.kategorie}</span>
+                              <span className="text-xs text-gray-400">{p.kategorie}</span>
                             )}
                             {p.produkt_url && (
                               <a
                                 href={p.produkt_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-wbc-grau/40 hover:text-wbc-gruen underline underline-offset-2"
+                                className="text-xs text-gray-400 hover:text-indigo-600 underline underline-offset-2"
                               >
                                 Link
                               </a>
@@ -195,12 +195,12 @@ export default async function RaumDetailPage({
                         </td>
 
                         {/* EP netto – intern */}
-                        <td className={`${td} text-center font-mono text-wbc-terra/80`}>
+                        <td className={`${td} text-center font-mono text-red-500/70`}>
                           {p.einkaufspreis != null ? eur(p.einkaufspreis) : '–'}
                         </td>
 
                         {/* Marge – intern */}
-                        <td className={`${td} text-center font-mono text-wbc-terra/80`}>
+                        <td className={`${td} text-center font-mono text-red-500/70`}>
                           {p.marge_prozent != null
                             ? new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }).format(p.marge_prozent) + ' %'
                             : '–'}
@@ -212,25 +212,25 @@ export default async function RaumDetailPage({
                         </td>
 
                         {/* VP brutto */}
-                        <td className={`${td} text-center font-mono font-medium text-wbc-gruen`}>
+                        <td className={`${td} text-center font-mono font-medium text-gray-900`}>
                           {p.verkaufspreis != null ? eur(vpBrutto) : '–'}
                         </td>
 
                         {/* Provision – intern */}
-                        <td className={`${td} text-center font-mono text-wbc-terra/80`}>
+                        <td className={`${td} text-center font-mono text-red-500/70`}>
                           {p.provision_prozent != null && p.verkaufspreis != null
                             ? eur(provisionEur)
                             : '–'}
                         </td>
 
                         {/* Gesamt netto */}
-                        <td className={`${td} text-center font-mono font-semibold text-wbc-gruen`}>
+                        <td className={`${td} text-center font-mono font-semibold text-indigo-600`}>
                           {p.verkaufspreis != null ? eur(gesamtNetto) : '–'}
                         </td>
 
                         {/* Status */}
                         <td className="px-4 py-3.5 text-center">
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusBadge[status] ?? 'bg-wbc-creme text-wbc-grau'}`}>
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusBadge[status] ?? 'bg-gray-100 text-gray-500'}`}>
                             {statusLabel[status] ?? status}
                           </span>
                         </td>
@@ -240,14 +240,14 @@ export default async function RaumDetailPage({
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Link
                               href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/${p.id}/bearbeiten`}
-                              className="text-xs text-wbc-grau/40 hover:text-wbc-gruen transition-colors whitespace-nowrap"
+                              className="text-xs text-gray-400 hover:text-indigo-600 transition-colors whitespace-nowrap"
                             >
                               Bearb.
                             </Link>
                             <form action={produktLoeschenAktion}>
                               <button
                                 type="submit"
-                                className="text-xs text-wbc-terra/50 hover:text-wbc-terra transition-colors"
+                                className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
                                 onClick={(e) => {
                                   if (!confirm(`„${p.name}" löschen?`)) e.preventDefault()
                                 }}
@@ -265,7 +265,7 @@ export default async function RaumDetailPage({
             </div>
 
             {/* Summenzeile */}
-            <div className="border-t border-[#f0e8de] bg-wbc-creme/20 px-4 py-3">
+            <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
               <div className="flex items-center gap-8 justify-end min-w-[900px] overflow-x-auto">
                 <SummeZelle label="EP gesamt" wert={eur(r2(sumEpGesamt))} intern />
                 <SummeZelle label="Provision gesamt" wert={eur(r2(sumProvisionGesamt))} intern />
@@ -276,9 +276,9 @@ export default async function RaumDetailPage({
           </div>
 
           {/* Interne Felder Legende */}
-          <p className="text-xs text-wbc-terra/50 text-right">
-            <span className="inline-block w-2 h-2 rounded-full bg-wbc-terra/30 mr-1" />
-            Orange markierte Spalten sind interne Felder und werden Kunden nie angezeigt
+          <p className="text-xs text-red-400/60 text-right">
+            <span className="inline-block w-2 h-2 rounded-full bg-red-300/60 mr-1" />
+            Rot markierte Spalten sind interne Felder und werden Kunden nie angezeigt
           </p>
         </>
       )}
@@ -294,8 +294,8 @@ function SummeZelle({
 }) {
   return (
     <div className="text-right">
-      <p className={`text-xs mb-0.5 ${intern ? 'text-wbc-terra/60' : 'text-wbc-grau/50'}`}>{label}</p>
-      <p className={`text-sm font-mono font-semibold ${hervorheben ? 'text-wbc-gruen' : intern ? 'text-wbc-terra/80' : 'text-wbc-grau'}`}>
+      <p className={`text-xs mb-0.5 ${intern ? 'text-red-400/60' : 'text-gray-500'}`}>{label}</p>
+      <p className={`text-sm font-mono font-semibold ${hervorheben ? 'text-indigo-600' : intern ? 'text-red-500/70' : 'text-gray-700'}`}>
         {wert}
       </p>
     </div>
@@ -303,5 +303,5 @@ function SummeZelle({
 }
 
 // ── Tailwind ──────────────────────────────────────────────────
-const th = 'px-4 py-3 text-xs font-medium text-wbc-grau/50 uppercase tracking-widest'
-const td = 'px-4 py-3.5 text-wbc-grau/70'
+const th = 'px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest'
+const td = 'px-4 py-3.5 text-gray-600'

@@ -26,8 +26,8 @@ export default async function DashboardPage() {
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <div className="mb-10">
-        <h1 className="font-heading text-3xl font-light text-wbc-gruen tracking-wide">Übersicht</h1>
-        <p className="text-sm text-wbc-grau/60 mt-1 tracking-wide">Wellbeing-Concepts Studio</p>
+        <h1 className="text-xl font-semibold text-gray-900">Übersicht</h1>
+        <p className="text-sm text-gray-500 mt-1">Willkommen im Studio.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
@@ -35,20 +35,20 @@ export default async function DashboardPage() {
           <a
             key={k.label}
             href={k.href}
-            className="bg-white border border-[#ede4d9] rounded-xl p-6 hover:border-wbc-sand/60 hover:shadow-sm transition-all group"
+            className="bg-white border border-gray-200 rounded-xl p-6 hover:border-indigo-300 hover:shadow-sm transition-all group"
           >
-            <p className="text-xs font-medium text-wbc-grau/60 uppercase tracking-widest mb-4">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">
               {k.label}
             </p>
-            <p className="font-heading text-4xl font-light text-wbc-gruen group-hover:text-wbc-gruen/70 transition-colors">
+            <p className="text-4xl font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
               {k.wert}
             </p>
           </a>
         ))}
       </div>
 
-      <div className="bg-white border border-[#ede4d9] rounded-xl p-6">
-        <h2 className="text-xs font-medium text-wbc-grau/60 uppercase tracking-widest mb-4">Schnellzugriff</h2>
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Schnellzugriff</h2>
         <div className="flex flex-wrap gap-2">
           {[
             { label: '+ Neuer Kunde', href: '/dashboard/kunden/neu' },
@@ -58,7 +58,7 @@ export default async function DashboardPage() {
             <a
               key={link.label}
               href={link.href}
-              className="text-xs px-4 py-2.5 bg-wbc-gruen text-white rounded-lg hover:bg-wbc-gruen-dark transition-colors tracking-wide"
+              className="text-xs px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
             >
               {link.label}
             </a>

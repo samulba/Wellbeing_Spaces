@@ -40,14 +40,14 @@ export default async function ProjektBearbeitenPage({
       <div className="mb-8">
         <Link
           href={`/dashboard/projekte/${projekt.id}`}
-          className="text-xs text-wbc-grau/40 hover:text-wbc-gruen transition-colors mb-3 inline-block"
+          className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-3 inline-block"
         >
           ← Zurück zu {projekt.name}
         </Link>
-        <h1 className="font-heading text-3xl font-light text-wbc-gruen tracking-wide">Projekt bearbeiten</h1>
+        <h1 className="text-xl font-semibold text-gray-900">Projekt bearbeiten</h1>
       </div>
 
-      <div className="bg-white border border-[#ede4d9] rounded-xl p-6">
+      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
         <ProjektFormular
           aktion={aktion}
           kunden={kunden}

@@ -1,22 +1,15 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Montserrat } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import "./globals.css";
 
-const cormorant = Cormorant_Garamond({
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
-  variable: '--font-heading',
-})
-
-const montserrat = Montserrat({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
-  variable: '--font-body',
+  variable: '--font-inter',
 })
 
 export const metadata: Metadata = {
-  title: "WBC Studio",
-  description: "Internes Projekt- und Freigabe-Tool für Wellbeing-Concepts",
+  title: "Studio",
+  description: "Internes Projekt- und Freigabe-Tool",
 };
 
 export default function RootLayout({
@@ -26,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de">
-      <body className={`${cormorant.variable} ${montserrat.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased`}>
         {children}
       </body>
     </html>

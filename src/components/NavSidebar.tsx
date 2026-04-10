@@ -23,16 +23,16 @@ export default function NavSidebar({ userEmail }: { userEmail: string }) {
   }
 
   return (
-    <aside className="w-56 shrink-0 bg-wbc-gruen flex flex-col h-full">
+    <aside className="w-60 shrink-0 bg-[#0F1117] flex flex-col h-full">
       {/* Logo */}
-      <div className="px-6 py-6 border-b border-white/10">
-        <span className="font-heading text-xl font-light tracking-[0.2em] text-white uppercase">
-          WBC Studio
+      <div className="px-6 py-5 border-b border-white/[0.06]">
+        <span className="text-sm font-semibold tracking-tight text-white">
+          Studio
         </span>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-5 space-y-0.5">
+      <nav className="flex-1 px-3 py-4 space-y-0.5">
         {navLinks.map((link) => {
           const aktiv =
             link.href === '/dashboard'
@@ -43,10 +43,10 @@ export default function NavSidebar({ userEmail }: { userEmail: string }) {
             <Link
               key={link.href}
               href={link.href}
-              className={`block px-3 py-2.5 rounded-lg text-sm transition-colors ${
+              className={`block px-3 py-2 rounded-md text-sm transition-colors ${
                 aktiv
-                  ? 'bg-white/15 text-white font-medium'
-                  : 'text-white/55 hover:text-white hover:bg-white/10'
+                  ? 'bg-white/10 text-white font-medium'
+                  : 'text-white/50 hover:text-white/80 hover:bg-white/[0.06]'
               }`}
             >
               {link.label}
@@ -56,11 +56,11 @@ export default function NavSidebar({ userEmail }: { userEmail: string }) {
       </nav>
 
       {/* User / Logout */}
-      <div className="px-4 py-4 border-t border-white/10">
-        <p className="text-xs text-white/35 truncate mb-2">{userEmail}</p>
+      <div className="px-4 py-4 border-t border-white/[0.06]">
+        <p className="text-xs text-white/30 truncate mb-2">{userEmail}</p>
         <button
           onClick={handleLogout}
-          className="text-xs text-white/45 hover:text-white/80 transition-colors"
+          className="text-xs text-white/40 hover:text-white/70 transition-colors"
         >
           Abmelden
         </button>

@@ -10,10 +10,10 @@ const statusLabel: Record<string, string> = {
 }
 
 const statusFarbe: Record<string, string> = {
-  offen:          'bg-wbc-creme text-wbc-grau',
-  in_bearbeitung: 'bg-wbc-mint/25 text-wbc-gruen',
-  freigegeben:    'bg-wbc-mint/40 text-wbc-gruen',
-  abgeschlossen:  'bg-[#ede4d9] text-wbc-grau',
+  offen:          'bg-gray-100 text-gray-600',
+  in_bearbeitung: 'bg-blue-50 text-blue-700',
+  freigegeben:    'bg-emerald-50 text-emerald-700',
+  abgeschlossen:  'bg-gray-100 text-gray-500',
 }
 
 async function getProjekte(): Promise<ProjektMitKunde[]> {
@@ -34,12 +34,12 @@ export default async function ProjektePage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="font-heading text-3xl font-light text-wbc-gruen tracking-wide">Projekte</h1>
-          <p className="text-sm text-wbc-grau/50 mt-0.5">{projekte.length} Einträge</p>
+          <h1 className="text-xl font-semibold text-gray-900">Projekte</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{projekte.length} Einträge</p>
         </div>
         <Link
           href="/dashboard/projekte/neu"
-          className="px-4 py-2.5 bg-wbc-gruen hover:bg-wbc-gruen-dark text-white text-xs font-medium tracking-[0.12em] uppercase rounded-lg transition-colors"
+          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
         >
           + Neues Projekt
         </Link>
@@ -47,11 +47,11 @@ export default async function ProjektePage() {
 
       {/* Leerzustand */}
       {projekte.length === 0 && (
-        <div className="text-center py-16 bg-white border border-[#ede4d9] rounded-xl">
-          <p className="text-wbc-grau/50 text-sm">Noch keine Projekte angelegt.</p>
+        <div className="text-center py-16 bg-white border border-gray-200 rounded-xl shadow-sm">
+          <p className="text-gray-500 text-sm">Noch keine Projekte angelegt.</p>
           <Link
             href="/dashboard/projekte/neu"
-            className="inline-block mt-3 text-sm text-wbc-gruen underline underline-offset-2"
+            className="inline-block mt-3 text-sm text-indigo-600 underline underline-offset-2"
           >
             Erstes Projekt anlegen
           </Link>
@@ -65,37 +65,37 @@ export default async function ProjektePage() {
             <Link
               key={p.id}
               href={`/dashboard/projekte/${p.id}`}
-              className="bg-white border border-[#ede4d9] rounded-xl p-5 hover:border-wbc-sand/50 hover:shadow-sm transition-all group block"
+              className="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-sm transition-all group block"
             >
               {/* Status-Badge */}
               <div className="flex items-center justify-between mb-3">
                 <span
                   className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                    statusFarbe[p.status] ?? 'bg-wbc-creme text-wbc-grau'
+                    statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'
                   }`}
                 >
                   {statusLabel[p.status] ?? p.status}
                 </span>
                 {p.projektart && (
-                  <span className="text-xs text-wbc-grau/40">{p.projektart}</span>
+                  <span className="text-xs text-gray-400">{p.projektart}</span>
                 )}
               </div>
 
               {/* Name */}
-              <h2 className="text-sm font-semibold text-wbc-gruen group-hover:text-wbc-gruen/70 transition-colors leading-snug mb-1">
+              <h2 className="text-sm font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors leading-snug mb-1">
                 {p.name}
               </h2>
 
               {/* Kunde */}
-              <p className="text-xs text-wbc-grau/50 mb-3">
+              <p className="text-xs text-gray-500 mb-3">
                 {p.kunden?.name ?? '–'}
               </p>
 
               {/* Meta */}
-              <div className="flex items-center gap-3 text-xs text-wbc-grau/40 border-t border-[#f5ede4] pt-3 mt-auto">
+              <div className="flex items-center gap-3 text-xs text-gray-400 border-t border-gray-100 pt-3 mt-auto">
                 {p.standort && <span>{p.standort}</span>}
                 {p.gesamtbudget != null && (
-                  <span className="ml-auto font-medium text-wbc-grau/60">
+                  <span className="ml-auto font-medium text-gray-500">
                     {new Intl.NumberFormat('de-DE', {
                       style: 'currency',
                       currency: 'EUR',

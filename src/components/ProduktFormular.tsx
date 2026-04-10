@@ -30,7 +30,7 @@ function SpeichernButton() {
     <button
       type="submit"
       disabled={pending}
-      className="px-5 py-2.5 bg-wbc-gruen hover:bg-wbc-gruen-dark disabled:opacity-50 text-white text-xs font-medium tracking-[0.12em] uppercase rounded-lg transition-colors"
+      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
     >
       {pending ? 'Wird gespeichert…' : 'Speichern'}
     </button>
@@ -49,20 +49,17 @@ interface Props {
 export default function ProduktFormular({ aktion, partner, initialData, abbrechen }: Props) {
   const [state, formAction] = useFormState(aktion, null)
 
-  // Preisfelder als lokaler State für reaktive Berechnung
   const [ep, setEp] = useState<number>(initialData?.einkaufspreis ?? 0)
   const [marge, setMarge] = useState<number>(initialData?.marge_prozent ?? 0)
   const [vpNetto, setVpNetto] = useState<number>(initialData?.verkaufspreis ?? 0)
   const [provision, setProvision] = useState<number>(initialData?.provision_prozent ?? 0)
   const [menge, setMenge] = useState<number>(initialData?.menge ?? 1)
 
-  // Berechnete Werte
   const vpBrutto    = r2(vpNetto * (1 + MWST))
   const provisionEur = r2(vpNetto * (provision / 100))
   const gesamtNetto  = r2(vpNetto * menge)
   const gesamtBrutto = r2(vpBrutto * menge)
 
-  // Wenn EP oder Marge geändert → VP netto neu berechnen
   const handleEpChange = useCallback((val: number) => {
     setEp(val)
     setVpNetto(r2(val * (1 + marge / 100)))
@@ -73,7 +70,6 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
     setVpNetto(r2(ep * (1 + val / 100)))
   }, [ep])
 
-  // Wenn VP netto direkt geändert → Marge rückrechnen
   const handleVpNettoChange = useCallback((val: number) => {
     setVpNetto(val)
     if (ep > 0) setMarge(r2(((val - ep) / ep) * 100))
@@ -82,7 +78,7 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
   return (
     <form action={formAction} className="space-y-7">
       {state?.fehler && (
-        <div className="text-sm text-wbc-terra bg-wbc-terra/5 border border-wbc-terra/20 rounded-lg px-4 py-3">
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
           {state.fehler}
         </div>
       )}
@@ -177,7 +173,6 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
       {/* ── Abschnitt 2: Preiskalkulation (intern) ── */}
       <Abschnitt titel="Preiskalkulation" hinweis="Interne Felder – nicht für Kunden sichtbar">
 
-        {/* Versteckte Felder mit berechneten Werten für FormData */}
         <input type="hidden" name="einkaufspreis"   value={ep || ''} />
         <input type="hidden" name="marge_prozent"   value={marge || ''} />
         <input type="hidden" name="verkaufspreis"   value={vpNetto || ''} />
@@ -222,12 +217,12 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
 
         {/* VP brutto (readonly) */}
         <div>
-          <label className={lbl}>Verkaufspreis brutto (€) <span className="text-wbc-grau/30 normal-case tracking-normal font-normal">19% MwSt.</span></label>
+          <label className={lbl}>Verkaufspreis brutto (€) <span className="text-gray-400 normal-case font-normal">19% MwSt.</span></label>
           <input
             type="text"
             readOnly
             value={vpNetto > 0 ? eur(vpBrutto) : ''}
-            className={`${inp} font-mono bg-wbc-creme/40 text-wbc-grau/60 cursor-default`}
+            className={`${inp} font-mono bg-gray-50 text-gray-500 cursor-default`}
             tabIndex={-1}
           />
         </div>
@@ -251,15 +246,15 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
             type="text"
             readOnly
             value={provision > 0 && vpNetto > 0 ? eur(provisionEur) : ''}
-            className={`${inp} font-mono bg-wbc-creme/40 text-wbc-grau/60 cursor-default`}
+            className={`${inp} font-mono bg-gray-50 text-gray-500 cursor-default`}
             tabIndex={-1}
           />
         </div>
 
         {/* Zusammenfassung */}
         {(vpNetto > 0 || ep > 0) && (
-          <div className="col-span-2 bg-wbc-creme/50 border border-[#e8ddd3] rounded-xl p-4 mt-1">
-            <p className="text-xs font-medium text-wbc-grau/50 uppercase tracking-widest mb-3">
+          <div className="col-span-2 bg-gray-50 border border-gray-200 rounded-xl p-4 mt-1">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-3">
               Kalkulation bei {menge} {initialData?.einheit ?? 'Stk'}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -299,7 +294,7 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
 
         <div className="col-span-2">
           <label htmlFor="notizen_intern" className={lbl}>
-            Interne Notizen <span className="text-wbc-terra/50 normal-case tracking-normal font-normal">(nicht für Kunden sichtbar)</span>
+            Interne Notizen <span className="text-red-400/60 normal-case font-normal">(nicht für Kunden sichtbar)</span>
           </label>
           <textarea
             id="notizen_intern" name="notizen_intern" rows={3}
@@ -313,7 +308,7 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
       {/* Aktionen */}
       <div className="flex items-center gap-3 pt-1">
         <SpeichernButton />
-        <a href={abbrechen} className="px-5 py-2.5 text-sm text-wbc-grau/60 hover:text-wbc-grau transition-colors">
+        <a href={abbrechen} className="px-5 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
           Abbrechen
         </a>
       </div>
@@ -332,9 +327,9 @@ function Abschnitt({
   return (
     <div>
       <div className="flex items-baseline gap-3 mb-4">
-        <h3 className="text-xs font-semibold text-wbc-grau/70 uppercase tracking-widest">{titel}</h3>
+        <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-widest">{titel}</h3>
         {hinweis && (
-          <span className="text-xs text-wbc-terra bg-wbc-terra/8 border border-wbc-terra/25 px-2.5 py-0.5 rounded-full">
+          <span className="text-xs text-red-500 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full">
             {hinweis}
           </span>
         )}
@@ -347,8 +342,8 @@ function Abschnitt({
 function KalkulationsZeile({ label, wert, hervorheben }: { label: string; wert: string; hervorheben?: boolean }) {
   return (
     <div>
-      <p className="text-xs text-wbc-grau/50 mb-0.5">{label}</p>
-      <p className={`text-sm font-mono font-medium ${hervorheben ? 'text-wbc-gruen' : 'text-wbc-grau'}`}>
+      <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+      <p className={`text-sm font-mono font-medium ${hervorheben ? 'text-indigo-600' : 'text-gray-700'}`}>
         {wert}
       </p>
     </div>
@@ -356,5 +351,5 @@ function KalkulationsZeile({ label, wert, hervorheben }: { label: string; wert: 
 }
 
 // ── Tailwind-Klassen ──────────────────────────────────────────
-const lbl = 'block text-xs font-medium text-wbc-grau/70 uppercase tracking-widest mb-1.5'
-const inp = 'w-full px-3 py-2.5 text-sm bg-white border border-[#e8ddd3] rounded-lg text-wbc-gruen placeholder:text-[#c5b8ab] focus:outline-none focus:ring-2 focus:ring-wbc-gruen/20 focus:border-wbc-gruen/40 transition'
+const lbl = 'block text-xs font-medium text-gray-700 mb-1.5'
+const inp = 'w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition'

@@ -10,7 +10,7 @@ function SpeichernButton() {
     <button
       type="submit"
       disabled={pending}
-      className="px-5 py-2.5 bg-wbc-gruen hover:bg-wbc-gruen-dark disabled:opacity-50 text-white text-xs font-medium tracking-[0.12em] uppercase rounded-lg transition-colors"
+      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
     >
       {pending ? 'Wird gespeichert…' : 'Speichern'}
     </button>
@@ -20,7 +20,7 @@ function SpeichernButton() {
 interface Props {
   aktion: (prevState: KundeActionState, formData: FormData) => Promise<KundeActionState>
   initialData?: Kunde
-  abbrechen: string // href für Abbrechen-Link
+  abbrechen: string
 }
 
 export default function KundeFormular({ aktion, initialData, abbrechen }: Props) {
@@ -29,14 +29,14 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
   return (
     <form action={formAction} className="space-y-5">
       {state?.fehler && (
-        <div className="text-sm text-wbc-terra bg-wbc-terra/5 border border-wbc-terra/20 rounded-lg px-4 py-3">
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
           {state.fehler}
         </div>
       )}
 
       {/* Firmenname */}
       <div>
-        <label htmlFor="name" className={labelKlasse}>
+        <label htmlFor="name" className={lbl}>
           Firmenname <span className="text-red-400">*</span>
         </label>
         <input
@@ -45,14 +45,14 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
           type="text"
           required
           defaultValue={initialData?.name ?? ''}
-          className={inputKlasse}
+          className={inp}
           placeholder="Musterfirma GmbH"
         />
       </div>
 
       {/* Ansprechpartner */}
       <div>
-        <label htmlFor="ansprechpartner" className={labelKlasse}>
+        <label htmlFor="ansprechpartner" className={lbl}>
           Ansprechpartner
         </label>
         <input
@@ -60,7 +60,7 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
           name="ansprechpartner"
           type="text"
           defaultValue={initialData?.ansprechpartner ?? ''}
-          className={inputKlasse}
+          className={inp}
           placeholder="Max Mustermann"
         />
       </div>
@@ -68,28 +68,24 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
       {/* E-Mail & Telefon nebeneinander */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
-          <label htmlFor="email" className={labelKlasse}>
-            E-Mail
-          </label>
+          <label htmlFor="email" className={lbl}>E-Mail</label>
           <input
             id="email"
             name="email"
             type="email"
             defaultValue={initialData?.email ?? ''}
-            className={inputKlasse}
+            className={inp}
             placeholder="kontakt@musterfirma.de"
           />
         </div>
         <div>
-          <label htmlFor="telefon" className={labelKlasse}>
-            Telefon
-          </label>
+          <label htmlFor="telefon" className={lbl}>Telefon</label>
           <input
             id="telefon"
             name="telefon"
             type="tel"
             defaultValue={initialData?.telefon ?? ''}
-            className={inputKlasse}
+            className={inp}
             placeholder="+49 123 456789"
           />
         </div>
@@ -97,30 +93,26 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
 
       {/* Adresse */}
       <div>
-        <label htmlFor="adresse" className={labelKlasse}>
-          Adresse
-        </label>
+        <label htmlFor="adresse" className={lbl}>Adresse</label>
         <input
           id="adresse"
           name="adresse"
           type="text"
           defaultValue={initialData?.adresse ?? ''}
-          className={inputKlasse}
+          className={inp}
           placeholder="Musterstraße 1, 12345 Berlin"
         />
       </div>
 
       {/* Notizen */}
       <div>
-        <label htmlFor="notizen" className={labelKlasse}>
-          Notizen
-        </label>
+        <label htmlFor="notizen" className={lbl}>Notizen</label>
         <textarea
           id="notizen"
           name="notizen"
           rows={4}
           defaultValue={initialData?.notizen ?? ''}
-          className={`${inputKlasse} resize-none`}
+          className={`${inp} resize-none`}
           placeholder="Interne Notizen zum Kunden…"
         />
       </div>
@@ -130,7 +122,7 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
         <SpeichernButton />
         <a
           href={abbrechen}
-          className="px-5 py-2.5 text-sm text-wbc-grau/60 hover:text-wbc-grau transition-colors"
+          className="px-5 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
         >
           Abbrechen
         </a>
@@ -139,8 +131,5 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
   )
 }
 
-const labelKlasse =
-  'block text-xs font-medium text-wbc-grau/70 uppercase tracking-widest mb-1.5'
-
-const inputKlasse =
-  'w-full px-3 py-2.5 text-sm bg-white border border-[#e8ddd3] rounded-lg text-wbc-gruen placeholder:text-[#c5b8ab] focus:outline-none focus:ring-2 focus:ring-wbc-gruen/20 focus:border-wbc-gruen/40 transition'
+const lbl = 'block text-xs font-medium text-gray-700 mb-1.5'
+const inp = 'w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition'

@@ -46,24 +46,24 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <Link href="/dashboard/partner" className="text-xs text-wbc-grau/40 hover:text-wbc-gruen transition-colors mb-3 inline-block">
+          <Link href="/dashboard/partner" className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-3 inline-block">
             ← Zurück zu Partner
           </Link>
-          <h1 className="font-heading text-3xl font-light text-wbc-gruen tracking-wide">{partner.name}</h1>
+          <h1 className="text-xl font-semibold text-gray-900">{partner.name}</h1>
           {partner.website && (
             <a href={partner.website} target="_blank" rel="noopener noreferrer"
-              className="text-sm text-wbc-grau/40 hover:text-wbc-gruen transition-colors mt-0.5 inline-block">
+              className="text-sm text-gray-400 hover:text-indigo-600 transition-colors mt-0.5 inline-block">
               {partner.website} ↗
             </a>
           )}
         </div>
         <div className="flex items-center gap-2">
           <Link href={`/dashboard/partner/${partner.id}/bearbeiten`}
-            className="px-4 py-2 text-xs text-wbc-grau/70 border border-[#e8ddd3] hover:border-wbc-sand/60 hover:bg-wbc-creme/40 rounded-lg transition-colors tracking-wide">
+            className="px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-lg transition-colors">
             Bearbeiten
           </Link>
           <form action={loeschenAktion}>
-            <button type="submit" className="px-4 py-2 text-xs text-wbc-terra/60 hover:text-wbc-terra transition-colors"
+            <button type="submit" className="px-4 py-2 text-xs text-red-500/70 hover:text-red-600 transition-colors"
               onClick={(e) => { if (!confirm(`„${partner.name}" wirklich löschen?`)) e.preventDefault() }}>
               Löschen
             </button>
@@ -74,8 +74,8 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Stammdaten + Konditionen */}
         <div className="space-y-4">
-          <div className="bg-white border border-[#ede4d9] rounded-xl p-5">
-            <h2 className="text-xs font-medium text-wbc-grau/50 uppercase tracking-widest mb-4">Kontakt</h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Kontakt</h2>
             <dl className="space-y-3">
               <InfoZeile label="Ansprechpartner" wert={partner.ansprechpartner} />
               <InfoZeile label="E-Mail" wert={partner.email} link={partner.email ? `mailto:${partner.email}` : undefined} />
@@ -83,20 +83,20 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
             </dl>
           </div>
 
-          <div className="bg-white border border-[#ede4d9] rounded-xl p-5">
-            <h2 className="text-xs font-medium text-wbc-grau/50 uppercase tracking-widest mb-4">Provisionsmodell</h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Provisionsmodell</h2>
             {partner.provisionsmodell ? (
               <dl className="space-y-3">
                 <div>
-                  <dt className="text-xs text-wbc-grau/50 mb-0.5">Modell</dt>
-                  <dd className="text-sm text-wbc-grau/80">{modellLabel[partner.provisionsmodell]}</dd>
+                  <dt className="text-xs text-gray-500 mb-0.5">Modell</dt>
+                  <dd className="text-sm text-gray-700">{modellLabel[partner.provisionsmodell]}</dd>
                 </div>
                 {partner.provisions_wert != null && partner.provisionsmodell !== 'Individuell' && (
                   <div>
-                    <dt className="text-xs text-wbc-grau/50 mb-0.5">
+                    <dt className="text-xs text-gray-500 mb-0.5">
                       {partner.provisionsmodell === 'Prozent' ? 'Satz' : 'Betrag'}
                     </dt>
-                    <dd className="text-sm font-mono font-medium text-wbc-gruen">
+                    <dd className="text-sm font-mono font-medium text-gray-900">
                       {partner.provisionsmodell === 'Prozent'
                         ? `${partner.provisions_wert} %`
                         : eur(partner.provisions_wert)}
@@ -105,34 +105,34 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                 )}
               </dl>
             ) : (
-              <p className="text-sm text-wbc-grau/40">Kein Provisionsmodell hinterlegt.</p>
+              <p className="text-sm text-gray-400">Kein Provisionsmodell hinterlegt.</p>
             )}
           </div>
 
           {partner.einkaufskonditionen && (
-            <div className="bg-white border border-[#ede4d9] rounded-xl p-5">
-              <h2 className="text-xs font-medium text-wbc-grau/50 uppercase tracking-widest mb-3">Einkaufskonditionen</h2>
-              <p className="text-sm text-wbc-grau/70 whitespace-pre-wrap leading-relaxed">{partner.einkaufskonditionen}</p>
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-3">Einkaufskonditionen</h2>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{partner.einkaufskonditionen}</p>
             </div>
           )}
 
           {partner.notizen && (
-            <div className="bg-white border border-[#ede4d9] rounded-xl p-5">
-              <h2 className="text-xs font-medium text-wbc-grau/50 uppercase tracking-widest mb-3">Notizen</h2>
-              <p className="text-sm text-wbc-grau/70 whitespace-pre-wrap leading-relaxed">{partner.notizen}</p>
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-3">Notizen</h2>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{partner.notizen}</p>
             </div>
           )}
         </div>
 
         {/* Produkte */}
         <div className="lg:col-span-2">
-          <div className="bg-white border border-[#ede4d9] rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0e8de]">
-              <h2 className="text-sm font-medium text-wbc-gruen">
-                Zugeordnete Produkte <span className="text-wbc-grau/40 font-normal">({(produkte ?? []).length})</span>
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-medium text-gray-900">
+                Zugeordnete Produkte <span className="text-gray-400 font-normal">({(produkte ?? []).length})</span>
               </h2>
               {gesamtProduktwert > 0 && (
-                <span className="text-xs text-wbc-grau/60 font-mono">
+                <span className="text-xs text-gray-500 font-mono">
                   VP gesamt: {eur(gesamtProduktwert)}
                 </span>
               )}
@@ -140,22 +140,22 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
 
             {(produkte ?? []).length === 0 ? (
               <div className="text-center py-10">
-                <p className="text-sm text-wbc-grau/40">Noch keine Produkte diesem Partner zugeordnet.</p>
+                <p className="text-sm text-gray-400">Noch keine Produkte diesem Partner zugeordnet.</p>
               </div>
             ) : (
-              <ul className="divide-y divide-[#f5ede4]">
+              <ul className="divide-y divide-gray-100">
                 {((produkte as unknown as ProduktMitRaum[]) ?? []).map((p) => (
-                  <li key={p.id} className="px-5 py-3.5 hover:bg-wbc-creme/20 transition-colors">
+                  <li key={p.id} className="px-5 py-3.5 hover:bg-gray-50 transition-colors">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-wbc-gruen">{p.name}</p>
-                        <p className="text-xs text-wbc-grau/50 mt-0.5">
+                        <p className="text-sm font-medium text-gray-900">{p.name}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
                           {p.raeume?.projekte?.name} › {p.raeume?.name}
                           {' · '}{p.menge} {p.einheit}
                         </p>
                       </div>
                       {p.verkaufspreis != null && (
-                        <span className="text-sm font-mono text-wbc-grau/70">{eur(p.verkaufspreis)}</span>
+                        <span className="text-sm font-mono text-gray-600">{eur(p.verkaufspreis)}</span>
                       )}
                     </div>
                   </li>
@@ -173,9 +173,9 @@ function InfoZeile({ label, wert, link }: { label: string; wert: string | null; 
   if (!wert) return null
   return (
     <div>
-      <dt className="text-xs text-wbc-grau/50 mb-0.5">{label}</dt>
-      <dd className="text-sm text-wbc-grau/80">
-        {link ? <a href={link} className="hover:text-wbc-gruen transition-colors">{wert}</a> : wert}
+      <dt className="text-xs text-gray-500 mb-0.5">{label}</dt>
+      <dd className="text-sm text-gray-700">
+        {link ? <a href={link} className="hover:text-indigo-600 transition-colors">{wert}</a> : wert}
       </dd>
     </div>
   )
