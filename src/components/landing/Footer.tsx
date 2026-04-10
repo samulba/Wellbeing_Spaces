@@ -12,21 +12,17 @@ function DepthStackIcon() {
 
 const links: Record<string, { label: string; href: string }[]> = {
   Produkt: [
-    { label: 'Features',  href: '#features'  },
-    { label: 'Preise',    href: '#preise'    },
-    { label: 'FAQ',       href: '#faq'       },
-    { label: 'Changelog', href: '#'          },
+    { label: 'Features',  href: '/features' },
+    { label: 'Preise',    href: '/#preise'  },
+    { label: 'FAQ',       href: '/#faq'     },
   ],
   Konto: [
-    { label: 'Anmelden',     href: '/login' },
-    { label: 'Registrieren', href: '/login' },
-    { label: 'Demo',         href: '#'      },
+    { label: 'Kostenlos starten', href: '/login' },
+    { label: 'Anmelden',          href: '/login' },
   ],
   Rechtliches: [
-    { label: 'Impressum',  href: '#' },
-    { label: 'Datenschutz',href: '#' },
-    { label: 'AGB',        href: '#' },
-    { label: 'DSGVO',      href: '#' },
+    { label: 'Impressum',         href: '/impressum'   },
+    { label: 'Datenschutzerklärung', href: '/datenschutz' },
   ],
 }
 
