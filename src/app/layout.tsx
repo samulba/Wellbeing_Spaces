@@ -10,6 +10,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Studio",
   description: "Internes Projekt- und Freigabe-Tool",
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
