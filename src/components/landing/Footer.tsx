@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 function DepthStackIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 18 18" fill="none" aria-hidden>
+    <svg width="36" height="36" viewBox="0 0 18 18" fill="none" aria-hidden>
       <rect x="0" y="0" width="10" height="10" rx="2" fill="#6366F1" opacity="0.25" />
       <rect x="4" y="4" width="10" height="10" rx="2" fill="#6366F1" opacity="0.55" />
       <rect x="8" y="8" width="10" height="10" rx="2" fill="#6366F1" />
@@ -38,25 +38,33 @@ export default function Footer() {
       {/* Top gradient line */}
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-      {/* Subtle glow */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[250px] bg-indigo-950/60 blur-[120px] rounded-full pointer-events-none" aria-hidden />
+      {/* Glow */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[900px] h-[300px] bg-indigo-950/70 blur-[130px] rounded-full pointer-events-none" aria-hidden />
 
-      <div className="relative z-10 w-full px-8 py-16">
+      {/* Giant watermark */}
+      <div
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 font-syne font-bold leading-none select-none pointer-events-none whitespace-nowrap text-white/[0.025]"
+        style={{ fontSize: 'clamp(80px, 14vw, 200px)' }}
+        aria-hidden
+      >
+        WBC STUDIO
+      </div>
+
+      <div className="relative z-10 w-full px-8 pt-16 pb-12">
 
         {/* Main grid: brand left, link cols right */}
-        <div className="flex flex-col md:flex-row md:justify-between gap-12 md:gap-6 mb-14">
+        <div className="flex flex-col md:flex-row md:justify-between gap-12 md:gap-6 mb-16">
 
           {/* Brand */}
-          <div className="max-w-[260px]">
-            <Link href="/" className="inline-flex items-center gap-2.5 mb-4 group">
+          <div>
+            <Link href="/" className="inline-flex items-center gap-3 mb-5 group">
               <DepthStackIcon />
-              <span className="font-syne font-bold text-[17px] text-white group-hover:text-indigo-300 transition-colors">
+              <span className="font-syne font-bold text-[28px] text-white group-hover:text-indigo-300 transition-colors leading-none">
                 WBC Studio
               </span>
             </Link>
-            <p className="text-[13px] text-white/30 leading-relaxed">
-              Projektmanagement für Interior Designer –
-              Produktlisten, Preiskalkulation und Kundenfreigabe in einem Tool.
+            <p className="text-[13px] text-white/25 max-w-[220px] leading-relaxed">
+              Interior Design Projektmanagement.<br />Einfach. Professionell. Ab 0€.
             </p>
           </div>
 
