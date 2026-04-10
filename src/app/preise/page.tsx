@@ -148,44 +148,47 @@ export default function PreisePage() {
           <div className="grid md:grid-cols-3 gap-5 items-start">
             {plans.map((plan, i) => (
               <AnimateOnScroll key={plan.name} delay={i * 100} type={i === 1 ? 'scale-in' : 'fade-up'}>
-                <div
-                  className={`relative rounded-2xl p-8 flex flex-col h-full transition-all duration-300 ${
-                    plan.highlight
-                      ? 'bg-white border-2 border-[#6366F1] shadow-2xl shadow-indigo-100/80 hover:-translate-y-2'
-                      : 'bg-white border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md hover:-translate-y-1'
-                  }`}
-                >
-                  {plan.badge && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#6366F1] text-white text-[11px] font-bold rounded-full whitespace-nowrap uppercase tracking-wide shadow-md shadow-indigo-200">
-                      {plan.badge}
+                {plan.highlight ? (
+                  /* Pro card: gradient-border wrapper, kein sichtbarer Rand-Strich */
+                  <div className="relative p-[2px] rounded-2xl bg-gradient-to-b from-indigo-400 via-indigo-500 to-indigo-500/20 shadow-2xl shadow-indigo-100/80">
+                    {plan.badge && (
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#6366F1] text-white text-[11px] font-bold rounded-full whitespace-nowrap uppercase tracking-wide shadow-md shadow-indigo-200 z-10">
+                        {plan.badge}
+                      </div>
+                    )}
+                    <div className="relative rounded-[14px] bg-white p-8 flex flex-col h-full hover:-translate-y-2 transition-all duration-300">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">{plan.tag}</p>
+                      <h2 className="font-syne font-bold text-[22px] text-[#0F1117] mb-3">{plan.name}</h2>
+                      <div className="flex items-baseline gap-1 mb-4">
+                        <span className="font-syne font-bold text-[48px] leading-none text-[#6366F1]">{plan.price}€</span>
+                        {plan.period && <span className="text-gray-400 text-[14px]">{plan.period}</span>}
+                      </div>
+                      <p className="text-[13px] text-gray-400 leading-relaxed mb-7 flex-none">{plan.desc}</p>
+                      <Link
+                        href={plan.ctaHref}
+                        className="w-full flex items-center justify-center py-3.5 px-4 rounded-xl text-[14px] font-semibold transition-all duration-200 mt-auto bg-[#6366F1] hover:bg-[#4F46E5] text-white hover:shadow-lg hover:shadow-indigo-200"
+                      >
+                        {plan.cta}
+                      </Link>
                     </div>
-                  )}
-
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
-                    {plan.tag}
-                  </p>
-                  <h2 className="font-syne font-bold text-[22px] text-[#0F1117] mb-3">{plan.name}</h2>
-                  <div className="flex items-baseline gap-1 mb-4">
-                    <span className={`font-syne font-bold text-[48px] leading-none ${plan.highlight ? 'text-[#6366F1]' : 'text-[#0F1117]'}`}>
-                      {plan.price}€
-                    </span>
-                    {plan.period && <span className="text-gray-400 text-[14px]">{plan.period}</span>}
                   </div>
-                  <p className="text-[13px] text-gray-400 leading-relaxed mb-7 flex-none">
-                    {plan.desc}
-                  </p>
-
-                  <Link
-                    href={plan.ctaHref}
-                    className={`w-full flex items-center justify-center py-3.5 px-4 rounded-xl text-[14px] font-semibold transition-all duration-200 mt-auto ${
-                      plan.highlight
-                        ? 'bg-[#6366F1] hover:bg-[#4F46E5] text-white hover:shadow-lg hover:shadow-indigo-200'
-                        : 'bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200'
-                    }`}
-                  >
-                    {plan.cta}
-                  </Link>
-                </div>
+                ) : (
+                  <div className="relative rounded-2xl bg-white border border-gray-200 p-8 flex flex-col h-full shadow-sm hover:border-gray-300 hover:shadow-md hover:-translate-y-1 transition-all duration-300">
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">{plan.tag}</p>
+                    <h2 className="font-syne font-bold text-[22px] text-[#0F1117] mb-3">{plan.name}</h2>
+                    <div className="flex items-baseline gap-1 mb-4">
+                      <span className="font-syne font-bold text-[48px] leading-none text-[#0F1117]">{plan.price}€</span>
+                      {plan.period && <span className="text-gray-400 text-[14px]">{plan.period}</span>}
+                    </div>
+                    <p className="text-[13px] text-gray-400 leading-relaxed mb-7 flex-none">{plan.desc}</p>
+                    <Link
+                      href={plan.ctaHref}
+                      className="w-full flex items-center justify-center py-3.5 px-4 rounded-xl text-[14px] font-semibold transition-all duration-200 mt-auto bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200"
+                    >
+                      {plan.cta}
+                    </Link>
+                  </div>
+                )}
               </AnimateOnScroll>
             ))}
           </div>

@@ -19,8 +19,9 @@ const produktLinks = [
 ]
 
 const legalLinks = [
-  { label: 'Impressum',           href: '/impressum'   },
-  { label: 'Datenschutzerklärung',href: '/datenschutz' },
+  { label: 'Impressum',            href: '/impressum'   },
+  { label: 'Datenschutzerklärung', href: '/datenschutz' },
+  { label: 'AGB',                  href: '/agb'         },
 ]
 
 const trust = [
@@ -88,64 +89,42 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Produkt + Rechtliches – right, grouped */}
-          <div className="flex gap-16 shrink-0">
-
-            {/* Produkt */}
-            <div>
-              <h4 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.16em] mb-5">
-                Produkt
-              </h4>
-              <ul className="space-y-3.5">
-                {produktLinks.map((l) => (
-                  <li key={l.label}>
-                    <Link
-                      href={l.href}
-                      className="text-[13px] text-white/35 hover:text-white transition-colors duration-150"
-                    >
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Rechtliches */}
-            <div>
-              <h4 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.16em] mb-5">
-                Rechtliches
-              </h4>
-              <ul className="space-y-3.5 mb-10">
-                {legalLinks.map((l) => (
-                  <li key={l.label}>
-                    <Link
-                      href={l.href}
-                      className="text-[13px] text-white/35 hover:text-white transition-colors duration-150"
-                    >
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-
-              {/* Live badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] rounded-lg">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                <span className="text-[11px] text-white/25 whitespace-nowrap">Live · Frankfurt EU</span>
-              </div>
-            </div>
-
+          {/* Produkt – right */}
+          <div className="shrink-0">
+            <h4 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.16em] mb-5">
+              Produkt
+            </h4>
+            <ul className="space-y-3.5">
+              {produktLinks.map((l) => (
+                <li key={l.label}>
+                  <Link
+                    href={l.href}
+                    className="text-[13px] text-white/35 hover:text-white transition-colors duration-150"
+                  >
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
         {/* ── Bottom bar ────────────────────────────────────── */}
-        <div className="border-t border-white/[0.06] py-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="border-t border-white/[0.06] py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-[11px] text-white/15">
             © 2026 WBC Studio – Made for Interior Designers
           </p>
-          <p className="text-[11px] text-white/10">
-            Built with Next.js · Supabase · Vercel
-          </p>
+          <div className="flex items-center gap-5">
+            {legalLinks.map((l) => (
+              <Link
+                key={l.label}
+                href={l.href}
+                className="text-[11px] text-white/20 hover:text-white/50 transition-colors duration-150"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
         </div>
 
       </div>
