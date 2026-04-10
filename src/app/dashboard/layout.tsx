@@ -12,9 +12,11 @@ export default async function DashboardLayout({
 
   if (!user) redirect('/login')
 
+  const userName = (user.user_metadata?.full_name as string | undefined) || undefined
+
   return (
     <div className="flex h-screen bg-gray-50">
-      <NavSidebar userEmail={user.email ?? ''} />
+      <NavSidebar userEmail={user.email ?? ''} userName={userName} />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>

@@ -6,6 +6,7 @@ import FreigabeLinkKarte from '@/components/FreigabeLinkKarte'
 import { raumAnlegen, raumSoftDelete } from '@/app/actions/raeume'
 import { projektSoftDelete, projektStatusAendern } from '@/app/actions/projekte'
 import { ChevronRight } from 'lucide-react'
+import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
 
 const statusOptionen = [
@@ -72,15 +73,10 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
           >
             Bearbeiten
           </Link>
-          <form action={loeschenAktion}>
-            <button
-              type="submit"
-              className="px-4 py-2 text-xs text-red-500/70 hover:text-red-600 transition-colors"
-              onClick={(e) => { if (!confirm(`„${projekt.name}" wirklich löschen?`)) e.preventDefault() }}
-            >
-              Löschen
-            </button>
-          </form>
+          <ConfirmDeleteButton
+            action={loeschenAktion}
+            confirmMessage={`„${projekt.name}" wirklich löschen?`}
+          />
         </div>
       </div>
 
@@ -175,15 +171,11 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
                         >
                           Öffnen →
                         </Link>
-                        <form action={raumLoeschenAktion}>
-                          <button
-                            type="submit"
-                            className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
-                            onClick={(e) => { if (!confirm(`Raum „${raum.name}" löschen?`)) e.preventDefault() }}
-                          >
-                            Löschen
-                          </button>
-                        </form>
+                        <ConfirmDeleteButton
+                          action={raumLoeschenAktion}
+                          confirmMessage={`Raum „${raum.name}" löschen?`}
+                          className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
+                        />
                       </div>
                     </li>
                   )

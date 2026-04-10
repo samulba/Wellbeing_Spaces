@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { Settings } from 'lucide-react'
 
 const navLinks = [
   { label: 'Übersicht', href: '/dashboard' },
@@ -11,7 +12,31 @@ const navLinks = [
   { label: 'Partner', href: '/dashboard/partner' },
 ]
 
-export default function NavSidebar({ userEmail }: { userEmail: string }) {
+const avatarFarben = [
+  'bg-indigo-500',
+  'bg-violet-500',
+  'bg-blue-500',
+  'bg-emerald-500',
+  'bg-rose-500',
+  'bg-amber-500',
+]
+
+function avatarFarbe(s: string) {
+  return avatarFarben[s.charCodeAt(0) % avatarFarben.length]
+}
+
+function initials(email: string, name?: string) {
+  if (name) return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
+  return email.split('@')[0].slice(0, 2).toUpperCase()
+}
+
+export default function NavSidebar({
+  userEmail,
+  userName,
+}: {
+  userEmail: string
+  userName?: string
+}) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -21,6 +46,10 @@ export default function NavSidebar({ userEmail }: { userEmail: string }) {
     router.push('/login')
     router.refresh()
   }
+
+  const label = userName || userEmail
+  const kuerzel = initials(userEmail, userName)
+  const farbe = avatarFarbe(label)
 
   return (
     <aside className="w-60 shrink-0 bg-[#0F1117] flex flex-col h-full">
@@ -56,14 +85,45 @@ export default function NavSidebar({ userEmail }: { userEmail: string }) {
       </nav>
 
       {/* User / Logout */}
-      <div className="px-4 py-4 border-t border-white/[0.06]">
-        <p className="text-xs text-white/30 truncate mb-2">{userEmail}</p>
-        <button
-          onClick={handleLogout}
-          className="text-xs text-white/40 hover:text-white/70 transition-colors"
-        >
-          Abmelden
-        </button>
+      <div className="px-3 py-4 border-t border-white/[0.06]">
+        <div className="flex items-center justify-between gap-2">
+          <Link
+            href="/dashboard/profil"
+            className="flex items-center gap-2.5 min-w-0 group"
+          >
+            <div
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${farbe}`}
+            >
+              {kuerzel}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-white/70 group-hover:text-white/90 transition-colors truncate leading-none">
+                {userName || userEmail.split('@')[0]}
+              </p>
+              {userName && (
+                <p className="text-[10px] text-white/30 truncate mt-0.5 leading-none">
+                  {userEmail}
+                </p>
+              )}
+            </div>
+          </Link>
+          <div className="flex items-center gap-1 shrink-0">
+            <Link
+              href="/dashboard/einstellungen"
+              className="p-1.5 text-white/30 hover:text-white/70 transition-colors rounded"
+              title="Einstellungen"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="text-[10px] text-white/30 hover:text-white/60 transition-colors px-1.5 py-1"
+              title="Abmelden"
+            >
+              ↩
+            </button>
+          </div>
+        </div>
       </div>
     </aside>
   )

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { produktSoftDelete } from '@/app/actions/produkte'
+import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import type { ProduktMitDetails } from '@/lib/supabase/types'
 
 // ── Konstanten ────────────────────────────────────────────────
@@ -244,17 +245,12 @@ export default async function RaumDetailPage({
                             >
                               Bearb.
                             </Link>
-                            <form action={produktLoeschenAktion}>
-                              <button
-                                type="submit"
-                                className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
-                                onClick={(e) => {
-                                  if (!confirm(`„${p.name}" löschen?`)) e.preventDefault()
-                                }}
-                              >
-                                ✕
-                              </button>
-                            </form>
+                            <ConfirmDeleteButton
+                              action={produktLoeschenAktion}
+                              label="✕"
+                              confirmMessage={`„${p.name}" löschen?`}
+                              className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
+                            />
                           </div>
                         </td>
                       </tr>

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { partnerSoftDelete } from '@/app/actions/partner'
+import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 
 type ProduktMitRaum = {
   id: string; name: string; menge: number; einheit: string; verkaufspreis: number | null
@@ -53,12 +54,10 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
             className="px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02] rounded-lg transition-all duration-200">
             Bearbeiten
           </Link>
-          <form action={loeschenAktion}>
-            <button type="submit" className="px-4 py-2 text-xs text-red-500/70 hover:text-red-600 transition-colors"
-              onClick={(e) => { if (!confirm(`„${partner.name}" wirklich löschen?`)) e.preventDefault() }}>
-              Löschen
-            </button>
-          </form>
+          <ConfirmDeleteButton
+            action={loeschenAktion}
+            confirmMessage={`„${partner.name}" wirklich löschen?`}
+          />
         </div>
       </div>
 

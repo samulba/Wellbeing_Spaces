@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { kundeSoftDelete } from '@/app/actions/kunden'
 import { Plus } from 'lucide-react'
+import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import type { Projekt } from '@/lib/supabase/types'
 
 const projektStatusLabel: Record<string, string> = {
@@ -77,15 +78,10 @@ export default async function KundeDetailPage({ params }: { params: { id: string
           >
             Bearbeiten
           </Link>
-          <form action={loeschenMitId}>
-            <button
-              type="submit"
-              className="px-4 py-2 text-xs text-red-500/70 hover:text-red-600 transition-colors"
-              onClick={(e) => { if (!confirm(`„${kunde.name}" wirklich löschen?`)) e.preventDefault() }}
-            >
-              Löschen
-            </button>
-          </form>
+          <ConfirmDeleteButton
+            action={loeschenMitId}
+            confirmMessage={`„${kunde.name}" wirklich löschen?`}
+          />
         </div>
       </div>
 
