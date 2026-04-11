@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, Cell, PieChart, Pie, Label, AreaChart, Area,
+  ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area,
 } from 'recharts'
 import Link from 'next/link'
 import { BarChart2, PieChart as PieIcon, TrendingUp } from 'lucide-react'
@@ -215,7 +215,12 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
         />
       ) : (
         <div className="flex-1 min-h-0 flex items-center justify-center px-4 py-3">
-          <div className="w-full" style={{ height: donutHoehe }}>
+          <div className="relative w-full" style={{ height: donutHoehe }}>
+            {/* Mittige Zahl – exakt auf cx=50% / cy=42% ausgerichtet */}
+            <div style={{ position: 'absolute', top: '42%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', textAlign: 'center' }}>
+              <div style={{ fontSize: '22px', fontWeight: 700, color: '#111827', lineHeight: 1 }}>{gesamt}</div>
+              <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '4px' }}>Produkte</div>
+            </div>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -233,23 +238,6 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
                   {data.map((entry, index) => (
                     <Cell key={index} fill={entry.farbe} stroke="none" />
                   ))}
-                  <Label
-                    content={({ viewBox }) => {
-                      const { cx, cy } = viewBox as { cx: number; cy: number }
-                      return (
-                        <g>
-                          <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="central"
-                            style={{ fontSize: '22px', fontWeight: 700, fill: '#111827' }}>
-                            {gesamt}
-                          </text>
-                          <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="central"
-                            style={{ fontSize: '10px', fill: '#9CA3AF' }}>
-                            Produkte
-                          </text>
-                        </g>
-                      )
-                    }}
-                  />
                 </Pie>
                 <Tooltip content={(props) => (
                   <DonutTooltip
