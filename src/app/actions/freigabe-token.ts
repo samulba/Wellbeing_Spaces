@@ -43,3 +43,28 @@ export async function tokenDeaktivieren(
 
   revalidatePath(`/dashboard/projekte/${projektId}`)
 }
+
+export async function tokenErneuern(
+  projektId: string,
+  alterTokenId: string
+): Promise<{ token: string } | { fehler: string }> {
+  const supabase = await createClient()
+
+  // Alten Token deaktivieren
+  await supabase
+    .from('freigabe_tokens')
+    .update({ aktiv: false })
+    .eq('id', alterTokenId)
+
+  // Neuen Token anlegen
+  const { data, error } = await supabase
+    .from('freigabe_tokens')
+    .insert({ projekt_id: projektId })
+    .select('token')
+    .single()
+
+  if (error || !data) return { fehler: 'Token konnte nicht erneuert werden.' }
+
+  revalidatePath(`/dashboard/projekte/${projektId}`)
+  return { token: data.token }
+}

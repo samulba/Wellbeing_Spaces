@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation'
 import { kundeSoftDelete } from '@/app/actions/kunden'
 import { Plus } from 'lucide-react'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
+import NotizBlock, { type Notiz } from '@/components/NotizBlock'
+import LogoUpload from '@/components/LogoUpload'
 import type { Projekt } from '@/lib/supabase/types'
 
 const projektStatusLabel: Record<string, string> = {
@@ -20,21 +22,6 @@ const projektStatusFarbe: Record<string, string> = {
   abgeschlossen:  'bg-gray-100 text-gray-500',
 }
 
-const avatarFarben = [
-  'bg-indigo-100 text-indigo-700',
-  'bg-blue-100 text-blue-700',
-  'bg-emerald-100 text-emerald-700',
-  'bg-violet-100 text-violet-700',
-  'bg-rose-100 text-rose-700',
-  'bg-amber-100 text-amber-700',
-]
-
-function initials(name: string) {
-  return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-}
-function avatarFarbe(name: string) {
-  return avatarFarben[name.charCodeAt(0) % avatarFarben.length]
-}
 
 async function getKunde(id: string) {
   const supabase = await createClient()
@@ -50,8 +37,20 @@ async function getProjekte(kundeId: string): Promise<Projekt[]> {
   return data ?? []
 }
 
+async function getNotizen(kundeId: string): Promise<Notiz[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('notizen')
+    .select('id, inhalt, erstellt_von, erstellt_am, bearbeitet_am')
+    .eq('typ', 'kunde')
+    .eq('referenz_id', kundeId)
+    .is('deleted_at', null)
+    .order('erstellt_am', { ascending: false })
+  return (data ?? []) as Notiz[]
+}
+
 export default async function KundeDetailPage({ params }: { params: { id: string } }) {
-  const [kunde, projekte] = await Promise.all([getKunde(params.id), getProjekte(params.id)])
+  const [kunde, projekte, notizen] = await Promise.all([getKunde(params.id), getProjekte(params.id), getNotizen(params.id)])
   if (!kunde) notFound()
 
   const loeschenMitId = kundeSoftDelete.bind(null, kunde.id)
@@ -61,9 +60,7 @@ export default async function KundeDetailPage({ params }: { params: { id: string
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${avatarFarbe(kunde.name)}`}>
-            {initials(kunde.name)}
-          </div>
+          <LogoUpload typ="kunde" entityId={kunde.id} initialLogoUrl={kunde.logo_url} name={kunde.name} />
           <div>
             <Link href="/dashboard/kunden" className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-0.5 inline-block">
               ← Kunden
@@ -99,10 +96,11 @@ export default async function KundeDetailPage({ params }: { params: { id: string
           </div>
           {kunde.notizen && (
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Notizen</h2>
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Interne Notizen (alt)</h2>
               <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{kunde.notizen}</p>
             </div>
           )}
+          <NotizBlock typ="kunde" referenzId={kunde.id} initialNotizen={notizen} />
         </div>
 
         {/* Projekte */}

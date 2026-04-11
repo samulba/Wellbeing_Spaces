@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { partnerSoftDelete } from '@/app/actions/partner'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
+import NotizBlock, { type Notiz } from '@/components/NotizBlock'
+import LogoUpload from '@/components/LogoUpload'
 import { ExternalLink, Mail, Phone, Globe } from 'lucide-react'
 
 type ProduktMitRaum = {
@@ -31,19 +33,29 @@ const statusLabel: Record<string, string> = {
   abgelehnt: 'Abgelehnt', ueberarbeitung: 'Überarbeitung',
 }
 
-const avatarFarben = ['bg-indigo-500','bg-violet-500','bg-blue-500','bg-emerald-500','bg-rose-500','bg-amber-500']
-function avatarFarbe(name: string) { return avatarFarben[name.charCodeAt(0) % avatarFarben.length] }
-function initials(name: string) { return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) }
+
+async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('notizen')
+    .select('id, inhalt, erstellt_von, erstellt_am, bearbeitet_am')
+    .eq('typ', 'partner')
+    .eq('referenz_id', partnerId)
+    .is('deleted_at', null)
+    .order('erstellt_am', { ascending: false })
+  return (data ?? []) as Notiz[]
+}
 
 export default async function PartnerDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
-  const [{ data: partner }, { data: produkte }] = await Promise.all([
+  const [{ data: partner }, { data: produkte }, notizen] = await Promise.all([
     supabase.from('partner').select('*').eq('id', params.id).is('deleted_at', null).single(),
     supabase
       .from('produkte')
       .select('id, name, menge, einheit, verkaufspreis, produktstatus(status), raeume!inner(id, name, projekte!inner(id, name))')
       .eq('partner_id', params.id).is('deleted_at', null)
       .order('created_at', { ascending: false }),
+    getPartnerNotizen(params.id),
   ])
 
   if (!partner) notFound()
@@ -57,10 +69,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div className="flex items-center gap-5">
-          {/* Avatar 72px */}
-          <div className={`w-[72px] h-[72px] rounded-2xl flex items-center justify-center text-2xl font-bold text-white shrink-0 ${avatarFarbe(partner.name)}`}>
-            {initials(partner.name)}
-          </div>
+          <LogoUpload typ="partner" entityId={partner.id} initialLogoUrl={partner.logo_url} name={partner.name} />
           <div>
             <Link href="/dashboard/partner" className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-1 inline-block">
               ← Partner
@@ -176,13 +185,15 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
             </div>
           )}
 
-          {/* Notizen */}
+          {/* Alte Notizen (Freitextfeld) */}
           {partner.notizen && (
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Notizen</h2>
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Notizen (alt)</h2>
               <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{partner.notizen}</p>
             </div>
           )}
+
+          <NotizBlock typ="partner" referenzId={partner.id} initialNotizen={notizen} />
         </div>
 
         {/* Produkte-Tabelle */}

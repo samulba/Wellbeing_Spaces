@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Mail, Phone, FolderOpen, Search, LayoutGrid, List } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
@@ -13,6 +14,7 @@ export type KundeKarte = {
   telefon: string | null
   projektCount: number
   status: string
+  logo_url: string | null
 }
 
 // ── Avatar ────────────────────────────────────────────────────
@@ -102,9 +104,15 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
               className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 transition-all duration-200 group flex flex-col gap-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-[18px] font-bold text-white shrink-0 ${avatarFarbe(kunde.name)}`}>
-                    {initials(kunde.name)}
-                  </div>
+                  {kunde.logo_url ? (
+                    <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 shrink-0">
+                      <Image src={kunde.logo_url} alt={kunde.name} width={56} height={56} className="w-full h-full object-cover" unoptimized />
+                    </div>
+                  ) : (
+                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-[18px] font-bold text-white shrink-0 ${avatarFarbe(kunde.name)}`}>
+                      {initials(kunde.name)}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors truncate leading-tight">{kunde.name}</p>
                     {kunde.ansprechpartner && <p className="text-xs text-gray-500 truncate mt-0.5">{kunde.ansprechpartner}</p>}
@@ -148,7 +156,13 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
                 <tr key={kunde.id} className={`hover:bg-gray-50 transition-colors group ${i < gefiltert.length - 1 ? 'border-b border-gray-100' : ''}`}>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3">
+                      {kunde.logo_url ? (
+                      <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 shrink-0">
+                        <Image src={kunde.logo_url} alt={kunde.name} width={32} height={32} className="w-full h-full object-cover" unoptimized />
+                      </div>
+                    ) : (
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white shrink-0 ${avatarFarbe(kunde.name)}`}>{initials(kunde.name)}</div>
+                    )}
                       <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{kunde.name}</span>
                     </div>
                   </td>

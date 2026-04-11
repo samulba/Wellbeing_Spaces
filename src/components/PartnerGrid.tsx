@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Search, LayoutGrid, List, ExternalLink } from 'lucide-react'
-// Link wird jetzt auch für Grid-Karten genutzt
 import type { Partner } from '@/lib/supabase/types'
 
 const modellBadge: Record<string, string> = {
@@ -76,9 +76,15 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
               className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 transition-all duration-200 group flex flex-col gap-4 cursor-pointer">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-white shrink-0 ${avatarFarbe(p.name)}`}>
-                    {initials(p.name)}
-                  </div>
+                  {p.logo_url ? (
+                    <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 shrink-0">
+                      <Image src={p.logo_url} alt={p.name} width={56} height={56} className="w-full h-full object-cover" unoptimized />
+                    </div>
+                  ) : (
+                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-white shrink-0 ${avatarFarbe(p.name)}`}>
+                      {initials(p.name)}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors truncate">{p.name}</p>
                     {p.ansprechpartner && <p className="text-xs text-gray-500 truncate mt-0.5">{p.ansprechpartner}</p>}
@@ -134,9 +140,15 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
                 <tr key={p.id} className={`hover:bg-gray-50 transition-colors group ${i < gefiltert.length - 1 ? 'border-b border-gray-100' : ''}`}>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0 ${avatarFarbe(p.name)}`}>
-                        {initials(p.name)}
-                      </div>
+                      {p.logo_url ? (
+                        <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200 bg-gray-50 shrink-0">
+                          <Image src={p.logo_url} alt={p.name} width={32} height={32} className="w-full h-full object-cover" unoptimized />
+                        </div>
+                      ) : (
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0 ${avatarFarbe(p.name)}`}>
+                          {initials(p.name)}
+                        </div>
+                      )}
                       <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{p.name}</span>
                     </div>
                   </td>

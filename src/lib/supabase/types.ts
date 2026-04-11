@@ -16,6 +16,7 @@ export interface Kunde {
   adresse: string | null
   notizen: string | null
   status: KundeStatus
+  logo_url: string | null
   deleted_at: string | null
   created_at: string
   updated_at: string
@@ -63,6 +64,7 @@ export interface Partner {
   provisions_wert: number | null
   einkaufskonditionen: string | null
   notizen: string | null
+  logo_url: string | null
   deleted_at: string | null
   created_at: string
   updated_at: string
