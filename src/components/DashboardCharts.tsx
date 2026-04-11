@@ -107,6 +107,17 @@ function DonutTooltip({ active, payload, gesamt }: { active?: boolean; payload?:
   )
 }
 
+// ── Shared: Gekürzte X-Achsen-Beschriftung ───────────────────
+function TruncatedTick({ x, y, payload }: { x?: number; y?: number; payload?: { value: string } }) {
+  const label = payload?.value ?? ''
+  const display = label.length > 8 ? label.slice(0, 8) + '…' : label
+  return (
+    <text x={x} y={y} dy={12} textAnchor="middle" fill="#6B7280" fontSize={11}>
+      {display}
+    </text>
+  )
+}
+
 // ── Chart 1: Projektkosten Balkendiagramm ─────────────────────
 export function BalkenChart({ data }: { data: ProjektKostenData[] }) {
   return (
@@ -131,7 +142,7 @@ export function BalkenChart({ data }: { data: ProjektKostenData[] }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
               <XAxis
                 dataKey="name"
-                tick={{ fontSize: 11, fill: '#6B7280' }}
+                tick={<TruncatedTick />}
                 axisLine={false}
                 tickLine={false}
               />
