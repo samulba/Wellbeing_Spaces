@@ -45,7 +45,7 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4"
-      style={{ backgroundColor: '#F4F5F7' }}
+      style={{ backgroundColor: '#F8F9FA' }}
     >
       {/* Subtiles Hintergrundmuster */}
       <div
