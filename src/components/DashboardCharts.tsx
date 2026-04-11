@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area,
+  ResponsiveContainer, Cell, PieChart, Pie, Label, AreaChart, Area,
 } from 'recharts'
 import Link from 'next/link'
 import { BarChart2, PieChart as PieIcon, TrendingUp } from 'lucide-react'
@@ -214,17 +214,16 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
           ctaHref="/dashboard/projekte"
         />
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col px-4 py-3">
-          {/* Donut mit Overlay */}
-          <div className="relative" style={{ height: donutHoehe }}>
+        <div className="flex-1 min-h-0 flex items-center justify-center px-4 py-3">
+          <div className="w-full" style={{ height: donutHoehe }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={data}
                   cx="50%"
-                  cy="50%"
-                  innerRadius="50%"
-                  outerRadius="75%"
+                  cy="42%"
+                  innerRadius="45%"
+                  outerRadius="68%"
                   dataKey="count"
                   nameKey="status"
                   paddingAngle={2}
@@ -234,6 +233,23 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
                   {data.map((entry, index) => (
                     <Cell key={index} fill={entry.farbe} stroke="none" />
                   ))}
+                  <Label
+                    content={({ viewBox }) => {
+                      const { cx, cy } = viewBox as { cx: number; cy: number }
+                      return (
+                        <g>
+                          <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="central"
+                            style={{ fontSize: '22px', fontWeight: 700, fill: '#111827' }}>
+                            {gesamt}
+                          </text>
+                          <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="central"
+                            style={{ fontSize: '10px', fill: '#9CA3AF' }}>
+                            Produkte
+                          </text>
+                        </g>
+                      )
+                    }}
+                  />
                 </Pie>
                 <Tooltip content={(props) => (
                   <DonutTooltip
@@ -242,27 +258,9 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
                     gesamt={gesamt}
                   />
                 )} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px', paddingTop: '6px' }} />
               </PieChart>
             </ResponsiveContainer>
-            {/* Mittige Zahl */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-2xl font-bold text-gray-900 leading-none">{gesamt}</span>
-              <span className="text-[10px] text-gray-400 mt-1 font-medium">Produkte</span>
-            </div>
-          </div>
-
-          {/* Legende */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 w-full px-1 flex-1 content-start">
-            {data.map((d) => (
-              <div key={d.status} className="flex items-center gap-2">
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: d.farbe }}
-                />
-                <span className="text-xs text-gray-600 truncate">{d.status}</span>
-                <span className="text-xs font-semibold text-gray-900 ml-auto">{d.count}</span>
-              </div>
-            ))}
           </div>
         </div>
       )}

@@ -264,12 +264,12 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Zeile 2: Donut (30%) + Balken (70%) */}
-      <div className="flex-[5] min-h-0 grid grid-cols-10 gap-4">
-        <div className="col-span-3 h-full">
+      {/* Zeile 2: Donut (33%) + Balken (67%) */}
+      <div className="flex-[5] min-h-0 flex gap-4">
+        <div className="w-[33%] shrink-0 h-full">
           <DonutChart data={statusVerteilung} gesamt={gesamtProdukte} />
         </div>
-        <div className="col-span-7 h-full">
+        <div className="flex-1 min-w-0 h-full">
           <BalkenChart data={projektKosten} />
         </div>
       </div>
