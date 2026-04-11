@@ -5,10 +5,11 @@ import RaumHinzufuegen from '@/components/RaumHinzufuegen'
 import FreigabeLinkKarte from '@/components/FreigabeLinkKarte'
 import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
-import { raumAnlegen, raumSoftDelete } from '@/app/actions/raeume'
+import { raumAnlegen } from '@/app/actions/raeume'
 import { projektSoftDelete, projektStatusAendern } from '@/app/actions/projekte'
 import { ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote } from 'lucide-react'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
+import SortableRaumListe from '@/components/SortableRaumListe'
 import PdfExportButton, { type PdfProdukt } from '@/components/PdfExportButton'
 import { getMwstSatz } from '@/app/actions/einstellungen'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
@@ -361,34 +362,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
                 <p className="text-xs text-gray-300 mt-1">Über &bdquo;+ Raum hinzufügen&ldquo; erstellen.</p>
               </div>
             ) : (
-              <ul className="divide-y divide-gray-100">
-                {raeume.map((raum) => {
-                  const raumLoeschenAktion = raumSoftDelete.bind(null, raum.id, projekt.id)
-                  return (
-                    <li key={raum.id} className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors group cursor-pointer">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{raum.name}</p>
-                        {raum.beschreibung && (
-                          <p className="text-xs text-gray-500 mt-0.5">{raum.beschreibung}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link
-                          href={`/dashboard/projekte/${projekt.id}/raeume/${raum.id}`}
-                          className="text-xs text-gray-400 hover:text-indigo-600 transition-colors font-medium"
-                        >
-                          Öffnen →
-                        </Link>
-                        <ConfirmDeleteButton
-                          action={raumLoeschenAktion}
-                          confirmMessage={`Raum „${raum.name}" löschen?`}
-                          className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
-                        />
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
+              <SortableRaumListe projektId={projekt.id} raeume={raeume} />
             )}
           </div>
         </div>
