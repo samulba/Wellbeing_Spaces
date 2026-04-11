@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from 'react'
 import Image from 'next/image'
+import { Check, X, RefreshCw, ExternalLink, ChevronDown } from 'lucide-react'
 import { freigabeStatusAendern } from '@/app/actions/freigabe'
 import type { FreigabeRaum, FreigabeProdukt, ProduktStatus } from '@/lib/supabase/types'
 
 // ── Konstanten ────────────────────────────────────────────────
 const MWST = 0.19
-const r2 = (n: number) => Math.round(n * 100) / 100
+const r2  = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
@@ -24,6 +25,17 @@ interface Props {
   projektName: string
   kundeName: string | null
   raeume: FreigabeRaum[]
+}
+
+// ── DepthStack-Logo ────────────────────────────────────────────
+function Logo() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="10" height="10" rx="2" fill="#6366F1" opacity="0.30" />
+      <rect x="4" y="4" width="10" height="10" rx="2" fill="#6366F1" opacity="0.55" />
+      <rect x="8" y="8" width="10" height="10" rx="2" fill="#6366F1" />
+    </svg>
+  )
 }
 
 // ── Hauptkomponente ───────────────────────────────────────────
@@ -46,27 +58,18 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume }
   const [isPending, startTransition] = useTransition()
 
   const alleProdukteFlach = raeume.flatMap((r) => r.produkte)
-  const total = alleProdukteFlach.length
-  const freigegebenCount = Object.values(state).filter((s) => s.status === 'freigegeben').length
-  const fortschritt = total > 0 ? Math.round((freigegebenCount / total) * 100) : 0
+  const total             = alleProdukteFlach.length
+  const freigegebenCount  = Object.values(state).filter((s) => s.status === 'freigegeben').length
+  const fortschritt       = total > 0 ? Math.round((freigegebenCount / total) * 100) : 0
+  const alleDone          = freigegebenCount === total && total > 0
 
-  function speichereStatus(
-    produktId: string,
-    status: ProduktStatus,
-    kommentar = ''
-  ) {
+  function speichereStatus(produktId: string, status: ProduktStatus, kommentar = '') {
     startTransition(async () => {
       const result = await freigabeStatusAendern(token, produktId, status, kommentar)
       if ('erfolg' in result) {
         setState((prev) => ({
           ...prev,
-          [produktId]: {
-            ...prev[produktId],
-            status,
-            kommentar,
-            aktiveAktion: null,
-            kommentarEingabe: kommentar,
-          },
+          [produktId]: { ...prev[produktId], status, kommentar, aktiveAktion: null, kommentarEingabe: kommentar },
         }))
       }
     })
@@ -88,53 +91,89 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-gray-400 mb-0.5 tracking-wide">Produktfreigabe</p>
-            <h1 className="text-base font-semibold text-gray-900">{projektName}</h1>
-            {kundeName && <p className="text-xs text-gray-500 mt-0.5">{kundeName}</p>}
+
+      {/* ── Sticky Header ─────────────────────────────────────── */}
+      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between py-3.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Logo />
+              <div className="min-w-0">
+                <p className="text-[11px] text-gray-400 leading-none mb-0.5">Produktfreigabe</p>
+                <h1 className="text-sm font-semibold text-gray-900 truncate leading-none">
+                  {projektName}
+                </h1>
+              </div>
+            </div>
+            {/* Fortschritt-Badge */}
+            <div className="flex items-center gap-2 shrink-0 ml-3">
+              <div className="text-right">
+                <p className="text-[11px] text-gray-400 leading-none mb-0.5">Freigaben</p>
+                <p className="text-sm font-bold text-gray-900 leading-none">
+                  {freigegebenCount}<span className="text-gray-400 font-normal">/{total}</span>
+                </p>
+              </div>
+              {/* Mini-Donut */}
+              <svg width="32" height="32" viewBox="0 0 32 32" className="shrink-0">
+                <circle cx="16" cy="16" r="12" fill="none" stroke="#F3F4F6" strokeWidth="4" />
+                <circle
+                  cx="16" cy="16" r="12" fill="none"
+                  stroke={alleDone ? '#10B981' : '#6366F1'} strokeWidth="4"
+                  strokeDasharray={`${2 * Math.PI * 12}`}
+                  strokeDashoffset={`${2 * Math.PI * 12 * (1 - fortschritt / 100)}`}
+                  strokeLinecap="round"
+                  style={{ transform: 'rotate(-90deg)', transformOrigin: '16px 16px', transition: 'stroke-dashoffset 0.6s ease' }}
+                />
+              </svg>
+            </div>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-400 mb-0.5">Freigaben</p>
-            <p className="text-base font-semibold text-gray-900">
-              {freigegebenCount} / {total}
-            </p>
+
+          {/* Fortschrittsbalken */}
+          <div className="h-0.5 bg-gray-100 rounded-full overflow-hidden mb-0">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${fortschritt}%`, backgroundColor: alleDone ? '#10B981' : '#6366F1' }}
+            />
           </div>
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        {/* Fortschrittsbalken */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 mb-8 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">Gesamtfortschritt</p>
-            <p className="text-base font-semibold text-gray-900">{fortschritt} %</p>
-          </div>
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-emerald-500 rounded-full transition-all duration-700"
-              style={{ width: `${fortschritt}%` }}
-            />
-          </div>
-          <p className="text-xs text-gray-400 mt-2.5">
-            {freigegebenCount === total && total > 0
-              ? '✓ Alle Produkte wurden freigegeben.'
-              : `Noch ${total - freigegebenCount} Produkt${total - freigegebenCount !== 1 ? 'e' : ''} ausstehend`}
-          </p>
-        </div>
+      {/* ── Inhalt ────────────────────────────────────────────── */}
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
 
-        {/* Räume + Produkte */}
+        {/* Intro-Box */}
+        {!alleDone ? (
+          <div className="bg-white border border-gray-200 rounded-2xl px-5 py-4 mb-6 shadow-sm">
+            <p className="text-sm text-gray-700 leading-relaxed">
+              Bitte prüfen Sie die folgenden Produkte und geben Sie diese frei oder lehnen Sie sie ab.
+              {kundeName && <span className="text-gray-500"> · {kundeName}</span>}
+            </p>
+            <p className="text-xs text-gray-400 mt-1.5">
+              {total - freigegebenCount} von {total} Produkt{total - freigegebenCount !== 1 ? 'en' : ''} noch ausstehend
+            </p>
+          </div>
+        ) : (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-5 mb-6 text-center">
+            <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Check className="w-6 h-6 text-emerald-600" />
+            </div>
+            <p className="text-sm font-semibold text-emerald-800">Alle Produkte wurden freigegeben!</p>
+            <p className="text-xs text-emerald-600 mt-1">Vielen Dank für Ihre Rückmeldung.</p>
+          </div>
+        )}
+
+        {/* ── Räume + Produkte ───────────────────────────────── */}
         {raeume.map((raum) => {
           const aktiveProdukte = raum.produkte.filter((p) => state[p.id])
           if (aktiveProdukte.length === 0) return null
           return (
-            <div key={raum.id} className="mb-10">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4 px-1">
-                {raum.name}
-              </h2>
-              <div className="space-y-3">
+            <div key={raum.id} className="mb-8">
+              <div className="flex items-center gap-3 mb-3 px-1">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{raum.name}</span>
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs text-gray-400">{aktiveProdukte.length} Produkt{aktiveProdukte.length !== 1 ? 'e' : ''}</span>
+              </div>
+              <div className="space-y-4">
                 {aktiveProdukte.map((p) => (
                   <ProduktKarte
                     key={p.id}
@@ -144,9 +183,7 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume }
                     onFreigeben={() => speichereStatus(p.id, 'freigegeben')}
                     onAktionWaehlen={(a) => setAktion(p.id, a)}
                     onKommentarChange={(t) => setKommentarEingabe(p.id, t)}
-                    onSpeichern={(status) =>
-                      speichereStatus(p.id, status, state[p.id].kommentarEingabe)
-                    }
+                    onSpeichern={(s) => speichereStatus(p.id, s, state[p.id].kommentarEingabe)}
                     onAbbrechen={() => setAktion(p.id, null)}
                   />
                 ))}
@@ -155,17 +192,17 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume }
           )
         })}
 
-        {/* Fußzeile */}
-        <div className="text-center pt-8 pb-4 border-t border-gray-200 mt-8 space-y-2">
-          <p className="text-xs text-gray-400">
-            Alle Angaben sind unverbindlich.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <a href="/impressum" className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors">
+        {/* ── Footer ────────────────────────────────────────── */}
+        <div className="text-center pt-8 pb-6 border-t border-gray-200 mt-4 space-y-2.5">
+          <p className="text-xs text-gray-400">Alle Angaben sind unverbindlich.</p>
+          <div className="flex items-center justify-center gap-4">
+            <a href="/impressum"
+              className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors">
               Impressum
             </a>
             <span className="text-gray-300">·</span>
-            <a href="/datenschutz" className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors">
+            <a href="/datenschutz"
+              className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors">
               Datenschutz
             </a>
           </div>
@@ -176,16 +213,7 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume }
 }
 
 // ── Produktkarte ──────────────────────────────────────────────
-function ProduktKarte({
-  produkt,
-  produktState,
-  isPending,
-  onFreigeben,
-  onAktionWaehlen,
-  onKommentarChange,
-  onSpeichern,
-  onAbbrechen,
-}: {
+interface ProduktKarteProps {
   produkt: FreigabeProdukt
   produktState: ProduktState
   isPending: boolean
@@ -194,149 +222,153 @@ function ProduktKarte({
   onKommentarChange: (t: string) => void
   onSpeichern: (s: ProduktStatus) => void
   onAbbrechen: () => void
-}) {
+}
+
+function ProduktKarte({
+  produkt, produktState, isPending,
+  onFreigeben, onAktionWaehlen, onKommentarChange, onSpeichern, onAbbrechen,
+}: ProduktKarteProps) {
   const { status, aktiveAktion, kommentarEingabe, kommentar } = produktState
+  const [detailOffen, setDetailOffen] = useState(false)
 
-  const vpBrutto = r2((produkt.verkaufspreis ?? 0) * (1 + MWST))
-  const gesamtBrutto = r2(vpBrutto * produkt.menge)
+  const vpBrutto      = r2((produkt.verkaufspreis ?? 0) * (1 + MWST))
+  const gesamtBrutto  = r2(vpBrutto * produkt.menge)
 
-  const statusConfig: Record<ProduktStatus, { rand: string; bg: string; label: string; icon: string }> = {
-    ausstehend:     { rand: 'border-gray-200',      bg: 'bg-white',          label: 'Ausstehend',    icon: '○' },
-    freigegeben:    { rand: 'border-emerald-200',   bg: 'bg-emerald-50/50',  label: 'Freigegeben',   icon: '✓' },
-    abgelehnt:      { rand: 'border-red-200',       bg: 'bg-red-50/50',      label: 'Abgelehnt',     icon: '✗' },
-    ueberarbeitung: { rand: 'border-amber-200',     bg: 'bg-amber-50/50',    label: 'Überarbeitung', icon: '↩' },
+  const statusCfg = {
+    ausstehend:     { rand: 'border-gray-200',    bg: 'bg-white',         badgeCls: 'bg-gray-100 text-gray-500',        label: 'Ausstehend' },
+    freigegeben:    { rand: 'border-emerald-200', bg: 'bg-emerald-50/40', badgeCls: 'bg-emerald-100 text-emerald-700',  label: 'Freigegeben' },
+    abgelehnt:      { rand: 'border-red-200',     bg: 'bg-red-50/40',     badgeCls: 'bg-red-100 text-red-600',          label: 'Abgelehnt' },
+    ueberarbeitung: { rand: 'border-amber-200',   bg: 'bg-amber-50/40',   badgeCls: 'bg-amber-100 text-amber-700',      label: 'Überarbeitung' },
   }
-  const cfg = statusConfig[status] ?? statusConfig.ausstehend
+  const cfg = statusCfg[status] ?? statusCfg.ausstehend
 
   return (
-    <div className={`border ${cfg.rand} ${cfg.bg} rounded-xl overflow-hidden transition-all shadow-sm`}>
-      <div className="p-5">
-        {/* Produktkopf */}
-        <div className="flex items-start gap-4">
-          {/* Bild */}
-          {produkt.bild_url && (
-            <Image
-              src={produkt.bild_url}
-              alt={produkt.name}
-              width={64}
-              height={64}
-              className="object-cover rounded-lg border border-gray-200 shrink-0"
-              unoptimized
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 leading-snug">
-                  {produkt.name}
-                </h3>
-                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  {produkt.kategorie && (
-                    <span className="text-xs text-gray-500">{produkt.kategorie}</span>
-                  )}
-                  <span className="text-xs text-gray-500">
-                    {produkt.menge} {produkt.einheit}
-                  </span>
-                  {produkt.produkt_url && (
-                    <a href={produkt.produkt_url} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-gray-400 hover:text-indigo-600 underline underline-offset-2">
-                      Produktlink ↗
-                    </a>
-                  )}
-                </div>
-              </div>
-              {/* Status-Badge */}
-              <span className={`text-xs font-medium shrink-0 flex items-center gap-1 ${
-                status === 'freigegeben'    ? 'text-emerald-700' :
-                status === 'abgelehnt'     ? 'text-red-600' :
-                status === 'ueberarbeitung' ? 'text-amber-700' : 'text-gray-400'
-              }`}>
-                <span>{cfg.icon}</span>
-                <span>{cfg.label}</span>
-              </span>
-            </div>
+    <div className={`border ${cfg.rand} ${cfg.bg} rounded-2xl overflow-hidden shadow-sm transition-all`}>
 
-            {/* Beschreibung */}
-            {produkt.beschreibung && (
-              <p className="text-xs text-gray-500 mt-2 leading-relaxed">{produkt.beschreibung}</p>
-            )}
-          </div>
+      {/* ── Produktbild (groß, oben) ──────────────────────── */}
+      {produkt.bild_url && (
+        <div className="w-full aspect-[16/9] sm:aspect-[2/1] overflow-hidden bg-gray-100">
+          <Image
+            src={produkt.bild_url}
+            alt={produkt.name}
+            width={800}
+            height={400}
+            className="w-full h-full object-cover"
+            unoptimized
+          />
         </div>
+      )}
 
-        {/* Preise */}
-        {produkt.verkaufspreis != null ? (
-          <div className="flex items-end justify-between mt-4 pt-4 border-t border-gray-100">
-            <div className="flex items-center gap-5">
-              <PreisZeile label="Preis netto" wert={eur(produkt.verkaufspreis)} />
-              <PreisZeile label="Preis brutto" wert={eur(vpBrutto)} />
-              {produkt.menge > 1 && (
-                <PreisZeile label={`Gesamt (${produkt.menge}×)`} wert={eur(gesamtBrutto)} hervorheben />
+      <div className="p-5">
+        {/* ── Kopf: Name + Status ───────────────────────── */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-semibold text-gray-900 leading-snug">{produkt.name}</h3>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+              {produkt.kategorie && (
+                <span className="text-xs text-gray-500">{produkt.kategorie}</span>
+              )}
+              <span className="text-xs text-gray-500">{produkt.menge} {produkt.einheit}</span>
+              {produkt.produkt_url && (
+                <a href={produkt.produkt_url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors">
+                  <ExternalLink className="w-3 h-3" />
+                  Produktlink
+                </a>
               )}
             </div>
           </div>
-        ) : (
-          <p className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
-            Preis auf Anfrage
-          </p>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${cfg.badgeCls}`}>
+            {cfg.label}
+          </span>
+        </div>
+
+        {/* ── Beschreibung (einklappbar) ────────────────── */}
+        {produkt.beschreibung && (
+          <button
+            type="button"
+            onClick={() => setDetailOffen((v) => !v)}
+            className="w-full text-left mb-3"
+          >
+            <div className={`text-sm text-gray-600 leading-relaxed overflow-hidden transition-all ${detailOffen ? '' : 'line-clamp-2'}`}>
+              {produkt.beschreibung}
+            </div>
+            {produkt.beschreibung.length > 120 && (
+              <span className="text-xs text-indigo-500 flex items-center gap-0.5 mt-0.5">
+                {detailOffen ? 'Weniger' : 'Mehr'}
+                <ChevronDown className={`w-3 h-3 transition-transform ${detailOffen ? 'rotate-180' : ''}`} />
+              </span>
+            )}
+          </button>
         )}
 
-        {/* Kundenkommentar anzeigen */}
+        {/* ── Preise ────────────────────────────────────── */}
+        {produkt.verkaufspreis != null ? (
+          <div className="grid grid-cols-3 gap-2 mb-4 bg-gray-50 rounded-xl px-4 py-3">
+            <PreisZeile label="Netto" wert={eur(produkt.verkaufspreis)} />
+            <PreisZeile label="Brutto" wert={eur(vpBrutto)} />
+            <PreisZeile label={produkt.menge > 1 ? `${produkt.menge}× Gesamt` : 'Gesamt'} wert={eur(gesamtBrutto)} hervorheben />
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 mb-4">Preis auf Anfrage</p>
+        )}
+
+        {/* ── Kommentar anzeigen ────────────────────────── */}
         {kommentar && !aktiveAktion && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <p className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2 leading-relaxed">
-              <span className="font-medium text-gray-700">Ihr Kommentar: </span>
-              {kommentar}
-            </p>
+          <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl">
+            <p className="text-xs font-semibold text-amber-700 mb-0.5">Ihr Kommentar</p>
+            <p className="text-sm text-amber-900 leading-relaxed">{kommentar}</p>
           </div>
         )}
 
-        {/* Aktions-Buttons */}
+        {/* ── Aktions-Buttons ───────────────────────────── */}
         {!aktiveAktion && (
-          <div className="flex items-center gap-2 mt-4 flex-wrap">
+          <div className="flex flex-col sm:flex-row gap-2.5">
             <button
               onClick={onFreigeben}
               disabled={isPending}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${
                 status === 'freigegeben'
-                  ? 'bg-emerald-600 text-white ring-2 ring-emerald-200 ring-offset-1'
-                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
               }`}
             >
-              <span>✓</span> Freigeben
+              <Check className="w-4 h-4" />
+              Freigeben
             </button>
             <button
               onClick={() => onAktionWaehlen('ablehnen')}
               disabled={isPending}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${
                 status === 'abgelehnt'
-                  ? 'bg-red-600 text-white ring-2 ring-red-200 ring-offset-1'
-                  : 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                  ? 'bg-red-600 text-white shadow-sm shadow-red-200'
+                  : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
               }`}
             >
-              <span>✗</span> Ablehnen
+              <X className="w-4 h-4" />
+              Ablehnen
             </button>
             <button
               onClick={() => onAktionWaehlen('alternative')}
               disabled={isPending}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${
                 status === 'ueberarbeitung'
-                  ? 'bg-amber-500 text-white ring-2 ring-amber-200 ring-offset-1'
-                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                  ? 'bg-amber-500 text-white shadow-sm shadow-amber-200'
+                  : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
               }`}
             >
-              <span>↩</span> Alternative bestimmen
+              <RefreshCw className="w-4 h-4" />
+              Alternative
             </button>
           </div>
         )}
 
-        {/* Kommentarfeld */}
+        {/* ── Kommentarfeld ─────────────────────────────── */}
         {aktiveAktion && (
-          <div className="mt-4 space-y-3">
+          <div className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 uppercase tracking-widest mb-1.5">
-                {aktiveAktion === 'ablehnen'
-                  ? 'Grund für Ablehnung (optional)'
-                  : 'Was wünschen Sie stattdessen?'}
+              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                {aktiveAktion === 'ablehnen' ? 'Grund für Ablehnung (optional)' : 'Was wünschen Sie stattdessen?'}
               </label>
               <textarea
                 autoFocus
@@ -346,25 +378,23 @@ function ProduktKarte({
                 placeholder={
                   aktiveAktion === 'ablehnen'
                     ? 'z. B. Farbe passt nicht, anderes Modell gewünscht…'
-                    : 'z. B. Bitte Alternative in Weiß, anderer Hersteller…'
+                    : 'z. B. Bitte Alternative in Weiß…'
                 }
-                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition resize-none"
+                className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition resize-none"
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex gap-2.5">
               <button
-                onClick={() =>
-                  onSpeichern(aktiveAktion === 'ablehnen' ? 'abgelehnt' : 'ueberarbeitung')
-                }
+                onClick={() => onSpeichern(aktiveAktion === 'ablehnen' ? 'abgelehnt' : 'ueberarbeitung')}
                 disabled={isPending}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+                className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all active:scale-[0.98]"
               >
                 {isPending ? 'Wird gespeichert…' : 'Bestätigen'}
               </button>
               <button
                 onClick={onAbbrechen}
                 disabled={isPending}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                className="px-5 py-3.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl bg-white transition-colors"
               >
                 Abbrechen
               </button>
@@ -378,9 +408,9 @@ function ProduktKarte({
 
 function PreisZeile({ label, wert, hervorheben }: { label: string; wert: string; hervorheben?: boolean }) {
   return (
-    <div>
-      <p className="text-xs text-gray-400">{label}</p>
-      <p className={`text-sm font-mono ${hervorheben ? 'font-semibold text-indigo-600' : 'text-gray-600'}`}>
+    <div className="text-center">
+      <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+      <p className={`text-sm font-mono font-semibold ${hervorheben ? 'text-indigo-600' : 'text-gray-700'}`}>
         {wert}
       </p>
     </div>
