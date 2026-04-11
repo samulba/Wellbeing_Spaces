@@ -5,7 +5,9 @@ import { partnerSoftDelete } from '@/app/actions/partner'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
+import PartnerProduktHinzufuegen from '@/components/PartnerProduktHinzufuegen'
 import { ExternalLink, Mail, Phone, Globe } from 'lucide-react'
+import type { KategorieOption } from '@/components/KategorieDropdown'
 
 type ProduktMitRaum = {
   id: string; name: string; menge: number; einheit: string
@@ -34,6 +36,25 @@ const statusLabel: Record<string, string> = {
 }
 
 
+async function getKategorienListe(): Promise<KategorieOption[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('einstellungen')
+    .select('wert')
+    .eq('schluessel', 'produktkategorien')
+    .single()
+  if (!data?.wert) return []
+  return (data.wert as string)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((raw) => {
+      const idx = raw.indexOf('|')
+      if (idx === -1) return { name: raw, icon: 'Package' }
+      return { name: raw.slice(0, idx).trim(), icon: raw.slice(idx + 1).trim() || 'Package' }
+    })
+}
+
 async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
   const supabase = await createClient()
   const { data } = await supabase
@@ -48,14 +69,15 @@ async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
 
 export default async function PartnerDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
-  const [{ data: partner }, { data: produkte }, notizen] = await Promise.all([
+  const [{ data: partner }, { data: produkte }, notizen, kategorienListe] = await Promise.all([
     supabase.from('partner').select('*').eq('id', params.id).is('deleted_at', null).single(),
     supabase
       .from('produkte')
-      .select('id, name, menge, einheit, verkaufspreis, produktstatus(status), raeume!inner(id, name, projekte!inner(id, name))')
+      .select('id, name, menge, einheit, verkaufspreis, produktstatus(status), raeume(id, name, projekte(id, name))')
       .eq('partner_id', params.id).is('deleted_at', null)
       .order('created_at', { ascending: false }),
     getPartnerNotizen(params.id),
+    getKategorienListe(),
   ])
 
   if (!partner) notFound()
@@ -203,9 +225,12 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
               <h2 className="text-sm font-semibold text-gray-900">
                 Zugeordnete Produkte <span className="text-gray-400 font-normal">({produktListe.length})</span>
               </h2>
-              {gesamtUmsatz > 0 && (
-                <span className="text-xs text-gray-500 font-mono">Gesamt: <span className="text-indigo-600 font-semibold">{eur(gesamtUmsatz)}</span></span>
-              )}
+              <div className="flex items-center gap-3">
+                {gesamtUmsatz > 0 && (
+                  <span className="text-xs text-gray-500 font-mono">Gesamt: <span className="text-indigo-600 font-semibold">{eur(gesamtUmsatz)}</span></span>
+                )}
+                <PartnerProduktHinzufuegen partnerId={partner.id} kategorienListe={kategorienListe} />
+              </div>
             </div>
 
             {produktListe.length === 0 ? (
@@ -231,13 +256,19 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                         <tr key={p.id} className={`hover:bg-gray-50 transition-colors ${i < produktListe.length - 1 ? 'border-b border-gray-100' : ''}`}>
                           <td className="px-4 py-3.5 font-medium text-gray-900">{p.name}</td>
                           <td className="px-4 py-3.5 text-xs text-gray-500">
-                            {p.raeume?.projekte && (
-                              <Link href={`/dashboard/projekte/${p.raeume.projekte.id}`}
-                                className="hover:text-indigo-600 transition-colors">
-                                {p.raeume.projekte.name}
-                              </Link>
+                            {p.raeume ? (
+                              <>
+                                {p.raeume.projekte && (
+                                  <Link href={`/dashboard/projekte/${p.raeume.projekte.id}`}
+                                    className="hover:text-indigo-600 transition-colors">
+                                    {p.raeume.projekte.name}
+                                  </Link>
+                                )}
+                                <span className="text-gray-400"> › {p.raeume.name}</span>
+                              </>
+                            ) : (
+                              <span className="inline-block px-2 py-0.5 text-[11px] bg-gray-100 text-gray-500 rounded-full font-medium">Bibliothek</span>
                             )}
-                            {p.raeume && <span className="text-gray-400"> › {p.raeume.name}</span>}
                           </td>
                           <td className="px-4 py-3.5 text-center text-gray-600">{p.menge} {p.einheit}</td>
                           <td className="px-4 py-3.5 text-center font-mono text-gray-700">{p.verkaufspreis != null ? eur(p.verkaufspreis) : '–'}</td>

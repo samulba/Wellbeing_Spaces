@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import ProduktFormular from '@/components/ProduktFormular'
 import { produktAktualisieren } from '@/app/actions/produkte'
 import type { Partner, ProduktMitDetails } from '@/lib/supabase/types'
+import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 
 async function getPartner(): Promise<Pick<Partner, 'id' | 'name'>[]> {
   const supabase = await createClient()
@@ -26,14 +27,27 @@ async function getProdukt(produktId: string): Promise<ProduktMitDetails | null> 
   return data as ProduktMitDetails | null
 }
 
+async function getProduktNotizen(produktId: string): Promise<Notiz[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('notizen')
+    .select('id, inhalt, erstellt_von, erstellt_am, bearbeitet_am')
+    .eq('typ', 'produkt')
+    .eq('referenz_id', produktId)
+    .is('deleted_at', null)
+    .order('erstellt_am', { ascending: false })
+  return (data ?? []) as Notiz[]
+}
+
 export default async function ProduktBearbeitenPage({
   params,
 }: {
   params: { id: string; raumId: string; produktId: string }
 }) {
-  const [produkt, partner] = await Promise.all([
+  const [produkt, partner, notizen] = await Promise.all([
     getProdukt(params.produktId),
     getPartner(),
+    getProduktNotizen(params.produktId),
   ])
 
   if (!produkt) notFound()
@@ -61,6 +75,10 @@ export default async function ProduktBearbeitenPage({
           initialData={produkt}
           abbrechen={zurueck}
         />
+      </div>
+
+      <div className="mt-6">
+        <NotizBlock typ="produkt" referenzId={produkt.id} initialNotizen={notizen} />
       </div>
     </div>
   )

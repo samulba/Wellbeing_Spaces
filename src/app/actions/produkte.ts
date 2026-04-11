@@ -154,6 +154,41 @@ export async function produktSoftDelete(
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
 }
 
+export async function produktFuerPartnerAnlegen(
+  partnerId: string,
+  prevState: ProduktActionState,
+  formData: FormData
+): Promise<ProduktActionState> {
+  const supabase = await createClient()
+
+  const name = (formData.get('name') as string)?.trim()
+  if (!name) return { fehler: 'Produktname ist erforderlich.' }
+
+  const { data: produkt, error } = await supabase
+    .from('produkte')
+    .insert({
+      raum_id: null,
+      partner_id: partnerId,
+      name,
+      kategorie: (formData.get('kategorie') as string) || null,
+      menge: 1,
+      einheit: 'Stk',
+      produkt_url: (formData.get('produkt_url') as string) || null,
+    })
+    .select('id')
+    .single()
+
+  if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
+
+  await supabase.from('produktstatus').insert({
+    produkt_id: produkt.id,
+    status: 'ausstehend',
+  })
+
+  revalidatePath(`/dashboard/partner/${partnerId}`)
+  return null
+}
+
 export async function produktStatusAendern(
   produktId: string,
   raumId: string,

@@ -8,6 +8,7 @@ import {
   LayoutList, LayoutGrid, Package,
 } from 'lucide-react'
 import type { ProduktStatus } from '@/lib/supabase/types'
+import KategorieDropdown, { type KategorieOption } from '@/components/KategorieDropdown'
 
 export type ProduktZeile = {
   id: string
@@ -63,7 +64,13 @@ function Thumbnail({ src, alt }: { src: string | null; alt: string }) {
 }
 
 // ── Hauptkomponente ───────────────────────────────────────────
-export default function ProdukteTabelle({ produkte }: { produkte: ProduktZeile[] }) {
+export default function ProdukteTabelle({
+  produkte,
+  kategorienListe,
+}: {
+  produkte: ProduktZeile[]
+  kategorienListe?: KategorieOption[]
+}) {
   const [ansicht, setAnsicht]             = useState<Ansicht>('tabelle')
   const [suche, setSuche]                 = useState('')
   const [filterProjekt, setFilterProjekt] = useState('')
@@ -84,8 +91,14 @@ export default function ProdukteTabelle({ produkte }: { produkte: ProduktZeile[]
   }
 
   // ── Filter-Optionen ───────────────────────────────────────
-  const projekte   = useMemo(() => Array.from(new Set(produkte.map((p) => p.projektName).filter(Boolean) as string[])).sort(), [produkte])
-  const kategorien = useMemo(() => Array.from(new Set(produkte.map((p) => p.kategorie).filter(Boolean) as string[])).sort(), [produkte])
+  const projekte = useMemo(() => Array.from(new Set(produkte.map((p) => p.projektName).filter(Boolean) as string[])).sort(), [produkte])
+  // Kategorien aus Einstellungen (mit Icons) bevorzugen, sonst aus Produktdaten ableiten
+  const kategorienOptionen = useMemo<KategorieOption[]>(() => {
+    if (kategorienListe && kategorienListe.length > 0) return kategorienListe
+    return Array.from(new Set(produkte.map((p) => p.kategorie).filter(Boolean) as string[]))
+      .sort()
+      .map((name) => ({ name, icon: 'Package' }))
+  }, [kategorienListe, produkte])
 
   // ── Gefilterte + sortierte Liste ──────────────────────────
   const gefiltert = useMemo(() => {
@@ -158,11 +171,12 @@ export default function ProdukteTabelle({ produkte }: { produkte: ProduktZeile[]
         </select>
 
         {/* Kategorie-Filter */}
-        <select value={filterKategorie} onChange={(e) => setFilterKategorie(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
-          <option value="">Alle Kategorien</option>
-          {kategorien.map((k) => <option key={k} value={k}>{k}</option>)}
-        </select>
+        <KategorieDropdown
+          optionen={kategorienOptionen}
+          value={filterKategorie}
+          onChange={setFilterKategorie}
+          placeholder="Alle Kategorien"
+        />
 
         {/* Status-Filter */}
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}

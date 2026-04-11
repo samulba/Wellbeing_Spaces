@@ -18,7 +18,7 @@ export type Notiz = {
   bearbeitet_am: string
 }
 
-type NotizTyp = 'kunde' | 'projekt' | 'partner'
+type NotizTyp = 'kunde' | 'projekt' | 'partner' | 'produkt'
 
 // ── Helpers ───────────────────────────────────────────────────
 function formatDatum(iso: string) {

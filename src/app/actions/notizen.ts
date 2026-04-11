@@ -5,12 +5,24 @@ import { revalidatePath } from 'next/cache'
 
 export type NotizActionState = { fehler?: string; erfolg?: string } | null
 
-type NotizTyp = 'kunde' | 'projekt' | 'partner'
+type NotizTyp = 'kunde' | 'projekt' | 'partner' | 'produkt'
 
-function pfadFuer(typ: NotizTyp, id: string) {
+async function pfadFuer(typ: NotizTyp, id: string): Promise<string> {
   if (typ === 'kunde')   return `/dashboard/kunden/${id}`
   if (typ === 'projekt') return `/dashboard/projekte/${id}`
-  return `/dashboard/partner/${id}`
+  if (typ === 'partner') return `/dashboard/partner/${id}`
+  // 'produkt' – Raum + Projekt über DB ermitteln
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('produkte')
+    .select('raum_id, raeume(projekt_id)')
+    .eq('id', id)
+    .single()
+  if (data?.raum_id && data?.raeume) {
+    const raeume = data.raeume as unknown as { projekt_id: string }
+    return `/dashboard/projekte/${raeume.projekt_id}/raeume/${data.raum_id}/produkte/${id}/bearbeiten`
+  }
+  return '/dashboard/produkte'
 }
 
 export async function notizHinzufuegen(
@@ -34,7 +46,7 @@ export async function notizHinzufuegen(
 
   if (error) return { fehler: 'Fehler beim Speichern.' }
 
-  revalidatePath(pfadFuer(typ, referenzId))
+  revalidatePath(await pfadFuer(typ, referenzId))
   return { erfolg: 'Notiz gespeichert.' }
 }
 
@@ -56,7 +68,7 @@ export async function notizAktualisieren(
 
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
 
-  revalidatePath(pfadFuer(typ, referenzId))
+  revalidatePath(await pfadFuer(typ, referenzId))
   return { erfolg: 'Notiz aktualisiert.' }
 }
 
@@ -71,5 +83,5 @@ export async function notizLoeschen(
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
 
-  revalidatePath(pfadFuer(typ, referenzId))
+  revalidatePath(await pfadFuer(typ, referenzId))
 }

@@ -107,7 +107,7 @@ async function getDashboardData() {
   }
 
   const projektKosten: ProjektKostenData[] = (projekteDaten ?? []).map((p) => ({
-    name: p.name.length > 12 ? p.name.slice(0, 12) + '…' : p.name,
+    name: p.name.length > 8 ? p.name.slice(0, 8) + '…' : p.name,
     fullName: p.name,
     budget: p.gesamtbudget ?? 0,
     istKosten: Math.round((kostenByProjekt.get(p.id) ?? 0) * 100) / 100,

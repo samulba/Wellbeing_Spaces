@@ -3,6 +3,7 @@ import { Package } from 'lucide-react'
 import ProdukteTabelle, { type ProduktZeile } from '@/components/ProdukteTabelle'
 import NeuesProduktModal from '@/components/NeuesProduktModal'
 import type { ProduktStatus } from '@/lib/supabase/types'
+import type { KategorieOption } from '@/components/KategorieDropdown'
 
 async function getProdukte(): Promise<ProduktZeile[]> {
   const supabase = await createClient()
@@ -60,8 +61,27 @@ async function getProdukte(): Promise<ProduktZeile[]> {
   })
 }
 
+async function getKategorienListe(): Promise<KategorieOption[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('einstellungen')
+    .select('wert')
+    .eq('schluessel', 'produktkategorien')
+    .single()
+  if (!data?.wert) return []
+  return (data.wert as string)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((raw) => {
+      const idx = raw.indexOf('|')
+      if (idx === -1) return { name: raw, icon: 'Package' }
+      return { name: raw.slice(0, idx).trim(), icon: raw.slice(idx + 1).trim() || 'Package' }
+    })
+}
+
 export default async function ProdukteSeite() {
-  const produkte = await getProdukte()
+  const [produkte, kategorienListe] = await Promise.all([getProdukte(), getKategorienListe()])
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
@@ -85,7 +105,7 @@ export default async function ProdukteSeite() {
           <NeuesProduktModal />
         </div>
       ) : (
-        <ProdukteTabelle produkte={produkte} />
+        <ProdukteTabelle produkte={produkte} kategorienListe={kategorienListe} />
       )}
     </div>
   )
