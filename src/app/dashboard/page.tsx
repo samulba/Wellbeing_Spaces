@@ -107,7 +107,8 @@ async function getDashboardData() {
   }
 
   const projektKosten: ProjektKostenData[] = (projekteDaten ?? []).map((p) => ({
-    name: p.name.length > 10 ? p.name.slice(0, 10) + '…' : p.name,
+    name: p.name.length > 12 ? p.name.slice(0, 12) + '…' : p.name,
+    fullName: p.name,
     budget: p.gesamtbudget ?? 0,
     istKosten: Math.round((kostenByProjekt.get(p.id) ?? 0) * 100) / 100,
   }))
@@ -224,22 +225,22 @@ export default async function DashboardPage() {
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
+          <h1 className="font-syne text-[28px] font-bold text-gray-900 leading-tight">Dashboard</h1>
           <p className="text-sm text-gray-500 mt-0.5">Willkommen im WBC Studio.</p>
         </div>
-        <div className="flex items-center gap-2">
-          {[
-            { label: '+ Kunde',   href: '/dashboard/kunden/neu'   },
-            { label: '+ Projekt', href: '/dashboard/projekte/neu' },
-          ].map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="text-xs px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
-            >
-              {l.label}
-            </Link>
-          ))}
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/dashboard/kunden/neu"
+            className="text-sm px-4 py-2.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 rounded-lg font-medium transition-colors"
+          >
+            + Kunde
+          </Link>
+          <Link
+            href="/dashboard/projekte/neu"
+            className="text-sm px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors min-w-[140px] text-center"
+          >
+            + Neues Projekt
+          </Link>
         </div>
       </div>
 

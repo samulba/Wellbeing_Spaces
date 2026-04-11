@@ -56,7 +56,7 @@ function BudgetBar({ vp, budget }: { vp: number; budget: number }) {
 // ── Komponente ────────────────────────────────────────────────
 export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[] }) {
   const [suche,   setSuche]   = useState('')
-  const [filter,  setFilter]  = useState('')
+  const [tabStatus, setTabStatus] = useState('')
   const [ansicht, setAnsicht] = useState<'grid' | 'list'>('grid')
 
   useEffect(() => {
@@ -69,33 +69,66 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
     localStorage.setItem('projekte-ansicht', neu)
   }
 
+  const statusOptionen = [
+    { value: '',               label: 'Alle' },
+    { value: 'offen',          label: 'Offen' },
+    { value: 'in_bearbeitung', label: 'In Bearbeitung' },
+    { value: 'freigegeben',    label: 'Freigegeben' },
+    { value: 'abgeschlossen',  label: 'Abgeschlossen' },
+  ]
+
+  const counts: Record<string, number> = {}
+  for (const p of projekte) {
+    counts[p.status] = (counts[p.status] ?? 0) + 1
+  }
+
   const gefiltert = projekte.filter((p) => {
     const matchSuche = !suche.trim() ||
       p.name.toLowerCase().includes(suche.toLowerCase()) ||
       p.kunden?.name.toLowerCase().includes(suche.toLowerCase()) ||
       p.standort?.toLowerCase().includes(suche.toLowerCase())
-    const matchFilter = !filter || p.status === filter
+    const matchFilter = !tabStatus || p.status === tabStatus
     return matchSuche && matchFilter
   })
 
   return (
     <>
+      {/* Status-Tabs */}
+      <div className="flex items-center gap-0 mb-5 border-b border-gray-200">
+        {statusOptionen.map((opt) => {
+          const anzahl = opt.value ? (counts[opt.value] ?? 0) : projekte.length
+          const aktiv  = tabStatus === opt.value
+          return (
+            <button
+              key={opt.value}
+              onClick={() => setTabStatus(opt.value)}
+              className={`px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2 ${
+                aktiv
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+              }`}
+            >
+              {opt.label}
+              {anzahl > 0 && (
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                  aktiv ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {anzahl}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
       {/* Toolbar */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
+      <div className="flex items-center gap-3 mb-5 flex-wrap">
         <div className="relative w-[340px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input type="text" placeholder="Projekt oder Kunde suchen…" value={suche}
             onChange={(e) => setSuche(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition" />
         </div>
-
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} className={sel}>
-          <option value="">Alle Status</option>
-          <option value="offen">Offen</option>
-          <option value="in_bearbeitung">In Bearbeitung</option>
-          <option value="freigegeben">Freigegeben</option>
-          <option value="abgeschlossen">Abgeschlossen</option>
-        </select>
 
         <span className="text-sm text-gray-400">{gefiltert.length} {gefiltert.length === 1 ? 'Eintrag' : 'Einträge'}</span>
 
@@ -109,7 +142,7 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
         </div>
       </div>
 
-      {gefiltert.length === 0 && (suche || filter) && (
+      {gefiltert.length === 0 && (suche || tabStatus) && (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl shadow-sm">
           <p className="text-sm text-gray-400">Kein Projekt entspricht den Filtern.</p>
         </div>
@@ -212,5 +245,4 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
   )
 }
 
-const th  = 'px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest'
-const sel = 'px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition cursor-pointer'
+const th = 'px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest'

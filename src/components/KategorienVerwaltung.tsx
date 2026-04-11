@@ -4,39 +4,55 @@ import { useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import {
   type LucideIcon,
-  Sofa, Armchair, Lamp, Lightbulb, Bed,
-  Leaf, Flower, TreePine,
-  Home, Building, Building2, Hotel, Layers, Grid,
-  Shirt, ShoppingBag, Gem, Heart, Star, Sparkles,
-  Monitor, Tv, Music, Volume2, Sun, Moon, Cloud,
-  Coffee, Utensils,
-  Wrench, Hammer, Paintbrush, Scissors, Ruler, Compass, Map,
-  Package, Box, Archive, Tag, MessageSquare,
+  // Möbel & Einrichtung
+  Sofa, Armchair, Lamp, Lightbulb, Bed, Table2, Vegan, Wind,
+  // Natur & Außen
+  Leaf, Flower, TreePine, Sunrise, Droplets, Mountain, Palmtree,
+  // Gebäude & Räume
+  Home, Building, Building2, Hotel, Layers, Grid, DoorOpen, Bath, BedDouble,
+  // Mode & Lifestyle
+  Shirt, ShoppingBag, Gem, Heart, Star, Sparkles, Watch, Glasses,
+  // Technik & Klima
+  Monitor, Tv, Music, Volume2, Sun, Moon, Cloud, Thermometer, Wifi,
+  // Gastronomie & Wellness
+  Coffee, Utensils, Wine, ChefHat, Dumbbell, Waves,
+  // Handwerk & Planung
+  Wrench, Hammer, Paintbrush, Scissors, Ruler, Compass, Map, PenLine, Pencil,
+  // Sonstiges
+  Package, Box, Archive, Tag, MessageSquare, Truck, Globe, Zap, Shield,
   ChevronDown,
 } from 'lucide-react'
 import { addListItem, deleteListItem, type EinstellungActionState } from '@/app/actions/einstellungen'
 
 // ── Icon-Registrierung ─────────────────────────────────────────
 const ICON_KOMPONENTEN: Record<string, LucideIcon> = {
-  Sofa, Armchair, Lamp, Lightbulb, Bed,
-  Leaf, Flower, TreePine,
-  Home, Building, Building2, Hotel, Layers, Grid,
-  Shirt, ShoppingBag, Gem, Heart, Star, Sparkles,
-  Monitor, Tv, Music, Volume2, Sun, Moon, Cloud,
-  Coffee, Utensils,
-  Wrench, Hammer, Paintbrush, Scissors, Ruler, Compass, Map,
-  Package, Box, Archive, Tag, MessageSquare,
+  // Möbel & Einrichtung
+  Sofa, Armchair, Lamp, Lightbulb, Bed, Table2, Vegan, Wind,
+  // Natur & Außen
+  Leaf, Flower, TreePine, Sunrise, Droplets, Mountain, Palmtree,
+  // Gebäude & Räume
+  Home, Building, Building2, Hotel, Layers, Grid, DoorOpen, Bath, BedDouble,
+  // Mode & Lifestyle
+  Shirt, ShoppingBag, Gem, Heart, Star, Sparkles, Watch, Glasses,
+  // Technik & Klima
+  Monitor, Tv, Music, Volume2, Sun, Moon, Cloud, Thermometer, Wifi,
+  // Gastronomie & Wellness
+  Coffee, Utensils, Wine, ChefHat, Dumbbell, Waves,
+  // Handwerk & Planung
+  Wrench, Hammer, Paintbrush, Scissors, Ruler, Compass, Map, PenLine, Pencil,
+  // Sonstiges
+  Package, Box, Archive, Tag, MessageSquare, Truck, Globe, Zap, Shield,
 }
 
 const ICON_GRUPPEN: { label: string; icons: string[] }[] = [
-  { label: 'Möbel & Einrichtung', icons: ['Sofa', 'Armchair', 'Lamp', 'Lightbulb', 'Bed'] },
-  { label: 'Natur',               icons: ['Leaf', 'Flower', 'TreePine'] },
-  { label: 'Gebäude & Räume',     icons: ['Home', 'Building', 'Building2', 'Hotel', 'Layers', 'Grid'] },
-  { label: 'Mode & Lifestyle',    icons: ['Shirt', 'ShoppingBag', 'Gem', 'Heart', 'Star', 'Sparkles'] },
-  { label: 'Technik & Klima',     icons: ['Monitor', 'Tv', 'Music', 'Volume2', 'Sun', 'Moon', 'Cloud'] },
-  { label: 'Gastronomie',         icons: ['Coffee', 'Utensils'] },
-  { label: 'Handwerk & Planung',  icons: ['Wrench', 'Hammer', 'Paintbrush', 'Scissors', 'Ruler', 'Compass', 'Map'] },
-  { label: 'Sonstiges',           icons: ['Package', 'Box', 'Archive', 'Tag', 'MessageSquare'] },
+  { label: 'Möbel & Einrichtung', icons: ['Sofa', 'Armchair', 'Lamp', 'Lightbulb', 'Bed', 'Table2', 'Wind'] },
+  { label: 'Natur & Außen',       icons: ['Leaf', 'Flower', 'TreePine', 'Sunrise', 'Droplets', 'Mountain', 'Palmtree'] },
+  { label: 'Gebäude & Räume',     icons: ['Home', 'Building', 'Building2', 'Hotel', 'Layers', 'Grid', 'DoorOpen', 'Bath', 'BedDouble'] },
+  { label: 'Mode & Lifestyle',    icons: ['Shirt', 'ShoppingBag', 'Gem', 'Heart', 'Star', 'Sparkles', 'Watch', 'Glasses'] },
+  { label: 'Technik & Klima',     icons: ['Monitor', 'Tv', 'Music', 'Volume2', 'Sun', 'Moon', 'Cloud', 'Thermometer', 'Wifi'] },
+  { label: 'Gastronomie & Wellness', icons: ['Coffee', 'Utensils', 'Wine', 'ChefHat', 'Dumbbell', 'Waves'] },
+  { label: 'Handwerk & Planung',  icons: ['Wrench', 'Hammer', 'Paintbrush', 'Scissors', 'Ruler', 'Compass', 'Map', 'PenLine', 'Pencil'] },
+  { label: 'Sonstiges',           icons: ['Package', 'Box', 'Archive', 'Tag', 'MessageSquare', 'Truck', 'Globe', 'Zap', 'Shield'] },
 ]
 
 function getIconKomponente(iconName: string): LucideIcon {
@@ -59,7 +75,7 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
   const SelectedIcon = getIconKomponente(selected)
 
   return (
-    <div className="relative">
+    <>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -72,18 +88,28 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
 
       {open && (
         <>
-          {/* Overlay */}
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/20"
+            onClick={() => setOpen(false)}
+          />
 
-          {/* Picker-Dropdown */}
-          <div className="absolute left-0 top-full mt-1 z-50 w-72 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-            <div className="max-h-72 overflow-y-auto px-3 py-3 space-y-3">
+          {/* Zentriertes Modal */}
+          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <p className="text-sm font-semibold text-gray-800">Icon auswählen</p>
+              <button type="button" onClick={() => setOpen(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                ✕
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto px-4 py-3 space-y-4">
               {ICON_GRUPPEN.map((gruppe) => (
                 <div key={gruppe.label}>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5 px-0.5">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2 px-0.5">
                     {gruppe.label}
                   </p>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {gruppe.icons.map((iconName) => {
                       const Icon = getIconKomponente(iconName)
                       const aktiv = selected === iconName
@@ -93,7 +119,7 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
                           type="button"
                           title={iconName}
                           onClick={() => { onSelect(iconName); setOpen(false) }}
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${
                             aktiv
                               ? 'bg-indigo-600 text-white ring-2 ring-indigo-300'
                               : 'bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-600'
@@ -110,7 +136,7 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
           </div>
         </>
       )}
-    </div>
+    </>
   )
 }
 
@@ -169,9 +195,10 @@ function ListeAbschnitt({ titel, beschreibung, schluessel, items, platzhalter, m
                   <span className="flex-1 text-sm text-gray-800 font-medium truncate">{name}</span>
                   <form action={deleteAction} className="shrink-0">
                     <button type="submit"
-                      className="text-[11px] text-red-400/60 hover:text-red-500 transition-colors whitespace-nowrap"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      title={`„${name}" löschen`}
                       onClick={(e) => { if (!confirm(`„${name}" löschen?`)) e.preventDefault() }}>
-                      ✕
+                      <span className="text-[13px] leading-none">✕</span>
                     </button>
                   </form>
                 </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Search, LayoutGrid, List, ExternalLink } from 'lucide-react'
+// Link wird jetzt auch für Grid-Karten genutzt
 import type { Partner } from '@/lib/supabase/types'
 
 const modellBadge: Record<string, string> = {
@@ -71,7 +72,8 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
       {gefiltert.length > 0 && ansicht === 'grid' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {gefiltert.map((p) => (
-            <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md hover:border-gray-300 transition-all duration-200 group flex flex-col gap-4">
+            <Link key={p.id} href={`/dashboard/partner/${p.id}`}
+              className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 transition-all duration-200 group flex flex-col gap-4 cursor-pointer">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-white shrink-0 ${avatarFarbe(p.name)}`}>
@@ -98,18 +100,17 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
               <div className="flex items-center justify-between pt-1 border-t border-gray-100">
                 {p.website ? (
                   <a href={p.website} target="_blank" rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => e.preventDefault()}
                     className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 transition-colors">
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span className="truncate max-w-[140px]">{p.website.replace(/^https?:\/\/(www\.)?/, '')}</span>
                   </a>
                 ) : <span />}
-                <Link href={`/dashboard/partner/${p.id}`}
-                  className="text-xs font-medium text-gray-400 hover:text-indigo-600 transition-colors opacity-0 group-hover:opacity-100">
+                <span className="text-xs font-medium text-gray-400 group-hover:text-indigo-600 transition-colors">
                   Öffnen →
-                </Link>
+                </span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

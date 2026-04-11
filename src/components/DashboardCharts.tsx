@@ -10,6 +10,7 @@ import { BarChart2, PieChart as PieIcon, TrendingUp } from 'lucide-react'
 // ── Typen ─────────────────────────────────────────────────────
 export type ProjektKostenData = {
   name: string
+  fullName?: string
   budget: number
   istKosten: number
 }
@@ -141,14 +142,18 @@ export function BalkenChart({ data }: { data: ProjektKostenData[] }) {
                 width={40}
               />
               <Tooltip
-                content={(props) => (
-                  <ChartTooltip
-                    active={props.active}
-                    payload={props.payload as unknown as TooltipPayloadItem[] | undefined}
-                    label={String(props.label ?? '')}
-                    isEur
-                  />
-                )}
+                content={(props) => {
+                  const labelStr = String(props.label ?? '')
+                  const match = data.find((d) => d.name === labelStr)
+                  return (
+                    <ChartTooltip
+                      active={props.active}
+                      payload={props.payload as unknown as TooltipPayloadItem[] | undefined}
+                      label={match?.fullName ?? labelStr}
+                      isEur
+                    />
+                  )
+                }}
                 cursor={{ fill: '#F9FAFB' }}
               />
               <Legend
@@ -195,15 +200,15 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
       ) : (
         <div className="flex-1 min-h-0 flex flex-col px-4 py-3">
           {/* Donut mit Overlay */}
-          <div className="flex-1 min-h-0 relative">
+          <div className="relative" style={{ height: 'clamp(120px, 50%, 180px)' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={data}
                   cx="50%"
                   cy="50%"
-                  innerRadius={64}
-                  outerRadius={90}
+                  innerRadius="50%"
+                  outerRadius="75%"
                   dataKey="count"
                   nameKey="status"
                   paddingAngle={2}
@@ -225,13 +230,13 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
             </ResponsiveContainer>
             {/* Mittige Zahl */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-3xl font-bold text-gray-900 leading-none">{gesamt}</span>
-              <span className="text-[11px] text-gray-400 mt-1 font-medium">Produkte</span>
+              <span className="text-2xl font-bold text-gray-900 leading-none">{gesamt}</span>
+              <span className="text-[10px] text-gray-400 mt-1 font-medium">Produkte</span>
             </div>
           </div>
 
           {/* Legende */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-3 w-full px-2">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 w-full px-1 flex-1 content-start">
             {data.map((d) => (
               <div key={d.status} className="flex items-center gap-2">
                 <span

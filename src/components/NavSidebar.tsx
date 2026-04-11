@@ -119,28 +119,8 @@ export default function NavSidebar({
       {/* Trennlinie + unterer Bereich */}
       <div className="border-t border-white/[0.06]">
 
-        {/* Profil-Zeile */}
-        <Link
-          href="/dashboard/profil"
-          className="flex items-center gap-3 px-4 py-3.5 hover:bg-white/[0.04] transition-colors group border-b border-white/[0.06]"
-        >
-          <div
-            className={`w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0 ${farbe}`}
-          >
-            {kuerzel}
-          </div>
-          <div className="min-w-0">
-            <p className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors truncate leading-none">
-              {displayName}
-            </p>
-            <p className="text-[11px] text-white/40 truncate mt-1 leading-none">
-              {userEmail}
-            </p>
-          </div>
-        </Link>
-
-        {/* Einstellungen + Abmelden */}
-        <div className="px-3 py-2.5 space-y-0.5">
+        {/* Einstellungen */}
+        <div className="px-3 pt-2.5 pb-1">
           <Link
             href="/dashboard/einstellungen"
             className={`flex items-center gap-2.5 px-3 py-[10px] rounded-lg text-[14px] font-medium transition-colors duration-150 ${
@@ -152,13 +132,34 @@ export default function NavSidebar({
             <Settings className="w-4 h-4 shrink-0" strokeWidth={2} />
             Einstellungen
           </Link>
+        </div>
 
+        {/* Profil-Zeile + Abmelden-Icon */}
+        <div className="flex items-center gap-2 px-4 py-3 border-t border-white/[0.06]">
+          <Link
+            href="/dashboard/einstellungen?tab=profil"
+            className="flex items-center gap-3 flex-1 min-w-0 hover:bg-white/[0.04] rounded-lg px-1 py-1 transition-colors group"
+          >
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0 ${farbe}`}
+            >
+              {kuerzel}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors truncate leading-none">
+                {displayName}
+              </p>
+              <p className="text-[11px] text-white/40 truncate mt-1 leading-none">
+                {userEmail}
+              </p>
+            </div>
+          </Link>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-[10px] rounded-lg text-[14px] font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-150"
+            title="Abmelden"
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors duration-150"
           >
-            <LogOut className="w-4 h-4 shrink-0" strokeWidth={2} />
-            Abmelden
+            <LogOut className="w-4 h-4" strokeWidth={2} />
           </button>
         </div>
 

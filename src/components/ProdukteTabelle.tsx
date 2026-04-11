@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   ExternalLink, ChevronUp, ChevronDown, Search, X,
-  LayoutList, LayoutGrid, Package, Inbox, CheckCircle, Clock,
+  LayoutList, LayoutGrid, Package,
 } from 'lucide-react'
 import type { ProduktStatus } from '@/lib/supabase/types'
 
@@ -83,14 +83,6 @@ export default function ProdukteTabelle({ produkte }: { produkte: ProduktZeile[]
     localStorage.setItem('produkte-ansicht', a)
   }
 
-  // ── Stats ─────────────────────────────────────────────────
-  const stats = useMemo(() => ({
-    gesamt:       produkte.length,
-    ohneProjekt:  produkte.filter((p) => !p.projektId).length,
-    freigegeben:  produkte.filter((p) => p.status === 'freigegeben').length,
-    ausstehend:   produkte.filter((p) => p.status === 'ausstehend').length,
-  }), [produkte])
-
   // ── Filter-Optionen ───────────────────────────────────────
   const projekte   = useMemo(() => Array.from(new Set(produkte.map((p) => p.projektName).filter(Boolean) as string[])).sort(), [produkte])
   const kategorien = useMemo(() => Array.from(new Set(produkte.map((p) => p.kategorie).filter(Boolean) as string[])).sort(), [produkte])
@@ -143,34 +135,6 @@ export default function ProdukteTabelle({ produkte }: { produkte: ProduktZeile[]
 
   return (
     <div className="space-y-5">
-      {/* ── Stats-Leiste ──────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-3">
-        <StatKachel
-          icon={<Package className="w-5 h-5 text-gray-500" />}
-          bg="bg-gray-50"
-          label="Gesamt Produkte"
-          wert={stats.gesamt}
-        />
-        <StatKachel
-          icon={<Inbox className="w-5 h-5 text-amber-500" />}
-          bg={stats.ohneProjekt > 0 ? 'bg-amber-50' : 'bg-gray-50'}
-          label="Ohne Projekt"
-          wert={stats.ohneProjekt}
-          highlight={stats.ohneProjekt > 0}
-        />
-        <StatKachel
-          icon={<CheckCircle className="w-5 h-5 text-emerald-500" />}
-          bg="bg-emerald-50"
-          label="Freigegeben"
-          wert={stats.freigegeben}
-        />
-        <StatKachel
-          icon={<Clock className="w-5 h-5 text-orange-400" />}
-          bg="bg-orange-50"
-          label="Ausstehend"
-          wert={stats.ausstehend}
-        />
-      </div>
 
       {/* ── Filter-Bar + View-Switcher ─────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -456,23 +420,3 @@ export default function ProdukteTabelle({ produkte }: { produkte: ProduktZeile[]
   )
 }
 
-// ── Stat-Kachel ───────────────────────────────────────────────
-function StatKachel({
-  icon, bg, label, wert, highlight,
-}: {
-  icon: React.ReactNode
-  bg: string
-  label: string
-  wert: number
-  highlight?: boolean
-}) {
-  return (
-    <div className={`${bg} border ${highlight ? 'border-amber-200' : 'border-gray-200'} rounded-xl px-5 py-4 flex items-center gap-4`}>
-      <div className="shrink-0">{icon}</div>
-      <div>
-        <p className={`text-2xl font-bold leading-none ${highlight ? 'text-amber-600' : 'text-gray-900'}`}>{wert}</p>
-        <p className="text-xs text-gray-500 mt-1">{label}</p>
-      </div>
-    </div>
-  )
-}

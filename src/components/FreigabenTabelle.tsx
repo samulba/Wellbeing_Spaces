@@ -180,6 +180,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
               {gruppe.eintraege.map((e) => {
                 const status    = e.produktstatus?.status ?? 'ausstehend'
                 const kommentar = e.produktstatus?.kommentar
+                const kuerzel   = e.name.slice(0, 2).toUpperCase()
                 return (
                   <li key={e.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
                     {/* Thumbnail */}
@@ -187,7 +188,9 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={e.bild_url} alt={e.name} className="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0" />
                     ) : (
-                      <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 shrink-0" />
+                      <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 shrink-0 flex items-center justify-center">
+                        <span className="text-[11px] font-bold text-indigo-400">{kuerzel}</span>
+                      </div>
                     )}
 
                     {/* Info */}
