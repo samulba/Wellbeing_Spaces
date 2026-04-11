@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area,
@@ -179,7 +180,22 @@ export function BalkenChart({ data }: { data: ProjektKostenData[] }) {
 }
 
 // ── Chart 2: Freigabe-Status Donut ────────────────────────────
+function useDonutHoehe() {
+  const [hoehe, setHoehe] = useState(320)
+  useEffect(() => {
+    function berechnen() {
+      const w = window.innerWidth
+      setHoehe(w < 1280 ? 200 : w < 1400 ? 240 : 320)
+    }
+    berechnen()
+    window.addEventListener('resize', berechnen)
+    return () => window.removeEventListener('resize', berechnen)
+  }, [])
+  return hoehe
+}
+
 export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: number }) {
+  const donutHoehe = useDonutHoehe()
   const hatDaten = gesamt > 0
 
   return (
@@ -200,7 +216,7 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
       ) : (
         <div className="flex-1 min-h-0 flex flex-col px-4 py-3">
           {/* Donut mit Overlay */}
-          <div className="relative" style={{ height: 'clamp(120px, 50%, 180px)' }}>
+          <div className="relative" style={{ height: donutHoehe }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
