@@ -9,6 +9,8 @@ import { raumAnlegen, raumSoftDelete } from '@/app/actions/raeume'
 import { projektSoftDelete, projektStatusAendern } from '@/app/actions/projekte'
 import { ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote } from 'lucide-react'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
+import PdfExportButton, { type PdfProdukt } from '@/components/PdfExportButton'
+import { getMwstSatz } from '@/app/actions/einstellungen'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
 import type { DateiItem } from '@/components/DateiUpload'
 
@@ -111,14 +113,49 @@ async function getDateien(projektId: string): Promise<DateiItem[]> {
   return (data ?? []) as DateiItem[]
 }
 
+async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
+  const supabase = await createClient()
+  const { data: raeume } = await supabase
+    .from('raeume')
+    .select('id, name')
+    .eq('projekt_id', projektId)
+    .is('deleted_at', null)
+    .order('reihenfolge')
+  const raumMap: Record<string, string> = {}
+  for (const r of raeume ?? []) raumMap[r.id] = r.name
+  const raumIds = (raeume ?? []).map((r) => r.id)
+  if (raumIds.length === 0) return []
+  const { data: produkte } = await supabase
+    .from('produkte')
+    .select('name, raum_id, kategorie, menge, einheit, verkaufspreis, produktstatus(status)')
+    .in('raum_id', raumIds)
+    .is('deleted_at', null)
+    .order('reihenfolge')
+  return (produkte ?? []).map((p) => {
+    const psRaw = p.produktstatus as { status: string } | { status: string }[] | null
+    const ps = Array.isArray(psRaw) ? psRaw[0] : psRaw
+    return {
+      name:      p.name,
+      raumName:  raumMap[p.raum_id] ?? '–',
+      kategorie: p.kategorie,
+      menge:     p.menge,
+      einheit:   p.einheit,
+      vpNetto:   p.verkaufspreis ?? 0,
+      status:    ps?.status ?? 'ausstehend',
+    }
+  })
+}
+
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
     getDateien(params.id),
     getProjektStats(params.id),
     getNotizen(params.id),
+    getProdukteForPdf(params.id),
+    getMwstSatz(),
   ])
 
   if (!projekt) notFound()
@@ -156,6 +193,13 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
             <Download className="w-3.5 h-3.5" />
             CSV Export
           </a>
+          {/* PDF Export */}
+          <PdfExportButton
+            projektName={projekt.name}
+            kundeName={projekt.kunden?.name ?? null}
+            produkte={pdfProdukte}
+            mwst={mwst}
+          />
           <Link
             href={`/dashboard/projekte/${projekt.id}/bearbeiten`}
             className="px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02] rounded-lg transition-all duration-200"

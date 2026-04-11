@@ -31,6 +31,7 @@ Indigo (#6366F1) aktiv. Sidebar: bg-[#0F1117], Syne-Font. Desktop-first, ruhig/r
 - S14: Kundenfreigabe mobil – großes Produktbild, Touch-Buttons (py-3.5, flex-col→row), Mini-Donut im Header, einklappbare Beschreibung, Preis-Grid.
 - S15: Bibliotheksprodukt zuweisen – ProduktZuweisenModal (Projekt+Raum-Dropdown), Button in Grid+Tabelle, Action produktZuRaumZuweisen.
 - S16: MwSt. dynamisch – getMwstSatz() aus einstellungen-Tabelle, alle Produkt-Berechnungen (Formular, Tabelle, Freigabe, CSV-Export) lesen Wert aus DB statt hardcoded 19%.
+- S17: PDF-Export – PdfExportButton (jspdf + jspdf-autotable, client-seitig), Button auf Projektdetailseite neben CSV, A4-Portrait mit Indigo-Header, Produkttabelle, Status-Farben, Gesamtsumme, Seitenzahl.
 
 ## Anweisung
 Am Ende jeder Session den Session-Log mit einem kurzen Eintrag aktualisieren.
