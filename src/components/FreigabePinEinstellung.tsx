@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Lock, LockOpen } from 'lucide-react'
+import { Lock, LockOpen, Copy, Check, Eye, EyeOff } from 'lucide-react'
 import { pinSetzen } from '@/app/actions/projekte'
 
 interface Props {
@@ -10,11 +10,13 @@ interface Props {
 }
 
 export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPin }: Props) {
-  const [hatPin, setHatPin]     = useState(initialHatPin)
-  const [editMode, setEditMode] = useState(false)
-  const [pinInput, setPinInput] = useState('')
-  const [fehler, setFehler]     = useState<string | null>(null)
-  const [erfolg, setErfolg]     = useState<string | null>(null)
+  const [hatPin, setHatPin]         = useState(initialHatPin)
+  const [editMode, setEditMode]     = useState(false)
+  const [pinInput, setPinInput]     = useState('')
+  const [gespeicherterPin, setGespeicherterPin] = useState<string | null>(null)
+  const [pinSichtbar, setPinSichtbar] = useState(false)
+  const [kopiert, setKopiert]       = useState(false)
+  const [fehler, setFehler]         = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleSpeichern() {
@@ -29,8 +31,8 @@ export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPi
       setEditMode(false)
       setPinInput('')
       setFehler(null)
-      setErfolg('PIN gespeichert.')
-      setTimeout(() => setErfolg(null), 3000)
+      setGespeicherterPin(pin)
+      setPinSichtbar(false)
     })
   }
 
@@ -40,9 +42,16 @@ export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPi
       setHatPin(false)
       setEditMode(false)
       setPinInput('')
+      setGespeicherterPin(null)
       setFehler(null)
-      setErfolg('PIN entfernt.')
-      setTimeout(() => setErfolg(null), 3000)
+    })
+  }
+
+  function handleKopieren() {
+    if (!gespeicherterPin) return
+    navigator.clipboard.writeText(gespeicherterPin).then(() => {
+      setKopiert(true)
+      setTimeout(() => setKopiert(false), 2000)
     })
   }
 
@@ -72,6 +81,30 @@ export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPi
               ? 'Kunden müssen vor dem Öffnen des Freigabelinks einen PIN eingeben.'
               : 'Optionaler Schutz: Kunden brauchen einen PIN um den Freigabelink zu öffnen.'}
           </p>
+
+          {/* PIN anzeigen nach Speichern */}
+          {gespeicherterPin && (
+            <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-wellbeing-green/5 border border-wellbeing-green/20 rounded-lg">
+              <span className="font-mono text-sm font-bold text-wellbeing-green-dark tracking-[0.25em] flex-1">
+                {pinSichtbar ? gespeicherterPin : '·'.repeat(gespeicherterPin.length)}
+              </span>
+              <button
+                onClick={() => setPinSichtbar((v) => !v)}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                title={pinSichtbar ? 'PIN verbergen' : 'PIN anzeigen'}
+              >
+                {pinSichtbar ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                onClick={handleKopieren}
+                className="p-1 text-gray-400 hover:text-wellbeing-green transition-colors"
+                title="PIN kopieren"
+              >
+                {kopiert ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button
               onClick={() => { setEditMode(true); setFehler(null) }}
@@ -90,7 +123,6 @@ export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPi
               </button>
             )}
           </div>
-          {erfolg && <p className="text-xs text-emerald-600 mt-2">{erfolg}</p>}
         </div>
       ) : (
         <div className="space-y-3">
