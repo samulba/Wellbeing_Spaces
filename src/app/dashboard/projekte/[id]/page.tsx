@@ -8,6 +8,7 @@ import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
 import { projektSoftDelete } from '@/app/actions/projekte'
+import { portalBenutzerAbrufen } from '@/app/actions/portal'
 import ProjektStatusButtons from '@/components/ProjektStatusButtons'
 import { konfiguratorSessionsAbrufen } from '@/app/actions/konfigurator'
 import { naechsteEventsAbrufen } from '@/app/actions/timeline'
@@ -175,6 +176,8 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
 
   if (!projekt) notFound()
 
+  const portalUser = projekt.kunde_id ? await portalBenutzerAbrufen(projekt.kunde_id) : null
+
   const raumHinzufuegenAktion = raumAnlegen.bind(null, projekt.id)
   const loeschenAktion        = projektSoftDelete.bind(null, projekt.id)
 
@@ -313,6 +316,28 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
           <KonfiguratorLinkKarte projektId={projekt.id} initialSessions={konfigSessions} />
           <DateiUpload projektId={projekt.id} initialDateien={dateien} />
           <NotizBlock typ="projekt" referenzId={projekt.id} initialNotizen={notizen} />
+
+          {/* Portal-Status */}
+          {portalUser && portalUser.aktiv && (
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Kunden-Portal</h2>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">Aktiv</span>
+                <span className="text-sm text-gray-700">{portalUser.vorname} {portalUser.nachname}</span>
+              </div>
+              <p className="text-xs text-gray-400 mb-3">
+                {portalUser.letzter_login
+                  ? `Letzter Login: ${new Date(portalUser.letzter_login).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+                  : 'Noch kein Login'}
+              </p>
+              <Link
+                href={`/dashboard/kunden/${projekt.kunde_id}`}
+                className="text-xs text-wellbeing-green hover:underline"
+              >
+                Portal verwalten →
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Rechte 2 Spalten: Stats + Räume */}

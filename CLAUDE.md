@@ -9,7 +9,9 @@ Admin sieht alles (EP/Marge/Provision). Kunde nur Freigabelink `/freigabe/[token
 
 ## DB-Tabellen
 `kunden`, `projekte`, `raeume`, `partner`, `produkte`, `produktstatus`, `freigabe_tokens`, `einstellungen`
-Letzte Migration: 027 (whitelabel branding). Migrations in `/supabase/migrations/`.
+Portaltabellen: `client_users`, `client_nachrichten`, `client_dokumente`, `client_aktivitaeten`, `client_benachrichtigungen`
+Letzte Migration: 030 (client portal). Migrations in `/supabase/migrations/`.
+**Portal-Auth:** Eigenes System (bcrypt + session_token Cookie), unabhängig von Supabase Auth. `createAdminClient()` für alle Portal-Operationen (bypasses RLS).
 **einstellungen-Schema (echte DB):** `id` (uuid), `key` (text, unique), `value` (text), `created_at`, `updated_at` — NICHT `schluessel`/`wert`!
 
 ## Regeln
@@ -41,6 +43,7 @@ Farbpalette: wellbeing-green (#445c49), wellbeing-green-light (#94c1a4), wellbei
 - S23: Onboarding-System (TEIL 1-3): Umbenennung Anfragen→Onboarding, Status-Badges, Link-Löschen, Vorlagen-System (Migration 025, onboarding_vorlagen JSONB, CRUD-UI VorlagenVerwaltung, dynamisches Formular). Projekt-Archivierung + Duplikation (Migration 026, ProjektAktionenButtons, DuplizierenModal). Whitelabel/Branding (Migration 027, branding-Tabelle, BrandingEditor mit Farbpickern/Logo-Upload/Font-Selector/Live-Vorschau, Branding-Tab in Einstellungen, Branding auf Freigabe- und Onboarding-Seiten).
 - S24: Live Kunden-Konfigurator (Migration 028, konfigurator_sessions + auswahl, KonfiguratorLinkKarte, /konfigurator/[token] mobiloptimiert, 4 Aktionen, Budget-Tracking, Abschluss-Modal) + Projekt-Timeline / Gantt (Migration 029, timeline_events + liefertermin auf produkte, TimelineView mit Gantt + Liste, EventModal, Meilenstein-Rauten, NaechsteEvents Widget).
 - S25: Interaktives Handbuch – /dashboard/einstellungen/handbuch (HandbuchClient mit 3-Spalten-Layout, linke Kapitel-Sidebar, rechte "Auf dieser Seite"-Sidebar, Live-Suche + CMD+K Shortcut, 16 Kapitel mit vollständigen Inhalten, InfoBox/Badge/Kb Komponenten, Paging-Navigation).
+- S26: Projekt-Status Buttons (ProjektStatusButtons Client-Komponente, optimistisches UI, Bestätigung für Abgeschlossen, Farben offen=grau/in_bearbeitung=amber/freigegeben=blau/abgeschlossen=grün). Client Dashboard / Kunden-Portal: Migration 030 (client_users + 4 Portal-Tabellen), eigene bcrypt-Auth mit session_token Cookie, /portal/* Routen (landing/login/einladung/[token]/dashboard/projekte/[id]/profil), KundenPortalSection Admin-UI auf Kundenseite, portalBenutzerAbrufen auf Projektseite, Middleware-Schutz für Portal-Routen.
 
 ## Anweisung
 Am Ende jeder Session den Session-Log mit einem kurzen Eintrag aktualisieren.

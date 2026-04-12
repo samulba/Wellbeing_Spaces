@@ -2,10 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { kundeSoftDelete } from '@/app/actions/kunden'
+import { portalBenutzerAbrufen } from '@/app/actions/portal'
 import { Plus } from 'lucide-react'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
+import KundenPortalSection from '@/components/KundenPortalSection'
 import type { Projekt } from '@/lib/supabase/types'
 
 const projektStatusLabel: Record<string, string> = {
@@ -50,7 +52,12 @@ async function getNotizen(kundeId: string): Promise<Notiz[]> {
 }
 
 export default async function KundeDetailPage({ params }: { params: { id: string } }) {
-  const [kunde, projekte, notizen] = await Promise.all([getKunde(params.id), getProjekte(params.id), getNotizen(params.id)])
+  const [kunde, projekte, notizen, portalUser] = await Promise.all([
+    getKunde(params.id),
+    getProjekte(params.id),
+    getNotizen(params.id),
+    portalBenutzerAbrufen(params.id),
+  ])
   if (!kunde) notFound()
 
   const loeschenMitId = kundeSoftDelete.bind(null, kunde.id)
@@ -101,6 +108,11 @@ export default async function KundeDetailPage({ params }: { params: { id: string
             </div>
           )}
           <NotizBlock typ="kunde" referenzId={kunde.id} initialNotizen={notizen} />
+          <KundenPortalSection
+            kundeId={kunde.id}
+            kundeName={kunde.name}
+            initialPortalUser={portalUser}
+          />
         </div>
 
         {/* Projekte */}

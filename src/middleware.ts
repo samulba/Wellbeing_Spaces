@@ -30,12 +30,33 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Geschützte Routen → Login
+  // ── Kunden-Portal Auth (eigene Session, unabhängig von Supabase) ──
+  const portalSchuetzt = pathname.startsWith('/portal/dashboard') ||
+    pathname.startsWith('/portal/projekte') ||
+    pathname.startsWith('/portal/profil')
+
+  if (portalSchuetzt) {
+    const portalSession = request.cookies.get('portal_session')
+    if (!portalSession) {
+      return NextResponse.redirect(new URL('/portal/login', request.url))
+    }
+    return NextResponse.next()
+  }
+
+  if (pathname === '/portal/login' || pathname === '/portal') {
+    // Vollständige Validierung in der Page selbst – Middleware nur Cookie-Check
+    const portalSession = request.cookies.get('portal_session')
+    if (portalSession && pathname === '/portal/login') {
+      return NextResponse.redirect(new URL('/portal/dashboard', request.url))
+    }
+    return NextResponse.next()
+  }
+
+  // ── Admin-Dashboard Auth (Supabase) ──────────────────────────────
   if (!user && pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Bereits eingeloggt → direkt zum Dashboard
   if (user && pathname === '/login') {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
