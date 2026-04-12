@@ -8,8 +8,9 @@ import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
 import { projektSoftDelete, projektStatusAendern } from '@/app/actions/projekte'
-import { ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote } from 'lucide-react'
+import { ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote, Archive } from 'lucide-react'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
+import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
 import SortableRaumListe from '@/components/SortableRaumListe'
 import PdfExportButton, { type PdfProdukt } from '@/components/PdfExportButton'
 import { getMwstSatz, getEinstellungen } from '@/app/actions/einstellungen'
@@ -30,6 +31,12 @@ async function getProjekt(id: string): Promise<ProjektMitKunde | null> {
   const supabase = await createClient()
   const { data } = await supabase.from('projekte').select('*, kunden(id, name)').eq('id', id).is('deleted_at', null).single()
   return data as ProjektMitKunde | null
+}
+
+async function getKunden(): Promise<{ id: string; name: string }[]> {
+  const supabase = await createClient()
+  const { data } = await supabase.from('kunden').select('id, name').is('deleted_at', null).order('name')
+  return data ?? []
 }
 
 async function getRaeume(projektId: string): Promise<Raum[]> {
@@ -149,7 +156,7 @@ async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
 }
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, einstellungen] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, einstellungen, kunden] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
@@ -159,6 +166,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
     getProdukteForPdf(params.id),
     getMwstSatz(),
     getEinstellungen(),
+    getKunden(),
   ])
 
   const raumtypen = (einstellungen.raumtypen ?? 'Büro,Studio,Wellness,Hotel,Privat,Wohnung,Sonstiges')
@@ -169,8 +177,25 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
   const raumHinzufuegenAktion = raumAnlegen.bind(null, projekt.id)
   const loeschenAktion        = projektSoftDelete.bind(null, projekt.id)
 
+  const istArchiviert = projekt.archiviert === true
+
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
+
+      {/* Archiviert-Banner */}
+      {istArchiviert && (
+        <div className="flex items-center gap-2.5 px-4 py-3 mb-4 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-600">
+          <Archive className="w-4 h-4 text-gray-400 shrink-0" />
+          <span>
+            Dieses Projekt ist archiviert
+            {projekt.archiviert_am && (
+              <> · {new Date(projekt.archiviert_am).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</>
+            )}
+          </span>
+          <span className="text-xs text-gray-400 ml-1">— Bearbeitung deaktiviert</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div>
@@ -189,38 +214,50 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
           </div>
           <h1 className="text-xl font-semibold text-gray-900">{projekt.name}</h1>
         </div>
-        <div className="flex items-center gap-2">
-          {/* CSV Export */}
-          <a
-            href={`/api/projekte/${projekt.id}/export`}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02] rounded-lg transition-all duration-200"
-            download
-          >
-            <Download className="w-3.5 h-3.5" />
-            CSV Export
-          </a>
-          {/* PDF Export */}
-          <PdfExportButton
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {!istArchiviert && (
+            <>
+              {/* CSV Export */}
+              <a
+                href={`/api/projekte/${projekt.id}/export`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02] rounded-lg transition-all duration-200"
+                download
+              >
+                <Download className="w-3.5 h-3.5" />
+                CSV Export
+              </a>
+              {/* PDF Export */}
+              <PdfExportButton
+                projektName={projekt.name}
+                kundeName={projekt.kunden?.name ?? null}
+                produkte={pdfProdukte}
+                mwst={mwst}
+              />
+              <Link
+                href={`/dashboard/projekte/${projekt.id}/bearbeiten`}
+                className="px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02] rounded-lg transition-all duration-200"
+              >
+                Bearbeiten
+              </Link>
+              <ConfirmDeleteButton
+                action={loeschenAktion}
+                confirmMessage={`„${projekt.name}" wirklich löschen?`}
+              />
+            </>
+          )}
+          {/* Archivieren / Duplizieren */}
+          <ProjektAktionenButtons
+            projektId={projekt.id}
             projektName={projekt.name}
-            kundeName={projekt.kunden?.name ?? null}
-            produkte={pdfProdukte}
-            mwst={mwst}
-          />
-          <Link
-            href={`/dashboard/projekte/${projekt.id}/bearbeiten`}
-            className="px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02] rounded-lg transition-all duration-200"
-          >
-            Bearbeiten
-          </Link>
-          <ConfirmDeleteButton
-            action={loeschenAktion}
-            confirmMessage={`„${projekt.name}" wirklich löschen?`}
+            aktuellerKundeId={projekt.kunde_id}
+            kunden={kunden}
+            archiviert={istArchiviert}
           />
         </div>
       </div>
 
-      {/* Status-Umschalter */}
-      <div className="flex items-center gap-2 mb-6">
+      {/* Status-Umschalter (deaktiviert wenn archiviert) */}
+      <div className={`flex items-center gap-2 mb-6 ${istArchiviert ? 'opacity-50 pointer-events-none' : ''}`}>
         {statusOptionen.map((s) => {
           const istAktiv = projekt.status === s.wert
           const statusAendernAktion = projektStatusAendern.bind(null, projekt.id, s.wert as import('@/lib/supabase/types').ProjektStatus)

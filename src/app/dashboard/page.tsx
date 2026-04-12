@@ -62,13 +62,14 @@ async function getDashboardData() {
     { data: letzteProjekteRaw },
   ] = await Promise.all([
     supabase.from('kunden').select('*', { count: 'exact', head: true }).is('deleted_at', null),
-    supabase.from('projekte').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+    supabase.from('projekte').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('archiviert', false),
     supabase.from('partner').select('*', { count: 'exact', head: true }).is('deleted_at', null),
     supabase.from('produkte').select('*', { count: 'exact', head: true }).is('deleted_at', null),
     supabase
       .from('projekte')
       .select('id, name, gesamtbudget, status')
       .is('deleted_at', null)
+      .eq('archiviert', false)
       .neq('status', 'abgeschlossen')
       .not('gesamtbudget', 'is', null)
       .order('created_at', { ascending: false })
@@ -82,6 +83,7 @@ async function getDashboardData() {
       .from('projekte')
       .select('created_at')
       .is('deleted_at', null)
+      .eq('archiviert', false)
       .gte('created_at', sechsMonateAgo.toISOString()),
     supabase
       .from('kunden')
@@ -93,6 +95,7 @@ async function getDashboardData() {
       .from('projekte')
       .select('*, kunden(id, name)')
       .is('deleted_at', null)
+      .eq('archiviert', false)
       .order('created_at', { ascending: false })
       .limit(8),
   ])

@@ -88,6 +88,147 @@ export async function projektSoftDelete(id: string): Promise<void> {
   redirect('/dashboard/projekte')
 }
 
+// ── Archivierung ──────────────────────────────────────────────
+
+export async function projektArchivieren(id: string): Promise<void> {
+  const supabase = await createClient()
+  await supabase
+    .from('projekte')
+    .update({ archiviert: true, archiviert_am: new Date().toISOString() })
+    .eq('id', id)
+    .is('deleted_at', null)
+  revalidatePath('/dashboard/projekte')
+  revalidatePath(`/dashboard/projekte/${id}`)
+}
+
+export async function projektWiederherstellen(id: string): Promise<void> {
+  const supabase = await createClient()
+  await supabase
+    .from('projekte')
+    .update({ archiviert: false, archiviert_am: null })
+    .eq('id', id)
+    .is('deleted_at', null)
+  revalidatePath('/dashboard/projekte')
+  revalidatePath(`/dashboard/projekte/${id}`)
+}
+
+// ── Duplikation ───────────────────────────────────────────────
+
+export interface DuplikationsOptionen {
+  neuerName: string
+  kundeId: string
+  kopiereRaeume: boolean
+  kopiereProdukte: boolean
+}
+
+export async function projektDuplizieren(
+  quellId: string,
+  optionen: DuplikationsOptionen
+): Promise<{ id: string }> {
+  const supabase = await createClient()
+
+  // Quellprojekt laden
+  const { data: quelle } = await supabase
+    .from('projekte')
+    .select('*')
+    .eq('id', quellId)
+    .is('deleted_at', null)
+    .single()
+  if (!quelle) throw new Error('Quellprojekt nicht gefunden')
+
+  // Neues Projekt anlegen
+  const { data: neuesProjekt, error: pErr } = await supabase
+    .from('projekte')
+    .insert({
+      name:         optionen.neuerName,
+      kunde_id:     optionen.kundeId,
+      beschreibung: quelle.beschreibung,
+      standort:     quelle.standort,
+      projektart:   quelle.projektart,
+      gesamtbudget: quelle.gesamtbudget,
+      status:       'in_bearbeitung',
+    })
+    .select('id')
+    .single()
+
+  if (pErr || !neuesProjekt) throw new Error('Fehler beim Anlegen des Projekts')
+
+  if (!optionen.kopiereRaeume) {
+    revalidatePath('/dashboard/projekte')
+    return { id: neuesProjekt.id }
+  }
+
+  // Räume laden + kopieren
+  const { data: quellenRaeume } = await supabase
+    .from('raeume')
+    .select('*')
+    .eq('projekt_id', quellId)
+    .is('deleted_at', null)
+    .order('reihenfolge')
+
+  if (!quellenRaeume || quellenRaeume.length === 0) {
+    revalidatePath('/dashboard/projekte')
+    return { id: neuesProjekt.id }
+  }
+
+  // Räume einfügen + Mapping alte ID → neue ID
+  const raumIdMap: Record<string, string> = {}
+  for (const raum of quellenRaeume) {
+    const { data: neuerRaum } = await supabase
+      .from('raeume')
+      .insert({
+        projekt_id:  neuesProjekt.id,
+        name:        raum.name,
+        beschreibung: raum.beschreibung,
+        reihenfolge: raum.reihenfolge,
+      })
+      .select('id')
+      .single()
+    if (neuerRaum) raumIdMap[raum.id] = neuerRaum.id
+  }
+
+  if (!optionen.kopiereProdukte) {
+    revalidatePath('/dashboard/projekte')
+    return { id: neuesProjekt.id }
+  }
+
+  // Produkte für alle Quell-Räume laden
+  const quellenRaumIds = quellenRaeume.map((r) => r.id)
+  const { data: quellenProdukte } = await supabase
+    .from('produkte')
+    .select('*')
+    .in('raum_id', quellenRaumIds)
+    .is('deleted_at', null)
+    .order('reihenfolge')
+
+  if (quellenProdukte && quellenProdukte.length > 0) {
+    const neueProdukte = quellenProdukte
+      .filter((p) => raumIdMap[p.raum_id])
+      .map((p) => ({
+        raum_id:          raumIdMap[p.raum_id],
+        partner_id:       p.partner_id,
+        name:             p.name,
+        beschreibung:     p.beschreibung,
+        kategorie:        p.kategorie,
+        menge:            p.menge,
+        einheit:          p.einheit,
+        einkaufspreis:    p.einkaufspreis,
+        marge_prozent:    p.marge_prozent,
+        provision_prozent: p.provision_prozent,
+        notizen_intern:   p.notizen_intern,
+        verkaufspreis:    p.verkaufspreis,
+        bild_url:         p.bild_url,
+        produkt_url:      p.produkt_url,
+        reihenfolge:      p.reihenfolge,
+        bestellstatus:    'ausstehend' as const,
+      }))
+    await supabase.from('produkte').insert(neueProdukte)
+  }
+
+  revalidatePath('/dashboard/projekte')
+  return { id: neuesProjekt.id }
+}
+
 // ── PIN-Schutz ────────────────────────────────────────────────
 
 /** PIN setzen (4-6 Ziffern) oder entfernen (null). */

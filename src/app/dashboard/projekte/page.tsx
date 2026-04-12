@@ -7,7 +7,7 @@ async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
   const supabase = await createClient()
 
   const [{ data: projekte }, { data: raeume }, { data: produkte }] = await Promise.all([
-    supabase.from('projekte').select('*, kunden(id, name)').is('deleted_at', null).order('created_at', { ascending: false }),
+    supabase.from('projekte').select('*, kunden(id, name)').is('deleted_at', null).order('archiviert').order('created_at', { ascending: false }),
     supabase.from('raeume').select('id, projekt_id').is('deleted_at', null),
     supabase.from('produkte').select('raum_id, verkaufspreis, menge, produktstatus(status)').is('deleted_at', null),
   ])
@@ -36,7 +36,9 @@ async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
 
   return (projekte ?? []).map((p) => ({
     ...p,
-    kunden: p.kunden as { id: string; name: string } | null,
+    kunden:          p.kunden as { id: string; name: string } | null,
+    archiviert:      p.archiviert ?? false,
+    archiviert_am:   p.archiviert_am ?? null,
     raeumCount:      raumCount[p.id]      ?? 0,
     offeneFreigaben: offeneFreigaben[p.id] ?? 0,
     vpGesamt:        Math.round((vpGesamt[p.id] ?? 0) * 100) / 100,
@@ -51,7 +53,7 @@ export default async function ProjektePage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Projekte</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{projekte.length} Einträge</p>
+          <p className="text-sm text-gray-500 mt-0.5">{projekte.filter(p => !p.archiviert).length} aktive Projekte</p>
         </div>
         <Link href="/dashboard/projekte/neu"
           className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark hover:scale-[1.02] active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all duration-200">

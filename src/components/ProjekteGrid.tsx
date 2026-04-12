@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, LayoutGrid, List, MapPin, Banknote, DoorOpen, AlertCircle } from 'lucide-react'
+import { Search, LayoutGrid, List, MapPin, Banknote, DoorOpen, AlertCircle, Archive } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type ProjektMitStats = {
@@ -13,6 +13,8 @@ export type ProjektMitStats = {
   standort: string | null
   gesamtbudget: number | null
   created_at: string
+  archiviert: boolean
+  archiviert_am: string | null
   kunden: { id: string; name: string } | null
   raeumCount: number
   offeneFreigaben: number
@@ -55,9 +57,10 @@ function BudgetBar({ vp, budget }: { vp: number; budget: number }) {
 
 // ── Komponente ────────────────────────────────────────────────
 export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[] }) {
-  const [suche,   setSuche]   = useState('')
-  const [tabStatus, setTabStatus] = useState('')
-  const [ansicht, setAnsicht] = useState<'grid' | 'list'>('grid')
+  const [suche,      setSuche]      = useState('')
+  const [tabStatus,  setTabStatus]  = useState('')
+  const [archivAnsicht, setArchivAnsicht] = useState(false)
+  const [ansicht,    setAnsicht]    = useState<'grid' | 'list'>('grid')
 
   useEffect(() => {
     const s = localStorage.getItem('projekte-ansicht')
@@ -69,6 +72,10 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
     localStorage.setItem('projekte-ansicht', neu)
   }
 
+  const aktiveProjekte    = projekte.filter((p) => !p.archiviert)
+  const archivierteProjekte = projekte.filter((p) => p.archiviert)
+  const anzeigePool = archivAnsicht ? archivierteProjekte : aktiveProjekte
+
   const statusOptionen = [
     { value: '',               label: 'Alle' },
     { value: 'offen',          label: 'Offen' },
@@ -78,11 +85,11 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
   ]
 
   const counts: Record<string, number> = {}
-  for (const p of projekte) {
+  for (const p of anzeigePool) {
     counts[p.status] = (counts[p.status] ?? 0) + 1
   }
 
-  const gefiltert = projekte.filter((p) => {
+  const gefiltert = anzeigePool.filter((p) => {
     const matchSuche = !suche.trim() ||
       p.name.toLowerCase().includes(suche.toLowerCase()) ||
       p.kunden?.name.toLowerCase().includes(suche.toLowerCase()) ||
@@ -93,10 +100,47 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
 
   return (
     <>
+      {/* Aktiv / Archiviert Toggle */}
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          onClick={() => { setArchivAnsicht(false); setTabStatus('') }}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            !archivAnsicht
+              ? 'bg-wellbeing-green text-white'
+              : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          Aktiv
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+            !archivAnsicht ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+          }`}>
+            {aktiveProjekte.length}
+          </span>
+        </button>
+        <button
+          onClick={() => { setArchivAnsicht(true); setTabStatus('') }}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            archivAnsicht
+              ? 'bg-gray-600 text-white'
+              : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          <Archive className="w-3.5 h-3.5" />
+          Archiviert
+          {archivierteProjekte.length > 0 && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+              archivAnsicht ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {archivierteProjekte.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Status-Tabs */}
       <div className="flex items-center gap-0 mb-5 border-b border-gray-200">
         {statusOptionen.map((opt) => {
-          const anzahl = opt.value ? (counts[opt.value] ?? 0) : projekte.length
+          const anzahl = opt.value ? (counts[opt.value] ?? 0) : anzeigePool.length
           const aktiv  = tabStatus === opt.value
           return (
             <button
@@ -153,11 +197,21 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {gefiltert.map((p) => (
             <Link key={p.id} href={`/dashboard/projekte/${p.id}`}
-              className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md hover:border-gray-300 transition-all duration-200 group block">
+              className={`bg-white border rounded-xl p-5 hover:shadow-md transition-all duration-200 group block ${
+                p.archiviert
+                  ? 'border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}>
               <div className="flex items-start justify-between mb-3 gap-2">
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                  {statusLabel[p.status] ?? p.status}
-                </span>
+                {p.archiviert ? (
+                  <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 shrink-0">
+                    <Archive className="w-3 h-3" /> Archiviert
+                  </span>
+                ) : (
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {statusLabel[p.status] ?? p.status}
+                  </span>
+                )}
                 {p.projektart && <span className="text-xs text-gray-400 truncate">{p.projektart}</span>}
               </div>
 
@@ -212,16 +266,22 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
               </thead>
               <tbody>
                 {gefiltert.map((p, i) => (
-                  <tr key={p.id} className={`hover:bg-gray-50 transition-colors group ${i < gefiltert.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                  <tr key={p.id} className={`hover:bg-gray-50 transition-colors group ${i < gefiltert.length - 1 ? 'border-b border-gray-100' : ''} ${p.archiviert ? 'opacity-60 hover:opacity-100' : ''}`}>
                     <td className="px-4 py-3.5">
                       <p className="font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors">{p.name}</p>
                       {p.standort && <p className="text-xs text-gray-400 mt-0.5">{p.standort}</p>}
                     </td>
                     <td className="px-4 py-3.5 text-gray-600">{p.kunden?.name ?? '–'}</td>
                     <td className="px-4 py-3.5 text-center">
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {statusLabel[p.status] ?? p.status}
-                      </span>
+                      {p.archiviert ? (
+                        <span className="flex items-center justify-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500">
+                          <Archive className="w-3 h-3" /> Archiviert
+                        </span>
+                      ) : (
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {statusLabel[p.status] ?? p.status}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 text-center font-mono text-gray-600">{p.gesamtbudget != null ? eur(p.gesamtbudget) : '–'}</td>
                     <td className="px-4 py-3.5 text-center font-mono text-wellbeing-green font-semibold">{p.vpGesamt > 0 ? eur(p.vpGesamt) : '–'}</td>

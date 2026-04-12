@@ -33,6 +33,8 @@ export interface Projekt {
   gesamtbudget: number | null
   status: ProjektStatus
   freigabe_pin: string | null
+  archiviert: boolean
+  archiviert_am: string | null
   deleted_at: string | null
   created_at: string
   updated_at: string
