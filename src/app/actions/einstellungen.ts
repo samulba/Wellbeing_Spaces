@@ -5,9 +5,9 @@ import { revalidatePath } from 'next/cache'
 
 export async function getEinstellungen(): Promise<Record<string, string>> {
   const supabase = await createClient()
-  const { data } = await supabase.from('einstellungen').select('schluessel, wert')
+  const { data } = await supabase.from('einstellungen').select('key, value')
   if (!data) return {}
-  return Object.fromEntries(data.map((r) => [r.schluessel, r.wert]))
+  return Object.fromEntries(data.map((r) => [r.key, r.value]))
 }
 
 /** MwSt.-Satz als Dezimalzahl (z.B. 0.19 für 19%). Fallback: 0.19. */
@@ -15,31 +15,21 @@ export async function getMwstSatz(): Promise<number> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('einstellungen')
-    .select('wert')
-    .eq('schluessel', 'mwst_satz')
+    .select('value')
+    .eq('key', 'mwst_satz')
     .single()
-  const pct = parseFloat(data?.wert ?? '19')
+  const pct = parseFloat(data?.value ?? '19')
   return isNaN(pct) ? 0.19 : pct / 100
 }
 
 export type EinstellungActionState = { fehler?: string; erfolg?: string } | null
 
-async function upsertEinstellung(schluessel: string, wert: string) {
+async function upsertEinstellung(key: string, value: string) {
   const supabase = await createClient()
-  const result = await supabase.from('einstellungen').upsert(
-    { schluessel, wert, updated_at: new Date().toISOString() },
-    { onConflict: 'schluessel' }
+  return supabase.from('einstellungen').upsert(
+    { key, value, updated_at: new Date().toISOString() },
+    { onConflict: 'key' }
   )
-  if (result.error) {
-    console.error('[upsertEinstellung] Fehler:', {
-      schluessel,
-      code: result.error.code,
-      message: result.error.message,
-      details: result.error.details,
-      hint: result.error.hint,
-    })
-  }
-  return result
 }
 
 // ── Allgemein ─────────────────────────────────────────────────
@@ -89,12 +79,12 @@ export async function addListItem(
   const supabase = await createClient()
   const { data } = await supabase
     .from('einstellungen')
-    .select('wert')
-    .eq('schluessel', schluessel)
+    .select('value')
+    .eq('key', schluessel)
     .maybeSingle()
 
-  const liste = data?.wert
-    ? data.wert.split(',').map((s: string) => s.trim()).filter(Boolean)
+  const liste = data?.value
+    ? data.value.split(',').map((s: string) => s.trim()).filter(Boolean)
     : []
 
   // Doppelten Namen erkennen – nur Name-Teil vor dem Pipe vergleichen
@@ -106,7 +96,7 @@ export async function addListItem(
   liste.push(eintrag)
 
   const { error } = await upsertEinstellung(schluessel, liste.join(','))
-  if (error) return { fehler: `Fehler beim Speichern: ${error.message} (${error.code})` }
+  if (error) return { fehler: 'Fehler beim Speichern.' }
 
   revalidatePath('/dashboard/einstellungen')
   revalidatePath('/dashboard/kategorien')
@@ -134,12 +124,12 @@ export async function updateListItem(
   const supabase = await createClient()
   const { data } = await supabase
     .from('einstellungen')
-    .select('wert')
-    .eq('schluessel', schluessel)
+    .select('value')
+    .eq('key', schluessel)
     .maybeSingle()
 
-  const liste = data?.wert
-    ? data.wert.split(',').map((s: string) => s.trim()).filter(Boolean)
+  const liste = data?.value
+    ? data.value.split(',').map((s: string) => s.trim()).filter(Boolean)
     : []
 
   const idx = liste.indexOf(altesItem)
@@ -151,7 +141,7 @@ export async function updateListItem(
   }
 
   const { error } = await upsertEinstellung(schluessel, liste.join(','))
-  if (error) return { fehler: `Fehler beim Speichern: ${error.message} (${error.code})` }
+  if (error) return { fehler: 'Fehler beim Speichern.' }
 
   revalidatePath('/dashboard/einstellungen')
   revalidatePath('/dashboard/kategorien')
@@ -162,13 +152,13 @@ export async function deleteListItem(schluessel: string, name: string): Promise<
   const supabase = await createClient()
   const { data } = await supabase
     .from('einstellungen')
-    .select('wert')
-    .eq('schluessel', schluessel)
+    .select('value')
+    .eq('key', schluessel)
     .maybeSingle()
 
-  if (!data?.wert) return
+  if (!data?.value) return
 
-  const liste = data.wert
+  const liste = data.value
     .split(',')
     .map((s: string) => s.trim())
     .filter((s: string) => s !== name)
