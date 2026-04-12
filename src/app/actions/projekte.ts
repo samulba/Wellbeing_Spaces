@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import type { ProjektStatus } from '@/lib/supabase/types'
@@ -85,4 +86,47 @@ export async function projektSoftDelete(id: string): Promise<void> {
 
   revalidatePath('/dashboard/projekte')
   redirect('/dashboard/projekte')
+}
+
+// ── PIN-Schutz ────────────────────────────────────────────────
+
+/** PIN setzen (4-6 Ziffern) oder entfernen (null). */
+export async function pinSetzen(projektId: string, pin: string | null): Promise<void> {
+  const supabase = await createClient()
+  await supabase
+    .from('projekte')
+    .update({ freigabe_pin: pin })
+    .eq('id', projektId)
+    .is('deleted_at', null)
+  revalidatePath(`/dashboard/projekte/${projektId}`)
+}
+
+/**
+ * PIN validieren – wird von der öffentlichen Freigabe-Seite aufgerufen.
+ * Nutzt Admin-Client (kein Auth-Cookie nötig).
+ * Gibt true zurück wenn PIN korrekt, false sonst.
+ */
+export async function pinPruefen(token: string, pin: string): Promise<boolean> {
+  const supabase = createAdminClient()
+
+  // Token → Projekt-ID
+  const { data: tokenData } = await supabase
+    .from('freigabe_tokens')
+    .select('projekt_id')
+    .eq('token', token)
+    .eq('aktiv', true)
+    .single()
+
+  if (!tokenData) return false
+
+  // PIN vergleichen
+  const { data: projekt } = await supabase
+    .from('projekte')
+    .select('freigabe_pin')
+    .eq('id', tokenData.projekt_id)
+    .is('deleted_at', null)
+    .single()
+
+  if (!projekt) return false
+  return projekt.freigabe_pin === pin
 }

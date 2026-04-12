@@ -25,14 +25,14 @@ export default async function FreigabePage({ params }: Props) {
     return <Fehlerseite meldung="Dieser Freigabe-Link ist abgelaufen." />
   }
 
-  // 2. Projektdaten laden
+  // 2. Projektdaten laden (inkl. PIN-Status – PIN selbst NICHT an Client weitergeben!)
   const { data: projektRaw } = await supabase
     .from('projekte')
-    .select('id, name, kunden(name)')
+    .select('id, name, freigabe_pin, kunden(name)')
     .eq('id', tokenData.projekt_id)
     .is('deleted_at', null)
     .single()
-  const projekt = projektRaw as typeof projektRaw & { kunden: { name: string } | null } | null
+  const projekt = projektRaw as typeof projektRaw & { kunden: { name: string } | null; freigabe_pin: string | null } | null
 
   if (!projekt) {
     return <Fehlerseite meldung="Das zugehörige Projekt wurde nicht gefunden." />
@@ -115,6 +115,7 @@ export default async function FreigabePage({ params }: Props) {
       kundeName={kundeName}
       raeume={raeume}
       mwst={mwst}
+      hatPin={projekt.freigabe_pin != null}
     />
   )
 }

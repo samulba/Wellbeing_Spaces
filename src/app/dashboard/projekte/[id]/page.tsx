@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import RaumHinzufuegen from '@/components/RaumHinzufuegen'
 import FreigabeLinkKarte from '@/components/FreigabeLinkKarte'
+import FreigabePinEinstellung from '@/components/FreigabePinEinstellung'
 import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
@@ -275,6 +276,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
           )}
 
           <FreigabeLinkKarte projektId={projekt.id} initialToken={aktiverToken ?? null} />
+          <FreigabePinEinstellung projektId={projekt.id} hatPin={projekt.freigabe_pin != null} />
           <DateiUpload projektId={projekt.id} initialDateien={dateien} />
           <NotizBlock typ="projekt" referenzId={projekt.id} initialNotizen={notizen} />
         </div>

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Check, X, RefreshCw, ExternalLink, ChevronDown } from 'lucide-react'
+import { Check, X, RefreshCw, ExternalLink, ChevronDown, Lock } from 'lucide-react'
 import { freigabeStatusAendern } from '@/app/actions/freigabe'
+import { pinPruefen } from '@/app/actions/projekte'
 import type { FreigabeRaum, FreigabeProdukt, ProduktStatus } from '@/lib/supabase/types'
 
 // ── Konstante (Fallback) ──────────────────────────────────────
@@ -26,6 +27,7 @@ interface Props {
   kundeName: string | null
   raeume: FreigabeRaum[]
   mwst?: number
+  hatPin?: boolean
 }
 
 // ── DepthStack-Logo ────────────────────────────────────────────
@@ -39,8 +41,167 @@ function Logo() {
   )
 }
 
+// ── PIN-Eingabe-Screen ────────────────────────────────────────
+const PIN_LAENGE = 4
+const MAX_VERSUCHE = 3
+const SESSION_KEY = (token: string) => `freigabe_pin_ok_${token}`
+
+function PinEingabe({ token, projektName, onErfolg }: {
+  token: string
+  projektName: string
+  onErfolg: () => void
+}) {
+  const [digits, setDigits]   = useState<string[]>(Array(PIN_LAENGE).fill(''))
+  const [fehler, setFehler]   = useState<string | null>(null)
+  const [versuche, setVersuche] = useState(0)
+  const [isPending, startTransition] = useTransition()
+  const refs = useRef<(HTMLInputElement | null)[]>([])
+  const gesperrt = versuche >= MAX_VERSUCHE
+
+  useEffect(() => {
+    refs.current[0]?.focus()
+  }, [])
+
+  function handleInput(i: number, val: string) {
+    if (!/^\d?$/.test(val)) return
+    const neu = [...digits]
+    neu[i] = val
+    setDigits(neu)
+    setFehler(null)
+    if (val && i < PIN_LAENGE - 1) {
+      refs.current[i + 1]?.focus()
+    }
+    if (val && i === PIN_LAENGE - 1 && neu.every((d) => d !== '')) {
+      pruefe(neu.join(''))
+    }
+  }
+
+  function handleKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Backspace') {
+      if (!digits[i] && i > 0) {
+        const neu = [...digits]
+        neu[i - 1] = ''
+        setDigits(neu)
+        refs.current[i - 1]?.focus()
+      }
+    }
+    if (e.key === 'ArrowLeft' && i > 0) refs.current[i - 1]?.focus()
+    if (e.key === 'ArrowRight' && i < PIN_LAENGE - 1) refs.current[i + 1]?.focus()
+  }
+
+  function pruefe(pin: string) {
+    if (gesperrt) return
+    startTransition(async () => {
+      const ok = await pinPruefen(token, pin)
+      if (ok) {
+        try { sessionStorage.setItem(SESSION_KEY(token), '1') } catch { /* ignore */ }
+        onErfolg()
+      } else {
+        const neueVersuche = versuche + 1
+        setVersuche(neueVersuche)
+        setDigits(Array(PIN_LAENGE).fill(''))
+        setTimeout(() => refs.current[0]?.focus(), 50)
+        if (neueVersuche >= MAX_VERSUCHE) {
+          setFehler('Zu viele Fehlversuche. Bitte wende dich an deinen Ansprechpartner.')
+        } else {
+          setFehler(`Falscher PIN. Noch ${MAX_VERSUCHE - neueVersuche} Versuch${MAX_VERSUCHE - neueVersuche !== 1 ? 'e' : ''}.`)
+        }
+      }
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f6ede2] flex flex-col items-center justify-center px-6">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 mb-10">
+        <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
+          <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.30" />
+          <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
+          <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
+        </svg>
+        <span className="font-syne text-base font-bold text-[#2d3e31] tracking-tight">Wellbeing Spaces</span>
+      </div>
+
+      <div className="w-full max-w-xs">
+        {/* Karte */}
+        <div className="bg-white rounded-2xl shadow-lg px-8 py-8">
+          {/* Icon */}
+          <div className="w-14 h-14 rounded-2xl bg-wellbeing-cream flex items-center justify-center mx-auto mb-5">
+            <Lock className="w-6 h-6 text-wellbeing-green" />
+          </div>
+
+          <h1 className="text-lg font-semibold text-gray-900 text-center mb-1">PIN eingeben</h1>
+          <p className="text-sm text-gray-500 text-center mb-6 leading-relaxed">
+            <span className="font-medium text-gray-700">{projektName}</span>
+            <br />ist PIN-geschützt.
+          </p>
+
+          {/* 4er PIN-Felder */}
+          <div className="flex justify-center gap-3 mb-5">
+            {digits.map((d, i) => (
+              <input
+                key={i}
+                ref={(el) => { refs.current[i] = el }}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={1}
+                value={d}
+                disabled={gesperrt || isPending}
+                onChange={(e) => handleInput(i, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(i, e)}
+                onFocus={(e) => e.target.select()}
+                className={`w-14 h-14 text-center text-2xl font-bold rounded-xl border-2 transition-all outline-none
+                  ${d ? 'border-wellbeing-green text-wellbeing-green bg-wellbeing-green/5'
+                      : 'border-gray-200 text-gray-900 bg-gray-50'}
+                  ${gesperrt ? 'opacity-40' : 'focus:border-wellbeing-green focus:bg-wellbeing-green/5'}
+                  ${fehler && !gesperrt ? 'border-[#823509]/60' : ''}
+                `}
+              />
+            ))}
+          </div>
+
+          {/* Fehler */}
+          {fehler && (
+            <p className={`text-xs text-center leading-relaxed mb-2 ${
+              gesperrt ? 'text-[#823509] font-medium' : 'text-[#823509]'
+            }`}>
+              {fehler}
+            </p>
+          )}
+
+          {/* Laden */}
+          {isPending && (
+            <p className="text-xs text-center text-gray-400 mt-1">Wird geprüft…</p>
+          )}
+        </div>
+
+        <p className="text-xs text-center text-gray-400 mt-5">
+          Den PIN erhältst du von deinem Innenarchitekten.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 // ── Hauptkomponente ───────────────────────────────────────────
-export default function FreigabeClient({ token, projektName, kundeName, raeume, mwst = MWST_DEFAULT }: Props) {
+export default function FreigabeClient({ token, projektName, kundeName, raeume, mwst = MWST_DEFAULT, hatPin = false }: Props) {
+  // PIN-Verifikation: einmalig aus sessionStorage lesen
+  const [pinVerifiziert, setPinVerifiziert] = useState(() => {
+    if (!hatPin) return true
+    try { return sessionStorage.getItem(SESSION_KEY(token)) === '1' } catch { return false }
+  })
+
+  // PIN-Screen anzeigen solange nicht verifiziert
+  if (hatPin && !pinVerifiziert) {
+    return (
+      <PinEingabe
+        token={token}
+        projektName={projektName}
+        onErfolg={() => setPinVerifiziert(true)}
+      />
+    )
+  }
   const [state, setState] = useState<Record<string, ProduktState>>(() => {
     const init: Record<string, ProduktState> = {}
     for (const raum of raeume) {

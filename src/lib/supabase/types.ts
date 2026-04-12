@@ -32,6 +32,7 @@ export interface Projekt {
   projektart: string | null
   gesamtbudget: number | null
   status: ProjektStatus
+  freigabe_pin: string | null
   deleted_at: string | null
   created_at: string
   updated_at: string
