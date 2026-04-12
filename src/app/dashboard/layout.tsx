@@ -15,10 +15,17 @@ export default async function DashboardLayout({
 
   const userName = (user.user_metadata?.full_name as string | undefined) || undefined
 
-  const { count } = await supabase
-    .from('produktstatus')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'ausstehend')
+  const [{ count: freigabenCount }, { count: anfragenCount }] = await Promise.all([
+    supabase
+      .from('produktstatus')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'ausstehend'),
+    supabase
+      .from('onboarding_anfragen')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'offen')
+      .not('kunde_name', 'is', null),
+  ])
 
   return (
     <MobileGuard>
@@ -26,7 +33,8 @@ export default async function DashboardLayout({
         <NavSidebar
           userEmail={user.email ?? ''}
           userName={userName}
-          offeneFreigaben={count ?? 0}
+          offeneFreigaben={freigabenCount ?? 0}
+          offeneAnfragen={anfragenCount ?? 0}
         />
         <main className="flex-1 overflow-hidden flex flex-col">
           {children}

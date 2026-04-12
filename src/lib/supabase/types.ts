@@ -147,3 +147,24 @@ export interface FreigabeToken {
   aktiv: boolean
   created_at: string
 }
+
+export type OnboardingStatus = 'offen' | 'abgeschlossen' | 'abgelehnt'
+
+export interface OnboardingAnfrage {
+  id: string
+  token: string
+  status: OnboardingStatus
+  kunde_name: string | null
+  kunde_email: string | null
+  kunde_telefon: string | null
+  projekt_name: string | null
+  projekt_adresse: string | null
+  raumtypen: string[] | null
+  budget_min: number | null
+  budget_max: number | null
+  stil_praeferenzen: string | null
+  zeitrahmen: string | null
+  notizen: string | null
+  created_at: string
+  updated_at: string
+}
