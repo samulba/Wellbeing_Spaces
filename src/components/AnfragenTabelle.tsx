@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { ChevronDown, ChevronUp, Copy, Check, Plus, User, Mail, Phone, MapPin, Home, Euro, Clock, Palette, MessageSquare, ExternalLink } from 'lucide-react'
+import { ChevronDown, ChevronUp, Check, Plus, User, Mail, Phone, MapPin, Home, Euro, Clock, Palette, MessageSquare, ExternalLink } from 'lucide-react'
 import {
   onboardingLinkErstellen,
   onboardingStatusAendern,
@@ -62,7 +62,7 @@ function LinkErstellenButton() {
 }
 
 // ── Erweiterte Detailansicht ──────────────────────────────────
-function AnfrageDetail({ anfrage, onClose }: { anfrage: OnboardingAnfrage; onClose: () => void }) {
+function AnfrageDetail({ anfrage }: { anfrage: OnboardingAnfrage }) {
   const [isPending, startTransition] = useTransition()
   const [kopiert, setKopiert]        = useState(false)
   const offen = anfrage.status === 'offen'
@@ -302,10 +302,7 @@ export default function AnfragenTabelle({ anfragen }: { anfragen: OnboardingAnfr
 
                   {/* ── Detail-Panel ───────────────────────── */}
                   {offen && (
-                    <AnfrageDetail
-                      anfrage={anfrage}
-                      onClose={() => setOffeneId(null)}
-                    />
+                    <AnfrageDetail anfrage={anfrage} />
                   )}
                 </div>
               )
