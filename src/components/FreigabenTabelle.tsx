@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle2, X, Clock, XCircle, RotateCcw, BarChart2, List } from 'lucide-react'
+import { CheckCircle2, X, Clock, XCircle, RotateCcw, BarChart2, List, Layers, Table2 } from 'lucide-react'
 import {
   ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -78,14 +78,30 @@ function BalkenTooltip({ active, payload, label }: { active?: boolean; payload?:
 type ChartView = 'balken' | 'liste'
 
 const LISTE_CFG = [
-  { key: 'freigegeben',    label: 'Freigegeben',   icon: CheckCircle2, farbe: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700' },
-  { key: 'ausstehend',     label: 'Ausstehend',    icon: Clock,        farbe: '#F59E0B', bg: 'bg-amber-50',   text: 'text-amber-700'   },
-  { key: 'abgelehnt',      label: 'Abgelehnt',     icon: XCircle,      farbe: '#EF4444', bg: 'bg-red-50',     text: 'text-red-600'     },
-  { key: 'ueberarbeitung', label: 'Überarbeitung', icon: RotateCcw,    farbe: '#6366F1', bg: 'bg-indigo-50',  text: 'text-indigo-700'  },
+  { key: 'freigegeben',    label: 'Freigegeben',   icon: CheckCircle2, farbe: '#10B981', bg: 'bg-emerald-50',  ring: 'ring-emerald-400', text: 'text-emerald-700' },
+  { key: 'ausstehend',     label: 'Ausstehend',    icon: Clock,        farbe: '#F59E0B', bg: 'bg-amber-50',    ring: 'ring-amber-400',   text: 'text-amber-700'   },
+  { key: 'abgelehnt',      label: 'Abgelehnt',     icon: XCircle,      farbe: '#EF4444', bg: 'bg-red-50',      ring: 'ring-red-400',     text: 'text-red-600'     },
+  { key: 'ueberarbeitung', label: 'Überarbeitung', icon: RotateCcw,    farbe: '#6366F1', bg: 'bg-indigo-50',   ring: 'ring-indigo-400',  text: 'text-indigo-700'  },
 ]
 
-function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
-  const [view, setView] = useState<ChartView>('balken')
+// Mapping Tile-Key → Tab-Wert (ausstehend + ueberarbeitung = 'offen')
+const TILE_TAB: Record<string, Tab> = {
+  freigegeben:    'freigegeben',
+  ausstehend:     'offen',
+  abgelehnt:      'abgelehnt',
+  ueberarbeitung: 'offen',
+}
+
+function FreigabeChart({
+  eintraege,
+  activeTab,
+  onTabChange,
+}: {
+  eintraege: FreigabeEintrag[]
+  activeTab: Tab
+  onTabChange: (tab: Tab) => void
+}) {
+  const [view, setView] = useState<ChartView>('liste')
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { freigegeben: 0, ausstehend: 0, abgelehnt: 0, ueberarbeitung: 0 }
@@ -116,8 +132,8 @@ function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
   if (gesamt === 0) return null
 
   const switcher: { key: ChartView; label: string; Icon: React.ElementType }[] = [
-    { key: 'balken', label: 'Balken', Icon: BarChart2 },
     { key: 'liste',  label: 'Liste',  Icon: List      },
+    { key: 'balken', label: 'Balken', Icon: BarChart2 },
   ]
 
   return (
@@ -127,10 +143,7 @@ function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
         <p className="text-xs text-gray-400 font-medium">{gesamt} Produkte gesamt</p>
         <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
           {switcher.map(({ key, label, Icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setView(key)}
+            <button key={key} type="button" onClick={() => setView(key)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
                 view === key ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'
               }`}
@@ -142,6 +155,36 @@ function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
         </div>
       </div>
 
+      {/* Liste-View – anklickbare Kacheln filtern die Tabelle unten */}
+      {view === 'liste' && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1">
+          {LISTE_CFG.map((cfg) => {
+            const count = counts[cfg.key] ?? 0
+            const Icon = cfg.icon
+            const mappedTab = TILE_TAB[cfg.key]
+            const isActive = activeTab !== 'alle' && activeTab === mappedTab
+            return (
+              <button
+                key={cfg.key}
+                type="button"
+                onClick={() => onTabChange(activeTab === mappedTab ? 'alle' : mappedTab)}
+                className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all ${cfg.bg} ${
+                  isActive ? `ring-2 ${cfg.ring} shadow-sm` : 'opacity-80 hover:opacity-100 hover:shadow-sm'
+                }`}
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-white/60">
+                  <Icon className={cfg.text} style={{ width: 18, height: 18 }} />
+                </div>
+                <div>
+                  <p className={`text-xl font-bold leading-none ${cfg.text}`}>{count}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{cfg.label}</p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {/* Balken-View */}
       {view === 'balken' && (
         <>
@@ -151,11 +194,9 @@ function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
               <Tooltip content={(props) => (
-                <BalkenTooltip
-                  active={props.active}
+                <BalkenTooltip active={props.active}
                   payload={props.payload as unknown as BarPayloadItem[] | undefined}
-                  label={String(props.label ?? '')}
-                />
+                  label={String(props.label ?? '')} />
               )} cursor={{ fill: '#F9FAFB' }} />
               <Bar dataKey="freigegeben"    name="Freigegeben"   stackId="a" fill="#10B981" radius={[0,0,0,0]} />
               <Bar dataKey="ausstehend"     name="Ausstehend"    stackId="a" fill="#F59E0B" radius={[0,0,0,0]} />
@@ -163,7 +204,6 @@ function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
               <Bar dataKey="ueberarbeitung" name="Überarbeitung" stackId="a" fill="#6366F1" radius={[3,3,0,0]} />
             </BarChart>
           </ResponsiveContainer>
-          {/* Legende */}
           <div className="flex items-center gap-5 mt-2 flex-wrap">
             {LISTE_CFG.map((cfg) => (
               <div key={cfg.key} className="flex items-center gap-1.5">
@@ -173,27 +213,6 @@ function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
             ))}
           </div>
         </>
-      )}
-
-      {/* Liste-View */}
-      {view === 'liste' && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1">
-          {LISTE_CFG.map((cfg) => {
-            const count = counts[cfg.key] ?? 0
-            const Icon = cfg.icon
-            return (
-              <div key={cfg.key} className={`flex items-center gap-3 px-4 py-3.5 rounded-xl ${cfg.bg}`}>
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-white/60">
-                  <Icon className={cfg.text} style={{ width: 18, height: 18 }} />
-                </div>
-                <div>
-                  <p className={`text-xl font-bold leading-none ${cfg.text}`}>{count}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{cfg.label}</p>
-                </div>
-              </div>
-            )
-          })}
-        </div>
       )}
     </div>
   )
@@ -347,8 +366,11 @@ function gruppiereNachProjekt(eintraege: FreigabeEintrag[]): ProjektGruppe[] {
 }
 
 // ── Komponente ────────────────────────────────────────────────
+type BottomView = 'gruppen' | 'tabelle'
+
 export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEintrag[] }) {
   const [tab, setTab]                   = useState<Tab>('offen')
+  const [bottomView, setBottomView]     = useState<BottomView>('gruppen')
   const [selectedEintrag, setSelected]  = useState<FreigabeEintrag | null>(null)
   const [isPending, startTransition]    = useTransition()
   const router                          = useRouter()
@@ -377,141 +399,170 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
     })
   }
 
+  const produktZeile = (e: FreigabeEintrag) => {
+    const status    = e.produktstatus?.status ?? 'ausstehend'
+    const kommentar = e.produktstatus?.kommentar
+    const kuerzel   = e.name.slice(0, 2).toUpperCase()
+    return (
+      <li key={e.id}
+        className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors cursor-pointer"
+        onClick={() => setSelected(e)}>
+        {e.bild_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={e.bild_url} alt={e.name} className="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0" />
+        ) : (
+          <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 shrink-0 flex items-center justify-center">
+            <span className="text-[11px] font-bold text-indigo-400">{kuerzel}</span>
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-medium text-gray-900 leading-snug">{e.name}</p>
+            <span className="text-xs text-gray-400">{e.raeume?.name}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[status] ?? 'bg-gray-100 text-gray-500'}`}>
+              {statusLabel[status] ?? status}
+            </span>
+          </div>
+          {kommentar && (
+            <p className="text-xs text-amber-600 mt-0.5 truncate max-w-lg" title={kommentar}>{kommentar}</p>
+          )}
+        </div>
+        <span className="text-xs text-gray-400 shrink-0">{formatDatum(e.created_at)}</span>
+      </li>
+    )
+  }
+
   return (
     <div className="flex flex-col min-h-0">
 
-      {/* ── Sticky Header: Titel + Chart ──────────────────────── */}
-      <div className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-6 pt-6 pb-4 shadow-sm">
+      {/* ── Sticky Header: Titel + Chart + Tabs ───────────────── */}
+      <div className="sticky top-0 z-20 bg-gray-50 px-6 pt-6 shadow-sm">
         <div className="mb-4">
           <h1 className="text-xl font-semibold text-gray-900">Freigaben</h1>
           <p className="text-sm text-gray-500 mt-0.5">Produktfreigaben aller Projekte im Überblick</p>
         </div>
-        <FreigabeChart eintraege={eintraege} />
+
+        <FreigabeChart eintraege={eintraege} activeTab={tab} onTabChange={setTab} />
+
+        {/* Tabs */}
+        <div className="flex items-center gap-0 mt-4 border-b border-gray-200">
+          {tabs.map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2 ${
+                tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+              }`}>
+              {t.label}
+              {t.key === 'offen' && offenCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-red-500 text-white rounded-full">
+                  {offenCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Scrollbarer Content ────────────────────────────────── */}
       <div className="px-6 py-6">
 
-      {/* Tabs */}
-      <div className="flex items-center gap-0 mb-6 border-b border-gray-200">
-        {tabs.map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2 ${
-              tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-            }`}>
-            {t.label}
-            {t.key === 'offen' && offenCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-red-500 text-white rounded-full">
-                {offenCount}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Leerer Zustand */}
-      {gruppen.length === 0 && (
-        <div className="text-center py-20 bg-white border border-gray-200 rounded-xl shadow-sm">
-          {tab === 'offen' ? (
-            <>
-              <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-              </div>
-              <p className="text-base font-semibold text-gray-800 mb-1">Alle Freigaben erledigt!</p>
-              <p className="text-sm text-gray-400">Keine offenen Freigabeanfragen.</p>
-            </>
-          ) : (
-            <p className="text-sm text-gray-400">Keine Einträge in dieser Kategorie.</p>
-          )}
-        </div>
-      )}
-
-      {/* Projekt-Gruppen */}
-      <div className="space-y-5">
-        {gruppen.map((gruppe) => (
-          <div key={gruppe.projektId} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            {/* Gruppen-Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-gray-900">{gruppe.projektName}</h3>
-                  {gruppe.offenCount > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full">
-                      {gruppe.offenCount}
-                    </span>
-                  )}
+        {/* Leerer Zustand */}
+        {gefiltert.length === 0 && (
+          <div className="text-center py-20 bg-white border border-gray-200 rounded-xl shadow-sm">
+            {tab === 'offen' ? (
+              <>
+                <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500" />
                 </div>
-                {gruppe.kundeName && (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {gruppe.kundeId
-                      ? <Link href={`/dashboard/kunden/${gruppe.kundeId}`} className="hover:text-indigo-600 transition-colors">{gruppe.kundeName}</Link>
-                      : gruppe.kundeName}
-                  </p>
-                )}
+                <p className="text-base font-semibold text-gray-800 mb-1">Alle Freigaben erledigt!</p>
+                <p className="text-sm text-gray-400">Keine offenen Freigabeanfragen.</p>
+              </>
+            ) : (
+              <p className="text-sm text-gray-400">Keine Einträge in dieser Kategorie.</p>
+            )}
+          </div>
+        )}
+
+        {gefiltert.length > 0 && (
+          <>
+            {/* View-Switcher */}
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs text-gray-400">{gefiltert.length} Einträge</span>
+              <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
+                <button type="button" onClick={() => setBottomView('gruppen')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                    bottomView === 'gruppen' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-50'
+                  }`}>
+                  <Layers className="w-3.5 h-3.5" />
+                  Gruppen
+                </button>
+                <button type="button" onClick={() => setBottomView('tabelle')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                    bottomView === 'tabelle' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-50'
+                  }`}>
+                  <Table2 className="w-3.5 h-3.5" />
+                  Flachliste
+                </button>
               </div>
-              <Link href={`/dashboard/projekte/${gruppe.projektId}`}
-                className="text-xs font-medium text-gray-400 hover:text-indigo-600 transition-colors whitespace-nowrap">
-                Zum Projekt →
-              </Link>
             </div>
 
-            {/* Produkt-Liste */}
-            <ul className="divide-y divide-gray-100">
-              {gruppe.eintraege.map((e) => {
-                const status    = e.produktstatus?.status ?? 'ausstehend'
-                const kommentar = e.produktstatus?.kommentar
-                const kuerzel   = e.name.slice(0, 2).toUpperCase()
-                return (
-                  <li key={e.id}
-                    className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors cursor-pointer"
-                    onClick={() => setSelected(e)}>
-                    {/* Thumbnail */}
-                    {e.bild_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={e.bild_url} alt={e.name} className="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 shrink-0 flex items-center justify-center">
-                        <span className="text-[11px] font-bold text-indigo-400">{kuerzel}</span>
+            {/* Gruppen-View */}
+            {bottomView === 'gruppen' && (
+              <div className="space-y-5">
+                {gruppen.map((gruppe) => (
+                  <div key={gruppe.projektId} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-semibold text-gray-900">{gruppe.projektName}</h3>
+                          {gruppe.offenCount > 0 && (
+                            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full">
+                              {gruppe.offenCount}
+                            </span>
+                          )}
+                        </div>
+                        {gruppe.kundeName && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {gruppe.kundeId
+                              ? <Link href={`/dashboard/kunden/${gruppe.kundeId}`} className="hover:text-indigo-600 transition-colors">{gruppe.kundeName}</Link>
+                              : gruppe.kundeName}
+                          </p>
+                        )}
                       </div>
-                    )}
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-medium text-gray-900 leading-snug">{e.name}</p>
-                        <span className="text-xs text-gray-400">{e.raeume?.name}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[status] ?? 'bg-gray-100 text-gray-500'}`}>
-                          {statusLabel[status] ?? status}
-                        </span>
-                      </div>
-                      {kommentar && (
-                        <p className="text-xs text-amber-600 mt-0.5 truncate max-w-lg" title={kommentar}>
-                          {kommentar}
-                        </p>
-                      )}
+                      <Link href={`/dashboard/projekte/${gruppe.projektId}`}
+                        className="text-xs font-medium text-gray-400 hover:text-indigo-600 transition-colors whitespace-nowrap">
+                        Zum Projekt →
+                      </Link>
                     </div>
+                    <ul className="divide-y divide-gray-100">
+                      {gruppe.eintraege.map((e) => produktZeile(e))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
 
-                    {/* Datum */}
-                    <span className="text-xs text-gray-400 shrink-0">{formatDatum(e.created_at)}</span>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))}
+            {/* Flachliste-View */}
+            {bottomView === 'tabelle' && (
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <ul className="divide-y divide-gray-100">
+                  {gefiltert.map((e) => produktZeile(e))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Detail Modal */}
+        {selectedEintrag && (
+          <DetailModal
+            eintrag={selectedEintrag}
+            onClose={() => setSelected(null)}
+            onReset={() => handleReset(selectedEintrag.id)}
+            isPending={isPending}
+          />
+        )}
+
       </div>
-
-      {/* Detail Modal */}
-      {selectedEintrag && (
-        <DetailModal
-          eintrag={selectedEintrag}
-          onClose={() => setSelected(null)}
-          onReset={() => handleReset(selectedEintrag.id)}
-          isPending={isPending}
-        />
-      )}
-
-      </div>{/* Ende scrollbarer Content */}
     </div>
   )
 }
