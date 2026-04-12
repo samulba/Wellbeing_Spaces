@@ -82,7 +82,7 @@ const LISTE_CFG = [
   { key: 'freigegeben',    label: 'Freigegeben',   icon: CheckCircle2, farbe: '#10B981', bg: 'bg-emerald-50',  ring: 'ring-emerald-400', text: 'text-emerald-700' },
   { key: 'ausstehend',     label: 'Ausstehend',    icon: Clock,        farbe: '#F59E0B', bg: 'bg-amber-50',    ring: 'ring-amber-400',   text: 'text-amber-700'   },
   { key: 'abgelehnt',      label: 'Abgelehnt',     icon: XCircle,      farbe: '#EF4444', bg: 'bg-red-50',      ring: 'ring-red-400',     text: 'text-red-600'     },
-  { key: 'ueberarbeitung', label: 'Überarbeitung', icon: RotateCcw,    farbe: '#6366F1', bg: 'bg-indigo-50',   ring: 'ring-indigo-400',  text: 'text-indigo-700'  },
+  { key: 'ueberarbeitung', label: 'Überarbeitung', icon: RotateCcw,    farbe: '#445c49', bg: 'bg-wellbeing-cream',   ring: 'ring-wellbeing-green-light',  text: 'text-wellbeing-green-dark'  },
 ]
 
 // Mapping Tile-Key → Tab-Wert (1:1, jeder Status hat seinen eigenen Filter)
@@ -146,7 +146,7 @@ function FreigabeChart({
           {switcher.map(({ key, label, Icon }) => (
             <button key={key} type="button" onClick={() => setView(key)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
-                view === key ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'
+                view === key ? 'bg-wellbeing-green text-white' : 'text-gray-500 hover:bg-gray-100'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -202,7 +202,7 @@ function FreigabeChart({
               <Bar dataKey="freigegeben"    name="Freigegeben"   stackId="a" fill="#10B981" radius={[0,0,0,0]} />
               <Bar dataKey="ausstehend"     name="Ausstehend"    stackId="a" fill="#F59E0B" radius={[0,0,0,0]} />
               <Bar dataKey="abgelehnt"      name="Abgelehnt"     stackId="a" fill="#EF4444" radius={[0,0,0,0]} />
-              <Bar dataKey="ueberarbeitung" name="Überarbeitung" stackId="a" fill="#6366F1" radius={[3,3,0,0]} />
+              <Bar dataKey="ueberarbeitung" name="Überarbeitung" stackId="a" fill="#445c49" radius={[3,3,0,0]} />
             </BarChart>
           </ResponsiveContainer>
           <div className="flex items-center gap-5 mt-2 flex-wrap">
@@ -244,8 +244,8 @@ function DetailModal({ eintrag, onClose, onReset, isPending }: {
             <img src={eintrag.bild_url} alt={eintrag.name}
               className="w-14 h-14 rounded-xl object-cover border border-gray-200 shrink-0" />
           ) : (
-            <div className="w-14 h-14 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
-              <span className="text-sm font-bold text-indigo-400">{kuerzel}</span>
+            <div className="w-14 h-14 rounded-xl bg-wellbeing-cream border border-wellbeing-cream flex items-center justify-center shrink-0">
+              <span className="text-sm font-bold text-wellbeing-green-light">{kuerzel}</span>
             </div>
           )}
           <div className="min-w-0 flex-1">
@@ -253,7 +253,7 @@ function DetailModal({ eintrag, onClose, onReset, isPending }: {
             {projekt && (
               <p className="text-xs text-gray-500 mt-0.5">
                 <Link href={`/dashboard/projekte/${projekt.id}`}
-                  className="hover:text-indigo-600 transition-colors" onClick={onClose}>
+                  className="hover:text-wellbeing-green transition-colors" onClick={onClose}>
                   {projekt.name}
                 </Link>
                 {eintrag.raeume?.name && (
@@ -294,7 +294,7 @@ function DetailModal({ eintrag, onClose, onReset, isPending }: {
           {projekt?.kunden && (
             <InfoZeile label="Kunde">
               <Link href={`/dashboard/kunden/${projekt.kunden.id}`}
-                className="text-sm text-gray-700 hover:text-indigo-600 transition-colors" onClick={onClose}>
+                className="text-sm text-gray-700 hover:text-wellbeing-green transition-colors" onClick={onClose}>
                 {projekt.kunden.name}
               </Link>
             </InfoZeile>
@@ -413,8 +413,8 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
           // eslint-disable-next-line @next/next/no-img-element
           <img src={e.bild_url} alt={e.name} className="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0" />
         ) : (
-          <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 shrink-0 flex items-center justify-center">
-            <span className="text-[11px] font-bold text-indigo-400">{kuerzel}</span>
+          <div className="w-10 h-10 rounded-lg bg-wellbeing-cream border border-wellbeing-cream shrink-0 flex items-center justify-center">
+            <span className="text-[11px] font-bold text-wellbeing-green-light">{kuerzel}</span>
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -451,7 +451,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
           {tabs.map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2 ${
-                tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+                tab === t.key ? 'border-wellbeing-green text-wellbeing-green' : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
               }`}>
               {t.label}
               {t.key === 'offen' && offenCount > 0 && (
@@ -492,14 +492,14 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
               <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
                 <button type="button" onClick={() => setBottomView('gruppen')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
-                    bottomView === 'gruppen' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-50'
+                    bottomView === 'gruppen' ? 'bg-wellbeing-green text-white' : 'text-gray-500 hover:bg-gray-50'
                   }`}>
                   <Layers className="w-3.5 h-3.5" />
                   Gruppen
                 </button>
                 <button type="button" onClick={() => setBottomView('tabelle')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
-                    bottomView === 'tabelle' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-50'
+                    bottomView === 'tabelle' ? 'bg-wellbeing-green text-white' : 'text-gray-500 hover:bg-gray-50'
                   }`}>
                   <Table2 className="w-3.5 h-3.5" />
                   Flachliste
@@ -525,13 +525,13 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                         {gruppe.kundeName && (
                           <p className="text-xs text-gray-500 mt-0.5">
                             {gruppe.kundeId
-                              ? <Link href={`/dashboard/kunden/${gruppe.kundeId}`} className="hover:text-indigo-600 transition-colors">{gruppe.kundeName}</Link>
+                              ? <Link href={`/dashboard/kunden/${gruppe.kundeId}`} className="hover:text-wellbeing-green transition-colors">{gruppe.kundeName}</Link>
                               : gruppe.kundeName}
                           </p>
                         )}
                       </div>
                       <Link href={`/dashboard/projekte/${gruppe.projektId}`}
-                        className="text-xs font-medium text-gray-400 hover:text-indigo-600 transition-colors whitespace-nowrap">
+                        className="text-xs font-medium text-gray-400 hover:text-wellbeing-green transition-colors whitespace-nowrap">
                         Zum Projekt →
                       </Link>
                     </div>

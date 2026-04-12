@@ -61,17 +61,17 @@ export default function Pricing() {
     <section id="preise" className="bg-white py-28 relative overflow-hidden">
       {/* Background accent */}
       <div
-        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-indigo-50/80 blur-[80px] rounded-full pointer-events-none"
+        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-wellbeing-cream/80 blur-[80px] rounded-full pointer-events-none"
         aria-hidden
       />
 
       <div className="relative z-10 max-w-5xl mx-auto px-5">
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-16">
-            <p className="text-[11px] font-bold text-[#6366F1] uppercase tracking-[0.2em] mb-3">
+            <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">
               Preise
             </p>
-            <h2 className="font-syne font-bold text-[36px] md:text-[52px] text-[#0F1117] mb-3 leading-[1.1]">
+            <h2 className="font-syne font-bold text-[36px] md:text-[52px] text-[#445c49] mb-3 leading-[1.1]">
               Ehrliche Preise.<br className="hidden md:block" /> Kein Abo-Chaos.
             </h2>
             <p className="text-gray-500 text-[16px]">
@@ -86,17 +86,17 @@ export default function Pricing() {
               <div
                 className={`relative rounded-2xl p-8 flex flex-col h-full transition-all duration-300 ${
                   plan.highlight
-                    ? 'bg-white border-2 border-[#6366F1] shadow-2xl shadow-indigo-100/80 hover:-translate-y-2'
+                    ? 'bg-white border-2 border-[#445c49] shadow-2xl shadow-wellbeing-cream/80 hover:-translate-y-2'
                     : 'bg-white border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md hover:-translate-y-1'
                 }`}
               >
                 {/* Pro shimmer top bar */}
                 {plan.highlight && (
-                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-400 via-indigo-500 to-violet-400 rounded-t-2xl" />
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-400 via-wellbeing-green to-violet-400 rounded-t-2xl" />
                 )}
 
                 {plan.badge && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#6366F1] text-white text-[11px] font-bold rounded-full whitespace-nowrap uppercase tracking-wide shadow-md shadow-indigo-200">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#445c49] text-white text-[11px] font-bold rounded-full whitespace-nowrap uppercase tracking-wide shadow-md shadow-wellbeing-green-light">
                     {plan.badge}
                   </div>
                 )}
@@ -105,9 +105,9 @@ export default function Pricing() {
                   <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
                     {plan.tag}
                   </p>
-                  <h3 className="font-syne font-bold text-[22px] text-[#0F1117] mb-4">{plan.name}</h3>
+                  <h3 className="font-syne font-bold text-[22px] text-[#445c49] mb-4">{plan.name}</h3>
                   <div className="flex items-baseline gap-1">
-                    <span className={`font-syne font-bold text-[48px] leading-none ${plan.highlight ? 'text-[#6366F1]' : 'text-[#0F1117]'}`}>
+                    <span className={`font-syne font-bold text-[48px] leading-none ${plan.highlight ? 'text-[#445c49]' : 'text-[#445c49]'}`}>
                       {plan.price}€
                     </span>
                     {plan.period && (
@@ -121,7 +121,7 @@ export default function Pricing() {
                     <li key={f} className="flex items-start gap-2.5 text-[14px] text-gray-600">
                       <Check
                         className={`w-4 h-4 shrink-0 mt-0.5 ${
-                          plan.highlight ? 'text-[#6366F1]' : 'text-emerald-500'
+                          plan.highlight ? 'text-[#445c49]' : 'text-emerald-500'
                         }`}
                       />
                       {f}
@@ -133,7 +133,7 @@ export default function Pricing() {
                   href="/login"
                   className={`w-full flex items-center justify-center py-3.5 px-4 rounded-xl text-[14px] font-semibold transition-all duration-200 ${
                     plan.highlight
-                      ? 'bg-[#6366F1] hover:bg-[#4F46E5] text-white hover:shadow-lg hover:shadow-indigo-200'
+                      ? 'bg-[#445c49] hover:bg-[#445c49] text-white hover:shadow-lg hover:shadow-wellbeing-green-light'
                       : 'bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200'
                   }`}
                 >

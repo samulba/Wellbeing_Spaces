@@ -15,7 +15,7 @@ const faqs = [
   },
   {
     q: 'Wie funktioniert die Preiskalkulation?',
-    a: 'Du gibst Einkaufspreis und Marge in Prozent ein. WBC Studio berechnet automatisch den Verkaufspreis netto und brutto (19% MwSt.) sowie Provisionen für Partner.',
+    a: 'Du gibst Einkaufspreis und Marge in Prozent ein. Wellbeing Spaces berechnet automatisch den Verkaufspreis netto und brutto (19% MwSt.) sowie Provisionen für Partner.',
   },
   {
     q: 'Kann ich das Tool kostenlos testen?',
@@ -23,7 +23,7 @@ const faqs = [
   },
   {
     q: 'Gibt es eine mobile App?',
-    a: 'WBC Studio ist eine vollständig responsive Web-App die auf allen Geräten funktioniert. Eine native App für iOS und Android ist für 2026 geplant.',
+    a: 'Wellbeing Spaces ist eine vollständig responsive Web-App die auf allen Geräten funktioniert. Eine native App für iOS und Android ist für 2026 geplant.',
   },
   {
     q: 'Wie viele Teammitglieder kann ich einladen?',
@@ -37,10 +37,10 @@ export default function FAQ() {
       <div className="max-w-2xl mx-auto px-5">
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-14">
-            <p className="text-[11px] font-bold text-[#6366F1] uppercase tracking-[0.2em] mb-3">
+            <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">
               FAQ
             </p>
-            <h2 className="font-syne font-bold text-[36px] md:text-[48px] text-[#0F1117] leading-[1.1]">
+            <h2 className="font-syne font-bold text-[36px] md:text-[48px] text-[#445c49] leading-[1.1]">
               Häufige Fragen
             </h2>
           </div>
@@ -50,11 +50,11 @@ export default function FAQ() {
           {faqs.map((faq, i) => (
             <AnimateOnScroll key={i} delay={i * 50}>
               <details className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-colors">
-                <summary className="flex items-center justify-between px-6 py-4 cursor-pointer list-none text-[15px] font-medium text-gray-900 group-open:text-[#6366F1] transition-colors select-none">
+                <summary className="flex items-center justify-between px-6 py-4 cursor-pointer list-none text-[15px] font-medium text-gray-900 group-open:text-[#445c49] transition-colors select-none">
                   <span>{faq.q}</span>
-                  <span className="ml-4 shrink-0 w-5 h-5 rounded-full bg-gray-100 group-open:bg-indigo-50 flex items-center justify-center transition-colors">
+                  <span className="ml-4 shrink-0 w-5 h-5 rounded-full bg-gray-100 group-open:bg-wellbeing-cream flex items-center justify-center transition-colors">
                     <span className="text-gray-500 group-open:hidden text-[14px] leading-none font-semibold">+</span>
-                    <span className="text-[#6366F1] hidden group-open:block text-[14px] leading-none font-semibold">−</span>
+                    <span className="text-[#445c49] hidden group-open:block text-[14px] leading-none font-semibold">−</span>
                   </span>
                 </summary>
                 <div className="px-6 pb-5 border-t border-gray-100">

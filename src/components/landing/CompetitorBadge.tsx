@@ -30,8 +30,8 @@ export default function CompetitorBadge() {
             </AnimateOnScroll>
 
             <AnimateOnScroll delay={380} type="scale-in">
-              <div className="flex items-center gap-2.5 px-6 py-3 bg-indigo-50 rounded-xl border-2 border-indigo-200 shadow-md shadow-indigo-100/60 hover:shadow-lg hover:shadow-indigo-100/80 hover:-translate-y-0.5 transition-all duration-200">
-                <span className="font-syne font-bold text-[14px] text-[#6366F1]">WBC Studio</span>
+              <div className="flex items-center gap-2.5 px-6 py-3 bg-wellbeing-cream rounded-xl border-2 border-wellbeing-green-light shadow-md shadow-wellbeing-cream/60 hover:shadow-lg hover:shadow-wellbeing-cream/80 hover:-translate-y-0.5 transition-all duration-200">
+                <span className="font-syne font-bold text-[14px] text-[#445c49]">Wellbeing Spaces</span>
                 <span className="text-emerald-500 font-bold">✓</span>
               </div>
             </AnimateOnScroll>

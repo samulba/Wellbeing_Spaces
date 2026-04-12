@@ -48,14 +48,14 @@ export default function PdfExportButton({ projektName, kundeName, produkte, mwst
       const heute  = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
       // ── Header-Linie ──────────────────────────────────────
-      doc.setFillColor(99, 102, 241)          // indigo-500
+      doc.setFillColor(68, 92, 73)             // wellbeing-green #445c49
       doc.rect(margin, 12, pageW - margin * 2, 0.6, 'F')
 
-      // WBC Studio – oben rechts
+      // Wellbeing Spaces – oben rechts
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(9)
-      doc.setTextColor(99, 102, 241)
-      doc.text('WBC Studio', pageW - margin, 10, { align: 'right' })
+      doc.setTextColor(68, 92, 73)
+      doc.text('Wellbeing Spaces', pageW - margin, 10, { align: 'right' })
 
       // Datum – oben links
       doc.setFont('helvetica', 'normal')

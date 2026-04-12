@@ -68,7 +68,7 @@ export default function ProduktZuweisenModal({
       <button
         type="button"
         onClick={handleOpen}
-        className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors whitespace-nowrap"
+        className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-wellbeing-green bg-wellbeing-cream hover:bg-wellbeing-cream border border-wellbeing-green-light rounded-lg transition-colors whitespace-nowrap"
         title="Zu Projekt zuweisen"
       >
         <FolderInput className="w-3 h-3" />
@@ -110,7 +110,7 @@ export default function ProduktZuweisenModal({
                     value={selectedProjekt}
                     onChange={(e) => handleProjektChange(e.target.value)}
                     required
-                    className="w-full appearance-none px-3 pr-8 py-2.5 text-sm border border-gray-200 rounded-xl bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+                    className="w-full appearance-none px-3 pr-8 py-2.5 text-sm border border-gray-200 rounded-xl bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light focus:border-wellbeing-green-light"
                   >
                     <option value="">Projekt wählen…</option>
                     {projekte.map((p) => (
@@ -132,7 +132,7 @@ export default function ProduktZuweisenModal({
                     onChange={(e) => setSelectedRaum(e.target.value)}
                     required
                     disabled={!selectedProjekt || filteredRaeume.length === 0}
-                    className="w-full appearance-none px-3 pr-8 py-2.5 text-sm border border-gray-200 rounded-xl bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 disabled:bg-gray-50 disabled:text-gray-400"
+                    className="w-full appearance-none px-3 pr-8 py-2.5 text-sm border border-gray-200 rounded-xl bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light focus:border-wellbeing-green-light disabled:bg-gray-50 disabled:text-gray-400"
                   >
                     <option value="">
                       {!selectedProjekt
@@ -166,7 +166,7 @@ export default function ProduktZuweisenModal({
                 <button
                   type="submit"
                   disabled={isPending || !selectedRaum}
-                  className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl transition-colors"
+                  className="px-4 py-2 text-sm font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white rounded-xl transition-colors"
                 >
                   {isPending ? 'Wird zugewiesen…' : 'Zuweisen'}
                 </button>

@@ -10,9 +10,9 @@ function DepthStackIcon({ size = 28 }: { size?: number }) {
   const sq = Math.round(s * 0.556)   // ~10/18
   return (
     <svg width={s} height={s} viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width={sq} height={sq} rx="2" fill="#6366F1" opacity="0.30" />
-      <rect x="4" y="4" width={sq} height={sq} rx="2" fill="#6366F1" opacity="0.55" />
-      <rect x="8" y="8" width={sq} height={sq} rx="2" fill="#6366F1" />
+      <rect x="0" y="0" width={sq} height={sq} rx="2" fill="#445c49" opacity="0.30" />
+      <rect x="4" y="4" width={sq} height={sq} rx="2" fill="#445c49" opacity="0.55" />
+      <rect x="8" y="8" width={sq} height={sq} rx="2" fill="#445c49" />
     </svg>
   )
 }
@@ -66,7 +66,7 @@ export default function LoginPage() {
             <DepthStackIcon size={28} />
           </div>
           <h1 className="font-syne text-[22px] font-bold text-gray-900 leading-none tracking-tight">
-            WBC Studio
+            Wellbeing Spaces
           </h1>
           <p className="mt-2 text-sm text-gray-400">Melde dich mit deinem Account an</p>
         </div>
@@ -90,7 +90,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@beispiel.de"
-                  className="w-full pl-10 pr-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                  className="w-full pl-10 pr-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:bg-white focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition-all"
                 />
               </div>
             </div>
@@ -110,7 +110,7 @@ export default function LoginPage() {
                   value={passwort}
                   onChange={(e) => setPasswort(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                  className="w-full pl-10 pr-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:bg-white focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition-all"
                 />
               </div>
             </div>
@@ -127,7 +127,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={laedt}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#6366F1] hover:bg-indigo-600 active:bg-indigo-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-all shadow-sm hover:shadow-md mt-1"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#445c49] hover:bg-wellbeing-green active:bg-wellbeing-green-dark disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-all shadow-sm hover:shadow-md mt-1"
             >
               {laedt ? (
                 <>

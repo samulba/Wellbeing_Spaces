@@ -7,10 +7,10 @@ import { Check, Clock, AlertCircle, Zap } from 'lucide-react'
 // ── Animated Background ──────────────────────────────────────────
 function AnimatedBG() {
   const orbs = [
-    { w: 520, h: 520, top: '-10%', right: '-6%',  color: 'bg-indigo-200', blur: 'blur-[90px]',  delay: '0s',  dur: '12s', op: 0.38 },
+    { w: 520, h: 520, top: '-10%', right: '-6%',  color: 'bg-wellbeing-green-light', blur: 'blur-[90px]',  delay: '0s',  dur: '12s', op: 0.38 },
     { w: 360, h: 360, top: '45%',  right: '8%',   color: 'bg-violet-200', blur: 'blur-[70px]',  delay: '-4s', dur: '16s', op: 0.24 },
     { w: 260, h: 260, top: '15%',  left:  '15%',  color: 'bg-blue-100',   blur: 'blur-[60px]',  delay: '-8s', dur: '10s', op: 0.18 },
-    { w: 200, h: 200, top: '65%',  left:  '5%',   color: 'bg-indigo-100', blur: 'blur-[50px]',  delay: '-6s', dur: '14s', op: 0.14 },
+    { w: 200, h: 200, top: '65%',  left:  '5%',   color: 'bg-wellbeing-cream', blur: 'blur-[50px]',  delay: '-6s', dur: '14s', op: 0.14 },
   ]
 
   const squares = [
@@ -41,7 +41,7 @@ function AnimatedBG() {
       {squares.map((sq, i) => (
         <div
           key={i}
-          className="absolute border-2 border-indigo-400 rounded-2xl"
+          className="absolute border-2 border-wellbeing-green-light rounded-2xl"
           style={{
             width: sq.size, height: sq.size,
             top: sq.top,
@@ -56,7 +56,7 @@ function AnimatedBG() {
       <div
         className="absolute inset-0 opacity-[0.022]"
         style={{
-          backgroundImage: 'radial-gradient(circle, #6366F1 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, #445c49 1px, transparent 1px)',
           backgroundSize: '36px 36px',
         }}
       />
@@ -85,12 +85,12 @@ function DashboardMockup() {
 
       {/* Floating chip – auto calculation (top right) */}
       <div
-        className="absolute -top-5 -right-3 z-20 flex items-center gap-2 bg-[#6366F1] rounded-xl shadow-xl shadow-indigo-200/60 px-3.5 py-2.5"
+        className="absolute -top-5 -right-3 z-20 flex items-center gap-2 bg-[#445c49] rounded-xl shadow-xl shadow-wellbeing-green-light/60 px-3.5 py-2.5"
         style={{ animation: 'floatA 18s ease-in-out infinite', animationDelay: '-4s' }}
       >
-        <Zap className="w-3.5 h-3.5 text-indigo-200 shrink-0" />
+        <Zap className="w-3.5 h-3.5 text-wellbeing-green-light shrink-0" />
         <div>
-          <p className="text-[9px] text-indigo-200/70 leading-none mb-0.5 font-medium">Auto-Kalkulation</p>
+          <p className="text-[9px] text-wellbeing-green-light/70 leading-none mb-0.5 font-medium">Auto-Kalkulation</p>
           <p className="text-[12px] font-bold text-white whitespace-nowrap leading-none">
             EP 1.200€ · 40% → 2.856€
           </p>
@@ -116,7 +116,7 @@ function DashboardMockup() {
       </div>
 
       {/* Main app frame */}
-      <div className="rounded-2xl overflow-hidden shadow-2xl shadow-indigo-100/60 border border-gray-200 bg-white">
+      <div className="rounded-2xl overflow-hidden shadow-2xl shadow-wellbeing-cream/60 border border-gray-200 bg-white">
 
         {/* URL bar */}
         <div className="bg-gray-50 border-b border-gray-100 px-4 py-2.5 flex items-center gap-2.5">
@@ -133,10 +133,10 @@ function DashboardMockup() {
         {/* App nav */}
         <div className="border-b border-gray-100 px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-[#6366F1] flex items-center justify-center">
+            <div className="w-5 h-5 rounded-md bg-[#445c49] flex items-center justify-center">
               <span className="text-white font-bold text-[9px]">W</span>
             </div>
-            <span className="font-syne font-bold text-[12px] text-gray-800">WBC Studio</span>
+            <span className="font-syne font-bold text-[12px] text-gray-800">Wellbeing Spaces</span>
           </div>
           <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-600 font-semibold rounded-full border border-emerald-100">
             Aktiv
@@ -151,7 +151,7 @@ function DashboardMockup() {
           </div>
           <div className="text-right">
             <p className="text-[9px] text-gray-400 mb-0.5">Gesamt brutto</p>
-            <p className="font-syne font-bold text-[13px] text-[#0F1117]">4.726,00 €</p>
+            <p className="font-syne font-bold text-[13px] text-[#445c49]">4.726,00 €</p>
           </div>
         </div>
 
@@ -161,7 +161,7 @@ function DashboardMockup() {
           {/* Row 1 – Freigegeben */}
           <div className="flex items-center gap-2.5 px-4 py-3">
             <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-bold text-[#6366F1] uppercase tracking-wide mb-0.5">Polstermöbel</p>
+              <p className="text-[9px] font-bold text-[#445c49] uppercase tracking-wide mb-0.5">Polstermöbel</p>
               <p className="text-[12px] font-semibold text-gray-800 truncate">Sofa Venedig 3-Sitzer</p>
             </div>
             <p className="text-[12px] font-bold text-gray-900 tabular-nums shrink-0">2.856 €</p>
@@ -217,7 +217,7 @@ function DashboardMockup() {
         </div>
 
         {/* Pricing breakdown footer */}
-        <div className="px-4 py-3 border-t border-gray-100 bg-indigo-50/40">
+        <div className="px-4 py-3 border-t border-gray-100 bg-wellbeing-cream/40">
           <div className="flex items-center justify-between text-[11px] mb-1.5">
             <span className="text-gray-400">EP gesamt</span>
             <span className="font-medium text-gray-600">2.832,00 €</span>
@@ -228,7 +228,7 @@ function DashboardMockup() {
           </div>
           <div className="flex items-center justify-between text-[12px] font-bold border-t border-gray-100 pt-1.5 mt-1.5">
             <span className="text-gray-700">VP brutto gesamt</span>
-            <span className="text-[#0F1117]">4.726,00 €</span>
+            <span className="text-[#445c49]">4.726,00 €</span>
           </div>
         </div>
       </div>
@@ -249,15 +249,15 @@ export default function Hero() {
           <div className="flex-1 text-center lg:text-left">
 
             <div
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[13px] font-semibold mb-7 animate-fade-up"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-wellbeing-cream border border-wellbeing-cream text-wellbeing-green text-[13px] font-semibold mb-7 animate-fade-up"
               style={{ animationDelay: '0ms' }}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-wellbeing-green animate-pulse" />
               Für Interior Designer & Design Studios
             </div>
 
             <h1
-              className="font-syne font-bold text-[#0F1117] leading-[1.06] tracking-tight mb-6 animate-fade-up"
+              className="font-syne font-bold text-[#445c49] leading-[1.06] tracking-tight mb-6 animate-fade-up"
               style={{ animationDelay: '100ms', fontSize: 'clamp(38px, 5.5vw, 72px)' }}
             >
               Deine Projekte.<br />
@@ -281,7 +281,7 @@ export default function Hero() {
             >
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-xl hover:shadow-indigo-200/60 hover:-translate-y-1 w-full sm:w-auto justify-center"
+                className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-xl hover:shadow-wellbeing-green-light/60 hover:-translate-y-1 w-full sm:w-auto justify-center"
               >
                 Kostenlos starten →
               </Link>

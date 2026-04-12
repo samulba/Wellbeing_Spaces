@@ -104,14 +104,14 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
               onClick={() => setTabStatus(opt.value)}
               className={`px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2 ${
                 aktiv
-                  ? 'border-indigo-600 text-indigo-600'
+                  ? 'border-wellbeing-green text-wellbeing-green'
                   : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
               }`}
             >
               {opt.label}
               {anzahl > 0 && (
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                  aktiv ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'
+                  aktiv ? 'bg-wellbeing-cream text-wellbeing-green-dark' : 'bg-gray-100 text-gray-500'
                 }`}>
                   {anzahl}
                 </span>
@@ -127,17 +127,17 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input type="text" placeholder="Projekt oder Kunde suchen…" value={suche}
             onChange={(e) => setSuche(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition" />
+            className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition" />
         </div>
 
         <span className="text-sm text-gray-400">{gefiltert.length} {gefiltert.length === 1 ? 'Eintrag' : 'Einträge'}</span>
 
         <div className="ml-auto flex items-center border border-gray-200 rounded-lg overflow-hidden">
           <button onClick={() => toggleAnsicht('grid')} title="Kachelansicht"
-            className={`px-3 py-2 transition-colors ${ansicht === 'grid' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-3 py-2 transition-colors ${ansicht === 'grid' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
             <LayoutGrid className="w-4 h-4" /></button>
           <button onClick={() => toggleAnsicht('list')} title="Listenansicht"
-            className={`px-3 py-2 border-l border-gray-200 transition-colors ${ansicht === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-3 py-2 border-l border-gray-200 transition-colors ${ansicht === 'list' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
             <List className="w-4 h-4" /></button>
         </div>
       </div>
@@ -161,7 +161,7 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
                 {p.projektart && <span className="text-xs text-gray-400 truncate">{p.projektart}</span>}
               </div>
 
-              <h2 className="text-sm font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors leading-snug mb-1">{p.name}</h2>
+              <h2 className="text-sm font-semibold text-gray-900 group-hover:text-wellbeing-green transition-colors leading-snug mb-1">{p.name}</h2>
               <p className="text-xs text-gray-500 mb-3">{p.kunden?.name ?? '–'}</p>
 
               {/* Budget Bar */}
@@ -214,7 +214,7 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
                 {gefiltert.map((p, i) => (
                   <tr key={p.id} className={`hover:bg-gray-50 transition-colors group ${i < gefiltert.length - 1 ? 'border-b border-gray-100' : ''}`}>
                     <td className="px-4 py-3.5">
-                      <p className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{p.name}</p>
+                      <p className="font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors">{p.name}</p>
                       {p.standort && <p className="text-xs text-gray-400 mt-0.5">{p.standort}</p>}
                     </td>
                     <td className="px-4 py-3.5 text-gray-600">{p.kunden?.name ?? '–'}</td>
@@ -224,7 +224,7 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
                       </span>
                     </td>
                     <td className="px-4 py-3.5 text-center font-mono text-gray-600">{p.gesamtbudget != null ? eur(p.gesamtbudget) : '–'}</td>
-                    <td className="px-4 py-3.5 text-center font-mono text-indigo-600 font-semibold">{p.vpGesamt > 0 ? eur(p.vpGesamt) : '–'}</td>
+                    <td className="px-4 py-3.5 text-center font-mono text-wellbeing-green font-semibold">{p.vpGesamt > 0 ? eur(p.vpGesamt) : '–'}</td>
                     <td className="px-4 py-3.5 text-center text-gray-500">{p.raeumCount}</td>
                     <td className="px-4 py-3.5 text-center">
                       {p.offeneFreigaben > 0
@@ -232,7 +232,7 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
                         : <span className="text-gray-300">–</span>}
                     </td>
                     <td className="px-3 py-3.5">
-                      <Link href={`/dashboard/projekte/${p.id}`} className="text-xs text-gray-400 hover:text-indigo-600 transition-colors opacity-0 group-hover:opacity-100 whitespace-nowrap">Öffnen →</Link>
+                      <Link href={`/dashboard/projekte/${p.id}`} className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors opacity-0 group-hover:opacity-100 whitespace-nowrap">Öffnen →</Link>
                     </td>
                   </tr>
                 ))}

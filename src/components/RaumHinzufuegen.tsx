@@ -42,7 +42,7 @@ function HinzufuegenButton() {
     <button
       type="submit"
       disabled={pending}
-      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+      className="px-4 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
     >
       {pending ? '…' : 'Hinzufügen'}
     </button>
@@ -89,7 +89,7 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
         {!offen && (
           <button
             onClick={() => setOffen(true)}
-            className="text-xs text-gray-400 hover:text-indigo-600 transition-colors"
+            className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors"
           >
             + Raum hinzufügen
           </button>
@@ -127,8 +127,8 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
                         onClick={() => handleTile(typName)}
                         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                           aktiv
-                            ? 'bg-indigo-600 text-white shadow-sm'
-                            : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+                            ? 'bg-wellbeing-green text-white shadow-sm'
+                            : 'bg-white border border-gray-200 text-gray-600 hover:border-wellbeing-green-light hover:text-wellbeing-green'
                         }`}
                       >
                         <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -150,7 +150,7 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
                 required
                 autoFocus={parsed.length === 0}
                 placeholder="Raumname, z. B. Lobby"
-                className="flex-1 min-w-0 px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition"
+                className="flex-1 min-w-0 px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition"
               />
               <HinzufuegenButton />
               <button

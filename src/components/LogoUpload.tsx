@@ -13,7 +13,7 @@ interface Props {
 }
 
 const avatarFarben = [
-  'bg-indigo-500', 'bg-violet-500', 'bg-blue-500',
+  'bg-wellbeing-green', 'bg-violet-500', 'bg-blue-500',
   'bg-emerald-500', 'bg-rose-500', 'bg-amber-500',
 ]
 function avatarFarbe(s: string) { return avatarFarben[s.charCodeAt(0) % avatarFarben.length] }
@@ -89,7 +89,7 @@ export default function LogoUpload({ typ, entityId, initialLogoUrl, name }: Prop
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={isPending}
-          className="text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+          className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark font-medium transition-colors"
         >
           {isPending ? 'Wird hochgeladen…' : logoUrl ? 'Logo ändern' : 'Logo hochladen'}
         </button>

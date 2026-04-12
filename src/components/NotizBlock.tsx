@@ -33,7 +33,7 @@ function SubmitBtn({ label }: { label: string }) {
   const { pending } = useFormStatus()
   return (
     <button type="submit" disabled={pending}
-      className="px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg transition-colors">
+      className="px-3 py-1.5 text-xs font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white rounded-lg transition-colors">
       {pending ? '…' : label}
     </button>
   )
@@ -62,7 +62,7 @@ function NotizEintrag({ notiz, typ, referenzId }: { notiz: Notiz; typ: NotizTyp;
             name="inhalt"
             defaultValue={notiz.inhalt}
             rows={3}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none bg-white"
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light resize-none bg-white"
             autoFocus
           />
           {state?.fehler && <p className="text-xs text-red-500">{state.fehler}</p>}
@@ -90,7 +90,7 @@ function NotizEintrag({ notiz, typ, referenzId }: { notiz: Notiz; typ: NotizTyp;
           {/* Action-Buttons */}
           <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={() => setBearbeiten(true)}
-              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-wellbeing-green hover:bg-wellbeing-cream transition-colors"
               title="Bearbeiten">
               <Pencil className="w-3.5 h-3.5" />
             </button>
@@ -120,12 +120,12 @@ function HinzufuegenForm({ typ, referenzId, onClose }: { typ: NotizTyp; referenz
           if (!form.querySelector('[aria-invalid]')) onClose()
         }, 100)
       }}
-      className="space-y-2 bg-indigo-50/50 border border-indigo-100 rounded-xl p-4">
+      className="space-y-2 bg-wellbeing-cream/50 border border-wellbeing-cream rounded-xl p-4">
       <textarea
         name="inhalt"
         rows={3}
         placeholder="Notiz eingeben…"
-        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none bg-white"
+        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light resize-none bg-white"
         autoFocus
         required
       />
@@ -159,14 +159,14 @@ export default function NotizBlock({
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
           Notizen
           {initialNotizen.length > 0 && (
-            <span className="ml-2 text-indigo-500 font-bold normal-case tracking-normal">
+            <span className="ml-2 text-wellbeing-green font-bold normal-case tracking-normal">
               {initialNotizen.length}
             </span>
           )}
         </h2>
         {!hinzufuegen && (
           <button onClick={() => setHinzufuegen(true)}
-            className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
+            className="inline-flex items-center gap-1 text-xs text-wellbeing-green hover:text-wellbeing-green-dark font-medium transition-colors">
             <Plus className="w-3.5 h-3.5" />
             Hinzufügen
           </button>

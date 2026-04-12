@@ -40,7 +40,7 @@ export default async function ProjektBearbeitenPage({
       <div className="mb-8">
         <Link
           href={`/dashboard/projekte/${projekt.id}`}
-          className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-3 inline-block"
+          className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors mb-3 inline-block"
         >
           ← Zurück zu {projekt.name}
         </Link>

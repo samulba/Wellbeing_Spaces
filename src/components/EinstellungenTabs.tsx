@@ -61,7 +61,7 @@ function SubmitButton({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+      className="px-4 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
     >
       {pending ? 'Speichern…' : label}
     </button>
@@ -110,7 +110,7 @@ function Feld({
         min={min}
         max={max}
         step={step}
-        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light"
       />
     </div>
   )
@@ -136,7 +136,7 @@ function AuswahlFeld({
       <select
         name={name}
         defaultValue={defaultValue}
-        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light bg-white"
       >
         {optionen.map((o) => (
           <option key={o.wert} value={o.wert}>
@@ -268,7 +268,7 @@ function AllgemeinTab({ einstellungen }: { einstellungen: Record<string, string>
 
 // ── Tab: Team ─────────────────────────────────────────────────
 
-const avatarFarben = ['bg-indigo-500', 'bg-violet-500', 'bg-blue-500', 'bg-emerald-500', 'bg-rose-500', 'bg-amber-500']
+const avatarFarben = ['bg-wellbeing-green', 'bg-violet-500', 'bg-blue-500', 'bg-emerald-500', 'bg-rose-500', 'bg-amber-500']
 function userFarbe(email: string) { return avatarFarben[email.charCodeAt(0) % avatarFarben.length] }
 function userKuerzel(email: string, name?: string) {
   if (name) return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
@@ -318,7 +318,7 @@ function TeamTab({ team }: { team: User[] }) {
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
                       rolle === 'Admin'
-                        ? 'bg-indigo-50 text-indigo-700'
+                        ? 'bg-wellbeing-cream text-wellbeing-green-dark'
                         : 'bg-gray-100 text-gray-600'
                     }`}>
                       {rolle}
@@ -333,7 +333,7 @@ function TeamTab({ team }: { team: User[] }) {
                     <form action={rolle === 'Admin' ? rolleAendernMitarbeiter : rolleAendernAdmin}>
                       <button
                         type="submit"
-                        className="text-xs text-gray-400 hover:text-indigo-600 transition-colors whitespace-nowrap"
+                        className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors whitespace-nowrap"
                       >
                         Zu {rolle === 'Admin' ? 'Mitarbeiter' : 'Admin'}
                       </button>
@@ -380,7 +380,7 @@ function TeamTab({ team }: { team: User[] }) {
               <select
                 name="rolle"
                 defaultValue="Mitarbeiter"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light bg-white"
               >
                 <option>Mitarbeiter</option>
                 <option>Admin</option>
@@ -487,7 +487,7 @@ function SicherheitTab({
                   name="freigabe_pin_schutz"
                   value="false"
                   defaultChecked={einstellungen.freigabe_pin_schutz !== 'true'}
-                  className="accent-indigo-600"
+                  className="accent-wellbeing-green"
                 />
                 <span className="text-sm text-gray-700">Deaktiviert</span>
               </label>
@@ -497,7 +497,7 @@ function SicherheitTab({
                   name="freigabe_pin_schutz"
                   value="true"
                   defaultChecked={einstellungen.freigabe_pin_schutz === 'true'}
-                  className="accent-indigo-600"
+                  className="accent-wellbeing-green"
                 />
                 <span className="text-sm text-gray-700">Aktiviert</span>
               </label>
@@ -543,7 +543,7 @@ function BenachrichtigungenTab({ einstellungen }: { einstellungen: Record<string
               <input type="hidden" name={t.name} value="false" />
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" name={t.name} value="true" defaultChecked={t.checked} className="sr-only peer" />
-                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-indigo-600 peer-focus:ring-2 peer-focus:ring-indigo-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-wellbeing-green peer-focus:ring-2 peer-focus:ring-wellbeing-green-light after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
               </label>
             </div>
           ))}
@@ -552,8 +552,8 @@ function BenachrichtigungenTab({ einstellungen }: { einstellungen: Record<string
           <label className="block text-xs font-medium text-gray-700 mb-1.5">Benachrichtigungs-E-Mail</label>
           <input name="benach_email" type="email" defaultValue={einstellungen.benach_email ?? ''}
             placeholder="lisa@wellbeing-concepts.de"
-            className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition" />
-          <button type="submit" className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">Speichern</button>
+            className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition" />
+          <button type="submit" className="px-4 py-2 text-sm font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors">Speichern</button>
           {state?.fehler && <p className="text-xs text-red-500">{state.fehler}</p>}
           {state?.erfolg && <p className="text-xs text-emerald-600">{state.erfolg}</p>}
         </div>
@@ -579,7 +579,7 @@ function FreigabeLinksTab({ einstellungen }: { einstellungen: Record<string, str
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1.5">Standard-Ablaufzeit</label>
               <select name="freigabe_ablaufzeit" defaultValue={einstellungen.freigabe_ablaufzeit ?? '30'}
-                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
+                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition">
                 <option value="7">7 Tage</option>
                 <option value="14">14 Tage</option>
                 <option value="30">30 Tage</option>
@@ -589,7 +589,7 @@ function FreigabeLinksTab({ einstellungen }: { einstellungen: Record<string, str
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1.5">PIN-Länge</label>
               <select name="freigabe_pin_laenge" defaultValue={einstellungen.freigabe_pin_laenge ?? '4'}
-                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
+                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition">
                 <option value="4">4-stellig</option>
                 <option value="6">6-stellig</option>
               </select>
@@ -606,7 +606,7 @@ function FreigabeLinksTab({ einstellungen }: { einstellungen: Record<string, str
               <input type="hidden" name={t.name} value="false" />
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" name={t.name} value="true" defaultChecked={t.checked} className="sr-only peer" />
-                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-indigo-600 peer-focus:ring-2 peer-focus:ring-indigo-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-wellbeing-green peer-focus:ring-2 peer-focus:ring-wellbeing-green-light after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
               </label>
             </div>
           ))}
@@ -615,10 +615,10 @@ function FreigabeLinksTab({ einstellungen }: { einstellungen: Record<string, str
             <label className="block text-xs font-medium text-gray-700 mb-1.5">Intro-Text für Kunden</label>
             <textarea name="freigabe_intro_text" rows={3} defaultValue={einstellungen.freigabe_intro_text ?? ''}
               placeholder="z.B. Bitte prüfen Sie die folgenden Produkte und geben Sie diese frei oder lehnen Sie sie ab."
-              className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition resize-none" />
+              className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none" />
           </div>
 
-          <button type="submit" className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">Speichern</button>
+          <button type="submit" className="px-4 py-2 text-sm font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors">Speichern</button>
           {state?.fehler && <p className="text-xs text-red-500">{state.fehler}</p>}
           {state?.erfolg && <p className="text-xs text-emerald-600">{state.erfolg}</p>}
         </div>
@@ -705,7 +705,7 @@ export default function EinstellungenTabs({
             href={`/dashboard/einstellungen?tab=${t.key}`}
             className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
               aktuellerTab === t.key
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-wellbeing-green text-wellbeing-green'
                 : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
             }`}
           >

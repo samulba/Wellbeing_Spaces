@@ -122,7 +122,7 @@ async function getDashboardData() {
     { status: 'Freigegeben',   count: statusCounts.freigegeben    ?? 0, farbe: '#10B981' },
     { status: 'Ausstehend',    count: statusCounts.ausstehend     ?? 0, farbe: '#F59E0B' },
     { status: 'Abgelehnt',     count: statusCounts.abgelehnt      ?? 0, farbe: '#EF4444' },
-    { status: 'Überarbeitung', count: statusCounts.ueberarbeitung ?? 0, farbe: '#6366F1' },
+    { status: 'Überarbeitung', count: statusCounts.ueberarbeitung ?? 0, farbe: '#445c49' },
   ].filter((s) => s.count > 0)
   const gesamtProdukte = statusVerteilung.reduce((s, d) => s + d.count, 0)
 
@@ -213,7 +213,7 @@ export default async function DashboardPage() {
   } = await getDashboardData()
 
   const kpis = [
-    { label: 'Kunden',          wert: kundenCount,     href: '/dashboard/kunden',   icon: Users,       farbe: 'text-indigo-600', bg: 'bg-indigo-50'  },
+    { label: 'Kunden',          wert: kundenCount,     href: '/dashboard/kunden',   icon: Users,       farbe: 'text-wellbeing-green', bg: 'bg-wellbeing-cream'  },
     { label: 'Projekte',         wert: projekteCount,   href: '/dashboard/projekte', icon: FolderOpen,  farbe: 'text-blue-600',   bg: 'bg-blue-50'    },
     { label: 'Partner',          wert: partnerCount,    href: '/dashboard/partner',  icon: Handshake,   farbe: 'text-violet-600', bg: 'bg-violet-50'  },
     { label: 'Offene Freigaben', wert: ausstehendCount, href: '/dashboard/projekte', icon: AlertCircle, farbe: 'text-amber-600',  bg: 'bg-amber-50'   },
@@ -226,7 +226,7 @@ export default async function DashboardPage() {
       <div className="shrink-0 flex items-center justify-between">
         <div>
           <h1 className="font-syne text-[28px] font-bold text-gray-900 leading-tight">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Willkommen im WBC Studio.</p>
+          <p className="text-sm text-gray-500 mt-0.5">Willkommen im Wellbeing Spaces.</p>
         </div>
         <div className="flex items-center gap-2.5">
           <Link
@@ -237,7 +237,7 @@ export default async function DashboardPage() {
           </Link>
           <Link
             href="/dashboard/projekte/neu"
-            className="text-sm px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors min-w-[140px] text-center"
+            className="text-sm px-5 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg font-semibold transition-colors min-w-[140px] text-center"
           >
             + Neues Projekt
           </Link>
@@ -291,7 +291,7 @@ export default async function DashboardPage() {
                 )}
               </h2>
             </div>
-            <Link href="/dashboard/projekte" className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors">
+            <Link href="/dashboard/projekte" className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors">
               Alle →
             </Link>
           </div>
@@ -313,7 +313,7 @@ export default async function DashboardPage() {
                     className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
+                      <p className="text-sm font-medium text-gray-900 truncate group-hover:text-wellbeing-green transition-colors">
                         {f.produktName}
                       </p>
                       <p className="text-xs text-gray-400 truncate mt-0.5">
@@ -388,15 +388,15 @@ export default async function DashboardPage() {
             <h2 className="text-sm font-semibold text-gray-900">
               Letzte Projekte <span className="text-gray-400 font-normal">({letzteProjekte.length})</span>
             </h2>
-            <Link href="/dashboard/projekte" className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors font-medium">
+            <Link href="/dashboard/projekte" className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors font-medium">
               Alle anzeigen →
             </Link>
           </div>
 
           {letzteProjekte.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                <FolderOpen className="w-5 h-5 text-indigo-400" />
+              <div className="w-10 h-10 rounded-xl bg-wellbeing-cream flex items-center justify-center">
+                <FolderOpen className="w-5 h-5 text-wellbeing-green-light" />
               </div>
               <div className="text-center">
                 <p className="text-sm font-medium text-gray-600">Noch keine Projekte</p>
@@ -404,7 +404,7 @@ export default async function DashboardPage() {
               </div>
               <Link
                 href="/dashboard/projekte/neu"
-                className="text-xs px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                className="text-xs px-3.5 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg font-medium transition-colors"
               >
                 + Neues Projekt
               </Link>
@@ -427,7 +427,7 @@ export default async function DashboardPage() {
                       <td className="px-5 py-3">
                         <Link
                           href={`/dashboard/projekte/${p.id}`}
-                          className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors"
+                          className="font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors"
                         >
                           {p.name}
                         </Link>
@@ -444,7 +444,7 @@ export default async function DashboardPage() {
                       <td className="px-3 py-3">
                         <Link
                           href={`/dashboard/projekte/${p.id}`}
-                          className="text-xs text-gray-300 group-hover:text-indigo-500 transition-colors"
+                          className="text-xs text-gray-300 group-hover:text-wellbeing-green transition-colors"
                         >
                           →
                         </Link>

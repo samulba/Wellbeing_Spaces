@@ -9,9 +9,9 @@ import {
 } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Features – WBC Studio | Interior Design Projektmanagement Software',
+  title: 'Features – Wellbeing Spaces | Interior Design Projektmanagement Software',
   description:
-    'Alle Features von WBC Studio im Überblick: Produktlisten, automatische Preiskalkulation, Kundenfreigabe per Link, Partnerverwaltung und mehr – speziell für Interior Designer.',
+    'Alle Features von Wellbeing Spaces im Überblick: Produktlisten, automatische Preiskalkulation, Kundenfreigabe per Link, Partnerverwaltung und mehr – speziell für Interior Designer.',
   keywords:
     'Interior Design Software Features, Produktliste Interior Design, Preiskalkulation Interior Designer, Kundenfreigabe Software, Interior Design Projektmanagement Features',
   alternates: { canonical: 'https://wbc-studio.vercel.app/features' },
@@ -20,12 +20,12 @@ export const metadata: Metadata = {
 const mainFeatures = [
   {
     icon: FolderOpen,
-    iconBg: 'bg-indigo-50',
-    iconColor: 'text-[#6366F1]',
-    accentBar: 'linear-gradient(to right, #818CF8, #6366F1)',
-    hoverShadow: 'hover:shadow-indigo-100/80',
-    hoverBorder: 'hover:border-indigo-200',
-    hoverBg: 'hover:bg-indigo-50/25',
+    iconBg: 'bg-wellbeing-cream',
+    iconColor: 'text-[#445c49]',
+    accentBar: 'linear-gradient(to right, #818CF8, #445c49)',
+    hoverShadow: 'hover:shadow-wellbeing-cream/80',
+    hoverBorder: 'hover:border-wellbeing-green-light',
+    hoverBg: 'hover:bg-wellbeing-cream/25',
     tag: 'Kern-Feature',
     title: 'Kunden & Projektstruktur',
     lead: 'Alle Projekte – strukturiert, übersichtlich, an einem Ort.',
@@ -148,25 +148,25 @@ export default function FeaturesPage() {
       {/* Hero */}
       <section className="pt-36 pb-24 bg-white relative overflow-hidden">
         <div
-          className="absolute top-0 right-0 w-[500px] h-[400px] bg-indigo-50/80 blur-[100px] rounded-full pointer-events-none"
+          className="absolute top-0 right-0 w-[500px] h-[400px] bg-wellbeing-cream/80 blur-[100px] rounded-full pointer-events-none"
           aria-hidden
         />
         <div className="relative z-10 max-w-5xl mx-auto px-5 text-center">
           <AnimateOnScroll type="blur-in">
-            <p className="text-[11px] font-bold text-[#6366F1] uppercase tracking-[0.2em] mb-4">
+            <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-4">
               Features
             </p>
-            <h1 className="font-syne font-bold text-[#0F1117] text-[40px] md:text-[60px] leading-[1.06] mb-5">
+            <h1 className="font-syne font-bold text-[#445c49] text-[40px] md:text-[60px] leading-[1.06] mb-5">
               Alles was du täglich<br className="hidden md:block" /> brauchst – nichts mehr.
             </h1>
             <p className="text-[17px] md:text-[20px] text-gray-500 max-w-2xl mx-auto leading-relaxed mb-10">
-              WBC Studio ist kein Overkill-Tool. Kein 3D-Renderer, keine Buchhaltung,
+              Wellbeing Spaces ist kein Overkill-Tool. Kein 3D-Renderer, keine Buchhaltung,
               kein Marketing-Paket. Nur die Features die dich als Interior Designer wirklich weiterbringen.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-xl hover:shadow-indigo-200/60 hover:-translate-y-1"
+                className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-xl hover:shadow-wellbeing-green-light/60 hover:-translate-y-1"
               >
                 Kostenlos testen <ArrowRight className="w-4 h-4" />
               </Link>
@@ -186,7 +186,7 @@ export default function FeaturesPage() {
         <div className="max-w-5xl mx-auto px-5 flex flex-wrap items-center justify-center gap-8">
           {trustPoints.map((t) => (
             <div key={t.text} className="flex items-center gap-2.5">
-              <t.icon className="w-4 h-4 text-[#6366F1]" />
+              <t.icon className="w-4 h-4 text-[#445c49]" />
               <span className="text-[13px] font-semibold text-gray-700">{t.text}</span>
               <span className="text-[12px] text-gray-400">· {t.sub}</span>
             </div>
@@ -219,7 +219,7 @@ export default function FeaturesPage() {
                         {f.tag}
                       </span>
                     </div>
-                    <h2 className="font-syne font-bold text-[22px] text-[#0F1117] mb-3 leading-tight">
+                    <h2 className="font-syne font-bold text-[22px] text-[#445c49] mb-3 leading-tight">
                       {f.title}
                     </h2>
                     <p className="text-[15px] text-gray-500 leading-relaxed">
@@ -247,7 +247,7 @@ export default function FeaturesPage() {
       <section className="py-20 bg-[#F8F9FA]">
         <div className="max-w-5xl mx-auto px-5 text-center">
           <AnimateOnScroll type="blur-in">
-            <h2 className="font-syne font-bold text-[30px] md:text-[40px] text-[#0F1117] mb-4">
+            <h2 className="font-syne font-bold text-[30px] md:text-[40px] text-[#445c49] mb-4">
               Sicherheit & Datenschutz inklusive
             </h2>
             <p className="text-[15px] text-gray-500 max-w-xl mx-auto mb-8 leading-relaxed">
@@ -275,7 +275,7 @@ export default function FeaturesPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 bg-[#0F1117]">
+      <section className="py-24 bg-[#445c49]">
         <div className="max-w-3xl mx-auto px-5 text-center">
           <AnimateOnScroll type="blur-in">
             <h2 className="font-syne font-bold text-[32px] md:text-[48px] text-white mb-4 leading-[1.1]">
@@ -286,7 +286,7 @@ export default function FeaturesPage() {
             </p>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-[15px] font-bold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-indigo-500/30 hover:-translate-y-1"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-bold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-wellbeing-green/30 hover:-translate-y-1"
             >
               Jetzt kostenlos starten →
             </Link>

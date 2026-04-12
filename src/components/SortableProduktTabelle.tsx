@@ -120,7 +120,7 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onB
               href={p.produkt_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-gray-400 hover:text-indigo-600 underline underline-offset-2"
+              className="text-xs text-gray-400 hover:text-wellbeing-green underline underline-offset-2"
             >
               Link
             </a>
@@ -146,7 +146,7 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onB
       <td className={`${td} text-center font-mono text-red-500/70`}>
         {p.provision_prozent != null && p.verkaufspreis != null ? eur(provisionEur) : '–'}
       </td>
-      <td className={`${td} text-center font-mono font-semibold text-indigo-600`}>
+      <td className={`${td} text-center font-mono font-semibold text-wellbeing-green`}>
         {p.verkaufspreis != null ? eur(gesamtNetto) : '–'}
       </td>
 
@@ -162,7 +162,7 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onB
         <select
           value={bestellstatus}
           onChange={(e) => onBestellstatusChange(p.id, e.target.value as BestellStatus)}
-          className={`text-xs px-2 py-1 rounded-full font-medium cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-indigo-300 ${bestellBadge[bestellstatus]}`}
+          className={`text-xs px-2 py-1 rounded-full font-medium cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light ${bestellBadge[bestellstatus]}`}
         >
           <option value="ausstehend">Offen</option>
           <option value="bestellt">Bestellt</option>
@@ -176,7 +176,7 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onB
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Link
             href={`/dashboard/projekte/${projektId}/raeume/${raumId}/produkte/${p.id}/bearbeiten`}
-            className="text-xs text-gray-400 hover:text-indigo-600 transition-colors whitespace-nowrap"
+            className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors whitespace-nowrap"
           >
             Bearb.
           </Link>

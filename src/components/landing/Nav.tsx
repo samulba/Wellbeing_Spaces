@@ -7,9 +7,9 @@ import { Menu, X } from 'lucide-react'
 function DepthStackIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 18 18" fill="none" aria-hidden>
-      <rect x="0" y="0" width="10" height="10" rx="2" fill="#6366F1" opacity="0.25" />
-      <rect x="4" y="4" width="10" height="10" rx="2" fill="#6366F1" opacity="0.55" />
-      <rect x="8" y="8" width="10" height="10" rx="2" fill="#6366F1" />
+      <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.25" />
+      <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
+      <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
     </svg>
   )
 }
@@ -57,8 +57,8 @@ export default function Nav() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
             <DepthStackIcon />
-            <span className="font-syne text-[17px] font-bold text-[#0F1117] tracking-tight leading-none group-hover:text-[#6366F1] transition-colors duration-200">
-              WBC Studio
+            <span className="font-syne text-[17px] font-bold text-[#445c49] tracking-tight leading-none group-hover:text-[#445c49] transition-colors duration-200">
+              Wellbeing Spaces
             </span>
           </Link>
 
@@ -74,7 +74,7 @@ export default function Nav() {
                     smoothScroll(l.href)
                   }
                 }}
-                className="px-4 py-2 text-[14px] font-medium text-gray-500 hover:text-[#0F1117] hover:bg-gray-50 rounded-lg transition-all duration-150 cursor-pointer"
+                className="px-4 py-2 text-[14px] font-medium text-gray-500 hover:text-[#445c49] hover:bg-gray-50 rounded-lg transition-all duration-150 cursor-pointer"
               >
                 {l.label}
               </a>
@@ -85,16 +85,16 @@ export default function Nav() {
           <div className="hidden md:flex items-center gap-2 shrink-0">
             <Link
               href="/login"
-              className="px-4 py-2 text-[14px] font-medium text-gray-500 hover:text-[#0F1117] hover:bg-gray-50 rounded-lg transition-all duration-150"
+              className="px-4 py-2 text-[14px] font-medium text-gray-500 hover:text-[#445c49] hover:bg-gray-50 rounded-lg transition-all duration-150"
             >
               Anmelden
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-[14px] font-semibold rounded-lg transition-all duration-150 hover:shadow-lg hover:shadow-indigo-200/60"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#445c49] hover:bg-[#445c49] text-white text-[14px] font-semibold rounded-lg transition-all duration-150 hover:shadow-lg hover:shadow-wellbeing-green-light/60"
             >
               Kostenlos starten
-              <span className="text-indigo-200">→</span>
+              <span className="text-wellbeing-green-light">→</span>
             </Link>
           </div>
 
@@ -129,7 +129,7 @@ export default function Nav() {
                   setMobileOpen(false)
                 }
               }}
-              className="text-[16px] font-medium text-gray-800 py-3.5 px-2 border-b border-gray-50 hover:text-[#6366F1] transition-colors"
+              className="text-[16px] font-medium text-gray-800 py-3.5 px-2 border-b border-gray-50 hover:text-[#445c49] transition-colors"
             >
               {l.label}
             </a>
@@ -147,7 +147,7 @@ export default function Nav() {
           <Link
             href="/login"
             onClick={() => setMobileOpen(false)}
-            className="w-full flex items-center justify-center gap-1.5 py-3.5 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-[15px] font-semibold rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 py-3.5 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-semibold rounded-xl transition-colors"
           >
             Kostenlos starten →
           </Link>

@@ -174,11 +174,11 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
-            <Link href="/dashboard/projekte" className="hover:text-indigo-600 transition-colors">Projekte</Link>
+            <Link href="/dashboard/projekte" className="hover:text-wellbeing-green transition-colors">Projekte</Link>
             <ChevronRight className="w-3 h-3" />
             {projekt.kunden && (
               <>
-                <Link href={`/dashboard/kunden/${projekt.kunden.id}`} className="hover:text-indigo-600 transition-colors">
+                <Link href={`/dashboard/kunden/${projekt.kunden.id}`} className="hover:text-wellbeing-green transition-colors">
                   {projekt.kunden.name}
                 </Link>
                 <ChevronRight className="w-3 h-3" />
@@ -229,7 +229,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
                 type="submit"
                 className={`text-xs px-3.5 py-1.5 rounded-full font-medium transition-all duration-200 hover:scale-[1.02] ${
                   istAktiv
-                    ? s.farbe + ' ring-2 ring-offset-1 ring-indigo-200'
+                    ? s.farbe + ' ring-2 ring-offset-1 ring-wellbeing-green-light'
                     : 'bg-white text-gray-400 border border-gray-200 hover:border-gray-300'
                 }`}
               >

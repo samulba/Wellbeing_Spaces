@@ -34,12 +34,12 @@ function Slider({
     <div className="space-y-2">
       <div className="flex justify-between items-center">
         <label className="text-[13px] font-semibold text-gray-700">{label}</label>
-        <span className="font-syne font-bold text-[15px] text-[#6366F1]">{display}</span>
+        <span className="font-syne font-bold text-[15px] text-[#445c49]">{display}</span>
       </div>
       <div className="relative h-5 flex items-center">
         <div className="absolute inset-x-0 h-1.5 bg-gray-100 rounded-full" />
         <div
-          className="absolute h-1.5 bg-[#6366F1] rounded-full transition-all duration-100"
+          className="absolute h-1.5 bg-[#445c49] rounded-full transition-all duration-100"
           style={{ width: `${pct}%` }}
         />
         <input
@@ -53,7 +53,7 @@ function Slider({
           aria-label={label}
         />
         <div
-          className="absolute w-5 h-5 bg-white border-2 border-[#6366F1] rounded-full shadow-md transition-all duration-100 pointer-events-none"
+          className="absolute w-5 h-5 bg-white border-2 border-[#445c49] rounded-full shadow-md transition-all duration-100 pointer-events-none"
           style={{ left: `calc(${pct}% - 10px)` }}
         />
       </div>
@@ -79,21 +79,21 @@ export default function PricingCalculator() {
     <section className="bg-white py-28 relative overflow-hidden">
       {/* Background accent */}
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[400px] bg-indigo-50/70 blur-[100px] rounded-full pointer-events-none"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[400px] bg-wellbeing-cream/70 blur-[100px] rounded-full pointer-events-none"
         aria-hidden
       />
 
       <div className="relative z-10 max-w-5xl mx-auto px-5">
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-14">
-            <p className="text-[11px] font-bold text-[#6366F1] uppercase tracking-[0.2em] mb-3">
+            <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">
               Live Demo
             </p>
-            <h2 className="font-syne font-bold text-[36px] md:text-[48px] text-[#0F1117] mb-3 leading-[1.1]">
+            <h2 className="font-syne font-bold text-[36px] md:text-[48px] text-[#445c49] mb-3 leading-[1.1]">
               Probier die Kalkulation<br className="hidden md:block" /> direkt aus
             </h2>
             <p className="text-[16px] text-gray-500 max-w-lg mx-auto">
-              Einkaufspreis und Marge eingeben – WBC Studio berechnet VP netto, brutto und Provision sofort.
+              Einkaufspreis und Marge eingeben – Wellbeing Spaces berechnet VP netto, brutto und Provision sofort.
             </p>
           </div>
         </AnimateOnScroll>
@@ -139,14 +139,14 @@ export default function PricingCalculator() {
 
                 <div className="border-t border-gray-100 pt-5">
                   <p className="text-[12px] text-gray-400 leading-relaxed">
-                    WBC Studio berechnet das für jedes Produkt automatisch.
+                    Wellbeing Spaces berechnet das für jedes Produkt automatisch.
                     Keine Formeln, kein Excel, keine Fehler.
                   </p>
                 </div>
               </div>
 
               {/* Right: Results */}
-              <div className="p-8 bg-[#0F1117] flex flex-col">
+              <div className="p-8 bg-[#445c49] flex flex-col">
                 <p className="text-[11px] font-bold text-white/30 uppercase tracking-widest mb-6">Ergebnis</p>
 
                 <div className="space-y-3 flex-1">
@@ -159,8 +159,8 @@ export default function PricingCalculator() {
                   </div>
 
                   {/* VP brutto – highlighted */}
-                  <div className="p-4 bg-[#6366F1]/15 border border-[#6366F1]/25 rounded-xl">
-                    <p className="text-[11px] text-indigo-400/70 mb-1.5">Verkaufspreis brutto (inkl. 19% MwSt.)</p>
+                  <div className="p-4 bg-[#445c49]/15 border border-[#445c49]/25 rounded-xl">
+                    <p className="text-[11px] text-wellbeing-green-light/70 mb-1.5">Verkaufspreis brutto (inkl. 19% MwSt.)</p>
                     <p className="font-syne font-bold text-[34px] text-[#A5B4FC] leading-none transition-all duration-300">
                       {fmt(vpBrutto)}
                     </p>

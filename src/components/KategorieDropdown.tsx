@@ -61,10 +61,10 @@ export default function KategorieDropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        className="w-full flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light"
       >
         <SelectedIcon
-          className={`w-3.5 h-3.5 shrink-0 ${selected ? 'text-indigo-500' : 'text-gray-300'}`}
+          className={`w-3.5 h-3.5 shrink-0 ${selected ? 'text-wellbeing-green' : 'text-gray-300'}`}
         />
         <span className="flex-1 text-left truncate">
           {selected ? selected.name : <span className="text-gray-400">{placeholder}</span>}
@@ -78,7 +78,7 @@ export default function KategorieDropdown({
             <button
               type="button"
               onClick={() => { onChange(''); setOpen(false) }}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${value === '' ? 'text-indigo-600 font-medium' : 'text-gray-500'}`}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${value === '' ? 'text-wellbeing-green font-medium' : 'text-gray-500'}`}
             >
               <Package className="w-3.5 h-3.5 text-gray-300 shrink-0" />
               {placeholder}
@@ -92,9 +92,9 @@ export default function KategorieDropdown({
                 key={o.name}
                 type="button"
                 onClick={() => { onChange(o.name); setOpen(false) }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${aktiv ? 'bg-indigo-50/60 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${aktiv ? 'bg-wellbeing-cream/60 text-wellbeing-green-dark font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
               >
-                <Ic className={`w-3.5 h-3.5 shrink-0 ${aktiv ? 'text-indigo-500' : 'text-gray-400'}`} />
+                <Ic className={`w-3.5 h-3.5 shrink-0 ${aktiv ? 'text-wellbeing-green' : 'text-gray-400'}`} />
                 {o.name}
               </button>
             )

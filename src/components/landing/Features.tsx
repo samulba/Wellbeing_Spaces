@@ -9,8 +9,8 @@ const features = [
     icon: FolderOpen,
     title: 'Projektstruktur',
     desc: 'Kunde, Räume und Budget – alles sauber strukturiert an einem Ort. Kein Copy-Paste zwischen Dokumenten.',
-    color: 'bg-indigo-50 text-[#6366F1]',
-    glow: 'hover:shadow-indigo-100',
+    color: 'bg-wellbeing-cream text-[#445c49]',
+    glow: 'hover:shadow-wellbeing-cream',
   },
   {
     icon: Package,
@@ -77,7 +77,7 @@ export default function Features() {
       <div
         className="absolute inset-0 opacity-[0.018] pointer-events-none"
         style={{
-          backgroundImage: 'radial-gradient(circle, #6366F1 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, #445c49 1px, transparent 1px)',
           backgroundSize: '40px 40px',
         }}
         aria-hidden
@@ -86,10 +86,10 @@ export default function Features() {
       <div className="relative z-10 max-w-6xl mx-auto px-5">
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-16">
-            <p className="text-[11px] font-bold text-[#6366F1] uppercase tracking-[0.2em] mb-3">
+            <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">
               Features
             </p>
-            <h2 className="font-syne font-bold text-[36px] md:text-[52px] text-[#0F1117] mb-4 leading-[1.1]">
+            <h2 className="font-syne font-bold text-[36px] md:text-[52px] text-[#445c49] mb-4 leading-[1.1]">
               Alles was du brauchst –<br className="hidden md:block" /> nichts was du nicht brauchst
             </h2>
             <p className="text-[17px] text-gray-500 max-w-lg mx-auto leading-relaxed">
@@ -108,7 +108,7 @@ export default function Features() {
               <div className={`w-12 h-12 rounded-xl ${f.color} flex items-center justify-center mb-5`}>
                 <f.icon className="w-5 h-5" />
               </div>
-              <h3 className="font-syne font-bold text-[17px] text-[#0F1117] mb-2">{f.title}</h3>
+              <h3 className="font-syne font-bold text-[17px] text-[#445c49] mb-2">{f.title}</h3>
               <p className="text-[14px] text-gray-500 leading-relaxed">{f.desc}</p>
             </div>
           ))}

@@ -60,9 +60,9 @@ function KategorieSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        className="w-full flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light"
       >
-        <SelectedIcon className={`w-3.5 h-3.5 shrink-0 ${selected ? 'text-indigo-500' : 'text-gray-300'}`} />
+        <SelectedIcon className={`w-3.5 h-3.5 shrink-0 ${selected ? 'text-wellbeing-green' : 'text-gray-300'}`} />
         <span className="flex-1 text-left truncate">
           {selected ? selected.name : <span className="text-gray-400">Alle Kategorien</span>}
         </span>
@@ -74,7 +74,7 @@ function KategorieSelect({
           <button
             type="button"
             onClick={() => { onChange(''); setOpen(false) }}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${value === '' ? 'text-indigo-600 font-medium' : 'text-gray-500'}`}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${value === '' ? 'text-wellbeing-green font-medium' : 'text-gray-500'}`}
           >
             <Package className="w-3.5 h-3.5 text-gray-300 shrink-0" />
             Alle Kategorien
@@ -87,9 +87,9 @@ function KategorieSelect({
                 key={o.name}
                 type="button"
                 onClick={() => { onChange(o.name); setOpen(false) }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${aktiv ? 'bg-indigo-50/60 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${aktiv ? 'bg-wellbeing-cream/60 text-wellbeing-green-dark font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
               >
-                <Ic className={`w-3.5 h-3.5 shrink-0 ${aktiv ? 'text-indigo-500' : 'text-gray-400'}`} />
+                <Ic className={`w-3.5 h-3.5 shrink-0 ${aktiv ? 'text-wellbeing-green' : 'text-gray-400'}`} />
                 {o.name}
               </button>
             )
@@ -232,8 +232,8 @@ export default function ProdukteTabelle({
   function SortIcon({ col }: { col: SortKey }) {
     if (sortKey !== col) return <ChevronUp className="w-3 h-3 text-gray-300" />
     return sortDir === 'asc'
-      ? <ChevronUp className="w-3 h-3 text-indigo-500" />
-      : <ChevronDown className="w-3 h-3 text-indigo-500" />
+      ? <ChevronUp className="w-3 h-3 text-wellbeing-green" />
+      : <ChevronDown className="w-3 h-3 text-wellbeing-green" />
   }
 
   const activeFilters = [filterProjekt, filterKategorie, filterStatus].filter(Boolean).length
@@ -254,13 +254,13 @@ export default function ProdukteTabelle({
             value={suche}
             onChange={(e) => setSuche(e.target.value)}
             placeholder="Produkt, Projekt, Raum, Kategorie…"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light"
           />
         </div>
 
         {/* Projekt-Filter */}
         <select value={filterProjekt} onChange={(e) => setFilterProjekt(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light">
           <option value="">Alle Projekte</option>
           <option value="__bibliothek__">Nur Bibliothek</option>
           {projektNamen.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -275,7 +275,7 @@ export default function ProdukteTabelle({
 
         {/* Status-Filter */}
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light">
           <option value="">Alle Status</option>
           <option value="ausstehend">Ausstehend</option>
           <option value="freigegeben">Freigegeben</option>
@@ -303,14 +303,14 @@ export default function ProdukteTabelle({
         <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white shrink-0">
           <button
             onClick={() => setAnsichtGespeichert('tabelle')}
-            className={`px-3 py-2 transition-colors ${ansicht === 'tabelle' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+            className={`px-3 py-2 transition-colors ${ansicht === 'tabelle' ? 'bg-wellbeing-green text-white' : 'text-gray-500 hover:bg-gray-50'}`}
             title="Listenansicht"
           >
             <LayoutList className="w-4 h-4" />
           </button>
           <button
             onClick={() => setAnsichtGespeichert('grid')}
-            className={`px-3 py-2 transition-colors ${ansicht === 'grid' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+            className={`px-3 py-2 transition-colors ${ansicht === 'grid' ? 'bg-wellbeing-green text-white' : 'text-gray-500 hover:bg-gray-50'}`}
             title="Rasteransicht"
           >
             <LayoutGrid className="w-4 h-4" />
@@ -331,7 +331,7 @@ export default function ProdukteTabelle({
               return (
                 <div
                   key={p.id}
-                  className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-md transition-all flex flex-col"
+                  className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-wellbeing-green-light hover:shadow-md transition-all flex flex-col"
                 >
                   {/* Klickbarer Bereich → Produkt öffnen */}
                   <Link href={produktLink(p)} className="flex-1 flex flex-col">
@@ -350,13 +350,13 @@ export default function ProdukteTabelle({
                     </div>
 
                     <div className="p-3 space-y-2 flex-1">
-                      <p className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors line-clamp-2 leading-snug">
+                      <p className="text-sm font-semibold text-gray-900 group-hover:text-wellbeing-green-dark transition-colors line-clamp-2 leading-snug">
                         {p.name}
                       </p>
 
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {p.kategorie && (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-medium">
+                          <span className="text-[10px] px-1.5 py-0.5 bg-wellbeing-cream text-wellbeing-green rounded-full font-medium">
                             {p.kategorie}
                           </span>
                         )}
@@ -454,13 +454,13 @@ export default function ProdukteTabelle({
                           <div className="flex items-start gap-1.5">
                             <Link
                               href={produktLink(p)}
-                              className="font-medium text-gray-900 hover:text-indigo-600 transition-colors leading-snug line-clamp-2"
+                              className="font-medium text-gray-900 hover:text-wellbeing-green transition-colors leading-snug line-clamp-2"
                             >
                               {p.name}
                             </Link>
                             {p.produkt_url && (
                               <a href={p.produkt_url} target="_blank" rel="noopener noreferrer"
-                                className="shrink-0 mt-0.5 text-gray-300 hover:text-indigo-500 transition-colors"
+                                className="shrink-0 mt-0.5 text-gray-300 hover:text-wellbeing-green transition-colors"
                                 onClick={(e) => e.stopPropagation()}>
                                 <ExternalLink className="w-3 h-3" />
                               </a>
@@ -471,7 +471,7 @@ export default function ProdukteTabelle({
                         {/* Kategorie */}
                         <td className="px-4 py-3">
                           {p.kategorie ? (
-                            <span className="inline-block px-2 py-0.5 text-[11px] bg-indigo-50 text-indigo-600 rounded-full font-medium whitespace-nowrap">
+                            <span className="inline-block px-2 py-0.5 text-[11px] bg-wellbeing-cream text-wellbeing-green rounded-full font-medium whitespace-nowrap">
                               {p.kategorie}
                             </span>
                           ) : (
@@ -484,7 +484,7 @@ export default function ProdukteTabelle({
                           {p.projektId ? (
                             <>
                               <Link href={`/dashboard/projekte/${p.projektId}`}
-                                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium truncate block transition-colors"
+                                className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark font-medium truncate block transition-colors"
                                 onClick={(e) => e.stopPropagation()}>
                                 {p.projektName}
                               </Link>
@@ -511,7 +511,7 @@ export default function ProdukteTabelle({
                         <td className="px-4 py-3 max-w-[110px]">
                           {p.partnerName ? (
                             <Link href={`/dashboard/partner/${p.partnerId}`}
-                              className="text-xs text-gray-600 hover:text-indigo-600 transition-colors truncate block"
+                              className="text-xs text-gray-600 hover:text-wellbeing-green transition-colors truncate block"
                               onClick={(e) => e.stopPropagation()}>
                               {p.partnerName}
                             </Link>

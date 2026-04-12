@@ -23,7 +23,7 @@ function SubmitBtn() {
   const { pending } = useFormStatus()
   return (
     <button type="submit" disabled={pending}
-      className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg transition-colors">
+      className="px-4 py-2 text-sm font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white rounded-lg transition-colors">
       {pending ? 'Speichern…' : 'Produkt hinzufügen'}
     </button>
   )
@@ -56,7 +56,7 @@ export default function PartnerProduktHinzufuegen({
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-wellbeing-green border border-wellbeing-green-light rounded-lg hover:bg-wellbeing-cream transition-colors"
       >
         <Plus className="w-3.5 h-3.5" />
         Produkt hinzufügen
@@ -89,7 +89,7 @@ export default function PartnerProduktHinzufuegen({
                     name="produkt_url"
                     type="url"
                     placeholder="https://…"
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light bg-white"
                   />
                 </div>
               </div>
@@ -104,7 +104,7 @@ export default function PartnerProduktHinzufuegen({
                   type="text"
                   required
                   placeholder="z.B. Eames Lounge Chair"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light bg-white"
                 />
               </div>
 

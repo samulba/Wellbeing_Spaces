@@ -66,15 +66,15 @@ export default async function ProduktNeuPage({
               <Link
                 key={raum.id}
                 href={`/dashboard/projekte/${projektId}/raeume/${raum.id}/produkte/neu`}
-                className="flex items-center gap-4 px-5 py-4 bg-white border border-gray-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition-all group"
+                className="flex items-center gap-4 px-5 py-4 bg-white border border-gray-200 rounded-xl hover:border-wellbeing-green-light hover:shadow-sm transition-all group"
               >
-                <div className="w-9 h-9 rounded-lg bg-gray-100 group-hover:bg-indigo-50 flex items-center justify-center transition-colors">
-                  <DoorOpen className="w-4 h-4 text-gray-400 group-hover:text-indigo-500 transition-colors" />
+                <div className="w-9 h-9 rounded-lg bg-gray-100 group-hover:bg-wellbeing-cream flex items-center justify-center transition-colors">
+                  <DoorOpen className="w-4 h-4 text-gray-400 group-hover:text-wellbeing-green transition-colors" />
                 </div>
-                <span className="flex-1 text-sm font-medium text-gray-800 group-hover:text-indigo-700 transition-colors">
+                <span className="flex-1 text-sm font-medium text-gray-800 group-hover:text-wellbeing-green-dark transition-colors">
                   {raum.name}
                 </span>
-                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition-colors" />
+                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-wellbeing-green-light transition-colors" />
               </Link>
             ))}
           </div>
@@ -83,7 +83,7 @@ export default async function ProduktNeuPage({
             <p className="text-sm text-gray-500">Dieses Projekt hat noch keine Räume.</p>
             <Link
               href={`/dashboard/projekte/${projektId}`}
-              className="mt-3 inline-block text-sm text-indigo-600 hover:underline"
+              className="mt-3 inline-block text-sm text-wellbeing-green hover:underline"
             >
               Zum Projekt → Raum anlegen
             </Link>
@@ -131,20 +131,20 @@ export default async function ProduktNeuPage({
               <Link
                 key={p.id}
                 href={`/dashboard/produkte/neu?projekt_id=${p.id}`}
-                className="flex items-center gap-4 px-5 py-4 bg-white border border-gray-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition-all group"
+                className="flex items-center gap-4 px-5 py-4 bg-white border border-gray-200 rounded-xl hover:border-wellbeing-green-light hover:shadow-sm transition-all group"
               >
-                <div className="w-9 h-9 rounded-lg bg-gray-100 group-hover:bg-indigo-50 flex items-center justify-center transition-colors">
-                  <FolderOpen className="w-4 h-4 text-gray-400 group-hover:text-indigo-500 transition-colors" />
+                <div className="w-9 h-9 rounded-lg bg-gray-100 group-hover:bg-wellbeing-cream flex items-center justify-center transition-colors">
+                  <FolderOpen className="w-4 h-4 text-gray-400 group-hover:text-wellbeing-green transition-colors" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 group-hover:text-indigo-700 transition-colors truncate">
+                  <p className="text-sm font-medium text-gray-800 group-hover:text-wellbeing-green-dark transition-colors truncate">
                     {p.name}
                   </p>
                   {kundeName && (
                     <p className="text-xs text-gray-400 truncate">{kundeName}</p>
                   )}
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition-colors shrink-0" />
+                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-wellbeing-green-light transition-colors shrink-0" />
               </Link>
             )
           })}
@@ -154,7 +154,7 @@ export default async function ProduktNeuPage({
           <p className="text-sm text-gray-500">Noch keine Projekte vorhanden.</p>
           <Link
             href="/dashboard/projekte/neu"
-            className="mt-3 inline-block text-sm text-indigo-600 hover:underline"
+            className="mt-3 inline-block text-sm text-wellbeing-green hover:underline"
           >
             Erstes Projekt anlegen →
           </Link>

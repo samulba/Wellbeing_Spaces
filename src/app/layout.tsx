@@ -14,7 +14,7 @@ const syne = Syne({
 })
 
 export const metadata: Metadata = {
-  title: "WBC Studio",
+  title: "Wellbeing Spaces",
   description: "Internes Projekt- und Freigabe-Tool",
   icons: {
     icon: '/favicon.svg',

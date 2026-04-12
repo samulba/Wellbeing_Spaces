@@ -6,7 +6,7 @@ export default function NeuerPartnerPage() {
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
       <div className="mb-8">
-        <Link href="/dashboard/partner" className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-3 inline-block">
+        <Link href="/dashboard/partner" className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors mb-3 inline-block">
           ← Zurück zu Partner
         </Link>
         <h1 className="text-xl font-semibold text-gray-900">Neuer Partner</h1>

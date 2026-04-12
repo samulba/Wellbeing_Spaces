@@ -64,7 +64,7 @@ function LeererZustand({
       {ctaLabel && ctaHref && (
         <Link
           href={ctaHref}
-          className="mt-1 text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+          className="mt-1 text-xs px-3 py-1.5 bg-wellbeing-green text-white rounded-lg hover:bg-wellbeing-green-dark transition-colors font-medium"
         >
           {ctaLabel}
         </Link>
@@ -173,7 +173,7 @@ export function BalkenChart({ data }: { data: ProjektKostenData[] }) {
                 iconSize={8}
                 wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }}
               />
-              <Bar dataKey="budget" name="Budget" fill="#6366F1" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="budget" name="Budget" fill="#445c49" radius={[3, 3, 0, 0]} />
               <Bar dataKey="istKosten" name="Ist-Kosten" radius={[3, 3, 0, 0]}>
                 {data.map((entry, index) => (
                   <Cell
@@ -308,7 +308,7 @@ export function LinienChart({ data }: { data: MonatsData[] }) {
         </div>
         <div className="flex items-center gap-4 text-xs text-gray-500">
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-0.5 rounded-full bg-[#6366F1] inline-block" />
+            <span className="w-2.5 h-0.5 rounded-full bg-[#445c49] inline-block" />
             Projekte
           </span>
           <span className="flex items-center gap-1.5">
@@ -332,8 +332,8 @@ export function LinienChart({ data }: { data: MonatsData[] }) {
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="gradProjekte" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366F1" stopOpacity={0.12} />
-                  <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#445c49" stopOpacity={0.12} />
+                  <stop offset="95%" stopColor="#445c49" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gradKunden" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10B981" stopOpacity={0.12} />
@@ -365,11 +365,11 @@ export function LinienChart({ data }: { data: MonatsData[] }) {
                 type="monotone"
                 dataKey="projekte"
                 name="Projekte"
-                stroke="#6366F1"
+                stroke="#445c49"
                 strokeWidth={2}
                 fill="url(#gradProjekte)"
-                dot={{ r: 3, fill: '#6366F1', strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: '#6366F1', strokeWidth: 0 }}
+                dot={{ r: 3, fill: '#445c49', strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: '#445c49', strokeWidth: 0 }}
               />
               <Area
                 type="monotone"

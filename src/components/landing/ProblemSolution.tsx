@@ -3,7 +3,7 @@ import { AlertTriangle, Mail, Calculator } from 'lucide-react'
 
 export default function ProblemSolution() {
   return (
-    <section className="bg-[#0F1117] py-28 relative overflow-hidden">
+    <section className="bg-[#445c49] py-28 relative overflow-hidden">
       {/* Background texture */}
       <div
         className="absolute inset-0 opacity-[0.025] pointer-events-none"
@@ -22,7 +22,7 @@ export default function ProblemSolution() {
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-16">
             <p className="text-[11px] font-bold text-rose-400 uppercase tracking-[0.2em] mb-3">
-              Der Alltag ohne WBC Studio
+              Der Alltag ohne Wellbeing Spaces
             </p>
             <h2 className="font-syne font-bold text-[36px] md:text-[52px] text-white mb-4 leading-[1.1]">
               Kennst du das?
@@ -129,9 +129,9 @@ export default function ProblemSolution() {
               </svg>
             </div>
 
-            <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-8 py-5 text-center">
+            <div className="rounded-2xl border border-wellbeing-green/30 bg-wellbeing-green/10 px-8 py-5 text-center">
               <p className="font-syne font-bold text-[22px] md:text-[28px] text-white">
-                Mit WBC Studio war das gestern.
+                Mit Wellbeing Spaces war das gestern.
               </p>
               <p className="text-white/35 text-[14px] mt-1">
                 Alle drei Probleme. Auf einmal. Gelöst.

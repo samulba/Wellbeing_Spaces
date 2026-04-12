@@ -114,8 +114,8 @@ export default async function ProdukteSeite() {
 
       {produkte.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center">
-            <Package className="w-7 h-7 text-indigo-400" />
+          <div className="w-14 h-14 rounded-2xl bg-wellbeing-cream flex items-center justify-center">
+            <Package className="w-7 h-7 text-wellbeing-green-light" />
           </div>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-700">Noch keine Produkte angelegt</p>

@@ -96,11 +96,11 @@ export default async function RaumDetailPage({
           <nav className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
             {kunde && (
               <>
-                <Link href={`/dashboard/kunden/${kunde.id}`} className="hover:text-indigo-600 transition-colors">{kunde.name}</Link>
+                <Link href={`/dashboard/kunden/${kunde.id}`} className="hover:text-wellbeing-green transition-colors">{kunde.name}</Link>
                 <span>›</span>
               </>
             )}
-            <Link href={`/dashboard/projekte/${params.id}`} className="hover:text-indigo-600 transition-colors">
+            <Link href={`/dashboard/projekte/${params.id}`} className="hover:text-wellbeing-green transition-colors">
               {projekt?.name ?? 'Projekt'}
             </Link>
             <span>›</span>
@@ -113,7 +113,7 @@ export default async function RaumDetailPage({
         </div>
         <Link
           href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark hover:scale-[1.02] active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap"
         >
           + Produkt hinzufügen
         </Link>
@@ -134,7 +134,7 @@ export default async function RaumDetailPage({
           <p className="text-gray-500 text-sm">Noch keine Produkte in diesem Raum.</p>
           <Link
             href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
-            className="inline-block mt-3 text-sm text-indigo-600 underline underline-offset-2"
+            className="inline-block mt-3 text-sm text-wellbeing-green underline underline-offset-2"
           >
             Erstes Produkt hinzufügen
           </Link>
@@ -192,7 +192,7 @@ function SummeZelle({ label, wert, intern, hervorheben }: { label: string; wert:
   return (
     <div className="text-right">
       <p className={`text-xs mb-0.5 ${intern ? 'text-red-400/60' : 'text-gray-500'}`}>{label}</p>
-      <p className={`text-sm font-mono font-semibold ${hervorheben ? 'text-indigo-600' : intern ? 'text-red-500/70' : 'text-gray-700'}`}>
+      <p className={`text-sm font-mono font-semibold ${hervorheben ? 'text-wellbeing-green' : intern ? 'text-red-500/70' : 'text-gray-700'}`}>
         {wert}
       </p>
     </div>

@@ -1,4 +1,4 @@
-# WBC Studio
+# Wellbeing Spaces
 
 ## Tech Stack
 Next.js 14 (App Router) · TypeScript · Tailwind · Supabase (Frankfurt) · Vercel (fra1, auto-deploy main)
@@ -9,7 +9,7 @@ Admin sieht alles (EP/Marge/Provision). Kunde nur Freigabelink `/freigabe/[token
 
 ## DB-Tabellen
 `kunden`, `projekte`, `raeume`, `partner`, `produkte`, `produktstatus`, `freigabe_tokens`, `einstellungen`
-Letzte Migration: 016 (Logo-Upload Storage-Buckets). Migrations in `/supabase/migrations/`.
+Letzte Migration: 019 (einstellungen Listen-Seed). Migrations in `/supabase/migrations/`.
 
 ## Regeln
 - Server Actions in `src/app/actions/`. Supabase admin nur serverseitig (`admin.ts`).
@@ -19,7 +19,8 @@ Letzte Migration: 016 (Logo-Upload Storage-Buckets). Migrations in `/supabase/mi
 - Preislogik: EP netto + Marge% → VP netto; VP brutto = VP × 1,19; Provision = VP × Provision%.
 
 ## Design
-Indigo (#6366F1) aktiv. Sidebar: bg-[#0F1117], Syne-Font. Desktop-first, ruhig/reduziert.
+Wellbeing Green (#445c49) aktiv. Sidebar: bg-[#445c49] (forest green), Syne-Font. Desktop-first, ruhig/reduziert.
+Farbpalette: wellbeing-green (#445c49), wellbeing-green-light (#94c1a4), wellbeing-green-dark (#2d3e31), wellbeing-cream (#f6ede2), wellbeing-terracotta (#823509), wellbeing-sand (#cba178).
 
 ## Offen
 - (nichts mehr offen)
@@ -33,6 +34,8 @@ Indigo (#6366F1) aktiv. Sidebar: bg-[#0F1117], Syne-Font. Desktop-first, ruhig/r
 - S17: PDF-Export – PdfExportButton (jspdf + jspdf-autotable, client-seitig), Button auf Projektdetailseite neben CSV, A4-Portrait mit Indigo-Header, Produkttabelle, Status-Farben, Gesamtsumme, Seitenzahl.
 - S18: Drag & Drop Räume – SortableRaumListe (@dnd-kit), GripVertical Handle, optimistisches UI, updateRaumPositionen Action, Migration 017.
 - S19: Drag & Drop Produkte – SortableProduktTabelle (@dnd-kit), GripVertical Handle links pro Zeile, updateProduktPositionen Action, Migration 018. Fix 2 (ProduktZuweisenModal in Bibliothek) war bereits fertig (S15).
+- S20: Kategorien-Bugs gefixt (Admin-Client + maybeSingle(), Migration 019 Seed). RaumHinzufügen mit Raumtypen-Kacheln (Icons, aufklappbares Panel). ChatGPT-Kontext-Paket in chatgpt_project_context/ erstellt (17 Doku-Dateien, keine bestehenden Dateien verändert).
+- S21: Bestellstatus-Flow (Migration 021, bestellstatus_enum, SortableProduktTabelle mit Select-Dropdown + optimistischem UI). Vollständiges Rebranding WBC Studio → Wellbeing Spaces: tailwind.config.ts wellbeing-Farbpalette, alle indigo-* Klassen → wellbeing-green/light/dark/cream, Hex-Farben ersetzt, Sidebar #0F1117 → #445c49, DepthStackIcon weiße Fills, package.json, CLAUDE.md.
 
 ## Anweisung
 Am Ende jeder Session den Session-Log mit einem kurzen Eintrag aktualisieren.

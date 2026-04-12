@@ -26,7 +26,7 @@ export default async function NeuesProjektPage({
       <div className="mb-8">
         <Link
           href="/dashboard/projekte"
-          className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-3 inline-block"
+          className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors mb-3 inline-block"
         >
           ← Zurück zu Projekte
         </Link>

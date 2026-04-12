@@ -3,9 +3,9 @@ import Link from 'next/link'
 function DepthStackIcon() {
   return (
     <svg width="36" height="36" viewBox="0 0 18 18" fill="none" aria-hidden>
-      <rect x="0" y="0" width="10" height="10" rx="2" fill="#6366F1" opacity="0.25" />
-      <rect x="4" y="4" width="10" height="10" rx="2" fill="#6366F1" opacity="0.55" />
-      <rect x="8" y="8" width="10" height="10" rx="2" fill="#6366F1" />
+      <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.25" />
+      <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
+      <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
     </svg>
   )
 }
@@ -33,13 +33,13 @@ const cols = [
 
 export default function Footer() {
   return (
-    <footer className="bg-[#0F1117] relative overflow-hidden">
+    <footer className="bg-[#445c49] relative overflow-hidden">
 
       {/* Top gradient line */}
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
       {/* Glow */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[900px] h-[300px] bg-indigo-950/70 blur-[130px] rounded-full pointer-events-none" aria-hidden />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[900px] h-[300px] bg-wellbeing-green-dark/70 blur-[130px] rounded-full pointer-events-none" aria-hidden />
 
       {/* Giant watermark */}
       <div
@@ -47,7 +47,7 @@ export default function Footer() {
         style={{ fontSize: 'clamp(80px, 14vw, 200px)' }}
         aria-hidden
       >
-        WBC STUDIO
+        WELLBEING SPACES
       </div>
 
       <div className="relative z-10 w-full px-8 pt-16 pb-12">
@@ -59,8 +59,8 @@ export default function Footer() {
           <div>
             <Link href="/" className="inline-flex items-center gap-3 mb-5 group">
               <DepthStackIcon />
-              <span className="font-syne font-bold text-[28px] text-white group-hover:text-indigo-300 transition-colors leading-none">
-                WBC Studio
+              <span className="font-syne font-bold text-[28px] text-white group-hover:text-wellbeing-green-light transition-colors leading-none">
+                Wellbeing Spaces
               </span>
             </Link>
             <p className="text-[13px] text-white/25 max-w-[220px] leading-relaxed">
@@ -97,7 +97,7 @@ export default function Footer() {
           <div className="flex items-center gap-3">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
             <p className="text-[11px] text-white/20">
-              © 2026 WBC Studio · EU-Hosting · DSGVO-konform
+              © 2026 Wellbeing Spaces · EU-Hosting · DSGVO-konform
             </p>
           </div>
           <p className="text-[11px] text-white/10">

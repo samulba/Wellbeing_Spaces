@@ -20,7 +20,7 @@ const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
 const modellBadge: Record<string, string> = {
-  Prozent:     'bg-indigo-50 text-indigo-700',
+  Prozent:     'bg-wellbeing-cream text-wellbeing-green-dark',
   Fix:         'bg-emerald-50 text-emerald-700',
   Individuell: 'bg-gray-100 text-gray-600',
 }
@@ -93,14 +93,14 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
         <div className="flex items-center gap-5">
           <LogoUpload typ="partner" entityId={partner.id} initialLogoUrl={partner.logo_url} name={partner.name} />
           <div>
-            <Link href="/dashboard/partner" className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-1 inline-block">
+            <Link href="/dashboard/partner" className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors mb-1 inline-block">
               ← Partner
             </Link>
             <h1 className="font-syne text-2xl font-bold text-gray-900 leading-tight">{partner.name}</h1>
             <div className="flex items-center gap-3 mt-1">
               {partner.website && (
                 <a href={partner.website} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-sm text-gray-400 hover:text-indigo-600 transition-colors">
+                  className="flex items-center gap-1 text-sm text-gray-400 hover:text-wellbeing-green transition-colors">
                   <Globe className="w-3.5 h-3.5" />
                   {partner.website.replace(/^https?:\/\/(www\.)?/, '')}
                   <ExternalLink className="w-3 h-3" />
@@ -143,7 +143,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
           <p className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-1">Gesamtumsatz (VP netto)</p>
-          <p className="text-lg font-semibold text-indigo-600 font-mono">{gesamtUmsatz > 0 ? eur(gesamtUmsatz) : '–'}</p>
+          <p className="text-lg font-semibold text-wellbeing-green font-mono">{gesamtUmsatz > 0 ? eur(gesamtUmsatz) : '–'}</p>
         </div>
       </div>
 
@@ -164,7 +164,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                 <div>
                   <dt className="text-xs text-gray-400 mb-0.5">E-Mail</dt>
                   <dd>
-                    <a href={`mailto:${partner.email}`} className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-indigo-600 transition-colors">
+                    <a href={`mailto:${partner.email}`} className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
                       <Mail className="w-3.5 h-3.5 text-gray-400" />{partner.email}
                     </a>
                   </dd>
@@ -174,7 +174,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                 <div>
                   <dt className="text-xs text-gray-400 mb-0.5">Telefon</dt>
                   <dd>
-                    <a href={`tel:${partner.telefon}`} className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-indigo-600 transition-colors">
+                    <a href={`tel:${partner.telefon}`} className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
                       <Phone className="w-3.5 h-3.5 text-gray-400" />{partner.telefon}
                     </a>
                   </dd>
@@ -185,7 +185,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                   <dt className="text-xs text-gray-400 mb-0.5">Website</dt>
                   <dd>
                     <a href={partner.website} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-indigo-600 transition-colors">
+                      className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
                       <Globe className="w-3.5 h-3.5 text-gray-400" />
                       {partner.website.replace(/^https?:\/\/(www\.)?/, '')}
                       <ExternalLink className="w-3 h-3" />
@@ -227,7 +227,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
               </h2>
               <div className="flex items-center gap-3">
                 {gesamtUmsatz > 0 && (
-                  <span className="text-xs text-gray-500 font-mono">Gesamt: <span className="text-indigo-600 font-semibold">{eur(gesamtUmsatz)}</span></span>
+                  <span className="text-xs text-gray-500 font-mono">Gesamt: <span className="text-wellbeing-green font-semibold">{eur(gesamtUmsatz)}</span></span>
                 )}
                 <PartnerProduktHinzufuegen partnerId={partner.id} kategorienListe={kategorienListe} />
               </div>
@@ -260,7 +260,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                               <>
                                 {p.raeume.projekte && (
                                   <Link href={`/dashboard/projekte/${p.raeume.projekte.id}`}
-                                    className="hover:text-indigo-600 transition-colors">
+                                    className="hover:text-wellbeing-green transition-colors">
                                     {p.raeume.projekte.name}
                                   </Link>
                                 )}

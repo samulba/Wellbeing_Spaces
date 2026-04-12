@@ -19,7 +19,7 @@ export type KundeKarte = {
 
 // ── Avatar ────────────────────────────────────────────────────
 const avatarFarben = [
-  'bg-indigo-500', 'bg-violet-500', 'bg-blue-500',
+  'bg-wellbeing-green', 'bg-violet-500', 'bg-blue-500',
   'bg-emerald-500', 'bg-rose-500', 'bg-amber-500',
 ]
 function avatarFarbe(name: string) { return avatarFarben[name.charCodeAt(0) % avatarFarben.length] }
@@ -69,7 +69,7 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
           <input
             type="text" placeholder="Kunden suchen…" value={suche}
             onChange={(e) => setSuche(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition"
+            className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition"
           />
         </div>
 
@@ -84,10 +84,10 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
 
         <div className="ml-auto flex items-center border border-gray-200 rounded-lg overflow-hidden">
           <button onClick={() => toggleAnsicht('grid')}
-            className={`px-3 py-2 transition-colors ${ansicht === 'grid' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+            className={`px-3 py-2 transition-colors ${ansicht === 'grid' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
             title="Kachelansicht"><LayoutGrid className="w-4 h-4" /></button>
           <button onClick={() => toggleAnsicht('list')}
-            className={`px-3 py-2 transition-colors border-l border-gray-200 ${ansicht === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+            className={`px-3 py-2 transition-colors border-l border-gray-200 ${ansicht === 'list' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
             title="Listenansicht"><List className="w-4 h-4" /></button>
         </div>
       </div>
@@ -114,7 +114,7 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors truncate leading-tight">{kunde.name}</p>
+                    <p className="font-semibold text-gray-900 group-hover:text-wellbeing-green transition-colors truncate leading-tight">{kunde.name}</p>
                     {kunde.ansprechpartner && <p className="text-xs text-gray-500 truncate mt-0.5">{kunde.ansprechpartner}</p>}
                   </div>
                 </div>
@@ -163,7 +163,7 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
                     ) : (
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white shrink-0 ${avatarFarbe(kunde.name)}`}>{initials(kunde.name)}</div>
                     )}
-                      <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{kunde.name}</span>
+                      <span className="font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors">{kunde.name}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3.5 text-gray-600">{kunde.ansprechpartner ?? '–'}</td>
@@ -176,7 +176,7 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
                     <span className="inline-flex items-center gap-1 text-xs text-gray-500"><FolderOpen className="w-3.5 h-3.5 text-gray-400" />{kunde.projektCount}</span>
                   </td>
                   <td className="px-3 py-3.5">
-                    <Link href={`/dashboard/kunden/${kunde.id}`} className="text-xs text-gray-400 hover:text-indigo-600 transition-colors opacity-0 group-hover:opacity-100 whitespace-nowrap">Öffnen →</Link>
+                    <Link href={`/dashboard/kunden/${kunde.id}`} className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors opacity-0 group-hover:opacity-100 whitespace-nowrap">Öffnen →</Link>
                   </td>
                 </tr>
               ))}
@@ -189,4 +189,4 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
 }
 
 const th  = 'px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest'
-const sel = 'px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition cursor-pointer'
+const sel = 'px-3 py-2 text-xs bg-white border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition cursor-pointer'

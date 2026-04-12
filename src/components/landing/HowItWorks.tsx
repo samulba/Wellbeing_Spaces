@@ -28,10 +28,10 @@ export default function HowItWorks() {
       <div className="max-w-5xl mx-auto px-5">
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-20">
-            <p className="text-[11px] font-bold text-[#6366F1] uppercase tracking-[0.2em] mb-3">
+            <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">
               So funktionierts
             </p>
-            <h2 className="font-syne font-bold text-[36px] md:text-[52px] text-[#0F1117] leading-[1.1]">
+            <h2 className="font-syne font-bold text-[36px] md:text-[52px] text-[#445c49] leading-[1.1]">
               In 3 Schritten zum<br className="hidden md:block" /> professionellen Projekt
             </h2>
           </div>
@@ -40,7 +40,7 @@ export default function HowItWorks() {
         <div className="relative grid md:grid-cols-3 gap-12 md:gap-6">
           {/* Connector line */}
           <div
-            className="hidden md:block absolute top-8 left-[calc(16.67%+36px)] right-[calc(16.67%+36px)] h-px bg-gradient-to-r from-indigo-100 via-indigo-300 to-indigo-100"
+            className="hidden md:block absolute top-8 left-[calc(16.67%+36px)] right-[calc(16.67%+36px)] h-px bg-gradient-to-r from-wellbeing-cream via-wellbeing-green-light to-wellbeing-cream"
             aria-hidden
           />
 
@@ -48,14 +48,14 @@ export default function HowItWorks() {
             <AnimateOnScroll key={step.num} delay={i * 150} type="fade-up">
               <div className="flex flex-col items-center text-center group">
                 {/* Step icon tile */}
-                <div className="relative w-16 h-16 rounded-2xl bg-[#6366F1] flex items-center justify-center mb-6 z-10 shadow-lg shadow-indigo-200/70 group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-indigo-300/60 transition-all duration-300">
+                <div className="relative w-16 h-16 rounded-2xl bg-[#445c49] flex items-center justify-center mb-6 z-10 shadow-lg shadow-wellbeing-green-light/70 group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-wellbeing-green-light/60 transition-all duration-300">
                   <step.icon className="w-6 h-6 text-white" strokeWidth={1.8} />
                   <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center">
-                    <span className="font-syne font-bold text-[9px] text-[#6366F1]">{step.num}</span>
+                    <span className="font-syne font-bold text-[9px] text-[#445c49]">{step.num}</span>
                   </span>
                 </div>
 
-                <h3 className="font-syne font-bold text-[20px] text-[#0F1117] mb-3">{step.title}</h3>
+                <h3 className="font-syne font-bold text-[20px] text-[#445c49] mb-3">{step.title}</h3>
                 <p className="text-[14px] text-gray-500 leading-relaxed max-w-[220px]">{step.desc}</p>
               </div>
             </AnimateOnScroll>
@@ -65,9 +65,9 @@ export default function HowItWorks() {
         {/* Bottom callout */}
         <AnimateOnScroll delay={500} type="scale-in">
           <div className="mt-16 flex justify-center">
-            <div className="inline-flex items-center gap-3 px-6 py-3.5 bg-indigo-50 border border-indigo-100 rounded-2xl">
-              <span className="text-[13px] font-semibold text-[#6366F1]">Durchschnittliche Setup-Zeit:</span>
-              <span className="font-syne font-bold text-[#0F1117] text-[15px]">unter 5 Minuten</span>
+            <div className="inline-flex items-center gap-3 px-6 py-3.5 bg-wellbeing-cream border border-wellbeing-cream rounded-2xl">
+              <span className="text-[13px] font-semibold text-[#445c49]">Durchschnittliche Setup-Zeit:</span>
+              <span className="font-syne font-bold text-[#445c49] text-[15px]">unter 5 Minuten</span>
             </div>
           </div>
         </AnimateOnScroll>

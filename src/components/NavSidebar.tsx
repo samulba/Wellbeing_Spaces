@@ -17,7 +17,7 @@ import {
 
 // ── Avatar-Hilfsfunktionen ───────────────────────────────────
 const avatarFarben = [
-  'bg-indigo-500', 'bg-violet-500', 'bg-blue-500',
+  'bg-wellbeing-green', 'bg-violet-500', 'bg-blue-500',
   'bg-emerald-500', 'bg-rose-500', 'bg-amber-500',
 ]
 
@@ -34,9 +34,9 @@ function initials(email: string, name?: string) {
 function DepthStackIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="10" height="10" rx="2" fill="#6366F1" opacity="0.30" />
-      <rect x="4" y="4" width="10" height="10" rx="2" fill="#6366F1" opacity="0.55" />
-      <rect x="8" y="8" width="10" height="10" rx="2" fill="#6366F1" />
+      <rect x="0" y="0" width="10" height="10" rx="2" fill="#ffffff" opacity="0.30" />
+      <rect x="4" y="4" width="10" height="10" rx="2" fill="#ffffff" opacity="0.55" />
+      <rect x="8" y="8" width="10" height="10" rx="2" fill="#ffffff" />
     </svg>
   )
 }
@@ -76,13 +76,13 @@ export default function NavSidebar({
   const farbe       = avatarFarbe(userEmail)
 
   return (
-    <aside className="w-72 shrink-0 bg-[#0F1117] flex flex-col h-full">
+    <aside className="w-72 shrink-0 bg-[#445c49] flex flex-col h-full">
 
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-[18px] border-b border-white/[0.06]">
         <DepthStackIcon />
         <span className="font-syne text-[16px] font-bold text-white tracking-tight leading-none">
-          WBC Studio
+          Wellbeing Spaces
         </span>
       </div>
 
@@ -100,8 +100,8 @@ export default function NavSidebar({
               href={href}
               className={`flex items-center gap-2.5 px-3 py-[10px] rounded-lg text-[14px] font-medium transition-colors duration-150 ${
                 aktiv
-                  ? 'bg-[#6366F1] text-white'
-                  : 'text-white/50 hover:text-white hover:bg-white/10'
+                  ? 'bg-white/[0.12] text-white'
+                  : 'text-white/55 hover:text-white hover:bg-white/[0.07]'
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" strokeWidth={aktiv ? 2.5 : 2} />
@@ -125,8 +125,8 @@ export default function NavSidebar({
             href="/dashboard/einstellungen"
             className={`flex items-center gap-2.5 px-3 py-[10px] rounded-lg text-[14px] font-medium transition-colors duration-150 ${
               pathname.startsWith('/dashboard/einstellungen')
-                ? 'bg-[#6366F1] text-white'
-                : 'text-white/50 hover:text-white hover:bg-white/10'
+                ? 'bg-white/[0.12] text-white'
+                : 'text-white/55 hover:text-white hover:bg-white/[0.07]'
             }`}
           >
             <Settings className="w-4 h-4 shrink-0" strokeWidth={2} />

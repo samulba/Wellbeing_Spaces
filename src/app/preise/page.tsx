@@ -6,11 +6,11 @@ import AnimateOnScroll from '@/components/landing/AnimateOnScroll'
 import { Check, Minus, HelpCircle } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Preise – WBC Studio | Kostenlose Interior Design Software',
+  title: 'Preise – Wellbeing Spaces | Kostenlose Interior Design Software',
   description:
-    'WBC Studio Preise im Überblick: Kostenlos starten, monatlich kündbar, kein Jahresabo. Die günstige Alternative zu Houzz Pro ($199/mo) und Mydoma ($64/mo) für Interior Designer.',
+    'Wellbeing Spaces Preise im Überblick: Kostenlos starten, monatlich kündbar, kein Jahresabo. Die günstige Alternative zu Houzz Pro ($199/mo) und Mydoma ($64/mo) für Interior Designer.',
   keywords:
-    'Interior Design Software Preis, Projektmanagement Software kostenlos, Houzz Pro Alternative günstiger, Interior Design Tool Kosten, WBC Studio Preis',
+    'Interior Design Software Preis, Projektmanagement Software kostenlos, Houzz Pro Alternative günstiger, Interior Design Tool Kosten, Wellbeing Spaces Preis',
   alternates: { canonical: 'https://wbc-studio.vercel.app/preise' },
 }
 
@@ -79,9 +79,9 @@ const featureRows: { label: string; tooltip?: string; free: CellValue; pro: Cell
 ]
 
 function Cell({ value, highlight }: { value: CellValue; highlight?: boolean }) {
-  if (value === true) return <Check className={`w-4 h-4 mx-auto ${highlight ? 'text-indigo-400' : 'text-emerald-500'}`} strokeWidth={2.5} />
+  if (value === true) return <Check className={`w-4 h-4 mx-auto ${highlight ? 'text-wellbeing-green-light' : 'text-emerald-500'}`} strokeWidth={2.5} />
   if (value === false) return <Minus className="w-4 h-4 mx-auto text-gray-200" strokeWidth={2} />
-  return <span className={`text-[13px] font-semibold ${highlight ? 'text-indigo-200' : 'text-gray-700'}`}>{value}</span>
+  return <span className={`text-[13px] font-semibold ${highlight ? 'text-wellbeing-green-light' : 'text-gray-700'}`}>{value}</span>
 }
 
 const faqs = [
@@ -102,8 +102,8 @@ const faqs = [
     a: 'Derzeit bieten wir ausschließlich Monatspläne an. Jahrespläne mit Rabatt sind für Q3 2026 geplant.',
   },
   {
-    q: 'Wie unterscheidet sich WBC Studio von Houzz Pro?',
-    a: 'Houzz Pro kostet $199/Monat und ist primär ein Marketing-Tool mit 3D-Renderer und Lead-Generierung. WBC Studio fokussiert sich auf das was Interior Designer wirklich täglich brauchen: Produktlisten, Preiskalkulation und Kundenfreigabe – ab 0€.',
+    q: 'Wie unterscheidet sich Wellbeing Spaces von Houzz Pro?',
+    a: 'Houzz Pro kostet $199/Monat und ist primär ein Marketing-Tool mit 3D-Renderer und Lead-Generierung. Wellbeing Spaces fokussiert sich auf das was Interior Designer wirklich täglich brauchen: Produktlisten, Preiskalkulation und Kundenfreigabe – ab 0€.',
   },
 ]
 
@@ -115,15 +115,15 @@ export default function PreisePage() {
       {/* Hero */}
       <section className="pt-36 pb-20 bg-white relative overflow-hidden">
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-indigo-50/80 blur-[100px] rounded-full pointer-events-none"
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-wellbeing-cream/80 blur-[100px] rounded-full pointer-events-none"
           aria-hidden
         />
         <div className="relative z-10 max-w-4xl mx-auto px-5 text-center">
           <AnimateOnScroll type="blur-in">
-            <p className="text-[11px] font-bold text-[#6366F1] uppercase tracking-[0.2em] mb-4">
+            <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-4">
               Preise
             </p>
-            <h1 className="font-syne font-bold text-[#0F1117] text-[40px] md:text-[60px] leading-[1.06] mb-5">
+            <h1 className="font-syne font-bold text-[#445c49] text-[40px] md:text-[60px] leading-[1.06] mb-5">
               Ehrliche Preise.<br className="hidden md:block" /> Kein Abo-Chaos.
             </h1>
             <p className="text-[17px] text-gray-500 max-w-xl mx-auto leading-relaxed mb-6">
@@ -136,7 +136,7 @@ export default function PreisePage() {
               <span className="text-gray-200">·</span>
               <span className="text-[12px] text-gray-400 line-through">Mydoma $64/mo</span>
               <span className="text-gray-200">→</span>
-              <span className="text-[12px] font-bold text-emerald-600">WBC Studio 0€</span>
+              <span className="text-[12px] font-bold text-emerald-600">Wellbeing Spaces 0€</span>
             </div>
           </AnimateOnScroll>
         </div>
@@ -150,23 +150,23 @@ export default function PreisePage() {
               <AnimateOnScroll key={plan.name} delay={i * 100} type={i === 1 ? 'scale-in' : 'fade-up'}>
                 {plan.highlight ? (
                   /* Pro card: gradient-border wrapper, kein sichtbarer Rand-Strich */
-                  <div className="relative p-[2px] rounded-2xl bg-gradient-to-b from-indigo-400 via-indigo-500 to-indigo-500/20 shadow-2xl shadow-indigo-100/80">
+                  <div className="relative p-[2px] rounded-2xl bg-gradient-to-b from-wellbeing-green-light via-wellbeing-green to-wellbeing-green/20 shadow-2xl shadow-wellbeing-cream/80">
                     {plan.badge && (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#6366F1] text-white text-[11px] font-bold rounded-full whitespace-nowrap uppercase tracking-wide shadow-md shadow-indigo-200 z-10">
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#445c49] text-white text-[11px] font-bold rounded-full whitespace-nowrap uppercase tracking-wide shadow-md shadow-wellbeing-green-light z-10">
                         {plan.badge}
                       </div>
                     )}
                     <div className="relative rounded-[14px] bg-white p-8 flex flex-col h-full hover:-translate-y-2 transition-all duration-300">
                       <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">{plan.tag}</p>
-                      <h2 className="font-syne font-bold text-[22px] text-[#0F1117] mb-3">{plan.name}</h2>
+                      <h2 className="font-syne font-bold text-[22px] text-[#445c49] mb-3">{plan.name}</h2>
                       <div className="flex items-baseline gap-1 mb-4">
-                        <span className="font-syne font-bold text-[48px] leading-none text-[#6366F1]">{plan.price}€</span>
+                        <span className="font-syne font-bold text-[48px] leading-none text-[#445c49]">{plan.price}€</span>
                         {plan.period && <span className="text-gray-400 text-[14px]">{plan.period}</span>}
                       </div>
                       <p className="text-[13px] text-gray-400 leading-relaxed mb-7 flex-none">{plan.desc}</p>
                       <Link
                         href={plan.ctaHref}
-                        className="w-full flex items-center justify-center py-3.5 px-4 rounded-xl text-[14px] font-semibold transition-all duration-200 mt-auto bg-[#6366F1] hover:bg-[#4F46E5] text-white hover:shadow-lg hover:shadow-indigo-200"
+                        className="w-full flex items-center justify-center py-3.5 px-4 rounded-xl text-[14px] font-semibold transition-all duration-200 mt-auto bg-[#445c49] hover:bg-[#445c49] text-white hover:shadow-lg hover:shadow-wellbeing-green-light"
                       >
                         {plan.cta}
                       </Link>
@@ -175,9 +175,9 @@ export default function PreisePage() {
                 ) : (
                   <div className="relative rounded-2xl bg-white border border-gray-200 p-8 flex flex-col h-full shadow-sm hover:border-gray-300 hover:shadow-md hover:-translate-y-1 transition-all duration-300">
                     <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">{plan.tag}</p>
-                    <h2 className="font-syne font-bold text-[22px] text-[#0F1117] mb-3">{plan.name}</h2>
+                    <h2 className="font-syne font-bold text-[22px] text-[#445c49] mb-3">{plan.name}</h2>
                     <div className="flex items-baseline gap-1 mb-4">
-                      <span className="font-syne font-bold text-[48px] leading-none text-[#0F1117]">{plan.price}€</span>
+                      <span className="font-syne font-bold text-[48px] leading-none text-[#445c49]">{plan.price}€</span>
                       {plan.period && <span className="text-gray-400 text-[14px]">{plan.period}</span>}
                     </div>
                     <p className="text-[13px] text-gray-400 leading-relaxed mb-7 flex-none">{plan.desc}</p>
@@ -205,7 +205,7 @@ export default function PreisePage() {
       <section className="py-20 bg-[#F8F9FA]">
         <div className="max-w-5xl mx-auto px-5">
           <AnimateOnScroll type="blur-in">
-            <h2 className="font-syne font-bold text-[28px] md:text-[36px] text-[#0F1117] text-center mb-12">
+            <h2 className="font-syne font-bold text-[28px] md:text-[36px] text-[#445c49] text-center mb-12">
               Was ist in jedem Plan enthalten?
             </h2>
           </AnimateOnScroll>
@@ -218,12 +218,12 @@ export default function PreisePage() {
                 {plans.map((plan) => (
                   <div
                     key={plan.name}
-                    className={`px-4 py-4 text-center ${plan.highlight ? 'bg-[#6366F1]' : ''}`}
+                    className={`px-4 py-4 text-center ${plan.highlight ? 'bg-[#445c49]' : ''}`}
                   >
                     <p className={`font-syne font-bold text-[14px] ${plan.highlight ? 'text-white' : 'text-gray-800'}`}>
                       {plan.name}
                     </p>
-                    <p className={`text-[12px] mt-0.5 ${plan.highlight ? 'text-indigo-200' : 'text-gray-400'}`}>
+                    <p className={`text-[12px] mt-0.5 ${plan.highlight ? 'text-wellbeing-green-light' : 'text-gray-400'}`}>
                       {plan.price}€{plan.period ?? ''}
                     </p>
                   </div>
@@ -245,7 +245,7 @@ export default function PreisePage() {
                   <div className="px-4 py-3.5 flex items-center justify-center">
                     <Cell value={row.free} />
                   </div>
-                  <div className="px-4 py-3.5 flex items-center justify-center bg-indigo-50/20">
+                  <div className="px-4 py-3.5 flex items-center justify-center bg-wellbeing-cream/20">
                     <Cell value={row.pro} highlight />
                   </div>
                   <div className="px-4 py-3.5 flex items-center justify-center">
@@ -258,12 +258,12 @@ export default function PreisePage() {
               <div className="grid grid-cols-4 border-t border-gray-100">
                 <div className="px-5 py-4" />
                 {plans.map((plan) => (
-                  <div key={plan.name} className={`px-4 py-4 flex justify-center ${plan.highlight ? 'bg-indigo-50/30' : ''}`}>
+                  <div key={plan.name} className={`px-4 py-4 flex justify-center ${plan.highlight ? 'bg-wellbeing-cream/30' : ''}`}>
                     <Link
                       href={plan.ctaHref}
                       className={`text-[12px] font-semibold transition-colors ${
                         plan.highlight
-                          ? 'text-[#6366F1] hover:text-indigo-800'
+                          ? 'text-[#445c49] hover:text-wellbeing-green-dark'
                           : 'text-gray-500 hover:text-gray-800'
                       }`}
                     >
@@ -281,7 +281,7 @@ export default function PreisePage() {
       <section className="py-20 bg-white">
         <div className="max-w-2xl mx-auto px-5">
           <AnimateOnScroll type="blur-in">
-            <h2 className="font-syne font-bold text-[28px] md:text-[36px] text-[#0F1117] text-center mb-12">
+            <h2 className="font-syne font-bold text-[28px] md:text-[36px] text-[#445c49] text-center mb-12">
               Häufige Fragen zu den Preisen
             </h2>
           </AnimateOnScroll>
@@ -289,11 +289,11 @@ export default function PreisePage() {
             {faqs.map((faq, i) => (
               <AnimateOnScroll key={i} delay={i * 50} type="fade-up">
                 <details className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-colors">
-                  <summary className="flex items-center justify-between px-6 py-4 cursor-pointer list-none text-[15px] font-medium text-gray-900 group-open:text-[#6366F1] transition-colors select-none">
+                  <summary className="flex items-center justify-between px-6 py-4 cursor-pointer list-none text-[15px] font-medium text-gray-900 group-open:text-[#445c49] transition-colors select-none">
                     <span>{faq.q}</span>
-                    <span className="ml-4 shrink-0 w-5 h-5 rounded-full bg-gray-100 group-open:bg-indigo-50 flex items-center justify-center transition-colors">
+                    <span className="ml-4 shrink-0 w-5 h-5 rounded-full bg-gray-100 group-open:bg-wellbeing-cream flex items-center justify-center transition-colors">
                       <span className="text-gray-500 group-open:hidden text-[14px] leading-none font-semibold">+</span>
-                      <span className="text-[#6366F1] hidden group-open:block text-[14px] leading-none font-semibold">−</span>
+                      <span className="text-[#445c49] hidden group-open:block text-[14px] leading-none font-semibold">−</span>
                     </span>
                   </summary>
                   <div className="px-6 pb-5 border-t border-gray-100">
@@ -307,7 +307,7 @@ export default function PreisePage() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 bg-[#0F1117]">
+      <section className="py-24 bg-[#445c49]">
         <div className="max-w-3xl mx-auto px-5 text-center">
           <AnimateOnScroll type="blur-in">
             <h2 className="font-syne font-bold text-[32px] md:text-[48px] text-white mb-4 leading-[1.1]">
@@ -318,7 +318,7 @@ export default function PreisePage() {
             </p>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-[15px] font-bold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-indigo-500/30 hover:-translate-y-1"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-bold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-wellbeing-green/30 hover:-translate-y-1"
             >
               Jetzt kostenlos starten →
             </Link>

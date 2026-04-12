@@ -7,13 +7,13 @@ import { Search, LayoutGrid, List, ExternalLink } from 'lucide-react'
 import type { Partner } from '@/lib/supabase/types'
 
 const modellBadge: Record<string, string> = {
-  Prozent:     'bg-indigo-50 text-indigo-700',
+  Prozent:     'bg-wellbeing-cream text-wellbeing-green-dark',
   Fix:         'bg-emerald-50 text-emerald-700',
   Individuell: 'bg-gray-100 text-gray-600',
 }
 
 const avatarFarben = [
-  'bg-indigo-500', 'bg-violet-500', 'bg-blue-500',
+  'bg-wellbeing-green', 'bg-violet-500', 'bg-blue-500',
   'bg-emerald-500', 'bg-rose-500', 'bg-amber-500',
 ]
 function avatarFarbe(name: string) { return avatarFarben[name.charCodeAt(0) % avatarFarben.length] }
@@ -51,15 +51,15 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input type="text" placeholder="Partner suchen…" value={suche}
             onChange={(e) => setSuche(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition" />
+            className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition" />
         </div>
         <span className="text-sm text-gray-400">{gefiltert.length} {gefiltert.length === 1 ? 'Eintrag' : 'Einträge'}</span>
         <div className="ml-auto flex items-center border border-gray-200 rounded-lg overflow-hidden">
           <button onClick={() => toggleAnsicht('grid')} title="Kachelansicht"
-            className={`px-3 py-2 transition-colors ${ansicht === 'grid' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-3 py-2 transition-colors ${ansicht === 'grid' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
             <LayoutGrid className="w-4 h-4" /></button>
           <button onClick={() => toggleAnsicht('list')} title="Listenansicht"
-            className={`px-3 py-2 border-l border-gray-200 transition-colors ${ansicht === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+            className={`px-3 py-2 border-l border-gray-200 transition-colors ${ansicht === 'list' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
             <List className="w-4 h-4" /></button>
         </div>
       </div>
@@ -86,7 +86,7 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors truncate">{p.name}</p>
+                    <p className="font-bold text-gray-900 group-hover:text-wellbeing-green transition-colors truncate">{p.name}</p>
                     {p.ansprechpartner && <p className="text-xs text-gray-500 truncate mt-0.5">{p.ansprechpartner}</p>}
                   </div>
                 </div>
@@ -107,12 +107,12 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
                 {p.website ? (
                   <a href={p.website} target="_blank" rel="noopener noreferrer"
                     onClick={(e) => e.preventDefault()}
-                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 transition-colors">
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-wellbeing-green transition-colors">
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span className="truncate max-w-[140px]">{p.website.replace(/^https?:\/\/(www\.)?/, '')}</span>
                   </a>
                 ) : <span />}
-                <span className="text-xs font-medium text-gray-400 group-hover:text-indigo-600 transition-colors">
+                <span className="text-xs font-medium text-gray-400 group-hover:text-wellbeing-green transition-colors">
                   Öffnen →
                 </span>
               </div>
@@ -149,7 +149,7 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
                           {initials(p.name)}
                         </div>
                       )}
-                      <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{p.name}</span>
+                      <span className="font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors">{p.name}</span>
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-center text-gray-500">{p.ansprechpartner ?? '–'}</td>
@@ -169,13 +169,13 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
                   </td>
                   <td className="px-5 py-3.5 text-center">
                     {p.website ? (
-                      <a href={p.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 transition-colors">
+                      <a href={p.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-wellbeing-green transition-colors">
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                     ) : <span className="text-gray-300">–</span>}
                   </td>
                   <td className="px-4 py-3.5">
-                    <Link href={`/dashboard/partner/${p.id}`} className="text-xs text-gray-300 group-hover:text-indigo-600 transition-colors opacity-0 group-hover:opacity-100">Öffnen →</Link>
+                    <Link href={`/dashboard/partner/${p.id}`} className="text-xs text-gray-300 group-hover:text-wellbeing-green transition-colors opacity-0 group-hover:opacity-100">Öffnen →</Link>
                   </td>
                 </tr>
               ))}

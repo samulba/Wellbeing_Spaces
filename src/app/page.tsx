@@ -14,20 +14,20 @@ import FinalCTA     from '@/components/landing/FinalCTA'
 import Footer       from '@/components/landing/Footer'
 
 export const metadata: Metadata = {
-  title: 'WBC Studio – Projektmanagement Software für Interior Designer',
+  title: 'Wellbeing Spaces – Projektmanagement Software für Interior Designer',
   description:
-    'WBC Studio ist die einfache Alternative zu Houzz Pro und Mydoma. Produktlisten, Preiskalkulation und Kundenfreigabe per Link – speziell für Interior Designer und kleine Design Studios.',
+    'Wellbeing Spaces ist die einfache Alternative zu Houzz Pro und Mydoma. Produktlisten, Preiskalkulation und Kundenfreigabe per Link – speziell für Interior Designer und kleine Design Studios.',
   keywords:
     'interior design project management software, Houzz Pro Alternative, Produktliste Software Interior Designer, Kundenfreigabe Interior Design, interior design software Deutschland, Raumplanung Projektmanagement Tool',
   alternates: {
     canonical: 'https://wbc-studio.vercel.app',
   },
   openGraph: {
-    title: 'WBC Studio – Projektmanagement Software für Interior Designer',
+    title: 'Wellbeing Spaces – Projektmanagement Software für Interior Designer',
     description:
-      'WBC Studio ist die einfache Alternative zu Houzz Pro und Mydoma. Produktlisten, Preiskalkulation und Kundenfreigabe per Link – speziell für Interior Designer und kleine Design Studios.',
+      'Wellbeing Spaces ist die einfache Alternative zu Houzz Pro und Mydoma. Produktlisten, Preiskalkulation und Kundenfreigabe per Link – speziell für Interior Designer und kleine Design Studios.',
     type: 'website',
-    siteName: 'WBC Studio',
+    siteName: 'Wellbeing Spaces',
   },
 }
 

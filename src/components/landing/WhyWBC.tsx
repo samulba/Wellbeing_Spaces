@@ -48,10 +48,10 @@ const advantages = [
 
 export default function WhyWBC() {
   return (
-    <section id="warum-wbc" className="bg-[#0F1117] py-28 relative overflow-hidden">
+    <section id="warum-wbc" className="bg-[#445c49] py-28 relative overflow-hidden">
 
       {/* Background glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-indigo-600/10 blur-[130px] rounded-full pointer-events-none" aria-hidden />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-wellbeing-green/10 blur-[130px] rounded-full pointer-events-none" aria-hidden />
       <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-violet-800/10 blur-[100px] rounded-full pointer-events-none" aria-hidden />
 
       {/* Dot grid */}
@@ -69,8 +69,8 @@ export default function WhyWBC() {
         {/* Header */}
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-16">
-            <p className="text-[11px] font-bold text-indigo-400 uppercase tracking-[0.2em] mb-3">
-              Warum WBC Studio
+            <p className="text-[11px] font-bold text-wellbeing-green-light uppercase tracking-[0.2em] mb-3">
+              Warum Wellbeing Spaces
             </p>
             <h2 className="font-syne font-bold text-[36px] md:text-[52px] text-white mb-4 leading-[1.1]">
               Alles was zählt –<br className="hidden md:block" /> nichts was ablenkt.
@@ -89,15 +89,15 @@ export default function WhyWBC() {
               <div
                 className={`group relative rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1.5 h-full flex flex-col ${
                   adv.highlight
-                    ? 'bg-[#6366F1]/20 border-[#6366F1]/40 hover:border-[#6366F1]/70 hover:bg-[#6366F1]/25'
+                    ? 'bg-[#445c49]/20 border-[#445c49]/40 hover:border-[#445c49]/70 hover:bg-[#445c49]/25'
                     : 'bg-white/[0.03] border-white/[0.08] hover:border-white/20 hover:bg-white/[0.06]'
                 }`}
               >
                 {/* Icon */}
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${
-                  adv.highlight ? 'bg-indigo-400/20' : 'bg-white/[0.06]'
+                  adv.highlight ? 'bg-wellbeing-green-light/20' : 'bg-white/[0.06]'
                 }`}>
-                  <adv.icon className={`w-5 h-5 ${adv.highlight ? 'text-indigo-300' : 'text-white/40'}`} />
+                  <adv.icon className={`w-5 h-5 ${adv.highlight ? 'text-wellbeing-green-light' : 'text-white/40'}`} />
                 </div>
 
                 {/* Big value */}
@@ -108,7 +108,7 @@ export default function WhyWBC() {
                     {adv.big}
                   </span>
                   {' '}
-                  <span className={`text-[13px] font-semibold ${adv.highlight ? 'text-indigo-300' : 'text-white/40'}`}>
+                  <span className={`text-[13px] font-semibold ${adv.highlight ? 'text-wellbeing-green-light' : 'text-white/40'}`}>
                     {adv.label}
                   </span>
                 </div>
@@ -138,7 +138,7 @@ export default function WhyWBC() {
             ))}
 
             <div className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl">
-              <span className="text-[13px] font-bold text-emerald-400">WBC Studio</span>
+              <span className="text-[13px] font-bold text-emerald-400">Wellbeing Spaces</span>
               <span className="text-[11px] font-semibold text-emerald-500/80">kostenlos starten</span>
             </div>
           </div>

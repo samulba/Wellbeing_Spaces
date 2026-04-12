@@ -4,8 +4,8 @@ import Nav from '@/components/landing/Nav'
 import Footer from '@/components/landing/Footer'
 
 export const metadata: Metadata = {
-  title: 'Impressum – WBC Studio',
-  description: 'Impressum von WBC Studio gemäß § 5 TMG.',
+  title: 'Impressum – Wellbeing Spaces',
+  description: 'Impressum von Wellbeing Spaces gemäß § 5 TMG.',
 }
 
 export default function ImpressumPage() {
@@ -14,7 +14,7 @@ export default function ImpressumPage() {
       <Nav />
 
       <main className="max-w-3xl mx-auto px-5 pt-36 pb-24">
-        <h1 className="font-syne font-bold text-[36px] md:text-[48px] text-[#0F1117] mb-3 leading-tight">
+        <h1 className="font-syne font-bold text-[36px] md:text-[48px] text-[#445c49] mb-3 leading-tight">
           Impressum
         </h1>
         <p className="text-gray-400 text-[14px] mb-12">Angaben gemäß § 5 TMG</p>
@@ -22,7 +22,7 @@ export default function ImpressumPage() {
         <div className="space-y-10 text-[15px] text-gray-600 leading-relaxed">
 
           <section>
-            <h2 className="font-syne font-bold text-[18px] text-[#0F1117] mb-4 pb-3 border-b border-gray-100">
+            <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
               Betreiber
             </h2>
             <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 text-[14px] space-y-1">
@@ -34,15 +34,15 @@ export default function ImpressumPage() {
           </section>
 
           <section>
-            <h2 className="font-syne font-bold text-[18px] text-[#0F1117] mb-4 pb-3 border-b border-gray-100">
+            <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
               Kontakt
             </h2>
-            <p>E-Mail: <a href="mailto:kontakt@wellbeing-concepts.de" className="text-[#6366F1] hover:underline">[kontakt@wellbeing-concepts.de]</a></p>
+            <p>E-Mail: <a href="mailto:kontakt@wellbeing-concepts.de" className="text-[#445c49] hover:underline">[kontakt@wellbeing-concepts.de]</a></p>
             <p className="mt-1">Telefon: [+49 xxx xxx xxxx]</p>
           </section>
 
           <section>
-            <h2 className="font-syne font-bold text-[18px] text-[#0F1117] mb-4 pb-3 border-b border-gray-100">
+            <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
               Umsatzsteuer-Identifikationsnummer
             </h2>
             <p>
@@ -52,14 +52,14 @@ export default function ImpressumPage() {
           </section>
 
           <section>
-            <h2 className="font-syne font-bold text-[18px] text-[#0F1117] mb-4 pb-3 border-b border-gray-100">
+            <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
               Verantwortlich für den Inhalt (§ 55 Abs. 2 RStV)
             </h2>
             <p>[Vorname Nachname]<br />[Adresse wie oben]</p>
           </section>
 
           <section>
-            <h2 className="font-syne font-bold text-[18px] text-[#0F1117] mb-4 pb-3 border-b border-gray-100">
+            <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
               Haftungsausschluss
             </h2>
             <div className="space-y-4">
@@ -95,12 +95,12 @@ export default function ImpressumPage() {
           </section>
 
           <section>
-            <h2 className="font-syne font-bold text-[18px] text-[#0F1117] mb-4 pb-3 border-b border-gray-100">
+            <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
               Streitschlichtung
             </h2>
             <p className="text-[14px]">
               Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:
-              {' '}<a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="text-[#6366F1] hover:underline">
+              {' '}<a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="text-[#445c49] hover:underline">
                 https://ec.europa.eu/consumers/odr
               </a>.
               Unsere E-Mail-Adresse finden Sie oben im Impressum. Wir sind nicht bereit oder

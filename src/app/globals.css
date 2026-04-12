@@ -38,7 +38,7 @@ body {
     animation: fadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   .gradient-text {
-    background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #6366F1 100%);
+    background: linear-gradient(135deg, #445c49 0%, #8B5CF6 50%, #445c49 100%);
     background-size: 200% 100%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -140,7 +140,7 @@ body {
 
   select:focus {
     border-color: transparent;
-    box-shadow: 0 0 0 2px #6366F1;
+    box-shadow: 0 0 0 2px #445c49;
     outline: none;
   }
 

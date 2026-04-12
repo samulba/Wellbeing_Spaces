@@ -4,16 +4,16 @@ import Nav from '@/components/landing/Nav'
 import Footer from '@/components/landing/Footer'
 
 export const metadata: Metadata = {
-  title: 'AGB – WBC Studio',
-  description: 'Allgemeine Geschäftsbedingungen von WBC Studio.',
+  title: 'AGB – Wellbeing Spaces',
+  description: 'Allgemeine Geschäftsbedingungen von Wellbeing Spaces.',
 }
 
 const sections = [
   {
     title: '§ 1 Geltungsbereich',
     content: [
-      'Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Verträge zwischen Wellbeing Concepts (nachfolgend „Anbieter") und den Nutzern der Software WBC Studio (nachfolgend „Nutzer").',
-      'WBC Studio ist eine webbasierte Software-as-a-Service (SaaS)-Lösung für das Projektmanagement von Interior Designern und Design Studios. Der Dienst wird ausschließlich an Unternehmer im Sinne des § 14 BGB erbracht.',
+      'Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Verträge zwischen Wellbeing Concepts (nachfolgend „Anbieter") und den Nutzern der Software Wellbeing Spaces (nachfolgend „Nutzer").',
+      'Wellbeing Spaces ist eine webbasierte Software-as-a-Service (SaaS)-Lösung für das Projektmanagement von Interior Designern und Design Studios. Der Dienst wird ausschließlich an Unternehmer im Sinne des § 14 BGB erbracht.',
     ],
   },
   {
@@ -26,7 +26,7 @@ const sections = [
   {
     title: '§ 3 Leistungsumfang',
     content: [
-      'Der Anbieter stellt dem Nutzer WBC Studio in der jeweils gebuchten Planversion zur Verfügung. Der Leistungsumfang richtet sich nach der zum Zeitpunkt des Vertragsschlusses aktuellen Leistungsbeschreibung auf der Website.',
+      'Der Anbieter stellt dem Nutzer Wellbeing Spaces in der jeweils gebuchten Planversion zur Verfügung. Der Leistungsumfang richtet sich nach der zum Zeitpunkt des Vertragsschlusses aktuellen Leistungsbeschreibung auf der Website.',
       'Der Anbieter ist berechtigt, den Funktionsumfang der Software weiterzuentwickeln, zu ändern oder zu erweitern, solange die vertraglich vereinbarten Kernfunktionen erhalten bleiben.',
       'Der Anbieter strebt eine Verfügbarkeit von 99 % im Jahresmittel an. Hiervon ausgenommen sind Wartungsarbeiten, die nach Möglichkeit außerhalb der Hauptnutzungszeiten durchgeführt werden.',
     ],
@@ -34,7 +34,7 @@ const sections = [
   {
     title: '§ 4 Kostenloser Plan und kostenpflichtige Pläne',
     content: [
-      'WBC Studio ist in einem dauerhaft kostenlosen Plan (Free) sowie kostenpflichtigen Plänen (Pro, Team) erhältlich. Der Funktionsumfang der jeweiligen Pläne ist auf der Preisseite beschrieben.',
+      'Wellbeing Spaces ist in einem dauerhaft kostenlosen Plan (Free) sowie kostenpflichtigen Plänen (Pro, Team) erhältlich. Der Funktionsumfang der jeweiligen Pläne ist auf der Preisseite beschrieben.',
       'Kostenpflichtige Pläne werden monatlich im Voraus in Rechnung gestellt. Die Abrechnung erfolgt zum jeweiligen Verlängerungsdatum.',
       'Alle Preise verstehen sich zzgl. der gesetzlichen Mehrwertsteuer.',
     ],
@@ -51,7 +51,7 @@ const sections = [
   {
     title: '§ 6 Nutzungsrechte',
     content: [
-      'Der Anbieter räumt dem Nutzer für die Laufzeit des Vertrages ein einfaches, nicht übertragbares Recht zur Nutzung von WBC Studio ein.',
+      'Der Anbieter räumt dem Nutzer für die Laufzeit des Vertrages ein einfaches, nicht übertragbares Recht zur Nutzung von Wellbeing Spaces ein.',
       'Der Nutzer ist nicht berechtigt, die Software zu vervielfältigen, zu verbreiten, zu verkaufen, weiterzulizenzieren oder in anderer Weise Dritten zur Verfügung zu stellen.',
       'Reverse Engineering, Dekompilierung oder Disassemblierung der Software ist nicht gestattet, soweit dies nicht durch zwingendes Recht gestattet ist.',
     ],
@@ -103,7 +103,7 @@ export default function AgbPage() {
       <Nav />
 
       <main className="max-w-3xl mx-auto px-5 pt-36 pb-24">
-        <h1 className="font-syne font-bold text-[36px] md:text-[48px] text-[#0F1117] mb-3 leading-tight">
+        <h1 className="font-syne font-bold text-[36px] md:text-[48px] text-[#445c49] mb-3 leading-tight">
           Allgemeine Geschäftsbedingungen
         </h1>
         <p className="text-gray-400 text-[14px] mb-12">
@@ -113,7 +113,7 @@ export default function AgbPage() {
         <div className="space-y-10">
           {sections.map((s) => (
             <section key={s.title}>
-              <h2 className="font-syne font-bold text-[18px] text-[#0F1117] mb-4 pb-3 border-b border-gray-100">
+              <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
                 {s.title}
               </h2>
               <div className="space-y-3">

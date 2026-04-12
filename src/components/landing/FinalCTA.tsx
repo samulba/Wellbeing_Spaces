@@ -5,10 +5,10 @@ import Link from 'next/link'
 
 export default function FinalCTA() {
   return (
-    <section className="bg-[#0F1117] py-32 relative overflow-hidden">
+    <section className="bg-[#445c49] py-32 relative overflow-hidden">
       {/* Glow orb center */}
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-wellbeing-green/20 blur-[120px] rounded-full pointer-events-none"
         aria-hidden
       />
 
@@ -21,7 +21,7 @@ export default function FinalCTA() {
       ].map((sq, i) => (
         <div
           key={i}
-          className="absolute border border-indigo-400 rounded-2xl pointer-events-none"
+          className="absolute border border-wellbeing-green-light rounded-2xl pointer-events-none"
           style={{
             width: sq.size, height: sq.size,
             top: sq.top,
@@ -45,7 +45,7 @@ export default function FinalCTA() {
 
       <div className="relative z-10 max-w-3xl mx-auto px-5 text-center">
         <AnimateOnScroll type="blur-in">
-          <p className="text-[11px] font-bold text-indigo-400 uppercase tracking-[0.2em] mb-5">
+          <p className="text-[11px] font-bold text-wellbeing-green-light uppercase tracking-[0.2em] mb-5">
             Jetzt loslegen
           </p>
           <h2 className="font-syne font-bold text-[36px] md:text-[60px] text-white mb-5 leading-[1.06]">
@@ -61,7 +61,7 @@ export default function FinalCTA() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-[15px] font-bold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-indigo-500/30 hover:-translate-y-1 w-full sm:w-auto justify-center"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-bold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-wellbeing-green/30 hover:-translate-y-1 w-full sm:w-auto justify-center"
             >
               Jetzt kostenlos starten →
             </Link>

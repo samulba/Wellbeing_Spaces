@@ -25,7 +25,7 @@ function formatSize(bytes: number): string {
 }
 
 function DateiIcon({ typ }: { typ: string }) {
-  if (typ.startsWith('image/')) return <FileImage className="w-4 h-4 text-indigo-400 shrink-0" />
+  if (typ.startsWith('image/')) return <FileImage className="w-4 h-4 text-wellbeing-green-light shrink-0" />
   return <File className="w-4 h-4 text-gray-400 shrink-0" />
 }
 
@@ -118,8 +118,8 @@ export default function DateiUpload({ projektId, initialDateien }: Props) {
       <div
         className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all duration-150 ${
           dragOver
-            ? 'border-indigo-400 bg-indigo-50'
-            : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
+            ? 'border-wellbeing-green-light bg-wellbeing-cream'
+            : 'border-gray-200 hover:border-wellbeing-green-light hover:bg-gray-50'
         }`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
@@ -127,7 +127,7 @@ export default function DateiUpload({ projektId, initialDateien }: Props) {
         onClick={() => !uploading && inputRef.current?.click()}
       >
         {uploading ? (
-          <div className="flex items-center justify-center gap-2 text-indigo-600 py-1">
+          <div className="flex items-center justify-center gap-2 text-wellbeing-green py-1">
             <Loader2 className="w-4 h-4 animate-spin" />
             <span className="text-sm">Wird hochgeladen…</span>
           </div>
@@ -136,7 +136,7 @@ export default function DateiUpload({ projektId, initialDateien }: Props) {
             <Upload className="w-5 h-5 text-gray-300 mx-auto mb-2" />
             <p className="text-sm text-gray-500">
               Hierher ziehen oder{' '}
-              <span className="text-indigo-600 font-medium">klicken</span>
+              <span className="text-wellbeing-green font-medium">klicken</span>
             </p>
             <p className="text-xs text-gray-400 mt-1">JPG · PNG · PDF · max. 10 MB</p>
           </>
@@ -176,7 +176,7 @@ export default function DateiUpload({ projektId, initialDateien }: Props) {
                 href={datei.datei_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-300 hover:text-indigo-500 transition-colors shrink-0"
+                className="text-gray-300 hover:text-wellbeing-green transition-colors shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
                 <ExternalLink className="w-3.5 h-3.5" />

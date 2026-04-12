@@ -23,7 +23,7 @@ export default async function BibliothekNeuesProduktPage() {
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
       <div className="mb-8">
         <nav className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
-          <Link href="/dashboard/produkte" className="hover:text-indigo-600 transition-colors">
+          <Link href="/dashboard/produkte" className="hover:text-wellbeing-green transition-colors">
             Produkte
           </Link>
           <ChevronRight className="w-3 h-3" />

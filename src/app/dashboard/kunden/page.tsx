@@ -40,7 +40,7 @@ export default async function KundenPage() {
         </div>
         <Link
           href="/dashboard/kunden/neu"
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-sm font-medium rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" />
           Neuer Kunde
@@ -49,8 +49,8 @@ export default async function KundenPage() {
 
       {kunden.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center">
-            <Users className="w-7 h-7 text-indigo-400" />
+          <div className="w-14 h-14 rounded-2xl bg-wellbeing-cream flex items-center justify-center">
+            <Users className="w-7 h-7 text-wellbeing-green-light" />
           </div>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-700">Noch keine Kunden angelegt</p>
@@ -58,7 +58,7 @@ export default async function KundenPage() {
           </div>
           <Link
             href="/dashboard/kunden/neu"
-            className="text-sm px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+            className="text-sm px-4 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg font-medium transition-colors"
           >
             + Ersten Kunden anlegen
           </Link>

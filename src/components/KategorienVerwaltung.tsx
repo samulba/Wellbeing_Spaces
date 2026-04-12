@@ -74,9 +74,9 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg bg-white hover:border-indigo-300 hover:bg-indigo-50/40 transition-colors text-sm text-gray-700"
+        className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg bg-white hover:border-wellbeing-green-light hover:bg-wellbeing-cream/40 transition-colors text-sm text-gray-700"
       >
-        <SelectedIcon className="w-4 h-4 text-indigo-500" />
+        <SelectedIcon className="w-4 h-4 text-wellbeing-green" />
         <span className="text-xs text-gray-500">{selected}</span>
         <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
       </button>
@@ -110,8 +110,8 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
                           onClick={() => { onSelect(iconName); setOpen(false) }}
                           className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${
                             aktiv
-                              ? 'bg-indigo-600 text-white ring-2 ring-indigo-300'
-                              : 'bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-600'
+                              ? 'bg-wellbeing-green text-white ring-2 ring-wellbeing-green-light'
+                              : 'bg-gray-100 text-gray-600 hover:bg-wellbeing-cream hover:text-wellbeing-green'
                           }`}
                         >
                           <Icon className="w-4 h-4" />
@@ -134,7 +134,7 @@ function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus()
   return (
     <button type="submit" disabled={pending}
-      className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg transition-colors whitespace-nowrap">
+      className="px-4 py-2 text-sm font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white rounded-lg transition-colors whitespace-nowrap">
       {pending ? '…' : label}
     </button>
   )
@@ -201,14 +201,14 @@ function KategorieKarte({ rawItem, schluessel, mitPruefung }: {
 
   if (editMode) {
     return (
-      <div className="bg-white border border-indigo-200 rounded-xl px-3.5 py-3 space-y-2.5">
+      <div className="bg-white border border-wellbeing-green-light rounded-xl px-3.5 py-3 space-y-2.5">
         <div className="flex items-center gap-2">
           <IconPicker selected={editIcon} onSelect={setEditIcon} />
           <input
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') cancelEdit() }}
-            className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light"
             autoFocus
           />
         </div>
@@ -219,7 +219,7 @@ function KategorieKarte({ rawItem, schluessel, mitPruefung }: {
             Abbrechen
           </button>
           <button type="button" onClick={handleSave} disabled={isPending}
-            className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
+            className="text-xs px-3 py-1.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg font-medium transition-colors disabled:opacity-50">
             {isPending ? '…' : 'Speichern'}
           </button>
         </div>
@@ -230,15 +230,15 @@ function KategorieKarte({ rawItem, schluessel, mitPruefung }: {
   return (
     <div>
       <div className={`flex items-center gap-3 bg-white border rounded-xl px-3.5 py-3 hover:border-gray-300 hover:shadow-sm transition-all ${fehler ? 'border-red-200' : 'border-gray-200'}`}>
-        <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
-          <Icon className="w-[18px] h-[18px] text-indigo-500" />
+        <div className="w-9 h-9 rounded-lg bg-wellbeing-cream flex items-center justify-center shrink-0">
+          <Icon className="w-[18px] h-[18px] text-wellbeing-green" />
         </div>
         <span className="flex-1 text-sm text-gray-800 font-medium truncate">{name}</span>
         {/* Bearbeiten */}
         <button type="button" onClick={() => { setEditMode(true); setFehler(null) }}
           disabled={isPending}
           title={`„${name}" bearbeiten`}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-indigo-500 hover:bg-indigo-50 transition-colors shrink-0">
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-wellbeing-green hover:bg-wellbeing-cream transition-colors shrink-0">
           <Pencil className="w-3.5 h-3.5" />
         </button>
         {/* Löschen */}
@@ -297,7 +297,7 @@ function ListeAbschnitt({ titel, beschreibung, schluessel, items, platzhalter, m
               </>
             )}
             <input name="name" placeholder={platzhalter} required
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light" />
             <SubmitButton label="Hinzufügen" />
           </div>
           <Meldung state={state} />

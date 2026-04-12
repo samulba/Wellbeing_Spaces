@@ -32,9 +32,9 @@ interface Props {
 function Logo() {
   return (
     <svg width="20" height="20" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="10" height="10" rx="2" fill="#6366F1" opacity="0.30" />
-      <rect x="4" y="4" width="10" height="10" rx="2" fill="#6366F1" opacity="0.55" />
-      <rect x="8" y="8" width="10" height="10" rx="2" fill="#6366F1" />
+      <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.30" />
+      <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
+      <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
     </svg>
   )
 }
@@ -119,7 +119,7 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
                 <circle cx="16" cy="16" r="12" fill="none" stroke="#F3F4F6" strokeWidth="4" />
                 <circle
                   cx="16" cy="16" r="12" fill="none"
-                  stroke={alleDone ? '#10B981' : '#6366F1'} strokeWidth="4"
+                  stroke={alleDone ? '#10B981' : '#445c49'} strokeWidth="4"
                   strokeDasharray={`${2 * Math.PI * 12}`}
                   strokeDashoffset={`${2 * Math.PI * 12 * (1 - fortschritt / 100)}`}
                   strokeLinecap="round"
@@ -133,7 +133,7 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
           <div className="h-0.5 bg-gray-100 rounded-full overflow-hidden mb-0">
             <div
               className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${fortschritt}%`, backgroundColor: alleDone ? '#10B981' : '#6366F1' }}
+              style={{ width: `${fortschritt}%`, backgroundColor: alleDone ? '#10B981' : '#445c49' }}
             />
           </div>
         </div>
@@ -274,7 +274,7 @@ function ProduktKarte({
               <span className="text-xs text-gray-500">{produkt.menge} {produkt.einheit}</span>
               {produkt.produkt_url && (
                 <a href={produkt.produkt_url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors">
+                  className="inline-flex items-center gap-1 text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors">
                   <ExternalLink className="w-3 h-3" />
                   Produktlink
                 </a>
@@ -297,7 +297,7 @@ function ProduktKarte({
               {produkt.beschreibung}
             </div>
             {produkt.beschreibung.length > 120 && (
-              <span className="text-xs text-indigo-500 flex items-center gap-0.5 mt-0.5">
+              <span className="text-xs text-wellbeing-green flex items-center gap-0.5 mt-0.5">
                 {detailOffen ? 'Weniger' : 'Mehr'}
                 <ChevronDown className={`w-3 h-3 transition-transform ${detailOffen ? 'rotate-180' : ''}`} />
               </span>
@@ -383,14 +383,14 @@ function ProduktKarte({
                     ? 'z. B. Farbe passt nicht, anderes Modell gewünscht…'
                     : 'z. B. Bitte Alternative in Weiß…'
                 }
-                className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition resize-none"
+                className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none"
               />
             </div>
             <div className="flex gap-2.5">
               <button
                 onClick={() => onSpeichern(aktiveAktion === 'ablehnen' ? 'abgelehnt' : 'ueberarbeitung')}
                 disabled={isPending}
-                className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all active:scale-[0.98]"
+                className="flex-1 py-3.5 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all active:scale-[0.98]"
               >
                 {isPending ? 'Wird gespeichert…' : 'Bestätigen'}
               </button>
@@ -413,7 +413,7 @@ function PreisZeile({ label, wert, hervorheben }: { label: string; wert: string;
   return (
     <div className="text-center">
       <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
-      <p className={`text-sm font-mono font-semibold ${hervorheben ? 'text-indigo-600' : 'text-gray-700'}`}>
+      <p className={`text-sm font-mono font-semibold ${hervorheben ? 'text-wellbeing-green' : 'text-gray-700'}`}>
         {wert}
       </p>
     </div>

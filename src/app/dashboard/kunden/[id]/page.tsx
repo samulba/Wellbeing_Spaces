@@ -62,7 +62,7 @@ export default async function KundeDetailPage({ params }: { params: { id: string
         <div className="flex items-center gap-4">
           <LogoUpload typ="kunde" entityId={kunde.id} initialLogoUrl={kunde.logo_url} name={kunde.name} />
           <div>
-            <Link href="/dashboard/kunden" className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-0.5 inline-block">
+            <Link href="/dashboard/kunden" className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors mb-0.5 inline-block">
               ← Kunden
             </Link>
             <h1 className="text-xl font-semibold text-gray-900">{kunde.name}</h1>
@@ -112,7 +112,7 @@ export default async function KundeDetailPage({ params }: { params: { id: string
               </h2>
               <Link
                 href={`/dashboard/projekte/neu?kunde=${kunde.id}`}
-                className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+                className="inline-flex items-center gap-1 text-xs text-wellbeing-green hover:text-wellbeing-green-dark font-medium transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> Neues Projekt
               </Link>
@@ -129,7 +129,7 @@ export default async function KundeDetailPage({ params }: { params: { id: string
                       href={`/dashboard/projekte/${p.id}`}
                       className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 cursor-pointer transition-colors group"
                     >
-                      <p className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{p.name}</p>
+                      <p className="text-sm font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors">{p.name}</p>
                       <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${projektStatusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
                         {projektStatusLabel[p.status] ?? p.status}
                       </span>
@@ -151,7 +151,7 @@ function InfoZeile({ label, wert, link }: { label: string; wert: string | null; 
     <div>
       <dt className="text-xs text-gray-500 mb-0.5">{label}</dt>
       <dd className="text-sm text-gray-700">
-        {link ? <a href={link} className="hover:text-indigo-600 transition-colors">{wert}</a> : wert}
+        {link ? <a href={link} className="hover:text-wellbeing-green transition-colors">{wert}</a> : wert}
       </dd>
     </div>
   )

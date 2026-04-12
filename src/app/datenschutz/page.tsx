@@ -4,14 +4,14 @@ import Nav from '@/components/landing/Nav'
 import Footer from '@/components/landing/Footer'
 
 export const metadata: Metadata = {
-  title: 'Datenschutzerklärung – WBC Studio',
-  description: 'Datenschutzerklärung von WBC Studio gemäß DSGVO. Informationen zu Datenerhebung, Verarbeitung und Ihren Rechten.',
+  title: 'Datenschutzerklärung – Wellbeing Spaces',
+  description: 'Datenschutzerklärung von Wellbeing Spaces gemäß DSGVO. Informationen zu Datenerhebung, Verarbeitung und Ihren Rechten.',
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-10">
-      <h2 className="font-syne font-bold text-[20px] text-[#0F1117] mb-4 pb-3 border-b border-gray-100">
+      <h2 className="font-syne font-bold text-[20px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
         {title}
       </h2>
       <div className="space-y-3 text-[15px] text-gray-600 leading-relaxed">
@@ -27,7 +27,7 @@ export default function DatenschutzPage() {
       <Nav />
 
       <main className="max-w-3xl mx-auto px-5 pt-36 pb-24">
-        <h1 className="font-syne font-bold text-[36px] md:text-[48px] text-[#0F1117] mb-3 leading-tight">
+        <h1 className="font-syne font-bold text-[36px] md:text-[48px] text-[#445c49] mb-3 leading-tight">
           Datenschutzerklärung
         </h1>
         <p className="text-gray-400 text-[14px] mb-12">Stand: April 2026</p>
@@ -90,7 +90,7 @@ export default function DatenschutzPage() {
 
         <Section title="6. Cookies und lokale Speicherung">
           <p>
-            WBC Studio verwendet funktionale Cookies ausschließlich für die Authentifizierung
+            Wellbeing Spaces verwendet funktionale Cookies ausschließlich für die Authentifizierung
             (Session-Cookies von Supabase Auth). Es werden keine Tracking-Cookies,
             keine Werbe-Cookies und keine Third-Party-Analytics-Dienste eingesetzt.
           </p>

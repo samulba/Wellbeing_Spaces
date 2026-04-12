@@ -33,7 +33,7 @@ function SpeichernButton({ disabled }: { disabled?: boolean }) {
     <button
       type="submit"
       disabled={isDisabled}
-      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+      className="px-5 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
     >
       {pending ? 'Wird gespeichert…' : 'Speichern'}
     </button>
@@ -150,7 +150,7 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
             />
             <button type="button" onClick={handleUrlScrape} disabled={scrapingLoading}
               title="Produktdaten automatisch auslesen"
-              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors disabled:opacity-50">
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs bg-wellbeing-cream border border-wellbeing-green-light text-wellbeing-green rounded-lg hover:bg-wellbeing-cream transition-colors disabled:opacity-50">
               {scrapingLoading
                 ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 : <Zap className="w-3.5 h-3.5" />}
@@ -276,13 +276,13 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
         <div>
           <label className={lbl}>
             Verkaufspreis netto (€)
-            <span className="ml-1.5 text-indigo-500/70 font-normal normal-case">← direkt eingeben möglich</span>
+            <span className="ml-1.5 text-wellbeing-green/70 font-normal normal-case">← direkt eingeben möglich</span>
           </label>
           <input
             type="number" min="0" step="0.01"
             value={vpNetto || ''}
             onChange={(e) => handleVpNettoChange(parseFloat(e.target.value) || 0)}
-            className={`${inpPreis} font-mono font-semibold text-indigo-700`}
+            className={`${inpPreis} font-mono font-semibold text-wellbeing-green-dark`}
             placeholder="0,00"
           />
         </div>
@@ -294,7 +294,7 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
             type="text"
             readOnly
             value={vpNetto > 0 ? eur(vpBrutto) : ''}
-            className={`${inpPreis} font-mono font-semibold text-indigo-700 cursor-default`}
+            className={`${inpPreis} font-mono font-semibold text-wellbeing-green-dark cursor-default`}
             tabIndex={-1}
           />
         </div>
@@ -444,7 +444,7 @@ function KalkulationsZeile({ label, wert, hervorheben }: { label: string; wert: 
   return (
     <div>
       <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-      <p className={`text-sm font-mono font-medium ${hervorheben ? 'text-indigo-600' : 'text-gray-700'}`}>
+      <p className={`text-sm font-mono font-medium ${hervorheben ? 'text-wellbeing-green' : 'text-gray-700'}`}>
         {wert}
       </p>
     </div>
@@ -453,5 +453,5 @@ function KalkulationsZeile({ label, wert, hervorheben }: { label: string; wert: 
 
 // ── Tailwind-Klassen ──────────────────────────────────────────
 const lbl     = 'block text-xs font-medium text-gray-700 mb-1.5'
-const inp     = 'w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition'
-const inpPreis = 'w-full px-3 py-2.5 text-sm bg-indigo-50/40 border border-indigo-100 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition'
+const inp     = 'w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition'
+const inpPreis = 'w-full px-3 py-2.5 text-sm bg-wellbeing-cream/40 border border-wellbeing-cream rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/30 focus:border-wellbeing-green-light transition'

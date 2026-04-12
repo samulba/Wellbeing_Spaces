@@ -66,7 +66,7 @@ function SortableRaumItem({ raum, projektId }: { raum: Raum; projektId: string }
         </button>
 
         <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors truncate">
+          <p className="text-sm font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors truncate">
             {raum.name}
           </p>
           {raum.beschreibung && (
@@ -78,7 +78,7 @@ function SortableRaumItem({ raum, projektId }: { raum: Raum; projektId: string }
       <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-3">
         <Link
           href={`/dashboard/projekte/${projektId}/raeume/${raum.id}`}
-          className="text-xs text-gray-400 hover:text-indigo-600 transition-colors font-medium"
+          className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors font-medium"
         >
           Öffnen →
         </Link>
