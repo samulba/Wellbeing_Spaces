@@ -113,7 +113,7 @@ function DuplizierenModal({
           </div>
 
           <p className="text-xs text-gray-400">
-            Nicht kopiert: Freigabe-Links, Notizen, Dateien. Status wird auf "In Bearbeitung" gesetzt.
+            Nicht kopiert: Freigabe-Links, Notizen, Dateien. Status wird auf &quot;In Bearbeitung&quot; gesetzt.
           </p>
         </div>
 

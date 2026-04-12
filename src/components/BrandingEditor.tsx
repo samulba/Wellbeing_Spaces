@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition, useActionState } from 'react'
+import { useState, useTransition } from 'react'
+import { useFormState } from 'react-dom'
 import Image from 'next/image'
 import { Save, Upload, Eye, EyeOff, RotateCcw } from 'lucide-react'
 import { brandingAktualisieren, brandingLogoHochladen, type BrandingDaten } from '@/app/actions/branding'
@@ -155,7 +156,7 @@ function Vorschau({ branding, logoUrl }: { branding: Partial<Branding>; logoUrl:
 
 // ── Logo-Upload ───────────────────────────────────────────────
 function LogoUpload({ currentUrl, onChange }: { currentUrl: string | null; onChange: (url: string) => void }) {
-  const [state, formAction] = useActionState(brandingLogoHochladen, null)
+  const [state, formAction] = useFormState(brandingLogoHochladen, null)
   const [isPending, startTransition] = useTransition()
 
   if (state?.url && state.url !== currentUrl) {
@@ -406,7 +407,7 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
                 />
               </div>
               <div>
-                <p className="text-sm text-gray-700 font-medium">„Powered by Wellbeing Spaces" anzeigen</p>
+                <p className="text-sm text-gray-700 font-medium">&bdquo;Powered by Wellbeing Spaces&ldquo; anzeigen</p>
                 <p className="text-xs text-gray-400">Footer-Hinweis auf Freigabe- und Onboarding-Seiten</p>
               </div>
             </label>

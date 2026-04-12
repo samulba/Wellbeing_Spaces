@@ -39,8 +39,7 @@ export default async function OnboardingPage({ params }: Props) {
 
 // ── Fehler-Seite ──────────────────────────────────────────────
 function Fehlerseite({ branding }: { branding: Branding | null }) {
-  const bg   = branding?.background_color ?? '#f6ede2'
-  const prim = branding?.primary_color    ?? '#445c49'
+  const bg = branding?.background_color ?? '#f6ede2'
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: bg }}>
       <div className="max-w-sm text-center">
