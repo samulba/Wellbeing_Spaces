@@ -186,22 +186,12 @@ function PinEingabe({ token, projektName, onErfolg }: {
 
 // ── Hauptkomponente ───────────────────────────────────────────
 export default function FreigabeClient({ token, projektName, kundeName, raeume, mwst = MWST_DEFAULT, hatPin = false }: Props) {
-  // PIN-Verifikation: einmalig aus sessionStorage lesen
+  // ── Alle Hooks zuerst (Rules of Hooks) ───────────────────────
   const [pinVerifiziert, setPinVerifiziert] = useState(() => {
     if (!hatPin) return true
     try { return sessionStorage.getItem(SESSION_KEY(token)) === '1' } catch { return false }
   })
 
-  // PIN-Screen anzeigen solange nicht verifiziert
-  if (hatPin && !pinVerifiziert) {
-    return (
-      <PinEingabe
-        token={token}
-        projektName={projektName}
-        onErfolg={() => setPinVerifiziert(true)}
-      />
-    )
-  }
   const [state, setState] = useState<Record<string, ProduktState>>(() => {
     const init: Record<string, ProduktState> = {}
     for (const raum of raeume) {
@@ -218,6 +208,17 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
   })
 
   const [isPending, startTransition] = useTransition()
+
+  // PIN-Screen anzeigen solange nicht verifiziert
+  if (hatPin && !pinVerifiziert) {
+    return (
+      <PinEingabe
+        token={token}
+        projektName={projektName}
+        onErfolg={() => setPinVerifiziert(true)}
+      />
+    )
+  }
 
   const alleProdukteFlach = raeume.flatMap((r) => r.produkte)
   const total             = alleProdukteFlach.length
