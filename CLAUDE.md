@@ -9,7 +9,8 @@ Admin sieht alles (EP/Marge/Provision). Kunde nur Freigabelink `/freigabe/[token
 
 ## DB-Tabellen
 `kunden`, `projekte`, `raeume`, `partner`, `produkte`, `produktstatus`, `freigabe_tokens`, `einstellungen`
-Letzte Migration: 019 (einstellungen Listen-Seed). Migrations in `/supabase/migrations/`.
+Letzte Migration: 021 (produkte bestellstatus). Migrations in `/supabase/migrations/`.
+**einstellungen-Schema (echte DB):** `id` (uuid), `key` (text, unique), `value` (text), `created_at`, `updated_at` — NICHT `schluessel`/`wert`!
 
 ## Regeln
 - Server Actions in `src/app/actions/`. Supabase admin nur serverseitig (`admin.ts`).
@@ -36,6 +37,7 @@ Farbpalette: wellbeing-green (#445c49), wellbeing-green-light (#94c1a4), wellbei
 - S19: Drag & Drop Produkte – SortableProduktTabelle (@dnd-kit), GripVertical Handle links pro Zeile, updateProduktPositionen Action, Migration 018. Fix 2 (ProduktZuweisenModal in Bibliothek) war bereits fertig (S15).
 - S20: Kategorien-Bugs gefixt (Admin-Client + maybeSingle(), Migration 019 Seed). RaumHinzufügen mit Raumtypen-Kacheln (Icons, aufklappbares Panel). ChatGPT-Kontext-Paket in chatgpt_project_context/ erstellt (17 Doku-Dateien, keine bestehenden Dateien verändert).
 - S21: Bestellstatus-Flow (Migration 021, bestellstatus_enum, SortableProduktTabelle mit Select-Dropdown + optimistischem UI). Vollständiges Rebranding WBC Studio → Wellbeing Spaces: tailwind.config.ts wellbeing-Farbpalette, alle indigo-* Klassen → wellbeing-green/light/dark/cream, Hex-Farben ersetzt, Sidebar #0F1117 → #445c49, DepthStackIcon weiße Fills, package.json, CLAUDE.md.
+- S22: Fix einstellungen-Spaltennamen: echte DB hat `key`/`value` statt `schluessel`/`wert` (Migrations-Drift). Alle Supabase-Queries in einstellungen.ts korrigiert.
 
 ## Anweisung
 Am Ende jeder Session den Session-Log mit einem kurzen Eintrag aktualisieren.
