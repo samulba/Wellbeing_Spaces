@@ -79,18 +79,6 @@ function Kb({ keys }: { keys: string[] }) {
   )
 }
 
-function Badge({ children, type = 'default' }: { children: React.ReactNode; type?: 'default' | 'pro' | 'neu' }) {
-  const stile = {
-    default: 'bg-gray-100 text-gray-600',
-    pro:     'bg-wellbeing-green/10 text-wellbeing-green-dark font-semibold',
-    neu:     'bg-blue-100 text-blue-700 font-semibold',
-  }
-  return (
-    <span className={`inline-block px-2 py-0.5 text-[10px] rounded-full ml-1.5 ${stile[type]}`}>
-      {children}
-    </span>
-  )
-}
 
 function H2({ id, children }: { id: string; children: React.ReactNode }) {
   return (
@@ -401,7 +389,7 @@ function ProjekteKapitel() {
       <P>Innerhalb eines Projekts strukturieren Räume die Produkte thematisch. Öffnen Sie das Projekt und klicken Sie auf <strong>+ Raum</strong>.</P>
       <P>Beim Erstellen können Sie einen Raumtyp wählen (z. B. Wohnzimmer, Büro, Küche). Das Icon des Raumtyps erscheint in der Raumkarte. Die Reihenfolge der Räume lässt sich per Drag & Drop ändern – greifen Sie dazu am <strong>⠿ Handle</strong> links der Zeile.</P>
       <InfoBox type="tip" title="Tipp">
-        Benennen Sie Räume präzise (z. B. „EG Büro Süd") um bei größeren Projekten die Übersicht zu behalten.
+        Benennen Sie Räume präzise (z. B. &bdquo;EG Büro Süd&ldquo;) um bei größeren Projekten die Übersicht zu behalten.
       </InfoBox>
 
       <Divider />
@@ -1056,7 +1044,7 @@ export default function HandbuchClient() {
   function toggleKapitel(id: string) {
     setAufgeklappt((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       return next
     })
   }
