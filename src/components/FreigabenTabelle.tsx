@@ -1,10 +1,13 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle2, X } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
+import { CheckCircle2, X, Clock, XCircle, RotateCcw, PieChart as PieIcon, BarChart2, List } from 'lucide-react'
+import {
+  PieChart, Pie, Cell, Label, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts'
 import { freigabeZuruecksetzenAdmin } from '@/app/actions/freigabe'
 
 // ── Typen ─────────────────────────────────────────────────────
@@ -61,49 +64,196 @@ function formatDatum(iso: string) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
-// ── Mini Donut Chart ──────────────────────────────────────────
-function StatusDonut({ eintraege }: { eintraege: FreigabeEintrag[] }) {
-  const counts: Record<string, number> = {}
-  for (const e of eintraege) {
-    const s = e.produktstatus?.status ?? 'ausstehend'
-    counts[s] = (counts[s] ?? 0) + 1
-  }
-  const data = [
-    { status: 'Freigegeben',   key: 'freigegeben',    count: counts.freigegeben    ?? 0 },
-    { status: 'Ausstehend',    key: 'ausstehend',     count: counts.ausstehend     ?? 0 },
-    { status: 'Abgelehnt',     key: 'abgelehnt',      count: counts.abgelehnt      ?? 0 },
-    { status: 'Überarbeitung', key: 'ueberarbeitung', count: counts.ueberarbeitung ?? 0 },
-  ].filter((d) => d.count > 0)
+// ── Chart: Donut-Mitte Label ──────────────────────────────────
+function DonutMitte({ gesamt, viewBox }: { gesamt: number; viewBox?: { cx?: number; cy?: number } }) {
+  const cx = viewBox?.cx ?? 0
+  const cy = viewBox?.cy ?? 0
+  return (
+    <g>
+      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize={20} fontWeight="bold" fill="#111827">
+        {gesamt}
+      </text>
+      <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="hanging" fontSize={9} fill="#9CA3AF">
+        Produkte
+      </text>
+    </g>
+  )
+}
 
-  if (data.length === 0) return null
+// ── Chart: Tooltip ────────────────────────────────────────────
+type BarPayloadItem = { name: string; value: number; color: string }
+function BalkenTooltip({ active, payload, label }: { active?: boolean; payload?: BarPayloadItem[]; label?: string }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-lg">
+      {label && <p className="text-xs font-semibold text-gray-900 mb-1.5">{label}</p>}
+      {payload.map((p, i) => p.value > 0 && (
+        <p key={i} className="text-xs" style={{ color: p.color }}>
+          {p.name}: <span className="font-semibold">{p.value}</span>
+        </p>
+      ))}
+    </div>
+  )
+}
+
+// ── Chart: Haupt-Komponente ───────────────────────────────────
+type ChartView = 'donut' | 'balken' | 'liste'
+
+const LISTE_CFG = [
+  { key: 'freigegeben',    label: 'Freigegeben',   icon: CheckCircle2, farbe: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  { key: 'ausstehend',     label: 'Ausstehend',    icon: Clock,        farbe: '#F59E0B', bg: 'bg-amber-50',   text: 'text-amber-700'   },
+  { key: 'abgelehnt',      label: 'Abgelehnt',     icon: XCircle,      farbe: '#EF4444', bg: 'bg-red-50',     text: 'text-red-600'     },
+  { key: 'ueberarbeitung', label: 'Überarbeitung', icon: RotateCcw,    farbe: '#6366F1', bg: 'bg-indigo-50',  text: 'text-indigo-700'  },
+]
+
+function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
+  const [view, setView] = useState<ChartView>('donut')
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { freigegeben: 0, ausstehend: 0, abgelehnt: 0, ueberarbeitung: 0 }
+    for (const e of eintraege) {
+      const s = e.produktstatus?.status ?? 'ausstehend'
+      if (s in c) c[s]++
+    }
+    return c
+  }, [eintraege])
+
+  const donutData = useMemo(() =>
+    LISTE_CFG
+      .map((cfg) => ({ status: cfg.label, key: cfg.key, count: counts[cfg.key] ?? 0 }))
+      .filter((d) => d.count > 0),
+    [counts]
+  )
+
+  const balkenData = useMemo(() => {
+    const map = new Map<string, { name: string; freigegeben: number; ausstehend: number; abgelehnt: number; ueberarbeitung: number }>()
+    for (const e of eintraege) {
+      const projekt = e.raeume?.projekte
+      if (!projekt) continue
+      if (!map.has(projekt.id)) {
+        const kurz = projekt.name.length > 14 ? projekt.name.slice(0, 14) + '…' : projekt.name
+        map.set(projekt.id, { name: kurz, freigegeben: 0, ausstehend: 0, abgelehnt: 0, ueberarbeitung: 0 })
+      }
+      const s = e.produktstatus?.status ?? 'ausstehend'
+      const entry = map.get(projekt.id)!
+      if (s === 'freigegeben' || s === 'ausstehend' || s === 'abgelehnt' || s === 'ueberarbeitung') entry[s]++
+    }
+    return Array.from(map.values())
+  }, [eintraege])
+
   const gesamt = eintraege.length
 
+  if (gesamt === 0) return null
+
+  const switcher: { key: ChartView; label: string; Icon: React.ElementType }[] = [
+    { key: 'donut',  label: 'Donut',  Icon: PieIcon   },
+    { key: 'balken', label: 'Balken', Icon: BarChart2  },
+    { key: 'liste',  label: 'Liste',  Icon: List       },
+  ]
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-6 flex items-center gap-6">
-      <div className="relative shrink-0" style={{ width: 110, height: 110 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={data} cx="50%" cy="50%" innerRadius={34} outerRadius={50}
-              dataKey="count" paddingAngle={2} startAngle={90} endAngle={-270}>
-              {data.map((entry, i) => (
-                <Cell key={i} fill={STATUS_FARBEN[entry.key] ?? '#9CA3AF'} stroke="none" />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: '#111827', lineHeight: 1 }}>{gesamt}</div>
-          <div style={{ fontSize: '9px', color: '#9CA3AF', marginTop: '2px' }}>Produkte</div>
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-6">
+      {/* Switcher */}
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs text-gray-400 font-medium">{gesamt} Produkte gesamt</p>
+        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+          {switcher.map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setView(key)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                view === key ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-        {data.map((d) => (
-          <div key={d.key} className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: STATUS_FARBEN[d.key] ?? '#9CA3AF' }} />
-            <span className="text-xs text-gray-600">{d.status}</span>
-            <span className="text-xs font-semibold text-gray-900 ml-1">{d.count}</span>
+
+      {/* Views */}
+      <div style={{ minHeight: 180 }}>
+
+        {/* Donut-View */}
+        {view === 'donut' && (
+          <div className="flex items-center gap-8">
+            <div className="shrink-0" style={{ width: 200, height: 200 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={donutData} cx="50%" cy="50%"
+                    innerRadius={58} outerRadius={82}
+                    dataKey="count" paddingAngle={2}
+                    startAngle={90} endAngle={-270}
+                  >
+                    {donutData.map((entry, i) => (
+                      <Cell key={i} fill={STATUS_FARBEN[entry.key] ?? '#9CA3AF'} stroke="none" />
+                    ))}
+                    <Label position="center" content={<DonutMitte gesamt={gesamt} />} />
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="grid grid-cols-2 gap-x-10 gap-y-3.5">
+              {LISTE_CFG.map((cfg) => {
+                const count = counts[cfg.key] ?? 0
+                return (
+                  <div key={cfg.key} className="flex items-center gap-2.5">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cfg.farbe }} />
+                    <span className="text-sm text-gray-600">{cfg.label}</span>
+                    <span className="text-sm font-bold text-gray-900 ml-auto">{count}</span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        ))}
+        )}
+
+        {/* Balken-View */}
+        {view === 'balken' && (
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={balkenData} barCategoryGap="30%" margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+              <Tooltip content={(props) => (
+                <BalkenTooltip
+                  active={props.active}
+                  payload={props.payload as unknown as BarPayloadItem[] | undefined}
+                  label={String(props.label ?? '')}
+                />
+              )} cursor={{ fill: '#F9FAFB' }} />
+              <Bar dataKey="freigegeben"    name="Freigegeben"   stackId="a" fill="#10B981" radius={[0,0,0,0]} />
+              <Bar dataKey="ausstehend"     name="Ausstehend"    stackId="a" fill="#F59E0B" radius={[0,0,0,0]} />
+              <Bar dataKey="abgelehnt"      name="Abgelehnt"     stackId="a" fill="#EF4444" radius={[0,0,0,0]} />
+              <Bar dataKey="ueberarbeitung" name="Überarbeitung" stackId="a" fill="#6366F1" radius={[3,3,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+
+        {/* Liste-View */}
+        {view === 'liste' && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-2">
+            {LISTE_CFG.map((cfg) => {
+              const count = counts[cfg.key] ?? 0
+              const Icon = cfg.icon
+              return (
+                <div key={cfg.key} className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border ${cfg.bg} border-transparent`}>
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-white/60`}>
+                    <Icon className={`w-4.5 h-4.5 ${cfg.text}`} style={{ width: 18, height: 18 }} />
+                  </div>
+                  <div>
+                    <p className={`text-xl font-bold leading-none ${cfg.text}`}>{count}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{cfg.label}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
       </div>
     </div>
   )
@@ -289,8 +439,8 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
 
   return (
     <div>
-      {/* Mini Donut Chart */}
-      <StatusDonut eintraege={eintraege} />
+      {/* Freigabe-Chart */}
+      <FreigabeChart eintraege={eintraege} />
 
       {/* Tabs */}
       <div className="flex items-center gap-0 mb-6 border-b border-gray-200">
