@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Image from 'next/image'
 import { Check, ChevronRight, ChevronLeft, CheckCircle2 } from 'lucide-react'
 import { onboardingAbsenden } from '@/app/actions/onboarding'
-import type { OnboardingVorlage, OnboardingFrage } from '@/lib/supabase/types'
+import type { OnboardingVorlage, OnboardingFrage, Branding } from '@/lib/supabase/types'
 
 // ── Konstanten (Standard-Vorlage) ─────────────────────────────
 const RAUMTYPEN = [
@@ -61,21 +62,26 @@ const TOTAL = SCHRITTE.length
 export default function OnboardingFormular({
   token,
   vorlage,
+  branding,
 }: {
   token: string
   vorlage: OnboardingVorlage | null
+  branding?: Branding | null
 }) {
   // Custom-Vorlage (nicht Standard) → dynamisches Formular
   if (vorlage && !vorlage.ist_standard) {
-    return <DynamischesFormular token={token} vorlage={vorlage} />
+    return <DynamischesFormular token={token} vorlage={vorlage} branding={branding} />
   }
 
   // Standard (4-Schritt) Formular
-  return <StandardFormular token={token} />
+  return <StandardFormular token={token} branding={branding} />
 }
 
 // ── Standard-Formular (4 Schritte) ───────────────────────────
-function StandardFormular({ token }: { token: string }) {
+function StandardFormular({ token, branding }: { token: string; branding?: Branding | null }) {
+  const prim       = branding?.primary_color    ?? '#445c49'
+  const bg         = branding?.background_color ?? '#f6ede2'
+  const firmenname = branding?.firmenname       ?? 'Wellbeing Spaces'
   const [schritt, setSchritt]         = useState(1)
   const [daten, setDaten]             = useState<Daten>(INITIAL)
   const [fehler, setFehler]           = useState<Fehler>({})
@@ -156,22 +162,26 @@ function StandardFormular({ token }: { token: string }) {
     })
   }
 
-  if (erfolg) return <ErfolgScreen />
+  if (erfolg) return <ErfolgScreen branding={branding} />
 
   return (
-    <div className="min-h-screen bg-[#f6ede2] flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: bg }}>
 
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-xl mx-auto flex items-center gap-3">
-          <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
-            <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.30" />
-            <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
-            <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
-          </svg>
+          {branding?.logo_url ? (
+            <Image src={branding.logo_url} alt={firmenname} width={24} height={24} className="rounded object-contain" />
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
+              <rect x="0" y="0" width="10" height="10" rx="2" fill={prim} opacity="0.30" />
+              <rect x="4" y="4" width="10" height="10" rx="2" fill={prim} opacity="0.55" />
+              <rect x="8" y="8" width="10" height="10" rx="2" fill={prim} />
+            </svg>
+          )}
           <div>
             <p className="text-[11px] text-gray-400 leading-none">Projekt-Anfrage</p>
-            <p className="text-sm font-semibold text-[#2d3e31] font-syne leading-tight">Wellbeing Spaces</p>
+            <p className="text-sm font-semibold font-syne leading-tight" style={{ color: prim }}>{firmenname}</p>
           </div>
         </div>
       </header>
@@ -282,7 +292,10 @@ function StandardFormular({ token }: { token: string }) {
 }
 
 // ── Dynamisches Formular (custom Vorlage) ─────────────────────
-function DynamischesFormular({ token, vorlage }: { token: string; vorlage: OnboardingVorlage }) {
+function DynamischesFormular({ token, vorlage, branding }: { token: string; vorlage: OnboardingVorlage; branding?: Branding | null }) {
+  const prim       = branding?.primary_color    ?? '#445c49'
+  const bg         = branding?.background_color ?? '#f6ede2'
+  const firmenname = branding?.firmenname       ?? 'Wellbeing Spaces'
   const [antworten, setAntworten]     = useState<Record<string, unknown>>({})
   const [erfolg, setErfolg]           = useState(false)
   const [fehlerMsg, setFehlerMsg]     = useState<string | null>(null)
@@ -350,20 +363,24 @@ function DynamischesFormular({ token, vorlage }: { token: string; vorlage: Onboa
     })
   }
 
-  if (erfolg) return <ErfolgScreen />
+  if (erfolg) return <ErfolgScreen branding={branding} />
 
   return (
-    <div className="min-h-screen bg-[#f6ede2] flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: bg }}>
       <header className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-xl mx-auto flex items-center gap-3">
+          {branding?.logo_url ? (
+            <Image src={branding.logo_url} alt={firmenname} width={24} height={24} className="rounded object-contain" />
+          ) : (
           <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
-            <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.30" />
-            <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
-            <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
+            <rect x="0" y="0" width="10" height="10" rx="2" fill={prim} opacity="0.30" />
+            <rect x="4" y="4" width="10" height="10" rx="2" fill={prim} opacity="0.55" />
+            <rect x="8" y="8" width="10" height="10" rx="2" fill={prim} />
           </svg>
+          )}
           <div>
             <p className="text-[11px] text-gray-400 leading-none">Projekt-Anfrage · {vorlage.name}</p>
-            <p className="text-sm font-semibold text-[#2d3e31] font-syne leading-tight">Wellbeing Spaces</p>
+            <p className="text-sm font-semibold font-syne leading-tight" style={{ color: prim }}>{firmenname}</p>
           </div>
         </div>
       </header>
@@ -745,18 +762,25 @@ function SchrittStil({
 }
 
 // ── Erfolgsscreen ─────────────────────────────────────────────
-function ErfolgScreen() {
+function ErfolgScreen({ branding }: { branding?: Branding | null }) {
+  const bg   = branding?.background_color ?? '#f6ede2'
+  const prim = branding?.primary_color    ?? '#445c49'
+  const name = branding?.firmenname       ?? 'Wellbeing Spaces'
   return (
-    <div className="min-h-screen bg-[#f6ede2] flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: bg }}>
       <div className="max-w-sm w-full text-center">
-        <svg width="22" height="22" viewBox="0 0 18 18" fill="none" className="mx-auto mb-8">
-          <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.30" />
-          <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
-          <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
-        </svg>
+        {branding?.logo_url ? (
+          <Image src={branding.logo_url} alt={name} width={28} height={28} className="rounded object-contain mx-auto mb-8" />
+        ) : (
+          <svg width="22" height="22" viewBox="0 0 18 18" fill="none" className="mx-auto mb-8">
+            <rect x="0" y="0" width="10" height="10" rx="2" fill={prim} opacity="0.30" />
+            <rect x="4" y="4" width="10" height="10" rx="2" fill={prim} opacity="0.55" />
+            <rect x="8" y="8" width="10" height="10" rx="2" fill={prim} />
+          </svg>
+        )}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-8 py-10">
-          <div className="w-16 h-16 bg-wellbeing-green/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
-            <CheckCircle2 className="w-8 h-8 text-wellbeing-green" />
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ backgroundColor: `${prim}1a` }}>
+            <CheckCircle2 className="w-8 h-8" style={{ color: prim }} />
           </div>
           <h1 className="text-xl font-semibold text-gray-900 mb-2">Anfrage gesendet!</h1>
           <p className="text-sm text-gray-500 leading-relaxed">
@@ -767,6 +791,9 @@ function ErfolgScreen() {
         <p className="text-xs text-gray-400 mt-5">
           Sie können dieses Fenster nun schließen.
         </p>
+        {(branding?.show_powered_by ?? true) && (
+          <p className="text-[10px] text-gray-300 mt-3">Powered by Wellbeing Spaces</p>
+        )}
       </div>
     </div>
   )

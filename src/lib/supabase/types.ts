@@ -189,6 +189,29 @@ export interface OnboardingVorlage {
   updated_at: string
 }
 
+export interface Branding {
+  id: string
+  firmenname: string
+  logo_url: string | null
+  favicon_url: string | null
+  primary_color: string
+  secondary_color: string
+  accent_color: string
+  background_color: string
+  text_color: string
+  font_family: string
+  email: string | null
+  telefon: string | null
+  website: string | null
+  adresse: string | null
+  impressum_text: string | null
+  datenschutz_url: string | null
+  show_powered_by: boolean
+  custom_css: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface OnboardingAnfrage {
   id: string
   token: string

@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getMwstSatz } from '@/app/actions/einstellungen'
+import { brandingFuerToken } from '@/app/actions/branding'
 import FreigabeClient from './FreigabeClient'
 import type { FreigabeRaum, FreigabeProdukt, ProduktStatus } from '@/lib/supabase/types'
 
@@ -106,7 +107,11 @@ export default async function FreigabePage({ params }: Props) {
     return <Fehlerseite meldung="Für dieses Projekt wurden noch keine Produkte hinterlegt." />
   }
 
-  const [kundeName, mwst] = [projekt.kunden?.name ?? null, await getMwstSatz()]
+  const [kundeName, mwst, branding] = await Promise.all([
+    Promise.resolve(projekt.kunden?.name ?? null),
+    getMwstSatz(),
+    brandingFuerToken(),
+  ])
 
   return (
     <FreigabeClient
@@ -116,6 +121,7 @@ export default async function FreigabePage({ params }: Props) {
       raeume={raeume}
       mwst={mwst}
       hatPin={projekt.freigabe_pin != null}
+      branding={branding}
     />
   )
 }

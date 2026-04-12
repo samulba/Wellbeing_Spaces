@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Check, X, RefreshCw, ExternalLink, ChevronDown, Lock } from 'lucide-react'
 import { freigabeStatusAendern } from '@/app/actions/freigabe'
 import { pinPruefen } from '@/app/actions/projekte'
-import type { FreigabeRaum, FreigabeProdukt, ProduktStatus } from '@/lib/supabase/types'
+import type { FreigabeRaum, FreigabeProdukt, ProduktStatus, Branding } from '@/lib/supabase/types'
 
 // ── Konstante (Fallback) ──────────────────────────────────────
 const MWST_DEFAULT = 0.19
@@ -28,6 +28,7 @@ interface Props {
   raeume: FreigabeRaum[]
   mwst?: number
   hatPin?: boolean
+  branding?: Branding | null
 }
 
 // ── DepthStack-Logo ────────────────────────────────────────────
@@ -45,11 +46,18 @@ function Logo() {
 const MAX_VERSUCHE = 3
 const SESSION_KEY = (token: string) => `freigabe_pin_ok_${token}`
 
-function PinEingabe({ token, projektName, onErfolg }: {
+function PinEingabe({ token, projektName, onErfolg, brandingBg, brandingPrim, firmenname, logoUrl }: {
   token: string
   projektName: string
   onErfolg: () => void
+  brandingBg?: string
+  brandingPrim?: string
+  firmenname?: string
+  logoUrl?: string | null
 }) {
+  const bg   = brandingBg   ?? '#f6ede2'
+  const prim = brandingPrim ?? '#445c49'
+  const name = firmenname   ?? 'Wellbeing Spaces'
   const [pin, setPin]           = useState('')
   const [fehler, setFehler]     = useState<string | null>(null)
   const [versuche, setVersuche] = useState(0)
@@ -85,15 +93,19 @@ function PinEingabe({ token, projektName, onErfolg }: {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6ede2] flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ backgroundColor: bg }}>
       {/* Logo */}
       <div className="flex items-center gap-2.5 mb-10">
-        <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
-          <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.30" />
-          <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
-          <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
-        </svg>
-        <span className="font-syne text-base font-bold text-[#2d3e31] tracking-tight">Wellbeing Spaces</span>
+        {logoUrl ? (
+          <Image src={logoUrl} alt={name} width={28} height={28} className="rounded object-contain" />
+        ) : (
+          <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
+            <rect x="0" y="0" width="10" height="10" rx="2" fill={prim} opacity="0.30" />
+            <rect x="4" y="4" width="10" height="10" rx="2" fill={prim} opacity="0.55" />
+            <rect x="8" y="8" width="10" height="10" rx="2" fill={prim} />
+          </svg>
+        )}
+        <span className="font-syne text-base font-bold tracking-tight" style={{ color: prim }}>{name}</span>
       </div>
 
       <div className="w-full max-w-xs">
@@ -155,7 +167,11 @@ function PinEingabe({ token, projektName, onErfolg }: {
 }
 
 // ── Hauptkomponente ───────────────────────────────────────────
-export default function FreigabeClient({ token, projektName, kundeName, raeume, mwst = MWST_DEFAULT, hatPin = false }: Props) {
+export default function FreigabeClient({ token, projektName, kundeName, raeume, mwst = MWST_DEFAULT, hatPin = false, branding }: Props) {
+  const prim       = branding?.primary_color    ?? '#445c49'
+  const bg         = branding?.background_color ?? '#f6ede2'
+  const firmenname = branding?.firmenname       ?? 'Wellbeing Spaces'
+  const fontFamily = branding?.font_family      ?? 'Inter'
   // ── Alle Hooks zuerst (Rules of Hooks) ───────────────────────
   const [pinVerifiziert, setPinVerifiziert] = useState(() => {
     if (!hatPin) return true
@@ -182,11 +198,18 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
   // PIN-Screen anzeigen solange nicht verifiziert
   if (hatPin && !pinVerifiziert) {
     return (
-      <PinEingabe
-        token={token}
-        projektName={projektName}
-        onErfolg={() => setPinVerifiziert(true)}
-      />
+      <div style={{ '--brand-primary': prim, '--brand-bg': bg } as React.CSSProperties}>
+        {branding?.custom_css && <style>{branding.custom_css}</style>}
+        <PinEingabe
+          token={token}
+          projektName={projektName}
+          onErfolg={() => setPinVerifiziert(true)}
+          brandingBg={bg}
+          brandingPrim={prim}
+          firmenname={firmenname}
+          logoUrl={branding?.logo_url ?? null}
+        />
+      </div>
     )
   }
 
@@ -223,16 +246,21 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={{ '--brand-primary': prim, '--brand-bg': bg } as React.CSSProperties}>
+      {branding?.custom_css && <style>{branding.custom_css}</style>}
 
       {/* ── Sticky Header ─────────────────────────────────────── */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between py-3.5">
             <div className="flex items-center gap-2.5 min-w-0">
-              <Logo />
+              {branding?.logo_url ? (
+                <Image src={branding.logo_url} alt={firmenname} width={24} height={24} className="rounded object-contain shrink-0" />
+              ) : (
+                <Logo />
+              )}
               <div className="min-w-0">
-                <p className="text-[11px] text-gray-400 leading-none mb-0.5">Produktfreigabe</p>
+                <p className="text-[11px] text-gray-400 leading-none mb-0.5" style={{ fontFamily }}>{firmenname}</p>
                 <h1 className="text-sm font-semibold text-gray-900 truncate leading-none">
                   {projektName}
                 </h1>
@@ -251,7 +279,7 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
                 <circle cx="16" cy="16" r="12" fill="none" stroke="#F3F4F6" strokeWidth="4" />
                 <circle
                   cx="16" cy="16" r="12" fill="none"
-                  stroke={alleDone ? '#10B981' : '#445c49'} strokeWidth="4"
+                  stroke={alleDone ? '#10B981' : prim} strokeWidth="4"
                   strokeDasharray={`${2 * Math.PI * 12}`}
                   strokeDashoffset={`${2 * Math.PI * 12 * (1 - fortschritt / 100)}`}
                   strokeLinecap="round"
@@ -265,7 +293,7 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
           <div className="h-0.5 bg-gray-100 rounded-full overflow-hidden mb-0">
             <div
               className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${fortschritt}%`, backgroundColor: alleDone ? '#10B981' : '#445c49' }}
+              style={{ width: `${fortschritt}%`, backgroundColor: alleDone ? '#10B981' : prim }}
             />
           </div>
         </div>
@@ -329,17 +357,29 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
         {/* ── Footer ────────────────────────────────────────── */}
         <div className="text-center pt-8 pb-6 border-t border-gray-200 mt-4 space-y-2.5">
           <p className="text-xs text-gray-400">Alle Angaben sind unverbindlich.</p>
-          <div className="flex items-center justify-center gap-4">
-            <a href="/impressum"
-              className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors">
-              Impressum
-            </a>
-            <span className="text-gray-300">·</span>
-            <a href="/datenschutz"
-              className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors">
-              Datenschutz
-            </a>
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            {branding?.email && (
+              <a href={`mailto:${branding.email}`} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">{branding.email}</a>
+            )}
+            {branding?.email && (branding.telefon || branding.datenschutz_url || branding.impressum_text) && <span className="text-gray-300">·</span>}
+            {branding?.telefon && (
+              <a href={`tel:${branding.telefon}`} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">{branding.telefon}</a>
+            )}
+            {branding?.datenschutz_url && (
+              <>
+                <span className="text-gray-300">·</span>
+                <a href={branding.datenschutz_url} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors">
+                  Datenschutz
+                </a>
+              </>
+            )}
           </div>
+          {branding?.impressum_text && (
+            <p className="text-xs text-gray-400 max-w-md mx-auto leading-relaxed">{branding.impressum_text}</p>
+          )}
+          {(branding?.show_powered_by ?? true) && (
+            <p className="text-[10px] text-gray-300">Powered by Wellbeing Spaces</p>
+          )}
         </div>
       </div>
     </div>

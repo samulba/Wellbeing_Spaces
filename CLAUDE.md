@@ -9,7 +9,7 @@ Admin sieht alles (EP/Marge/Provision). Kunde nur Freigabelink `/freigabe/[token
 
 ## DB-Tabellen
 `kunden`, `projekte`, `raeume`, `partner`, `produkte`, `produktstatus`, `freigabe_tokens`, `einstellungen`
-Letzte Migration: 021 (produkte bestellstatus). Migrations in `/supabase/migrations/`.
+Letzte Migration: 027 (whitelabel branding). Migrations in `/supabase/migrations/`.
 **einstellungen-Schema (echte DB):** `id` (uuid), `key` (text, unique), `value` (text), `created_at`, `updated_at` — NICHT `schluessel`/`wert`!
 
 ## Regeln
@@ -38,6 +38,7 @@ Farbpalette: wellbeing-green (#445c49), wellbeing-green-light (#94c1a4), wellbei
 - S20: Kategorien-Bugs gefixt (Admin-Client + maybeSingle(), Migration 019 Seed). RaumHinzufügen mit Raumtypen-Kacheln (Icons, aufklappbares Panel). ChatGPT-Kontext-Paket in chatgpt_project_context/ erstellt (17 Doku-Dateien, keine bestehenden Dateien verändert).
 - S21: Bestellstatus-Flow (Migration 021, bestellstatus_enum, SortableProduktTabelle mit Select-Dropdown + optimistischem UI). Vollständiges Rebranding WBC Studio → Wellbeing Spaces: tailwind.config.ts wellbeing-Farbpalette, alle indigo-* Klassen → wellbeing-green/light/dark/cream, Hex-Farben ersetzt, Sidebar #0F1117 → #445c49, DepthStackIcon weiße Fills, package.json, CLAUDE.md.
 - S22: Fix einstellungen-Spaltennamen: echte DB hat `key`/`value` statt `schluessel`/`wert` (Migrations-Drift). Alle Supabase-Queries in einstellungen.ts korrigiert.
+- S23: Onboarding-System (TEIL 1-3): Umbenennung Anfragen→Onboarding, Status-Badges, Link-Löschen, Vorlagen-System (Migration 025, onboarding_vorlagen JSONB, CRUD-UI VorlagenVerwaltung, dynamisches Formular). Projekt-Archivierung + Duplikation (Migration 026, ProjektAktionenButtons, DuplizierenModal). Whitelabel/Branding (Migration 027, branding-Tabelle, BrandingEditor mit Farbpickern/Logo-Upload/Font-Selector/Live-Vorschau, Branding-Tab in Einstellungen, Branding auf Freigabe- und Onboarding-Seiten).
 
 ## Anweisung
 Am Ende jeder Session den Session-Log mit einem kurzen Eintrag aktualisieren.

@@ -25,12 +25,13 @@ import { ROLLEN_CONFIG } from '@/lib/permissions'
 // ── Konstanten ────────────────────────────────────────────────
 
 const TABS = [
-  { key: 'allgemein',        label: 'Allgemein' },
-  { key: 'team',             label: 'Team' },
-  { key: 'sicherheit',       label: 'Sicherheit' },
+  { key: 'allgemein',          label: 'Allgemein' },
+  { key: 'team',               label: 'Team' },
+  { key: 'sicherheit',         label: 'Sicherheit' },
   { key: 'benachrichtigungen', label: 'Benachrichtigungen' },
-  { key: 'freigabe',         label: 'Freigabe & Links' },
-  { key: 'abrechnung',       label: 'Abrechnung' },
+  { key: 'freigabe',           label: 'Freigabe & Links' },
+  { key: 'abrechnung',         label: 'Abrechnung' },
+  { key: 'branding',           label: 'Branding', href: '/dashboard/einstellungen/branding' },
 ]
 
 const ZEITZONEN = [
@@ -796,7 +797,7 @@ export default function EinstellungenTabs({
   lastSignIn: string | null
 }) {
   const istAdmin = userRolle === 'admin'
-  const sichtbareTabs = TABS.filter((t) => t.key !== 'team' || istAdmin)
+  const sichtbareTabs = TABS.filter((t) => (t.key !== 'team' && t.key !== 'branding') || istAdmin)
 
   return (
     <div>
@@ -805,7 +806,7 @@ export default function EinstellungenTabs({
         {sichtbareTabs.map((t) => (
           <Link
             key={t.key}
-            href={`/dashboard/einstellungen?tab=${t.key}`}
+            href={'href' in t && t.href ? t.href : `/dashboard/einstellungen?tab=${t.key}`}
             className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
               aktuellerTab === t.key
                 ? 'border-wellbeing-green text-wellbeing-green'
