@@ -166,10 +166,33 @@ export interface TeamMitglied {
 
 export type OnboardingStatus = 'offen' | 'abgeschlossen' | 'abgelehnt'
 
+export type OnboardingFrageTyp = 'text' | 'textarea' | 'zahl' | 'auswahl' | 'mehrfachauswahl' | 'datum'
+
+export interface OnboardingFrage {
+  id: string
+  titel: string
+  typ: OnboardingFrageTyp
+  optionen?: string[]
+  pflichtfeld: boolean
+  placeholder?: string
+}
+
+export interface OnboardingVorlage {
+  id: string
+  name: string
+  beschreibung: string | null
+  fragen: OnboardingFrage[]
+  ist_standard: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface OnboardingAnfrage {
   id: string
   token: string
   status: OnboardingStatus
+  vorlage_id: string | null
+  antworten: Record<string, unknown> | null
   kunde_name: string | null
   kunde_email: string | null
   kunde_telefon: string | null

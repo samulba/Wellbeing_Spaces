@@ -68,7 +68,7 @@ export default function NavSidebar({
     { label: 'Partner',    href: '/dashboard/partner',    icon: Handshake,       badge: 0 },
     { label: 'Produkte',   href: '/dashboard/produkte',   icon: Package,         badge: 0 },
     { label: 'Freigaben',  href: '/dashboard/freigaben',  icon: CheckSquare,     badge: offeneFreigaben },
-    { label: 'Anfragen',   href: '/dashboard/anfragen',   icon: ClipboardList,   badge: offeneAnfragen },
+    { label: 'Onboarding', href: '/dashboard/onboarding', icon: ClipboardList,   badge: offeneAnfragen },
     { label: 'Kategorien', href: '/dashboard/kategorien', icon: Tag,             badge: 0 },
   ]
 

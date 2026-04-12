@@ -4,11 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import type { OnboardingStatus } from '@/lib/supabase/types'
+import type { OnboardingStatus, OnboardingVorlage, OnboardingFrage } from '@/lib/supabase/types'
 
 export interface OnboardingDaten {
-  kunde_name: string
-  kunde_email: string
+  kunde_name: string | null
+  kunde_email: string | null
   kunde_telefon?: string | null
   projekt_name?: string | null
   projekt_adresse?: string | null
@@ -18,19 +18,22 @@ export interface OnboardingDaten {
   stil_praeferenzen?: string | null
   zeitrahmen?: string | null
   notizen?: string | null
+  antworten?: Record<string, unknown> | null
 }
 
-/** Erstellt einen neuen Onboarding-Link (nur für eingeloggte Nutzer). */
-export async function onboardingLinkErstellen(): Promise<{ token: string; pfad: string }> {
+/** Erstellt einen neuen Onboarding-Link (optional mit Vorlage). */
+export async function onboardingLinkErstellen(
+  vorlage_id?: string | null
+): Promise<{ token: string; pfad: string }> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('onboarding_anfragen')
-    .insert({ status: 'offen' })
+    .insert({ status: 'offen', vorlage_id: vorlage_id ?? null })
     .select('token')
     .single()
 
   if (error || !data) throw new Error('Fehler beim Erstellen des Links')
-  revalidatePath('/dashboard/anfragen')
+  revalidatePath('/dashboard/onboarding')
   return { token: data.token, pfad: `/onboarding/${data.token}` }
 }
 
@@ -58,9 +61,14 @@ export async function onboardingAbsenden(
     return { erfolg: false, fehler: 'Dieses Formular wurde bereits ausgefüllt.' }
   }
 
+  const { antworten, ...standardDaten } = daten
   const { error } = await supabase
     .from('onboarding_anfragen')
-    .update({ ...daten, updated_at: new Date().toISOString() })
+    .update({
+      ...standardDaten,
+      antworten: antworten ?? null,
+      updated_at: new Date().toISOString(),
+    })
     .eq('token', token)
 
   if (error) return { erfolg: false, fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
@@ -87,7 +95,17 @@ export async function onboardingStatusAendern(
     .from('onboarding_anfragen')
     .update({ status })
     .eq('id', id)
-  revalidatePath('/dashboard/anfragen')
+  revalidatePath('/dashboard/onboarding')
+}
+
+/** Einen Onboarding-Link löschen. */
+export async function onboardingLinkLoeschen(id: string): Promise<void> {
+  const supabase = await createClient()
+  await supabase
+    .from('onboarding_anfragen')
+    .delete()
+    .eq('id', id)
+  revalidatePath('/dashboard/onboarding')
 }
 
 /**
@@ -139,7 +157,97 @@ export async function kundeAusOnboardingAnlegen(anfrageId: string): Promise<void
     .update({ status: 'abgeschlossen' })
     .eq('id', anfrageId)
 
-  revalidatePath('/dashboard/anfragen')
+  revalidatePath('/dashboard/onboarding')
   revalidatePath('/dashboard/kunden')
   redirect(`/dashboard/kunden/${kunde.id}`)
+}
+
+// ── Vorlagen-CRUD ─────────────────────────────────────────────
+
+/** Alle Onboarding-Vorlagen laden. */
+export async function alleVorlagenLaden(): Promise<OnboardingVorlage[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('onboarding_vorlagen')
+    .select('*')
+    .order('ist_standard', { ascending: false })
+    .order('created_at')
+  return (data ?? []) as OnboardingVorlage[]
+}
+
+/** Eine Vorlage per ID laden. */
+export async function vorlageLaden(id: string): Promise<OnboardingVorlage | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('onboarding_vorlagen')
+    .select('*')
+    .eq('id', id)
+    .single()
+  return data as OnboardingVorlage | null
+}
+
+/** Vorlage mit Token öffentlich laden (kein Login). */
+export async function vorlageZuTokenLaden(token: string): Promise<OnboardingVorlage | null> {
+  const supabase = createAdminClient()
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('vorlage_id')
+    .eq('token', token)
+    .single()
+
+  if (!anfrage?.vorlage_id) return null
+
+  const { data: vorlage } = await supabase
+    .from('onboarding_vorlagen')
+    .select('*')
+    .eq('id', anfrage.vorlage_id)
+    .single()
+
+  return vorlage as OnboardingVorlage | null
+}
+
+/** Neue Vorlage erstellen. */
+export async function vorlageErstellen(
+  name: string,
+  beschreibung: string,
+  fragen: OnboardingFrage[]
+): Promise<OnboardingVorlage> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('onboarding_vorlagen')
+    .insert({ name, beschreibung: beschreibung || null, fragen, ist_standard: false })
+    .select('*')
+    .single()
+  if (error || !data) throw new Error('Fehler beim Erstellen der Vorlage')
+  revalidatePath('/dashboard/onboarding/vorlagen')
+  return data as OnboardingVorlage
+}
+
+/** Vorlage aktualisieren. */
+export async function vorlageSpeichern(
+  id: string,
+  name: string,
+  beschreibung: string,
+  fragen: OnboardingFrage[]
+): Promise<void> {
+  const supabase = await createClient()
+  await supabase
+    .from('onboarding_vorlagen')
+    .update({ name, beschreibung: beschreibung || null, fragen, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  revalidatePath('/dashboard/onboarding/vorlagen')
+}
+
+/** Vorlage löschen (Standard-Vorlage kann nicht gelöscht werden). */
+export async function vorlageLoeschen(id: string): Promise<void> {
+  const supabase = await createClient()
+  // Sicherheitscheck: Standard-Vorlage nicht löschen
+  const { data } = await supabase
+    .from('onboarding_vorlagen')
+    .select('ist_standard')
+    .eq('id', id)
+    .single()
+  if (data?.ist_standard) return
+  await supabase.from('onboarding_vorlagen').delete().eq('id', id)
+  revalidatePath('/dashboard/onboarding/vorlagen')
 }

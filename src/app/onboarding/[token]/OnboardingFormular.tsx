@@ -3,8 +3,9 @@
 import { useState, useTransition } from 'react'
 import { Check, ChevronRight, ChevronLeft, CheckCircle2 } from 'lucide-react'
 import { onboardingAbsenden } from '@/app/actions/onboarding'
+import type { OnboardingVorlage, OnboardingFrage } from '@/lib/supabase/types'
 
-// ── Konstanten ────────────────────────────────────────────────
+// ── Konstanten (Standard-Vorlage) ─────────────────────────────
 const RAUMTYPEN = [
   'Wohnzimmer', 'Schlafzimmer', 'Küche', 'Bad / WC', 'Büro / Arbeitszimmer',
   'Esszimmer', 'Flur / Diele', 'Kinderzimmer', 'Gästezimmer',
@@ -29,7 +30,7 @@ const STIL_OPTIONEN = [
   'Mediterran', 'Natürlich / Biophil', 'Klassisch', 'Japandi', 'Boho / Eklektisch',
 ]
 
-// ── Typen ─────────────────────────────────────────────────────
+// ── Typen (Standard-Form) ─────────────────────────────────────
 interface Daten {
   kunde_name: string
   kunde_email: string
@@ -57,13 +58,30 @@ const SCHRITTE = ['Kontakt', 'Ihr Projekt', 'Budget', 'Stil & Wünsche']
 const TOTAL = SCHRITTE.length
 
 // ── Haupt-Komponente ──────────────────────────────────────────
-export default function OnboardingFormular({ token }: { token: string }) {
-  const [schritt, setSchritt]       = useState(1)
-  const [daten, setDaten]           = useState<Daten>(INITIAL)
-  const [fehler, setFehler]         = useState<Fehler>({})
-  const [erfolg, setErfolg]         = useState(false)
-  const [fehlerMsg, setFehlerMsg]   = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+export default function OnboardingFormular({
+  token,
+  vorlage,
+}: {
+  token: string
+  vorlage: OnboardingVorlage | null
+}) {
+  // Custom-Vorlage (nicht Standard) → dynamisches Formular
+  if (vorlage && !vorlage.ist_standard) {
+    return <DynamischesFormular token={token} vorlage={vorlage} />
+  }
+
+  // Standard (4-Schritt) Formular
+  return <StandardFormular token={token} />
+}
+
+// ── Standard-Formular (4 Schritte) ───────────────────────────
+function StandardFormular({ token }: { token: string }) {
+  const [schritt, setSchritt]         = useState(1)
+  const [daten, setDaten]             = useState<Daten>(INITIAL)
+  const [fehler, setFehler]           = useState<Fehler>({})
+  const [erfolg, setErfolg]           = useState(false)
+  const [fehlerMsg, setFehlerMsg]     = useState<string | null>(null)
+  const [isPending, startTransition]  = useTransition()
 
   function setField<K extends keyof Daten>(key: K, value: Daten[K]) {
     setDaten((d) => ({ ...d, [key]: value }))
@@ -261,6 +279,234 @@ export default function OnboardingFormular({ token }: { token: string }) {
       </div>
     </div>
   )
+}
+
+// ── Dynamisches Formular (custom Vorlage) ─────────────────────
+function DynamischesFormular({ token, vorlage }: { token: string; vorlage: OnboardingVorlage }) {
+  const [antworten, setAntworten]     = useState<Record<string, unknown>>({})
+  const [erfolg, setErfolg]           = useState(false)
+  const [fehlerMsg, setFehlerMsg]     = useState<string | null>(null)
+  const [feldFehler, setFeldFehler]   = useState<Record<string, string>>({})
+  const [isPending, startTransition]  = useTransition()
+
+  function setAntwort(id: string, value: unknown) {
+    setAntworten((a) => ({ ...a, [id]: value }))
+    setFeldFehler((e) => { const copy = { ...e }; delete copy[id]; return copy })
+  }
+
+  function toggleOption(id: string, opt: string, mehrfach: boolean) {
+    if (mehrfach) {
+      const current = (antworten[id] as string[]) ?? []
+      const next = current.includes(opt)
+        ? current.filter((s) => s !== opt)
+        : [...current, opt]
+      setAntwort(id, next)
+    } else {
+      setAntwort(id, antworten[id] === opt ? '' : opt)
+    }
+  }
+
+  function validieren(): boolean {
+    const e: Record<string, string> = {}
+    for (const f of vorlage.fragen) {
+      if (!f.pflichtfeld) continue
+      const val = antworten[f.id]
+      const leer =
+        val === undefined ||
+        val === null ||
+        val === '' ||
+        (Array.isArray(val) && val.length === 0)
+      if (leer) e[f.id] = 'Dieses Feld ist erforderlich.'
+    }
+    setFeldFehler(e)
+    return Object.keys(e).length === 0
+  }
+
+  function absenden() {
+    if (!validieren()) return
+    setFehlerMsg(null)
+    startTransition(async () => {
+      // Versuche Standard-Felder aus bekannten IDs zu extrahieren
+      const get = (id: string) => (antworten[id] as string | undefined) ?? null
+      const result = await onboardingAbsenden(token, {
+        kunde_name:        get('kontakt_name'),
+        kunde_email:       get('kontakt_email'),
+        kunde_telefon:     get('kontakt_telefon'),
+        projekt_name:      get('projekt_name'),
+        projekt_adresse:   get('projekt_adresse'),
+        raumtypen:         (antworten['raumtypen'] as string[] | null) ?? null,
+        zeitrahmen:        get('zeitrahmen'),
+        stil_praeferenzen: Array.isArray(antworten['stil'])
+          ? (antworten['stil'] as string[]).join(', ')
+          : get('stil'),
+        notizen:           get('notizen'),
+        antworten,
+      })
+      if (result.erfolg) {
+        setErfolg(true)
+      } else {
+        setFehlerMsg(result.fehler ?? 'Ein Fehler ist aufgetreten.')
+      }
+    })
+  }
+
+  if (erfolg) return <ErfolgScreen />
+
+  return (
+    <div className="min-h-screen bg-[#f6ede2] flex flex-col">
+      <header className="bg-white border-b border-gray-100 px-4 py-4">
+        <div className="max-w-xl mx-auto flex items-center gap-3">
+          <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
+            <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.30" />
+            <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
+            <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
+          </svg>
+          <div>
+            <p className="text-[11px] text-gray-400 leading-none">Projekt-Anfrage · {vorlage.name}</p>
+            <p className="text-sm font-semibold text-[#2d3e31] font-syne leading-tight">Wellbeing Spaces</p>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex-1 px-4 py-6">
+        <div className="max-w-xl mx-auto space-y-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+            <div className="mb-1">
+              <h2 className="text-lg font-semibold text-gray-900">{vorlage.name}</h2>
+              {vorlage.beschreibung && (
+                <p className="text-sm text-gray-500 mt-0.5">{vorlage.beschreibung}</p>
+              )}
+            </div>
+
+            {vorlage.fragen.map((frage) => (
+              <DynamischesFeld
+                key={frage.id}
+                frage={frage}
+                wert={antworten[frage.id]}
+                fehler={feldFehler[frage.id]}
+                onChange={(v) => setAntwort(frage.id, v)}
+                onToggle={(opt) => toggleOption(frage.id, opt, frage.typ === 'mehrfachauswahl')}
+              />
+            ))}
+          </div>
+
+          {fehlerMsg && (
+            <p className="text-sm text-red-600 text-center bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              {fehlerMsg}
+            </p>
+          )}
+
+          <button
+            onClick={absenden}
+            disabled={isPending}
+            className="w-full flex items-center justify-center gap-2 py-3.5 text-sm font-semibold text-white bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 rounded-xl transition-colors"
+          >
+            {isPending ? 'Wird gesendet…' : (
+              <>Anfrage absenden <Check className="w-4 h-4" /></>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Dynamisches Einzelfeld ────────────────────────────────────
+function DynamischesFeld({
+  frage,
+  wert,
+  fehler,
+  onChange,
+  onToggle,
+}: {
+  frage: OnboardingFrage
+  wert: unknown
+  fehler?: string
+  onChange: (v: unknown) => void
+  onToggle: (opt: string) => void
+}) {
+  const label = frage.titel + (frage.pflichtfeld ? ' *' : '')
+
+  if (frage.typ === 'text' || frage.typ === 'datum') {
+    return (
+      <FormFeld label={label} fehler={fehler}>
+        <input
+          type={frage.typ === 'datum' ? 'date' : 'text'}
+          placeholder={frage.placeholder ?? ''}
+          value={(wert as string) ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputCls(!!fehler)}
+        />
+      </FormFeld>
+    )
+  }
+
+  if (frage.typ === 'zahl') {
+    return (
+      <FormFeld label={label} fehler={fehler}>
+        <input
+          type="number"
+          placeholder={frage.placeholder ?? ''}
+          value={(wert as string) ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputCls(!!fehler)}
+        />
+      </FormFeld>
+    )
+  }
+
+  if (frage.typ === 'textarea') {
+    return (
+      <FormFeld label={label} fehler={fehler}>
+        <textarea
+          rows={4}
+          placeholder={frage.placeholder ?? ''}
+          value={(wert as string) ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full px-4 py-3 text-sm border rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 transition bg-gray-50 resize-none ${
+            fehler
+              ? 'border-red-300 focus:ring-red-200 focus:border-red-400'
+              : 'border-gray-200 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light'
+          }`}
+        />
+      </FormFeld>
+    )
+  }
+
+  if (frage.typ === 'auswahl' || frage.typ === 'mehrfachauswahl') {
+    const mehrfach = frage.typ === 'mehrfachauswahl'
+    const ausgewaehlt = mehrfach
+      ? ((wert as string[]) ?? [])
+      : wert as string | undefined
+
+    return (
+      <FormFeld label={label} fehler={fehler}>
+        <div className="flex flex-wrap gap-2">
+          {(frage.optionen ?? []).map((opt) => {
+            const aktiv = mehrfach
+              ? (ausgewaehlt as string[]).includes(opt)
+              : ausgewaehlt === opt
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onToggle(opt)}
+                className={`px-4 py-2 text-sm rounded-full border font-medium transition-all ${
+                  aktiv
+                    ? 'bg-wellbeing-green/10 border-wellbeing-green text-wellbeing-green-dark'
+                    : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {aktiv && '✓ '}{opt}
+              </button>
+            )
+          })}
+        </div>
+      </FormFeld>
+    )
+  }
+
+  return null
 }
 
 // ── Schritt 1: Kontaktdaten ───────────────────────────────────

@@ -1,5 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { vorlageZuTokenLaden } from '@/app/actions/onboarding'
 import OnboardingFormular from './OnboardingFormular'
+import type { OnboardingVorlage } from '@/lib/supabase/types'
 
 interface Props {
   params: { token: string }
@@ -10,7 +12,7 @@ export default async function OnboardingPage({ params }: Props) {
 
   const { data: anfrage } = await supabase
     .from('onboarding_anfragen')
-    .select('id, status, kunde_name')
+    .select('id, status, kunde_name, vorlage_id')
     .eq('token', params.token)
     .single()
 
@@ -23,7 +25,12 @@ export default async function OnboardingPage({ params }: Props) {
     return <BereitsAusgefuellt />
   }
 
-  return <OnboardingFormular token={params.token} />
+  // Vorlage laden (null wenn Standard / keine Vorlage)
+  const vorlage: OnboardingVorlage | null = anfrage.vorlage_id
+    ? await vorlageZuTokenLaden(params.token)
+    : null
+
+  return <OnboardingFormular token={params.token} vorlage={vorlage} />
 }
 
 // ── Fehler-Seite ──────────────────────────────────────────────
