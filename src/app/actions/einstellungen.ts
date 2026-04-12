@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 export async function getEinstellungen(): Promise<Record<string, string>> {
@@ -25,7 +26,7 @@ export async function getMwstSatz(): Promise<number> {
 export type EinstellungActionState = { fehler?: string; erfolg?: string } | null
 
 async function upsertEinstellung(schluessel: string, wert: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   return supabase.from('einstellungen').upsert(
     { schluessel, wert, updated_at: new Date().toISOString() },
     { onConflict: 'schluessel' }
@@ -76,12 +77,12 @@ export async function addListItem(
   const icon = (formData.get('icon') as string)?.trim()
   if (!name) return { fehler: 'Name darf nicht leer sein.' }
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data } = await supabase
     .from('einstellungen')
     .select('wert')
     .eq('schluessel', schluessel)
-    .single()
+    .maybeSingle()
 
   const liste = data?.wert
     ? data.wert.split(',').map((s: string) => s.trim()).filter(Boolean)
@@ -121,20 +122,25 @@ export async function updateListItem(
   const nameTeil = neuesItem.split('|')[0].trim()
   if (!nameTeil) return { fehler: 'Name darf nicht leer sein.' }
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data } = await supabase
     .from('einstellungen')
     .select('wert')
     .eq('schluessel', schluessel)
-    .single()
+    .maybeSingle()
 
-  if (!data?.wert) return { fehler: 'Liste nicht gefunden.' }
+  const liste = data?.wert
+    ? data.wert.split(',').map((s: string) => s.trim()).filter(Boolean)
+    : []
 
-  const liste = data.wert.split(',').map((s: string) => s.trim()).filter(Boolean)
   const idx = liste.indexOf(altesItem)
-  if (idx === -1) return { fehler: 'Eintrag nicht gefunden.' }
+  if (idx !== -1) {
+    liste[idx] = neuesItem.trim()
+  } else {
+    // Eintrag nicht (mehr) in der Liste – einfach anhängen statt Fehler
+    liste.push(neuesItem.trim())
+  }
 
-  liste[idx] = neuesItem.trim()
   const { error } = await upsertEinstellung(schluessel, liste.join(','))
   if (error) return { fehler: 'Fehler beim Speichern.' }
 
@@ -144,12 +150,12 @@ export async function updateListItem(
 }
 
 export async function deleteListItem(schluessel: string, name: string): Promise<void> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data } = await supabase
     .from('einstellungen')
     .select('wert')
     .eq('schluessel', schluessel)
-    .single()
+    .maybeSingle()
 
   if (!data?.wert) return
 

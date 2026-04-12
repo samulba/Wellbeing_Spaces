@@ -11,7 +11,7 @@ import { ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote } from '
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import SortableRaumListe from '@/components/SortableRaumListe'
 import PdfExportButton, { type PdfProdukt } from '@/components/PdfExportButton'
-import { getMwstSatz } from '@/app/actions/einstellungen'
+import { getMwstSatz, getEinstellungen } from '@/app/actions/einstellungen'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
 import type { DateiItem } from '@/components/DateiUpload'
 
@@ -148,7 +148,7 @@ async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
 }
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, einstellungen] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
@@ -157,7 +157,11 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
     getNotizen(params.id),
     getProdukteForPdf(params.id),
     getMwstSatz(),
+    getEinstellungen(),
   ])
+
+  const raumtypen = (einstellungen.raumtypen ?? 'Büro,Studio,Wellness,Hotel,Privat,Wohnung,Sonstiges')
+    .split(',').map((s: string) => s.trim()).filter(Boolean)
 
   if (!projekt) notFound()
 
@@ -349,12 +353,11 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
 
           {/* Räume */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-900">
-                Räume <span className="text-gray-400 font-normal">({raeume.length})</span>
-              </h2>
-              <RaumHinzufuegen aktion={raumHinzufuegenAktion} />
-            </div>
+            <RaumHinzufuegen
+              aktion={raumHinzufuegenAktion}
+              raumtypen={raumtypen}
+              raumAnzahl={raeume.length}
+            />
 
             {raeume.length === 0 ? (
               <div className="text-center py-12">

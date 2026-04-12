@@ -22,8 +22,7 @@ Letzte Migration: 016 (Logo-Upload Storage-Buckets). Migrations in `/supabase/mi
 Indigo (#6366F1) aktiv. Sidebar: bg-[#0F1117], Syne-Font. Desktop-first, ruhig/reduziert.
 
 ## Offen
-- Bibliotheksprodukt → Raum zuweisen (UI fehlt)
-- Drag & Drop Produkte innerhalb eines Raums
+- (nichts mehr offen)
 
 ## Session-Log
 - S12: Notizen (Migration 015), Logo-Upload (Migration 016), Projektdetail-Stats, FreigabeLinkKarte.
@@ -33,6 +32,7 @@ Indigo (#6366F1) aktiv. Sidebar: bg-[#0F1117], Syne-Font. Desktop-first, ruhig/r
 - S16: MwSt. dynamisch – getMwstSatz() aus einstellungen-Tabelle, alle Produkt-Berechnungen (Formular, Tabelle, Freigabe, CSV-Export) lesen Wert aus DB statt hardcoded 19%.
 - S17: PDF-Export – PdfExportButton (jspdf + jspdf-autotable, client-seitig), Button auf Projektdetailseite neben CSV, A4-Portrait mit Indigo-Header, Produkttabelle, Status-Farben, Gesamtsumme, Seitenzahl.
 - S18: Drag & Drop Räume – SortableRaumListe (@dnd-kit), GripVertical Handle, optimistisches UI, updateRaumPositionen Action, Migration 017.
+- S19: Drag & Drop Produkte – SortableProduktTabelle (@dnd-kit), GripVertical Handle links pro Zeile, updateProduktPositionen Action, Migration 018. Fix 2 (ProduktZuweisenModal in Bibliothek) war bereits fertig (S15).
 
 ## Anweisung
 Am Ende jeder Session den Session-Log mit einem kurzen Eintrag aktualisieren.
