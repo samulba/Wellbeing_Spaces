@@ -42,7 +42,6 @@ function Logo() {
 }
 
 // ── PIN-Eingabe-Screen ────────────────────────────────────────
-const PIN_LAENGE = 4
 const MAX_VERSUCHE = 3
 const SESSION_KEY = (token: string) => `freigabe_pin_ok_${token}`
 
@@ -51,46 +50,21 @@ function PinEingabe({ token, projektName, onErfolg }: {
   projektName: string
   onErfolg: () => void
 }) {
-  const [digits, setDigits]   = useState<string[]>(Array(PIN_LAENGE).fill(''))
-  const [fehler, setFehler]   = useState<string | null>(null)
+  const [pin, setPin]           = useState('')
+  const [fehler, setFehler]     = useState<string | null>(null)
   const [versuche, setVersuche] = useState(0)
   const [isPending, startTransition] = useTransition()
-  const refs = useRef<(HTMLInputElement | null)[]>([])
+  const inputRef = useRef<HTMLInputElement>(null)
   const gesperrt = versuche >= MAX_VERSUCHE
 
-  useEffect(() => {
-    refs.current[0]?.focus()
-  }, [])
+  useEffect(() => { inputRef.current?.focus() }, [])
 
-  function handleInput(i: number, val: string) {
-    if (!/^\d?$/.test(val)) return
-    const neu = [...digits]
-    neu[i] = val
-    setDigits(neu)
-    setFehler(null)
-    if (val && i < PIN_LAENGE - 1) {
-      refs.current[i + 1]?.focus()
+  function pruefe() {
+    if (gesperrt || isPending) return
+    if (!/^\d{4,6}$/.test(pin)) {
+      setFehler('Bitte 4–6 Ziffern eingeben.')
+      return
     }
-    if (val && i === PIN_LAENGE - 1 && neu.every((d) => d !== '')) {
-      pruefe(neu.join(''))
-    }
-  }
-
-  function handleKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Backspace') {
-      if (!digits[i] && i > 0) {
-        const neu = [...digits]
-        neu[i - 1] = ''
-        setDigits(neu)
-        refs.current[i - 1]?.focus()
-      }
-    }
-    if (e.key === 'ArrowLeft' && i > 0) refs.current[i - 1]?.focus()
-    if (e.key === 'ArrowRight' && i < PIN_LAENGE - 1) refs.current[i + 1]?.focus()
-  }
-
-  function pruefe(pin: string) {
-    if (gesperrt) return
     startTransition(async () => {
       const ok = await pinPruefen(token, pin)
       if (ok) {
@@ -99,8 +73,8 @@ function PinEingabe({ token, projektName, onErfolg }: {
       } else {
         const neueVersuche = versuche + 1
         setVersuche(neueVersuche)
-        setDigits(Array(PIN_LAENGE).fill(''))
-        setTimeout(() => refs.current[0]?.focus(), 50)
+        setPin('')
+        setTimeout(() => inputRef.current?.focus(), 50)
         if (neueVersuche >= MAX_VERSUCHE) {
           setFehler('Zu viele Fehlversuche. Bitte wende dich an deinen Ansprechpartner.')
         } else {
@@ -136,43 +110,39 @@ function PinEingabe({ token, projektName, onErfolg }: {
             <br />ist PIN-geschützt.
           </p>
 
-          {/* 4er PIN-Felder */}
-          <div className="flex justify-center gap-3 mb-5">
-            {digits.map((d, i) => (
-              <input
-                key={i}
-                ref={(el) => { refs.current[i] = el }}
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={1}
-                value={d}
-                disabled={gesperrt || isPending}
-                onChange={(e) => handleInput(i, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(i, e)}
-                onFocus={(e) => e.target.select()}
-                className={`w-14 h-14 text-center text-2xl font-bold rounded-xl border-2 transition-all outline-none
-                  ${d ? 'border-wellbeing-green text-wellbeing-green bg-wellbeing-green/5'
-                      : 'border-gray-200 text-gray-900 bg-gray-50'}
-                  ${gesperrt ? 'opacity-40' : 'focus:border-wellbeing-green focus:bg-wellbeing-green/5'}
-                  ${fehler && !gesperrt ? 'border-[#823509]/60' : ''}
-                `}
-              />
-            ))}
-          </div>
+          {/* PIN-Eingabefeld */}
+          <input
+            ref={inputRef}
+            type="password"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={6}
+            value={pin}
+            disabled={gesperrt || isPending}
+            onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setFehler(null) }}
+            onKeyDown={(e) => { if (e.key === 'Enter') pruefe() }}
+            placeholder="PIN eingeben"
+            className={`w-full px-4 py-3 text-center text-xl font-mono font-bold tracking-[0.4em] rounded-xl border-2 outline-none transition-all mb-4
+              ${fehler ? 'border-[#823509]/60 bg-red-50/40' : 'border-gray-200 bg-gray-50 focus:border-wellbeing-green focus:bg-wellbeing-green/5'}
+              ${gesperrt ? 'opacity-40' : ''}
+            `}
+          />
+
+          <button
+            onClick={pruefe}
+            disabled={gesperrt || isPending || pin.length < 4}
+            className="w-full py-3 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all"
+          >
+            {isPending ? 'Wird geprüft…' : 'Bestätigen'}
+          </button>
 
           {/* Fehler */}
           {fehler && (
-            <p className={`text-xs text-center leading-relaxed mb-2 ${
+            <p className={`text-xs text-center leading-relaxed mt-3 ${
               gesperrt ? 'text-[#823509] font-medium' : 'text-[#823509]'
             }`}>
               {fehler}
             </p>
-          )}
-
-          {/* Laden */}
-          {isPending && (
-            <p className="text-xs text-center text-gray-400 mt-1">Wird geprüft…</p>
           )}
         </div>
 
