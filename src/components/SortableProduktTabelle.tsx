@@ -21,8 +21,9 @@ import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
 import Link from 'next/link'
 import ConfirmDeleteButton from './ConfirmDeleteButton'
-import { produktSoftDelete, updateProduktPositionen } from '@/app/actions/produkte'
+import { produktSoftDelete, updateProduktPositionen, bestellstatusAendern } from '@/app/actions/produkte'
 import type { ProduktMitDetails } from '@/lib/supabase/types'
+import type { BestellStatus } from '@/lib/supabase/types'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
@@ -41,6 +42,13 @@ const statusLabel: Record<string, string> = {
   ueberarbeitung: 'Überarbeitung',
 }
 
+const bestellBadge: Record<BestellStatus, string> = {
+  ausstehend:        'bg-gray-100 text-gray-400',
+  bestellt:          'bg-blue-50 text-blue-700',
+  geliefert:         'bg-emerald-50 text-emerald-700',
+  rechnung_erhalten: 'bg-violet-50 text-violet-700',
+}
+
 const th = 'px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest'
 const td = 'px-4 py-3.5 text-gray-600'
 
@@ -50,9 +58,10 @@ interface ZeileProps {
   projektId: string
   raumId: string
   isLast: boolean
+  onBestellstatusChange: (id: string, status: BestellStatus) => void
 }
 
-function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast }: ZeileProps) {
+function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onBestellstatusChange }: ZeileProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: p.id })
 
@@ -61,6 +70,7 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast }: Z
   const provisionEur = r2((p.verkaufspreis ?? 0) * ((p.provision_prozent ?? 0) / 100))
   const loeschenAktion = produktSoftDelete.bind(null, p.id, raumId, projektId)
   const status = p.produktstatus?.status ?? 'ausstehend'
+  const bestellstatus = (p.bestellstatus ?? 'ausstehend') as BestellStatus
 
   return (
     <tr
@@ -140,12 +150,28 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast }: Z
         {p.verkaufspreis != null ? eur(gesamtNetto) : '–'}
       </td>
 
+      {/* Freigabe-Status */}
       <td className="px-4 py-3.5 text-center">
         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusBadge[status] ?? 'bg-gray-100 text-gray-500'}`}>
           {statusLabel[status] ?? status}
         </span>
       </td>
 
+      {/* Bestellstatus */}
+      <td className="px-3 py-3.5 text-center">
+        <select
+          value={bestellstatus}
+          onChange={(e) => onBestellstatusChange(p.id, e.target.value as BestellStatus)}
+          className={`text-xs px-2 py-1 rounded-full font-medium cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-indigo-300 ${bestellBadge[bestellstatus]}`}
+        >
+          <option value="ausstehend">Offen</option>
+          <option value="bestellt">Bestellt</option>
+          <option value="geliefert">Geliefert</option>
+          <option value="rechnung_erhalten">Rechnung</option>
+        </select>
+      </td>
+
+      {/* Aktionen */}
       <td className="px-3 py-3.5">
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Link
@@ -206,6 +232,15 @@ export default function SortableProduktTabelle({
     })
   }
 
+  function handleBestellstatusChange(id: string, neuerStatus: BestellStatus) {
+    setProdukte((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, bestellstatus: neuerStatus } : p))
+    )
+    startTransition(() => {
+      bestellstatusAendern(id, raumId, projektId, neuerStatus)
+    })
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -214,7 +249,7 @@ export default function SortableProduktTabelle({
     >
       <SortableContext items={produkte.map((p) => p.id)} strategy={verticalListSortingStrategy}>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[1000px]">
+          <table className="w-full text-sm min-w-[1120px]">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="w-8 px-2 py-3" />
@@ -227,7 +262,8 @@ export default function SortableProduktTabelle({
                 <th className={th}>VP brutto</th>
                 <th className={`${th} text-red-400/70`} title="Intern">Provision</th>
                 <th className={th}>Gesamt netto</th>
-                <th className={th}>Status</th>
+                <th className={th}>Freigabe</th>
+                <th className={th}>Bestellung</th>
                 <th className="w-16" />
               </tr>
             </thead>
@@ -240,6 +276,7 @@ export default function SortableProduktTabelle({
                   projektId={projektId}
                   raumId={raumId}
                   isLast={i === produkte.length - 1}
+                  onBestellstatusChange={handleBestellstatusChange}
                 />
               ))}
             </tbody>

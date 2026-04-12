@@ -3,6 +3,7 @@
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
 export type ProduktStatus = 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung'
+export type BestellStatus = 'ausstehend' | 'bestellt' | 'geliefert' | 'rechnung_erhalten'
 export type ProjektStatus = 'offen' | 'in_bearbeitung' | 'freigegeben' | 'abgeschlossen'
 
 export type KundeStatus = 'aktiv' | 'abgeschlossen' | 'pausiert'
@@ -110,6 +111,7 @@ export interface Produkt {
   bild_url: string | null
   produkt_url: string | null
   reihenfolge: number
+  bestellstatus: BestellStatus
   deleted_at: string | null
   created_at: string
   updated_at: string

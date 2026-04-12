@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import type { ProduktStatus } from '@/lib/supabase/types'
+import type { ProduktStatus, BestellStatus } from '@/lib/supabase/types'
 
 export type ProduktActionState = { fehler: string } | null
 
@@ -214,6 +214,20 @@ export async function updateProduktPositionen(
       supabase.from('produkte').update({ reihenfolge }).eq('id', id)
     )
   )
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+}
+
+export async function bestellstatusAendern(
+  produktId: string,
+  raumId: string,
+  projektId: string,
+  neuerStatus: BestellStatus
+): Promise<void> {
+  const supabase = await createClient()
+  await supabase
+    .from('produkte')
+    .update({ bestellstatus: neuerStatus })
+    .eq('id', produktId)
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
 }
 
