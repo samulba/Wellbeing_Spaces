@@ -19,11 +19,7 @@ export default async function FreigabenPage() {
   const eintraege = await getAlleProdukte()
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">Freigaben</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Produktfreigaben aller Projekte im Überblick</p>
-      </div>
+    <div className="flex-1 overflow-y-auto animate-fadeIn">
       <FreigabenTabelle eintraege={eintraege} />
     </div>
   )

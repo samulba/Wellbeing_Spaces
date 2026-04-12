@@ -3,9 +3,9 @@
 import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle2, X, Clock, XCircle, RotateCcw, PieChart as PieIcon, BarChart2, List } from 'lucide-react'
+import { CheckCircle2, X, Clock, XCircle, RotateCcw, BarChart2, List } from 'lucide-react'
 import {
-  PieChart, Pie, Cell, Label, ResponsiveContainer,
+  ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 import { freigabeZuruecksetzenAdmin } from '@/app/actions/freigabe'
@@ -45,12 +45,6 @@ const statusLabel: Record<string, string> = {
   ausstehend: 'Ausstehend', freigegeben: 'Freigegeben',
   abgelehnt: 'Abgelehnt', ueberarbeitung: 'Überarbeitung',
 }
-const STATUS_FARBEN: Record<string, string> = {
-  freigegeben:    '#10B981',
-  ausstehend:     '#F59E0B',
-  abgelehnt:      '#EF4444',
-  ueberarbeitung: '#6366F1',
-}
 
 function isOffen(status: string) { return status === 'ausstehend' || status === 'ueberarbeitung' }
 
@@ -62,22 +56,6 @@ function matchTab(status: string, tab: Tab) {
 
 function formatDatum(iso: string) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })
-}
-
-// ── Chart: Donut-Mitte Label ──────────────────────────────────
-function DonutMitte({ gesamt, viewBox }: { gesamt: number; viewBox?: { cx?: number; cy?: number } }) {
-  const cx = viewBox?.cx ?? 0
-  const cy = viewBox?.cy ?? 0
-  return (
-    <g>
-      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize={20} fontWeight="bold" fill="#111827">
-        {gesamt}
-      </text>
-      <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="hanging" fontSize={9} fill="#9CA3AF">
-        Produkte
-      </text>
-    </g>
-  )
 }
 
 // ── Chart: Tooltip ────────────────────────────────────────────
@@ -97,7 +75,7 @@ function BalkenTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 // ── Chart: Haupt-Komponente ───────────────────────────────────
-type ChartView = 'donut' | 'balken' | 'liste'
+type ChartView = 'balken' | 'liste'
 
 const LISTE_CFG = [
   { key: 'freigegeben',    label: 'Freigegeben',   icon: CheckCircle2, farbe: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700' },
@@ -107,7 +85,7 @@ const LISTE_CFG = [
 ]
 
 function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
-  const [view, setView] = useState<ChartView>('donut')
+  const [view, setView] = useState<ChartView>('balken')
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { freigegeben: 0, ausstehend: 0, abgelehnt: 0, ueberarbeitung: 0 }
@@ -117,13 +95,6 @@ function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
     }
     return c
   }, [eintraege])
-
-  const donutData = useMemo(() =>
-    LISTE_CFG
-      .map((cfg) => ({ status: cfg.label, key: cfg.key, count: counts[cfg.key] ?? 0 }))
-      .filter((d) => d.count > 0),
-    [counts]
-  )
 
   const balkenData = useMemo(() => {
     const map = new Map<string, { name: string; freigegeben: number; ausstehend: number; abgelehnt: number; ueberarbeitung: number }>()
@@ -142,19 +113,17 @@ function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
   }, [eintraege])
 
   const gesamt = eintraege.length
-
   if (gesamt === 0) return null
 
   const switcher: { key: ChartView; label: string; Icon: React.ElementType }[] = [
-    { key: 'donut',  label: 'Donut',  Icon: PieIcon   },
-    { key: 'balken', label: 'Balken', Icon: BarChart2  },
-    { key: 'liste',  label: 'Liste',  Icon: List       },
+    { key: 'balken', label: 'Balken', Icon: BarChart2 },
+    { key: 'liste',  label: 'Liste',  Icon: List      },
   ]
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-6">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
       {/* Switcher */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <p className="text-xs text-gray-400 font-medium">{gesamt} Produkte gesamt</p>
         <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
           {switcher.map(({ key, label, Icon }) => (
@@ -173,47 +142,10 @@ function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
         </div>
       </div>
 
-      {/* Views */}
-      <div style={{ minHeight: 180 }}>
-
-        {/* Donut-View */}
-        {view === 'donut' && (
-          <div className="flex items-center gap-8">
-            <div className="shrink-0" style={{ width: 200, height: 200 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={donutData} cx="50%" cy="50%"
-                    innerRadius={58} outerRadius={82}
-                    dataKey="count" paddingAngle={2}
-                    startAngle={90} endAngle={-270}
-                  >
-                    {donutData.map((entry, i) => (
-                      <Cell key={i} fill={STATUS_FARBEN[entry.key] ?? '#9CA3AF'} stroke="none" />
-                    ))}
-                    <Label position="center" content={<DonutMitte gesamt={gesamt} />} />
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="grid grid-cols-2 gap-x-10 gap-y-3.5">
-              {LISTE_CFG.map((cfg) => {
-                const count = counts[cfg.key] ?? 0
-                return (
-                  <div key={cfg.key} className="flex items-center gap-2.5">
-                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cfg.farbe }} />
-                    <span className="text-sm text-gray-600">{cfg.label}</span>
-                    <span className="text-sm font-bold text-gray-900 ml-auto">{count}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Balken-View */}
-        {view === 'balken' && (
-          <ResponsiveContainer width="100%" height={180}>
+      {/* Balken-View */}
+      {view === 'balken' && (
+        <>
+          <ResponsiveContainer width="100%" height={160}>
             <BarChart data={balkenData} barCategoryGap="30%" margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} />
@@ -231,30 +163,38 @@ function FreigabeChart({ eintraege }: { eintraege: FreigabeEintrag[] }) {
               <Bar dataKey="ueberarbeitung" name="Überarbeitung" stackId="a" fill="#6366F1" radius={[3,3,0,0]} />
             </BarChart>
           </ResponsiveContainer>
-        )}
-
-        {/* Liste-View */}
-        {view === 'liste' && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-2">
-            {LISTE_CFG.map((cfg) => {
-              const count = counts[cfg.key] ?? 0
-              const Icon = cfg.icon
-              return (
-                <div key={cfg.key} className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border ${cfg.bg} border-transparent`}>
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-white/60`}>
-                    <Icon className={`w-4.5 h-4.5 ${cfg.text}`} style={{ width: 18, height: 18 }} />
-                  </div>
-                  <div>
-                    <p className={`text-xl font-bold leading-none ${cfg.text}`}>{count}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{cfg.label}</p>
-                  </div>
-                </div>
-              )
-            })}
+          {/* Legende */}
+          <div className="flex items-center gap-5 mt-2 flex-wrap">
+            {LISTE_CFG.map((cfg) => (
+              <div key={cfg.key} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: cfg.farbe }} />
+                <span className="text-xs text-gray-500">{cfg.label}</span>
+              </div>
+            ))}
           </div>
-        )}
+        </>
+      )}
 
-      </div>
+      {/* Liste-View */}
+      {view === 'liste' && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1">
+          {LISTE_CFG.map((cfg) => {
+            const count = counts[cfg.key] ?? 0
+            const Icon = cfg.icon
+            return (
+              <div key={cfg.key} className={`flex items-center gap-3 px-4 py-3.5 rounded-xl ${cfg.bg}`}>
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-white/60">
+                  <Icon className={cfg.text} style={{ width: 18, height: 18 }} />
+                </div>
+                <div>
+                  <p className={`text-xl font-bold leading-none ${cfg.text}`}>{count}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{cfg.label}</p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -438,9 +378,19 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
   }
 
   return (
-    <div>
-      {/* Freigabe-Chart */}
-      <FreigabeChart eintraege={eintraege} />
+    <div className="flex flex-col min-h-0">
+
+      {/* ── Sticky Header: Titel + Chart ──────────────────────── */}
+      <div className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-6 pt-6 pb-4 shadow-sm">
+        <div className="mb-4">
+          <h1 className="text-xl font-semibold text-gray-900">Freigaben</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Produktfreigaben aller Projekte im Überblick</p>
+        </div>
+        <FreigabeChart eintraege={eintraege} />
+      </div>
+
+      {/* ── Scrollbarer Content ────────────────────────────────── */}
+      <div className="px-6 py-6">
 
       {/* Tabs */}
       <div className="flex items-center gap-0 mb-6 border-b border-gray-200">
@@ -560,6 +510,8 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
           isPending={isPending}
         />
       )}
+
+      </div>{/* Ende scrollbarer Content */}
     </div>
   )
 }
