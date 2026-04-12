@@ -26,10 +26,20 @@ export type EinstellungActionState = { fehler?: string; erfolg?: string } | null
 
 async function upsertEinstellung(schluessel: string, wert: string) {
   const supabase = await createClient()
-  return supabase.from('einstellungen').upsert(
+  const result = await supabase.from('einstellungen').upsert(
     { schluessel, wert, updated_at: new Date().toISOString() },
     { onConflict: 'schluessel' }
   )
+  if (result.error) {
+    console.error('[upsertEinstellung] Fehler:', {
+      schluessel,
+      code: result.error.code,
+      message: result.error.message,
+      details: result.error.details,
+      hint: result.error.hint,
+    })
+  }
+  return result
 }
 
 // ── Allgemein ─────────────────────────────────────────────────
@@ -96,7 +106,7 @@ export async function addListItem(
   liste.push(eintrag)
 
   const { error } = await upsertEinstellung(schluessel, liste.join(','))
-  if (error) return { fehler: 'Fehler beim Speichern.' }
+  if (error) return { fehler: `Fehler beim Speichern: ${error.message} (${error.code})` }
 
   revalidatePath('/dashboard/einstellungen')
   revalidatePath('/dashboard/kategorien')
@@ -141,7 +151,7 @@ export async function updateListItem(
   }
 
   const { error } = await upsertEinstellung(schluessel, liste.join(','))
-  if (error) return { fehler: 'Fehler beim Speichern.' }
+  if (error) return { fehler: `Fehler beim Speichern: ${error.message} (${error.code})` }
 
   revalidatePath('/dashboard/einstellungen')
   revalidatePath('/dashboard/kategorien')
