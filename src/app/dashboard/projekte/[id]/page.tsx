@@ -8,13 +8,17 @@ import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
 import { projektSoftDelete, projektStatusAendern } from '@/app/actions/projekte'
-import { ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote, Archive } from 'lucide-react'
+import { konfiguratorSessionsAbrufen } from '@/app/actions/konfigurator'
+import { naechsteEventsAbrufen } from '@/app/actions/timeline'
+import { ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote, Archive, CalendarDays, Flag, Truck, Layers } from 'lucide-react'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
 import SortableRaumListe from '@/components/SortableRaumListe'
 import PdfExportButton, { type PdfProdukt } from '@/components/PdfExportButton'
+import KonfiguratorLinkKarte from '@/components/KonfiguratorLinkKarte'
 import { getMwstSatz, getEinstellungen } from '@/app/actions/einstellungen'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
+import type { TimelineEvent } from '@/lib/supabase/types'
 import type { DateiItem } from '@/components/DateiUpload'
 
 const eur = (n: number) =>
@@ -156,7 +160,7 @@ async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
 }
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, einstellungen, kunden] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, einstellungen, kunden, konfigSessions, naechsteEvents] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
@@ -167,6 +171,8 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
     getMwstSatz(),
     getEinstellungen(),
     getKunden(),
+    konfiguratorSessionsAbrufen(params.id),
+    naechsteEventsAbrufen(params.id, 3),
   ])
 
   const raumtypen = (einstellungen.raumtypen ?? 'Büro,Studio,Wellness,Hotel,Privat,Wohnung,Sonstiges')
@@ -217,6 +223,14 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {!istArchiviert && (
             <>
+              {/* Timeline */}
+              <Link
+                href={`/dashboard/projekte/${projekt.id}/timeline`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02] rounded-lg transition-all duration-200"
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                Timeline
+              </Link>
               {/* CSV Export */}
               <a
                 href={`/api/projekte/${projekt.id}/export`}
@@ -314,6 +328,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
 
           <FreigabeLinkKarte projektId={projekt.id} initialToken={aktiverToken ?? null} />
           <FreigabePinEinstellung projektId={projekt.id} hatPin={projekt.freigabe_pin != null} />
+          <KonfiguratorLinkKarte projektId={projekt.id} initialSessions={konfigSessions} />
           <DateiUpload projektId={projekt.id} initialDateien={dateien} />
           <NotizBlock typ="projekt" referenzId={projekt.id} initialNotizen={notizen} />
         </div>
@@ -390,6 +405,11 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
             )}
           </div>
 
+          {/* Nächste Events */}
+          {naechsteEvents.length > 0 && (
+            <NaechsteEvents projektId={projekt.id} events={naechsteEvents} />
+          )}
+
           {/* Räume */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <RaumHinzufuegen
@@ -408,6 +428,52 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
             )}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function NaechsteEvents({ projektId, events }: { projektId: string; events: TimelineEvent[] }) {
+  const typIcon: Record<string, typeof CalendarDays> = {
+    meilenstein: Flag, lieferung: Truck, termin: CalendarDays, phase: Layers,
+  }
+  const typFarbe: Record<string, string> = {
+    meilenstein: 'text-purple-600 bg-purple-50',
+    lieferung:   'text-blue-600 bg-blue-50',
+    termin:      'text-emerald-600 bg-emerald-50',
+    phase:       'text-gray-600 bg-gray-100',
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Nächste Termine</h2>
+        <Link href={`/dashboard/projekte/${projektId}/timeline`} className="text-xs text-wellbeing-green hover:underline">
+          Alle →
+        </Link>
+      </div>
+      <div className="space-y-2">
+        {events.map((ev) => {
+          const Icon  = typIcon[ev.typ] ?? CalendarDays
+          const farbe = typFarbe[ev.typ] ?? 'text-gray-600 bg-gray-100'
+          const ueberfaellig = ev.start_datum < new Date().toISOString().split('T')[0] && ev.status !== 'abgeschlossen'
+          return (
+            <div key={ev.id} className="flex items-center gap-3">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${farbe}`}>
+                <Icon className="w-3.5 h-3.5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`text-xs font-medium truncate ${ueberfaellig ? 'text-red-600' : 'text-gray-800'}`}>
+                  {ev.titel}
+                </p>
+                <p className="text-[10px] text-gray-400">
+                  {new Date(ev.start_datum + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })}
+                </p>
+              </div>
+              {ueberfaellig && <span className="shrink-0 text-[10px] font-medium text-red-500">Überfällig</span>}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

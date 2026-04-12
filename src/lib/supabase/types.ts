@@ -189,6 +189,57 @@ export interface OnboardingVorlage {
   updated_at: string
 }
 
+// ── Kunden-Konfigurator ───────────────────────────────────────
+export type KonfiguratorStatus = 'aktiv' | 'abgeschlossen' | 'abgelaufen'
+export type AuswahlStatus = 'ausgewaehlt' | 'abgelehnt' | 'alternative_gewuenscht' | 'unentschieden'
+
+export interface KonfiguratorSession {
+  id: string
+  projekt_id: string
+  token: string
+  status: KonfiguratorStatus
+  kunde_notizen: string | null
+  budget_limit: number | null
+  show_prices: boolean
+  allow_alternatives: boolean
+  expires_at: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface KonfiguratorAuswahl {
+  id: string
+  session_id: string
+  produkt_id: string
+  status: AuswahlStatus
+  kunde_kommentar: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ── Projekt-Timeline ──────────────────────────────────────────
+export type TimelineEventTyp    = 'meilenstein' | 'lieferung' | 'termin' | 'phase'
+export type TimelineEventStatus = 'geplant' | 'in_arbeit' | 'abgeschlossen' | 'verspaetet'
+
+export interface TimelineEvent {
+  id: string
+  projekt_id: string
+  titel: string
+  beschreibung: string | null
+  typ: TimelineEventTyp
+  start_datum: string
+  end_datum: string | null
+  status: TimelineEventStatus
+  farbe: string | null
+  abhaengig_von: string[]
+  verantwortlich: string | null
+  erinnerung_tage: number | null
+  reihenfolge: number
+  created_at: string
+  updated_at: string
+}
+
 export interface Branding {
   id: string
   firmenname: string
