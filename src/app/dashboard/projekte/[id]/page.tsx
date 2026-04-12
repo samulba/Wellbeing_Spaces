@@ -7,7 +7,8 @@ import FreigabePinEinstellung from '@/components/FreigabePinEinstellung'
 import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
-import { projektSoftDelete, projektStatusAendern } from '@/app/actions/projekte'
+import { projektSoftDelete } from '@/app/actions/projekte'
+import ProjektStatusButtons from '@/components/ProjektStatusButtons'
 import { konfiguratorSessionsAbrufen } from '@/app/actions/konfigurator'
 import { naechsteEventsAbrufen } from '@/app/actions/timeline'
 import { ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote, Archive, CalendarDays, Flag, Truck, Layers } from 'lucide-react'
@@ -24,12 +25,6 @@ import type { DateiItem } from '@/components/DateiUpload'
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
-const statusOptionen = [
-  { wert: 'offen',          label: 'Offen',         farbe: 'bg-gray-100 text-gray-600' },
-  { wert: 'in_bearbeitung', label: 'In Bearbeitung', farbe: 'bg-blue-50 text-blue-700' },
-  { wert: 'freigegeben',    label: 'Freigegeben',    farbe: 'bg-emerald-50 text-emerald-700' },
-  { wert: 'abgeschlossen',  label: 'Abgeschlossen',  farbe: 'bg-gray-100 text-gray-500' },
-]
 
 async function getProjekt(id: string): Promise<ProjektMitKunde | null> {
   const supabase = await createClient()
@@ -270,26 +265,13 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      {/* Status-Umschalter (deaktiviert wenn archiviert) */}
-      <div className={`flex items-center gap-2 mb-6 ${istArchiviert ? 'opacity-50 pointer-events-none' : ''}`}>
-        {statusOptionen.map((s) => {
-          const istAktiv = projekt.status === s.wert
-          const statusAendernAktion = projektStatusAendern.bind(null, projekt.id, s.wert as import('@/lib/supabase/types').ProjektStatus)
-          return (
-            <form key={s.wert} action={statusAendernAktion}>
-              <button
-                type="submit"
-                className={`text-xs px-3.5 py-1.5 rounded-full font-medium transition-all duration-200 hover:scale-[1.02] ${
-                  istAktiv
-                    ? s.farbe + ' ring-2 ring-offset-1 ring-wellbeing-green-light'
-                    : 'bg-white text-gray-400 border border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                {s.label}
-              </button>
-            </form>
-          )
-        })}
+      {/* Status-Umschalter */}
+      <div className="mb-6">
+        <ProjektStatusButtons
+          projektId={projekt.id}
+          initialStatus={projekt.status}
+          disabled={istArchiviert}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
