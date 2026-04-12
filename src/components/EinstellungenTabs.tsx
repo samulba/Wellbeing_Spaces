@@ -32,6 +32,7 @@ const TABS = [
   { key: 'freigabe',           label: 'Freigabe & Links' },
   { key: 'abrechnung',         label: 'Abrechnung' },
   { key: 'branding',           label: 'Branding', href: '/dashboard/einstellungen/branding' },
+  { key: 'handbuch',           label: 'Handbuch', href: '/dashboard/einstellungen/handbuch' },
 ]
 
 const ZEITZONEN = [
