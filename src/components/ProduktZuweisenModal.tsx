@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { FolderInput, X, ChevronDown } from 'lucide-react'
-import { produktZuRaumZuweisen } from '@/app/actions/produkte'
+import { produktZuRaumHinzufuegen } from '@/app/actions/raum-produkte'
 
 export type ProjektOption = { id: string; name: string }
 export type RaumOption    = { id: string; name: string; projekt_id: string }
@@ -52,7 +52,7 @@ export default function ProduktZuweisenModal({
     if (!selectedRaum) { setFehler('Bitte Projekt und Raum auswählen.'); return }
     setFehler(null)
     startTransition(async () => {
-      const result = await produktZuRaumZuweisen(produktId, selectedRaum)
+      const result = await produktZuRaumHinzufuegen(produktId, selectedRaum)
       if (result?.fehler) {
         setFehler(result.fehler)
       } else {

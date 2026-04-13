@@ -66,35 +66,50 @@ async function getProjektStats(projektId: string) {
   const raumIds = (raeume ?? []).map((r) => r.id)
   if (raumIds.length === 0) return { gesamtkosten: 0, ausstehend: 0, freigegeben: 0, abgelehnt: 0, ueberarbeitung: 0, produkteGesamt: 0 }
 
-  const { data: produkte } = await supabase
-    .from('produkte').select('id, verkaufspreis, menge, produktstatus(status)').in('raum_id', raumIds).is('deleted_at', null)
+  // Lade über raum_produkte mit JOIN auf produkte + produktstatus
+  const { data: eintraege } = await supabase
+    .from('raum_produkte')
+    .select('menge, verkaufspreis_override, produkte(id, verkaufspreis, deleted_at, produktstatus(status))')
+    .in('raum_id', raumIds)
 
   let gesamtkosten = 0, ausstehend = 0, freigegeben = 0, abgelehnt = 0, ueberarbeitung = 0
-  for (const p of produkte ?? []) {
-    gesamtkosten += (p.verkaufspreis ?? 0) * p.menge
-    const statusObj = Array.isArray(p.produktstatus) ? p.produktstatus[0] : p.produktstatus
+  const aktiveEintraege = (eintraege ?? []).filter((e) => {
+    const prod = (e.produkte as unknown) as { deleted_at: string | null } | null
+    return prod?.deleted_at == null
+  })
+
+  for (const e of aktiveEintraege) {
+    const prod = (e.produkte as unknown) as { verkaufspreis: number | null; produktstatus: { status: string } | { status: string }[] | null } | null
+    const vp = (e.verkaufspreis_override ?? prod?.verkaufspreis ?? 0)
+    gesamtkosten += vp * e.menge
+    const statusObj = Array.isArray(prod?.produktstatus) ? prod?.produktstatus[0] : prod?.produktstatus
     const s = statusObj?.status ?? 'ausstehend'
     if (s === 'ausstehend') ausstehend++
     else if (s === 'freigegeben') freigegeben++
     else if (s === 'abgelehnt') abgelehnt++
     else if (s === 'ueberarbeitung') ueberarbeitung++
   }
-  return { gesamtkosten: Math.round(gesamtkosten * 100) / 100, ausstehend, freigegeben, abgelehnt, ueberarbeitung, produkteGesamt: (produkte ?? []).length }
+  return { gesamtkosten: Math.round(gesamtkosten * 100) / 100, ausstehend, freigegeben, abgelehnt, ueberarbeitung, produkteGesamt: aktiveEintraege.length }
 }
 
 async function getRaumStats(raumIds: string[]): Promise<Record<string, RaumStat>> {
   if (raumIds.length === 0) return {}
   const supabase = await createClient()
-  const { data: produkte } = await supabase
-    .from('produkte').select('raum_id, verkaufspreis, menge, produktstatus(status)').in('raum_id', raumIds).is('deleted_at', null)
+  const { data: eintraege } = await supabase
+    .from('raum_produkte')
+    .select('raum_id, menge, verkaufspreis_override, produkte(verkaufspreis, deleted_at, produktstatus(status))')
+    .in('raum_id', raumIds)
 
   const result: Record<string, RaumStat> = {}
-  for (const p of produkte ?? []) {
-    if (!result[p.raum_id]) result[p.raum_id] = { produkteAnzahl: 0, vpSumme: 0, freigegeben: 0 }
-    result[p.raum_id].produkteAnzahl++
-    result[p.raum_id].vpSumme += (p.verkaufspreis ?? 0) * p.menge
-    const statusObj = Array.isArray(p.produktstatus) ? p.produktstatus[0] : p.produktstatus
-    if (statusObj?.status === 'freigegeben') result[p.raum_id].freigegeben++
+  for (const e of eintraege ?? []) {
+    const prod = (e.produkte as unknown) as { verkaufspreis: number | null; deleted_at: string | null; produktstatus: { status: string } | { status: string }[] | null } | null
+    if (prod?.deleted_at != null) continue
+    if (!result[e.raum_id]) result[e.raum_id] = { produkteAnzahl: 0, vpSumme: 0, freigegeben: 0 }
+    result[e.raum_id].produkteAnzahl++
+    const vp = e.verkaufspreis_override ?? prod?.verkaufspreis ?? 0
+    result[e.raum_id].vpSumme += vp * e.menge
+    const statusObj = Array.isArray(prod?.produktstatus) ? prod?.produktstatus[0] : prod?.produktstatus
+    if (statusObj?.status === 'freigegeben') result[e.raum_id].freigegeben++
   }
   return result
 }
@@ -118,12 +133,37 @@ async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
   for (const r of raeume ?? []) raumMap[r.id] = r.name
   const raumIds = (raeume ?? []).map((r) => r.id)
   if (raumIds.length === 0) return []
-  const { data: produkte } = await supabase.from('produkte').select('name, raum_id, kategorie, menge, einheit, verkaufspreis, produktstatus(status)').in('raum_id', raumIds).is('deleted_at', null).order('reihenfolge')
-  return (produkte ?? []).map((p) => {
-    const psRaw = p.produktstatus as { status: string } | { status: string }[] | null
-    const ps = Array.isArray(psRaw) ? psRaw[0] : psRaw
-    return { name: p.name, raumName: raumMap[p.raum_id] ?? '–', kategorie: p.kategorie, menge: p.menge, einheit: p.einheit, vpNetto: p.verkaufspreis ?? 0, status: ps?.status ?? 'ausstehend' }
-  })
+
+  const { data: eintraege } = await supabase
+    .from('raum_produkte')
+    .select('raum_id, menge, reihenfolge, verkaufspreis_override, produkte(name, kategorie, einheit, verkaufspreis, deleted_at, produktstatus(status))')
+    .in('raum_id', raumIds)
+    .order('reihenfolge')
+
+  return (eintraege ?? [])
+    .filter((e) => {
+      const prod = (e.produkte as unknown) as { deleted_at: string | null } | null
+      return prod?.deleted_at == null
+    })
+    .map((e) => {
+      const prod = (e.produkte as unknown) as {
+        name: string; kategorie: string | null; einheit: string
+        verkaufspreis: number | null
+        produktstatus: { status: string } | { status: string }[] | null
+      }
+      const psRaw = prod?.produktstatus
+      const ps = Array.isArray(psRaw) ? psRaw[0] : psRaw
+      const vp = e.verkaufspreis_override ?? prod?.verkaufspreis ?? 0
+      return {
+        name:      prod?.name ?? '–',
+        raumName:  raumMap[e.raum_id] ?? '–',
+        kategorie: prod?.kategorie ?? null,
+        menge:     e.menge,
+        einheit:   prod?.einheit ?? 'Stk',
+        vpNetto:   vp,
+        status:    ps?.status ?? 'ausstehend',
+      }
+    })
 }
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {

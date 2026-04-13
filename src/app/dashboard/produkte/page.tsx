@@ -9,51 +9,43 @@ import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 async function getProdukte(): Promise<ProduktZeile[]> {
   const supabase = await createClient()
 
-  const [
-    { data: prodData },
-    { data: raumData },
-    { data: projektData },
-    { data: kundenData },
-    { data: partnerData },
-  ] = await Promise.all([
+  const [{ data: prodData }, { data: partnerData }, { data: raumProdData }] = await Promise.all([
     supabase
       .from('produkte')
-      .select('id, name, kategorie, menge, einheit, verkaufspreis, bild_url, produkt_url, raum_id, partner_id')
+      .select('id, name, kategorie, menge, einheit, verkaufspreis, bild_url, produkt_url, partner_id')
       .is('deleted_at', null)
       .order('name'),
-    supabase.from('raeume').select('id, name, projekt_id').is('deleted_at', null),
-    supabase.from('projekte').select('id, name, kunde_id').is('deleted_at', null),
-    supabase.from('kunden').select('id, name').is('deleted_at', null),
     supabase.from('partner').select('id, name').is('deleted_at', null),
+    supabase.from('raum_produkte').select('produkt_id'),
   ])
 
-  const raumMap    = Object.fromEntries((raumData    ?? []).map((r) => [r.id, r]))
-  const projektMap = Object.fromEntries((projektData ?? []).map((p) => [p.id, p]))
-  const kundeMap   = Object.fromEntries((kundenData  ?? []).map((k) => [k.id, k]))
   const partnerMap = Object.fromEntries((partnerData ?? []).map((p) => [p.id, p]))
 
-  return (prodData ?? []).map((p) => {
-    const raum    = p.raum_id ? raumMap[p.raum_id] : null
-    const projekt = raum ? projektMap[raum.projekt_id] : null
-    const kunde   = projekt ? kundeMap[projekt.kunde_id] : null
-    const partner = p.partner_id ? partnerMap[p.partner_id] : null
+  // Anzahl Räume pro Produkt zählen
+  const raumAnzahlMap: Record<string, number> = {}
+  for (const rp of raumProdData ?? []) {
+    raumAnzahlMap[rp.produkt_id] = (raumAnzahlMap[rp.produkt_id] ?? 0) + 1
+  }
 
+  return (prodData ?? []).map((p) => {
+    const partner = p.partner_id ? partnerMap[p.partner_id] : null
     return {
-      id:            p.id,
-      name:          p.name,
-      kategorie:     p.kategorie,
-      menge:         p.menge,
-      einheit:       p.einheit,
-      verkaufspreis: p.verkaufspreis,
-      bild_url:      p.bild_url,
-      produkt_url:   p.produkt_url,
-      partnerName:   partner?.name ?? null,
-      partnerId:     p.partner_id,
-      raumId:        raum?.id ?? null,
-      raumName:      raum?.name ?? null,
-      projektId:     projekt?.id ?? null,
-      projektName:   projekt?.name ?? null,
-      kundeName:     kunde?.name ?? null,
+      id:                 p.id,
+      name:               p.name,
+      kategorie:          p.kategorie,
+      menge:              p.menge,
+      einheit:            p.einheit,
+      verkaufspreis:      p.verkaufspreis,
+      bild_url:           p.bild_url,
+      produkt_url:        p.produkt_url,
+      partnerName:        partner?.name ?? null,
+      partnerId:          p.partner_id,
+      raumId:             null,
+      raumName:           null,
+      projektId:          null,
+      projektName:        null,
+      kundeName:          null,
+      verwendetInAnzahl:  raumAnzahlMap[p.id] ?? 0,
     }
   })
 }

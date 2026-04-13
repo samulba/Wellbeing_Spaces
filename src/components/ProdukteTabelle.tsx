@@ -115,6 +115,7 @@ export type ProduktZeile = {
   projektId: string | null
   projektName: string | null
   kundeName: string | null
+  verwendetInAnzahl?: number
 }
 
 const eur = (n: number) =>
@@ -242,10 +243,7 @@ export default function ProdukteTabelle({
 
   const activeFilters = [filterPartner, filterKategorie].filter(Boolean).length
 
-  const produktLink = (p: ProduktZeile) =>
-    p.projektId && p.raumId
-      ? `/dashboard/projekte/${p.projektId}/raeume/${p.raumId}/produkte/${p.id}/bearbeiten`
-      : `/dashboard/produkte/${p.id}/bearbeiten`
+  const produktLink = (_p: ProduktZeile) => `/dashboard/produkte/${_p.id}/bearbeiten`
 
   return (
     <div className="space-y-5">
@@ -333,7 +331,7 @@ export default function ProdukteTabelle({
           ) : (
             gefiltert.map((p) => {
               const vpBrutto = p.verkaufspreis != null ? p.verkaufspreis * (1 + mwst) : null
-              const isBibliothek = !p.projektId
+              const isBibliothek = (p.verwendetInAnzahl ?? 0) === 0
               return (
                 <div
                   key={p.id}
@@ -516,17 +514,12 @@ export default function ProdukteTabelle({
                           )}
                         </td>
 
-                        {/* Projekt → Raum */}
+                        {/* Verwendung → In X Räumen */}
                         <td className="px-4 py-3 max-w-[200px]">
-                          {p.projektId ? (
-                            <>
-                              <Link href={`/dashboard/projekte/${p.projektId}`}
-                                className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark font-medium truncate block transition-colors"
-                                onClick={(e) => e.stopPropagation()}>
-                                {p.projektName}
-                              </Link>
-                              <span className="text-xs text-gray-400 truncate block">→ {p.raumName}</span>
-                            </>
+                          {(p.verwendetInAnzahl ?? 0) > 0 ? (
+                            <span className="inline-block px-2 py-0.5 text-[11px] bg-wellbeing-cream text-wellbeing-green-dark rounded-full font-medium whitespace-nowrap">
+                              In {p.verwendetInAnzahl} {p.verwendetInAnzahl === 1 ? 'Raum' : 'Räumen'}
+                            </span>
                           ) : (
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                               <span className="inline-block px-2 py-0.5 text-[11px] bg-gray-100 text-gray-500 rounded-full font-medium whitespace-nowrap">

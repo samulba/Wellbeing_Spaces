@@ -84,10 +84,11 @@ export async function produktAnlegen(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
+  // Produkt immer in die Bibliothek (raum_id = NULL) – Verknüpfung über raum_produkte
   const { data: produkt, error } = await supabase
     .from('produkte')
     .insert({
-      raum_id: raumId,
+      raum_id: null,
       partner_id: (formData.get('partner_id') as string) || null,
       name: formData.get('name') as string,
       beschreibung: (formData.get('beschreibung') as string) || null,
@@ -109,11 +110,20 @@ export async function produktAnlegen(
 
   if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
 
-  await supabase.from('produktstatus').insert({
-    produkt_id: produkt.id,
-    status: 'ausstehend',
-    organisation_id: orgId,
-  })
+  // Produktstatus + Raum-Verknüpfung parallel anlegen
+  await Promise.all([
+    supabase.from('produktstatus').insert({
+      produkt_id: produkt.id,
+      status: 'ausstehend',
+      organisation_id: orgId,
+    }),
+    supabase.from('raum_produkte').insert({
+      organisation_id: orgId,
+      raum_id: raumId,
+      produkt_id: produkt.id,
+      menge: parseOptionalNumber(formData.get('menge')) ?? 1,
+    }),
+  ])
 
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   redirect(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
@@ -254,17 +264,15 @@ export async function produktFuerPartnerAnlegen(
   return null
 }
 
+/** @deprecated Verwende stattdessen produktZuRaumHinzufuegen aus raum-produkte.ts */
 export async function produktZuRaumZuweisen(
   produktId: string,
   raumId: string
 ): Promise<ProduktActionState> {
-  const supabase = await createClient()
-  const { error } = await supabase
-    .from('produkte')
-    .update({ raum_id: raumId })
-    .eq('id', produktId)
-  if (error) return { fehler: 'Fehler beim Zuweisen. Bitte erneut versuchen.' }
-  revalidatePath('/dashboard/produkte')
+  // Delegiert an das neue raum_produkte-System
+  const { produktZuRaumHinzufuegen } = await import('./raum-produkte')
+  const result = await produktZuRaumHinzufuegen(produktId, raumId)
+  if (result.fehler) return { fehler: result.fehler }
   return null
 }
 

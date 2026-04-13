@@ -3,9 +3,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import { getMwstSatz } from '@/app/actions/einstellungen'
+import { getRaumProdukte } from '@/app/actions/raum-produkte'
 import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
-import type { ProduktMitDetails } from '@/lib/supabase/types'
+import type { RaumProduktMitDetails } from '@/lib/supabase/types'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
@@ -28,31 +29,28 @@ async function getRaum(raumId: string, projektId: string): Promise<RaumMitProjek
   return data as RaumMitProjekt | null
 }
 
-async function getProdukte(raumId: string): Promise<ProduktMitDetails[]> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('produkte')
-    .select('*, partner(id, name), produktstatus(status, kommentar)')
-    .eq('raum_id', raumId).is('deleted_at', null)
-    .order('reihenfolge').order('created_at')
-  return (data ?? []) as ProduktMitDetails[]
-}
-
 // ── Filter + Sort ─────────────────────────────────────────────
 type SearchParams = { kategorie?: string; status?: string; sort?: string }
 
-function filterUndSortieren(produkte: ProduktMitDetails[], sp: SearchParams): ProduktMitDetails[] {
-  let result = [...produkte]
+function filterUndSortieren(
+  eintraege: RaumProduktMitDetails[],
+  sp: SearchParams
+): RaumProduktMitDetails[] {
+  let result = [...eintraege]
 
-  if (sp.kategorie) result = result.filter((p) => p.kategorie === sp.kategorie)
-  if (sp.status)    result = result.filter((p) => (p.produktstatus?.status ?? 'ausstehend') === sp.status)
+  if (sp.kategorie) result = result.filter((e) => e.produkte.kategorie === sp.kategorie)
+  if (sp.status)    result = result.filter((e) => (e.produkte.produktstatus?.status ?? 'ausstehend') === sp.status)
+
+  const effVP = (e: RaumProduktMitDetails) => e.verkaufspreis_override ?? e.produkte.verkaufspreis ?? 0
 
   switch (sp.sort) {
-    case 'name_asc':   result.sort((a, b) => a.name.localeCompare(b.name, 'de')); break
-    case 'name_desc':  result.sort((a, b) => b.name.localeCompare(a.name, 'de')); break
-    case 'preis_asc':  result.sort((a, b) => (a.verkaufspreis ?? 0) - (b.verkaufspreis ?? 0)); break
-    case 'preis_desc': result.sort((a, b) => (b.verkaufspreis ?? 0) - (a.verkaufspreis ?? 0)); break
-    case 'status':     result.sort((a, b) => (a.produktstatus?.status ?? '').localeCompare(b.produktstatus?.status ?? '')); break
+    case 'name_asc':   result.sort((a, b) => a.produkte.name.localeCompare(b.produkte.name, 'de')); break
+    case 'name_desc':  result.sort((a, b) => b.produkte.name.localeCompare(a.produkte.name, 'de')); break
+    case 'preis_asc':  result.sort((a, b) => effVP(a) - effVP(b)); break
+    case 'preis_desc': result.sort((a, b) => effVP(b) - effVP(a)); break
+    case 'status':     result.sort((a, b) =>
+      (a.produkte.produktstatus?.status ?? '').localeCompare(b.produkte.produktstatus?.status ?? '')
+    ); break
   }
   return result
 }
@@ -65,27 +63,32 @@ export default async function RaumDetailPage({
   params: { id: string; raumId: string }
   searchParams: SearchParams
 }) {
-  const [raum, alleProdukte, MWST] = await Promise.all([
+  const [raum, alleEintraege, MWST] = await Promise.all([
     getRaum(params.raumId, params.id),
-    getProdukte(params.raumId),
+    getRaumProdukte(params.raumId),
     getMwstSatz(),
   ])
 
   if (!raum) notFound()
 
-  const produkte = filterUndSortieren(alleProdukte, searchParams)
-  const projekt  = raum.projekte
-  const kunde    = projekt?.kunden
+  const eintraege = filterUndSortieren(alleEintraege, searchParams)
+  const projekt   = raum.projekte
+  const kunde     = projekt?.kunden
 
   // Unique Kategorien für FilterBar
-  const kategorien = Array.from(new Set(alleProdukte.map((p) => p.kategorie).filter(Boolean) as string[])).sort()
+  const kategorien = Array.from(
+    new Set(alleEintraege.map((e) => e.produkte.kategorie).filter(Boolean) as string[])
+  ).sort()
 
-  // Summen (auf gefilterten Produkten)
-  const sumEpGesamt       = produkte.reduce((s, p) => s + (p.einkaufspreis ?? 0) * p.menge, 0)
-  const sumVpNettoGesamt  = produkte.reduce((s, p) => s + (p.verkaufspreis  ?? 0) * p.menge, 0)
+  // Effektiver VP pro Eintrag
+  const effVP = (e: RaumProduktMitDetails) => e.verkaufspreis_override ?? e.produkte.verkaufspreis ?? 0
+
+  // Summen (auf gefilterten Einträgen)
+  const sumEpGesamt       = eintraege.reduce((s, e) => s + (e.produkte.einkaufspreis ?? 0) * e.menge, 0)
+  const sumVpNettoGesamt  = eintraege.reduce((s, e) => s + effVP(e) * e.menge, 0)
   const sumVpBruttoGesamt = r2(sumVpNettoGesamt * (1 + MWST))
-  const sumProvisionGesamt = produkte.reduce(
-    (s, p) => s + r2((p.verkaufspreis ?? 0) * ((p.provision_prozent ?? 0) / 100) * p.menge), 0
+  const sumProvisionGesamt = eintraege.reduce(
+    (s, e) => s + r2(effVP(e) * ((e.produkte.provision_prozent ?? 0) / 100) * e.menge), 0
   )
 
   return (
@@ -120,7 +123,7 @@ export default async function RaumDetailPage({
       </div>
 
       {/* Filter Bar */}
-      {alleProdukte.length > 0 && (
+      {alleEintraege.length > 0 && (
         <div className="mb-4">
           <Suspense fallback={null}>
             <FilterBar kategorien={kategorien} />
@@ -129,7 +132,7 @@ export default async function RaumDetailPage({
       )}
 
       {/* Leerzustand */}
-      {alleProdukte.length === 0 && (
+      {alleEintraege.length === 0 && (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl shadow-sm">
           <p className="text-gray-500 text-sm">Noch keine Produkte in diesem Raum.</p>
           <Link
@@ -142,25 +145,25 @@ export default async function RaumDetailPage({
       )}
 
       {/* Keine Treffer nach Filter */}
-      {alleProdukte.length > 0 && produkte.length === 0 && (
+      {alleEintraege.length > 0 && eintraege.length === 0 && (
         <div className="text-center py-12 bg-white border border-gray-200 rounded-xl shadow-sm">
           <p className="text-sm text-gray-400">Kein Produkt entspricht den gewählten Filtern.</p>
         </div>
       )}
 
       {/* Produkttabelle */}
-      {produkte.length > 0 && (
+      {eintraege.length > 0 && (
         <>
           {/* Anzahl-Hinweis bei aktiven Filtern */}
           {(searchParams.kategorie || searchParams.status || searchParams.sort) && (
             <p className="text-xs text-gray-400 mb-2">
-              {produkte.length} von {alleProdukte.length} Produkten
+              {eintraege.length} von {alleEintraege.length} Produkten
             </p>
           )}
 
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm mb-4">
             <SortableProduktTabelle
-              produkte={produkte}
+              eintraege={eintraege}
               mwst={MWST}
               projektId={params.id}
               raumId={params.raumId}
@@ -198,4 +201,3 @@ function SummeZelle({ label, wert, intern, hervorheben }: { label: string; wert:
     </div>
   )
 }
-

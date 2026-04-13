@@ -177,6 +177,23 @@ export type ProduktMitDetails = Produkt & {
   produktstatus: { status: ProduktStatus; kommentar: string | null } | null
 }
 
+// ── Raum-Produkt-Verknüpfung (Migration 038) ─────────────────
+export interface RaumProdukt {
+  id: string
+  organisation_id: string
+  raum_id: string
+  produkt_id: string
+  menge: number
+  verkaufspreis_override: number | null
+  reihenfolge: number
+  notizen: string | null
+  created_at: string
+}
+
+export type RaumProduktMitDetails = RaumProdukt & {
+  produkte: ProduktMitDetails
+}
+
 // Externe Ansicht – nur diese Felder an Kunden übergeben
 export type ProduktExtern = Pick<
   Produkt,

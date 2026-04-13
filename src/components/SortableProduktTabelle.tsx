@@ -21,8 +21,12 @@ import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
 import Link from 'next/link'
 import ConfirmDeleteButton from './ConfirmDeleteButton'
-import { produktSoftDelete, updateProduktPositionen, bestellstatusAendern } from '@/app/actions/produkte'
-import type { ProduktMitDetails } from '@/lib/supabase/types'
+import {
+  produktAusRaumEntfernen,
+  updateRaumProduktPositionen,
+} from '@/app/actions/raum-produkte'
+import { bestellstatusAendern } from '@/app/actions/produkte'
+import type { RaumProduktMitDetails } from '@/lib/supabase/types'
 import type { BestellStatus } from '@/lib/supabase/types'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -53,22 +57,26 @@ const th = 'px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wides
 const td = 'px-4 py-3.5 text-gray-600'
 
 interface ZeileProps {
-  produkt: ProduktMitDetails
+  eintrag: RaumProduktMitDetails
   mwst: number
   projektId: string
   raumId: string
   isLast: boolean
-  onBestellstatusChange: (id: string, status: BestellStatus) => void
+  onBestellstatusChange: (raumProduktId: string, status: BestellStatus) => void
 }
 
-function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onBestellstatusChange }: ZeileProps) {
+function SortableProduktZeile({ eintrag, mwst, projektId, raumId, isLast, onBestellstatusChange }: ZeileProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: p.id })
+    useSortable({ id: eintrag.id })
 
-  const vpBrutto     = r2((p.verkaufspreis ?? 0) * (1 + mwst))
-  const gesamtNetto  = r2((p.verkaufspreis ?? 0) * p.menge)
-  const provisionEur = r2((p.verkaufspreis ?? 0) * ((p.provision_prozent ?? 0) / 100))
-  const loeschenAktion = produktSoftDelete.bind(null, p.id, raumId, projektId)
+  const p = eintrag.produkte
+  // Effektiver Verkaufspreis: Override aus raum_produkte, sonst Produkt-VP
+  const effektivVP  = eintrag.verkaufspreis_override ?? p.verkaufspreis
+  const vpBrutto    = r2((effektivVP ?? 0) * (1 + mwst))
+  const gesamtNetto = r2((effektivVP ?? 0) * eintrag.menge)
+  const provisionEur = r2((effektivVP ?? 0) * ((p.provision_prozent ?? 0) / 100))
+
+  const loeschenAktion = produktAusRaumEntfernen.bind(null, eintrag.id, raumId, projektId)
   const status = p.produktstatus?.status ?? 'ausstehend'
   const bestellstatus = (p.bestellstatus ?? 'ausstehend') as BestellStatus
 
@@ -125,10 +133,15 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onB
               Link
             </a>
           )}
+          {eintrag.verkaufspreis_override != null && (
+            <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded-full font-medium">
+              Preis angepasst
+            </span>
+          )}
         </div>
       </td>
 
-      <td className={`${td} text-center`}>{p.menge} {p.einheit}</td>
+      <td className={`${td} text-center`}>{eintrag.menge} {p.einheit}</td>
       <td className={`${td} text-center font-mono text-red-500/70`}>
         {p.einkaufspreis != null ? eur(p.einkaufspreis) : '–'}
       </td>
@@ -138,16 +151,16 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onB
           : '–'}
       </td>
       <td className={`${td} text-center font-mono`}>
-        {p.verkaufspreis != null ? eur(p.verkaufspreis) : '–'}
+        {effektivVP != null ? eur(effektivVP) : '–'}
       </td>
       <td className={`${td} text-center font-mono font-medium text-gray-900`}>
-        {p.verkaufspreis != null ? eur(vpBrutto) : '–'}
+        {effektivVP != null ? eur(vpBrutto) : '–'}
       </td>
       <td className={`${td} text-center font-mono text-red-500/70`}>
-        {p.provision_prozent != null && p.verkaufspreis != null ? eur(provisionEur) : '–'}
+        {p.provision_prozent != null && effektivVP != null ? eur(provisionEur) : '–'}
       </td>
       <td className={`${td} text-center font-mono font-semibold text-wellbeing-green`}>
-        {p.verkaufspreis != null ? eur(gesamtNetto) : '–'}
+        {effektivVP != null ? eur(gesamtNetto) : '–'}
       </td>
 
       {/* Freigabe-Status */}
@@ -161,7 +174,7 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onB
       <td className="px-3 py-3.5 text-center">
         <select
           value={bestellstatus}
-          onChange={(e) => onBestellstatusChange(p.id, e.target.value as BestellStatus)}
+          onChange={(e) => onBestellstatusChange(eintrag.id, e.target.value as BestellStatus)}
           className={`text-xs px-2 py-1 rounded-full font-medium cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light ${bestellBadge[bestellstatus]}`}
         >
           <option value="ausstehend">Offen</option>
@@ -175,7 +188,7 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onB
       <td className="px-3 py-3.5">
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Link
-            href={`/dashboard/projekte/${projektId}/raeume/${raumId}/produkte/${p.id}/bearbeiten`}
+            href={`/dashboard/produkte/${p.id}/bearbeiten`}
             className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors whitespace-nowrap"
           >
             Bearb.
@@ -183,7 +196,7 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onB
           <ConfirmDeleteButton
             action={loeschenAktion}
             label="✕"
-            confirmMessage={`„${p.name}" löschen?`}
+            confirmMessage={`„${p.name}" aus diesem Raum entfernen?`}
             className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
           />
         </div>
@@ -193,17 +206,17 @@ function SortableProduktZeile({ produkt: p, mwst, projektId, raumId, isLast, onB
 }
 
 export default function SortableProduktTabelle({
-  produkte: initialProdukte,
+  eintraege: initialEintraege,
   mwst,
   projektId,
   raumId,
 }: {
-  produkte: ProduktMitDetails[]
+  eintraege: RaumProduktMitDetails[]
   mwst: number
   projektId: string
   raumId: string
 }) {
-  const [produkte, setProdukte] = useState(initialProdukte)
+  const [eintraege, setEintraege] = useState(initialEintraege)
   const [, startTransition] = useTransition()
 
   const sensors = useSensors(
@@ -215,16 +228,16 @@ export default function SortableProduktTabelle({
     const { active, over } = event
     if (!over || active.id === over.id) return
 
-    setProdukte((prev) => {
-      const oldIndex = prev.findIndex((p) => p.id === active.id)
-      const newIndex = prev.findIndex((p) => p.id === over.id)
+    setEintraege((prev) => {
+      const oldIndex = prev.findIndex((e) => e.id === active.id)
+      const newIndex = prev.findIndex((e) => e.id === over.id)
       const next = arrayMove(prev, oldIndex, newIndex)
 
       startTransition(() => {
-        updateProduktPositionen(
+        updateRaumProduktPositionen(
           raumId,
           projektId,
-          next.map((p, i) => ({ id: p.id, reihenfolge: i }))
+          next.map((e, i) => ({ id: e.id, reihenfolge: i }))
         )
       })
 
@@ -232,12 +245,20 @@ export default function SortableProduktTabelle({
     })
   }
 
-  function handleBestellstatusChange(id: string, neuerStatus: BestellStatus) {
-    setProdukte((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, bestellstatus: neuerStatus } : p))
+  function handleBestellstatusChange(raumProduktId: string, neuerStatus: BestellStatus) {
+    setEintraege((prev) =>
+      prev.map((e) =>
+        e.id === raumProduktId
+          ? { ...e, produkte: { ...e.produkte, bestellstatus: neuerStatus } }
+          : e
+      )
     )
     startTransition(() => {
-      bestellstatusAendern(id, raumId, projektId, neuerStatus)
+      // Bestellstatus bleibt auf dem Produkt (nicht auf raum_produkt)
+      const eintrag = eintraege.find((e) => e.id === raumProduktId)
+      if (eintrag) {
+        bestellstatusAendern(eintrag.produkt_id, raumId, projektId, neuerStatus)
+      }
     })
   }
 
@@ -247,7 +268,7 @@ export default function SortableProduktTabelle({
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}
     >
-      <SortableContext items={produkte.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={eintraege.map((e) => e.id)} strategy={verticalListSortingStrategy}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[1120px]">
             <thead>
@@ -268,14 +289,14 @@ export default function SortableProduktTabelle({
               </tr>
             </thead>
             <tbody>
-              {produkte.map((p, i) => (
+              {eintraege.map((e, i) => (
                 <SortableProduktZeile
-                  key={p.id}
-                  produkt={p}
+                  key={e.id}
+                  eintrag={e}
                   mwst={mwst}
                   projektId={projektId}
                   raumId={raumId}
-                  isLast={i === produkte.length - 1}
+                  isLast={i === eintraege.length - 1}
                   onBestellstatusChange={handleBestellstatusChange}
                 />
               ))}
