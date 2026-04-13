@@ -15,15 +15,21 @@ export async function projektAnlegen(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
+  const serviceModell = (formData.get('service_modell') as string) || null
+
   const { error } = await supabase.from('projekte').insert({
     name: formData.get('name') as string,
     kunde_id: formData.get('kunde_id') as string,
     beschreibung: (formData.get('beschreibung') as string) || null,
     standort: (formData.get('standort') as string) || null,
     projektart: (formData.get('projektart') as string) || null,
-    gesamtbudget: formData.get('gesamtbudget')
-      ? Number(formData.get('gesamtbudget'))
-      : null,
+    gesamtbudget: formData.get('gesamtbudget') ? Number(formData.get('gesamtbudget')) : null,
+    produkt_budget: formData.get('produkt_budget') ? Number(formData.get('produkt_budget')) : null,
+    service_modell: serviceModell || null,
+    service_pauschale: serviceModell === 'pauschale' && formData.get('service_pauschale')
+      ? Number(formData.get('service_pauschale')) : null,
+    service_stundensatz: serviceModell === 'stundensatz' && formData.get('service_stundensatz')
+      ? Number(formData.get('service_stundensatz')) : null,
     status: 'offen',
     organisation_id: orgId,
   })
@@ -41,6 +47,8 @@ export async function projektAktualisieren(
 ): Promise<ProjektActionState> {
   const supabase = await createClient()
 
+  const serviceModell = (formData.get('service_modell') as string) || null
+
   const { error } = await supabase
     .from('projekte')
     .update({
@@ -49,9 +57,13 @@ export async function projektAktualisieren(
       beschreibung: (formData.get('beschreibung') as string) || null,
       standort: (formData.get('standort') as string) || null,
       projektart: (formData.get('projektart') as string) || null,
-      gesamtbudget: formData.get('gesamtbudget')
-        ? Number(formData.get('gesamtbudget'))
-        : null,
+      gesamtbudget: formData.get('gesamtbudget') ? Number(formData.get('gesamtbudget')) : null,
+      produkt_budget: formData.get('produkt_budget') ? Number(formData.get('produkt_budget')) : null,
+      service_modell: serviceModell || null,
+      service_pauschale: serviceModell === 'pauschale' && formData.get('service_pauschale')
+        ? Number(formData.get('service_pauschale')) : null,
+      service_stundensatz: serviceModell === 'stundensatz' && formData.get('service_stundensatz')
+        ? Number(formData.get('service_stundensatz')) : null,
       deadline: (formData.get('deadline') as string) || null,
       status: formData.get('status') as ProjektStatus,
     })

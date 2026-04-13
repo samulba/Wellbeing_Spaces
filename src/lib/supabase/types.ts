@@ -67,6 +67,8 @@ export interface Kunde {
   updated_at: string
 }
 
+export type ServiceModell = 'pauschale' | 'stundensatz'
+
 export interface Projekt {
   id: string
   organisation_id?: string | null
@@ -76,6 +78,11 @@ export interface Projekt {
   standort: string | null
   projektart: string | null
   gesamtbudget: number | null
+  // Service-Abrechnung (Migration 040)
+  service_modell: ServiceModell | null
+  service_pauschale: number | null
+  service_stundensatz: number | null
+  produkt_budget: number | null
   status: ProjektStatus
   freigabe_pin: string | null
   archiviert: boolean
@@ -85,6 +92,19 @@ export interface Projekt {
   deleted_at: string | null
   created_at: string
   updated_at: string
+}
+
+// ── Zeiterfassung (Migration 040) ─────────────────────────────
+export interface Zeiterfassung {
+  id: string
+  organisation_id: string
+  projekt_id: string
+  user_id: string | null
+  datum: string
+  stunden: number
+  beschreibung: string | null
+  abrechenbar: boolean
+  created_at: string
 }
 
 export type ProjektMitKunde = Projekt & {

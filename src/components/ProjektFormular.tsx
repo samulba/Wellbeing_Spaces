@@ -1,6 +1,7 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
+import { useState } from 'react'
 import type { ProjektActionState } from '@/app/actions/projekte'
 import type { Kunde, Projekt } from '@/lib/supabase/types'
 
@@ -44,6 +45,7 @@ export default function ProjektFormular({
   vorausgewaehlterKundeId,
 }: Props) {
   const [state, formAction] = useFormState(aktion, null)
+  const [serviceModell, setServiceModell] = useState<string>(initialData?.service_modell ?? '')
 
   return (
     <form action={formAction} className="space-y-5">
@@ -119,7 +121,10 @@ export default function ProjektFormular({
 
       {/* Gesamtbudget */}
       <div>
-        <label htmlFor="gesamtbudget" className={lbl}>Gesamtbudget (€)</label>
+        <label htmlFor="gesamtbudget" className={lbl}>
+          Gesamtbudget (€){' '}
+          <span className="text-gray-400 normal-case font-normal">(intern, inkl. Service)</span>
+        </label>
         <input
           id="gesamtbudget"
           name="gesamtbudget"
@@ -148,6 +153,84 @@ export default function ProjektFormular({
           </select>
         </div>
       )}
+
+      {/* ── Service & Abrechnung ───────────────────────────────── */}
+      <div className="border-t border-gray-100 pt-1">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5">
+          Service & Abrechnung
+        </p>
+      </div>
+
+      {/* Abrechnungsmodell + Wert */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <label htmlFor="service_modell" className={lbl}>Abrechnungsmodell</label>
+          <select
+            id="service_modell"
+            name="service_modell"
+            value={serviceModell}
+            onChange={(e) => setServiceModell(e.target.value)}
+            className={inp}
+          >
+            <option value="">Keins</option>
+            <option value="pauschale">Pauschale</option>
+            <option value="stundensatz">Stundensatz</option>
+          </select>
+        </div>
+
+        {serviceModell === 'pauschale' && (
+          <div>
+            <label htmlFor="service_pauschale" className={lbl}>Pauschale (€)</label>
+            <input
+              id="service_pauschale"
+              name="service_pauschale"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={initialData?.service_pauschale ?? ''}
+              className={`${inp} font-mono`}
+              placeholder="5.000,00"
+            />
+          </div>
+        )}
+
+        {serviceModell === 'stundensatz' && (
+          <div>
+            <label htmlFor="service_stundensatz" className={lbl}>Stundensatz (€/h)</label>
+            <input
+              id="service_stundensatz"
+              name="service_stundensatz"
+              type="number"
+              min="0"
+              step="0.5"
+              defaultValue={initialData?.service_stundensatz ?? ''}
+              className={`${inp} font-mono`}
+              placeholder="120,00"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Produkt-Budget */}
+      <div>
+        <label htmlFor="produkt_budget" className={lbl}>
+          Produkt-Budget (€){' '}
+          <span className="text-wellbeing-green/70 normal-case font-normal">(klientenseitig sichtbar)</span>
+        </label>
+        <input
+          id="produkt_budget"
+          name="produkt_budget"
+          type="number"
+          min="0"
+          step="0.01"
+          defaultValue={initialData?.produkt_budget ?? ''}
+          className={inp}
+          placeholder="0.00"
+        />
+        <p className="text-xs text-gray-400 mt-1">
+          Das Budget, das dem Klienten für Einrichtungsprodukte mitgeteilt wird.
+        </p>
+      </div>
 
       {/* Notizen */}
       <div>

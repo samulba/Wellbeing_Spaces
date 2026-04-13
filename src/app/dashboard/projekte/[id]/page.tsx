@@ -14,14 +14,16 @@ import { naechsteEventsAbrufen } from '@/app/actions/timeline'
 import {
   ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote,
   Archive, CalendarDays, Flag, Truck, Layers, User, Phone, Mail,
-  AlertTriangle,
+  AlertTriangle, Wrench,
 } from 'lucide-react'
 import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
 import SortableRaumListe, { type RaumStat } from '@/components/SortableRaumListe'
 import PdfExportButton, { type PdfProdukt } from '@/components/PdfExportButton'
 import KonfiguratorLinkKarte from '@/components/KonfiguratorLinkKarte'
+import ZeiterfassungBlock from '@/components/ZeiterfassungBlock'
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
-import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
+import { getZeiterfassung, getZeitSumme } from '@/app/actions/zeiterfassung'
+import type { ProjektMitKunde, Raum, Zeiterfassung } from '@/lib/supabase/types'
 import type { TimelineEvent } from '@/lib/supabase/types'
 import type { DateiItem } from '@/components/DateiUpload'
 
@@ -167,7 +169,7 @@ async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
 }
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, konfigSessions, naechsteEvents] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, konfigSessions, naechsteEvents, zeitEintraege, zeitSumme] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
@@ -180,6 +182,8 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
     getKunden(),
     konfiguratorSessionsAbrufen(params.id),
     naechsteEventsAbrufen(params.id, 3),
+    getZeiterfassung(params.id),
+    getZeitSumme(params.id),
   ])
 
   if (!projekt) notFound()
@@ -193,14 +197,22 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
   const istArchiviert  = projekt.archiviert === true
   const hatToken       = aktiverToken != null
 
-  // Budget ring
-  const budgetPct   = projekt.gesamtbudget && projekt.gesamtbudget > 0
-    ? Math.min(Math.round((stats.gesamtkosten / projekt.gesamtbudget) * 100), 999)
+  // Produkt-Budget-Ring: bevorzuge produkt_budget, Fallback auf gesamtbudget
+  const produktBudget = projekt.produkt_budget ?? projekt.gesamtbudget
+  const budgetPct   = produktBudget && produktBudget > 0
+    ? Math.min(Math.round((stats.gesamtkosten / produktBudget) * 100), 999)
     : null
   const ringFarbe   = budgetPct == null ? '#445c49' : budgetPct >= 100 ? '#ef4444' : budgetPct >= 80 ? '#f59e0b' : '#445c49'
   const ringR       = 52
   const ringCircum  = 2 * Math.PI * ringR
   const ringDash    = budgetPct != null ? Math.min(budgetPct / 100, 1) * ringCircum : 0
+
+  // Service-Kosten
+  const serviceKosten = projekt.service_modell === 'pauschale'
+    ? (projekt.service_pauschale ?? null)
+    : projekt.service_modell === 'stundensatz' && projekt.service_stundensatz
+    ? Math.round(zeitSumme.abrechenbarStunden * projekt.service_stundensatz * 100) / 100
+    : null
 
   // Deadline Countdown
   const deadlineInfo = (() => {
@@ -415,13 +427,14 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
         {/* ── Rechte Spalte (40%) ────────────────────────────── */}
         <div className="flex-[2] overflow-y-auto px-5 py-4 space-y-4">
 
-          {/* Budget-Ring */}
+          {/* Budget-Karte: Produkte + Service */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Budget-Auslastung</p>
 
+            {/* Produkte-Ring */}
             {budgetPct != null ? (
               <div className="flex items-center gap-5">
-                <svg width="120" height="120" viewBox="0 0 128 128" className="shrink-0">
+                <svg width="108" height="108" viewBox="0 0 128 128" className="shrink-0">
                   <circle cx="64" cy="64" r={ringR} fill="none" stroke="#f3f4f6" strokeWidth="14" />
                   <circle
                     cx="64" cy="64" r={ringR}
@@ -435,12 +448,15 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
                   <text x="64" y="60" textAnchor="middle" fill={ringFarbe} fontSize="20" fontWeight="bold" fontFamily="monospace">
                     {budgetPct}%
                   </text>
-                  <text x="64" y="76" textAnchor="middle" fill="#9ca3af" fontSize="10">Budget</text>
+                  <text x="64" y="76" textAnchor="middle" fill="#9ca3af" fontSize="10">Produkte</text>
                 </svg>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-400 mb-0.5">VP-Summe netto</p>
                   <p className="text-xl font-bold text-gray-900 font-mono">{eur(stats.gesamtkosten)}</p>
-                  <p className="text-xs text-gray-400 mt-1">von {eur(projekt.gesamtbudget!)}</p>
+                  <p className="text-xs text-gray-400 mt-1">von {eur(produktBudget!)}</p>
+                  {projekt.produkt_budget != null && (
+                    <p className="text-[10px] text-wellbeing-green/70 mt-0.5">Produkt-Budget (klientenseitig)</p>
+                  )}
                   {budgetPct >= 80 && (
                     <p className={`text-xs mt-2 font-medium ${budgetPct >= 100 ? 'text-red-500' : 'text-amber-500'}`}>
                       {budgetPct >= 100 ? '⚠ Budget überschritten' : '⚠ Budget fast aufgebraucht'}
@@ -450,9 +466,34 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
               </div>
             ) : (
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">VP-Summe netto</p>
+                <p className="text-xs text-gray-400 mb-0.5">VP-Summe Produkte (netto)</p>
                 <p className="text-2xl font-bold text-gray-900 font-mono">{eur(stats.gesamtkosten)}</p>
-                <p className="text-xs text-gray-400 mt-1">Kein Budget definiert</p>
+                <p className="text-xs text-gray-400 mt-1">Kein Produkt-Budget definiert</p>
+              </div>
+            )}
+
+            {/* Service-Kosten */}
+            {serviceKosten != null && (
+              <div className="border-t border-gray-100 mt-4 pt-4 flex items-start gap-3">
+                <div className="w-7 h-7 rounded-lg bg-wellbeing-cream flex items-center justify-center shrink-0 mt-0.5">
+                  <Wrench className="w-3.5 h-3.5 text-wellbeing-green" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">
+                    {projekt.service_modell === 'pauschale' ? 'Service-Pauschale' : `Service (${zeitSumme.abrechenbarStunden.toFixed(2).replace('.', ',')} h × ${eur(projekt.service_stundensatz!)} /h)`}
+                  </p>
+                  <p className="text-lg font-bold font-mono text-gray-900">{eur(serviceKosten)}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Gesamtsumme wenn beide vorhanden */}
+            {serviceKosten != null && (
+              <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                <p className="text-xs text-gray-400">Gesamt (Produkte + Service)</p>
+                <p className="text-sm font-mono font-bold text-wellbeing-green">
+                  {eur(stats.gesamtkosten + serviceKosten)}
+                </p>
               </div>
             )}
           </div>
@@ -491,6 +532,15 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Zeiterfassung (nur bei Stundensatz-Projekten) */}
+          {projekt.service_modell === 'stundensatz' && projekt.service_stundensatz != null && (
+            <ZeiterfassungBlock
+              projektId={projekt.id}
+              stundensatz={projekt.service_stundensatz}
+              initialEintraege={zeitEintraege}
+            />
           )}
 
           {/* Nächste Events */}
