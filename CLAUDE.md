@@ -26,7 +26,7 @@ Wellbeing Green (#445c49) aktiv. Sidebar: bg-[#445c49] (forest green), Syne-Font
 Farbpalette: wellbeing-green (#445c49), wellbeing-green-light (#94c1a4), wellbeing-green-dark (#2d3e31), wellbeing-cream (#f6ede2), wellbeing-terracotta (#823509), wellbeing-sand (#cba178).
 
 ## Offen
-- (nichts mehr offen)
+- Migrations 038–044 müssen noch manuell in Supabase SQL-Editor ausgeführt werden
 
 ## Session-Log
 - S12: Notizen (Migration 015), Logo-Upload (Migration 016), Projektdetail-Stats, FreigabeLinkKarte.
@@ -57,6 +57,8 @@ Farbpalette: wellbeing-green (#445c49), wellbeing-green-light (#94c1a4), wellbei
 - S38: Vertragssystem (Migration 043): Tabellen `vertrags_vorlagen` (org/name/beschreibung/inhalt_html/platzhalter JSONB/kategorie/ist_standard/version, RLS) + `vertraege` (org/vorlage/projekt/kunde/titel/inhalt_html/status 6 Zustände/signatur_felder/gesamtwert/gueltig_bis, RLS). Types: VertragsVorlage, Vertrag, VertragStatus, VertragsVorlageKategorie. Neues `vertraege.ts` mit 9 Actions (CRUD Vorlagen, vertragErstellen mit Platzhalter-Ersetzung, Status ändern etc.). Platzhalter: 12 Schlüssel (firmenname, kunde_*, projekt_*, budget_felder, datum_heute, deadline). Seite `/projekte/[id]/vertraege` mit VertraegeClient (Status-Dropdown, Vorschau-Modal, Löschen). Einstellungen: neuer Tab "Vorlagen" mit VertragsVorlagenVerwaltung (CRUD, Platzhalter-Einfüge-Hilfe, HTML-Editor). ProjektDetailPage: "Verträge"-Link in Toolbar.
 - S37: Kunden-Kommunikationslog (Migration 042): neue `kommunikation`-Tabelle (org/kunde/projekt/typ/richtung/betreff/inhalt/kontaktperson/datum/dauer_minuten/follow_up_datum/erledigt, 6 Typen, RLS org-scoped). Types: KommunikationTyp, KommunikationRichtung, Kommunikation-Interface. Neues `kommunikation.ts` mit 6 Actions (kommunikationAnlegen/Aktualisieren/Loeschen/getKommunikation/getOffeneFollowUps/followUpErledigen). Neue Client-Komponente `KommunikationBlock` (Timeline-Ansicht, Typ-Icons, Inline-Formular, Filter-Tabs, Follow-up-Badge mit Fälligkeits-Farbe, Erledigen-Button). Kunden-Detailseite: KommunikationBlock unterhalb Projekte in rechter Spalte.
 - S36: Produkt-Varianten (Migration 041): 3 neue Spalten auf produkte (ist_variante/eltern_produkt_id/varianten_attribute JSONB), neue `varianten_definitionen`-Tabelle (org/produkt/attribut_name/optionen TEXT[]/reihenfolge, RLS org-scoped). Types: Produkt erweitert + VariantenDefinition-Interface. 6 neue Server Actions in produkte.ts: varianteAnlegen (kopiert Elternprodukt, setzt ist_variante=true, generiert Name aus Attributen), variantenDefinitionSpeichern (upsert), getVariantenDefinitionen, getVarianten, variantenDefinitionLoeschen.
+
+- S40: Dashboard komplett überarbeitet (Migration 045 nicht nötig, reine Code-Änderung): Neue `DashboardWidgets.tsx` mit 6 Props-Komponenten (KpiKarte, NaechsteDeadlines, OffeneFollowUps, BudgetUebersicht, LetzteAktivitaeten, LetzteProjekte). Altes Dashboard (DonutChart/BalkenChart/LinienChart/OffeneFreigaben) ersetzt durch 4-Zeilen-Layout: ROW 1 KPI (Aktive Kunden/Laufende Projekte/Offene Angebote/Monatsumsatz), ROW 2 Deadlines+FollowUps (60-Tage-Fenster + 7-Tage-Fenster, graceful fallback), ROW 3 Budget+Aktivitäten (Top-5-Projekte + audit_log, graceful fallback), ROW 4 Letzte-Projekte-Tabelle mit Deadline-Countdown-Spalte.
 
 ## Anweisung
 Am Ende jeder Session den Session-Log mit einem kurzen Eintrag aktualisieren.
