@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -26,9 +26,10 @@ export async function onboardingLinkErstellen(
   vorlage_id?: string | null
 ): Promise<{ token: string; pfad: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const { data, error } = await supabase
     .from('onboarding_anfragen')
-    .insert({ status: 'offen', vorlage_id: vorlage_id ?? null })
+    .insert({ status: 'offen', vorlage_id: vorlage_id ?? null, organisation_id: orgId })
     .select('token')
     .single()
 
@@ -123,17 +124,20 @@ export async function kundeAusOnboardingAnlegen(anfrageId: string): Promise<void
 
   if (!anfrage || !anfrage.kunde_name) throw new Error('Anfrage nicht gefunden oder unvollständig')
 
+  const orgId = await getOrganisationId()
+
   // Kunden anlegen
   const { data: kunde, error: kundeError } = await supabase
     .from('kunden')
     .insert({
-      name: anfrage.kunde_name,
+      name:            anfrage.kunde_name,
       ansprechpartner: anfrage.kunde_name,
-      email: anfrage.kunde_email,
-      telefon: anfrage.kunde_telefon,
-      adresse: anfrage.projekt_adresse,
-      notizen: anfrage.notizen,
-      status: 'aktiv',
+      email:           anfrage.kunde_email,
+      telefon:         anfrage.kunde_telefon,
+      adresse:         anfrage.projekt_adresse,
+      notizen:         anfrage.notizen,
+      status:          'aktiv',
+      organisation_id: orgId,
     })
     .select('id')
     .single()
@@ -143,11 +147,12 @@ export async function kundeAusOnboardingAnlegen(anfrageId: string): Promise<void
   // Projekt anlegen (wenn Name vorhanden)
   if (anfrage.projekt_name) {
     await supabase.from('projekte').insert({
-      kunde_id: kunde.id,
-      name: anfrage.projekt_name,
-      standort: anfrage.projekt_adresse,
-      gesamtbudget: anfrage.budget_max,
-      status: 'offen',
+      kunde_id:        kunde.id,
+      name:            anfrage.projekt_name,
+      standort:        anfrage.projekt_adresse,
+      gesamtbudget:    anfrage.budget_max,
+      status:          'offen',
+      organisation_id: orgId,
     })
   }
 
@@ -214,9 +219,10 @@ export async function vorlageErstellen(
   sektionen: OnboardingSektion[] = []
 ): Promise<OnboardingVorlage> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const { data, error } = await supabase
     .from('onboarding_vorlagen')
-    .insert({ name, beschreibung: beschreibung || null, fragen, sektionen, ist_standard: false })
+    .insert({ name, beschreibung: beschreibung || null, fragen, sektionen, ist_standard: false, organisation_id: orgId })
     .select('*')
     .single()
   if (error || !data) throw new Error('Fehler beim Erstellen der Vorlage')

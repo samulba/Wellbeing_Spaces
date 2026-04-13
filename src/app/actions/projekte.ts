@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -13,6 +13,7 @@ export async function projektAnlegen(
   formData: FormData
 ): Promise<ProjektActionState> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase.from('projekte').insert({
     name: formData.get('name') as string,
@@ -24,6 +25,7 @@ export async function projektAnlegen(
       ? Number(formData.get('gesamtbudget'))
       : null,
     status: 'offen',
+    organisation_id: orgId,
   })
 
   if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
@@ -127,6 +129,7 @@ export async function projektDuplizieren(
   optionen: DuplikationsOptionen
 ): Promise<{ id: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   // Quellprojekt laden
   const { data: quelle } = await supabase
@@ -141,13 +144,14 @@ export async function projektDuplizieren(
   const { data: neuesProjekt, error: pErr } = await supabase
     .from('projekte')
     .insert({
-      name:         optionen.neuerName,
-      kunde_id:     optionen.kundeId,
-      beschreibung: quelle.beschreibung,
-      standort:     quelle.standort,
-      projektart:   quelle.projektart,
-      gesamtbudget: quelle.gesamtbudget,
-      status:       'in_bearbeitung',
+      name:            optionen.neuerName,
+      kunde_id:        optionen.kundeId,
+      beschreibung:    quelle.beschreibung,
+      standort:        quelle.standort,
+      projektart:      quelle.projektart,
+      gesamtbudget:    quelle.gesamtbudget,
+      status:          'in_bearbeitung',
+      organisation_id: orgId,
     })
     .select('id')
     .single()
@@ -178,10 +182,11 @@ export async function projektDuplizieren(
     const { data: neuerRaum } = await supabase
       .from('raeume')
       .insert({
-        projekt_id:  neuesProjekt.id,
-        name:        raum.name,
-        beschreibung: raum.beschreibung,
-        reihenfolge: raum.reihenfolge,
+        projekt_id:      neuesProjekt.id,
+        name:            raum.name,
+        beschreibung:    raum.beschreibung,
+        reihenfolge:     raum.reihenfolge,
+        organisation_id: orgId,
       })
       .select('id')
       .single()
@@ -206,22 +211,23 @@ export async function projektDuplizieren(
     const neueProdukte = quellenProdukte
       .filter((p) => raumIdMap[p.raum_id])
       .map((p) => ({
-        raum_id:          raumIdMap[p.raum_id],
-        partner_id:       p.partner_id,
-        name:             p.name,
-        beschreibung:     p.beschreibung,
-        kategorie:        p.kategorie,
-        menge:            p.menge,
-        einheit:          p.einheit,
-        einkaufspreis:    p.einkaufspreis,
-        marge_prozent:    p.marge_prozent,
+        raum_id:           raumIdMap[p.raum_id],
+        partner_id:        p.partner_id,
+        name:              p.name,
+        beschreibung:      p.beschreibung,
+        kategorie:         p.kategorie,
+        menge:             p.menge,
+        einheit:           p.einheit,
+        einkaufspreis:     p.einkaufspreis,
+        marge_prozent:     p.marge_prozent,
         provision_prozent: p.provision_prozent,
-        notizen_intern:   p.notizen_intern,
-        verkaufspreis:    p.verkaufspreis,
-        bild_url:         p.bild_url,
-        produkt_url:      p.produkt_url,
-        reihenfolge:      p.reihenfolge,
-        bestellstatus:    'ausstehend' as const,
+        notizen_intern:    p.notizen_intern,
+        verkaufspreis:     p.verkaufspreis,
+        bild_url:          p.bild_url,
+        produkt_url:       p.produkt_url,
+        reihenfolge:       p.reihenfolge,
+        bestellstatus:     'ausstehend' as const,
+        organisation_id:   orgId,
       }))
     await supabase.from('produkte').insert(neueProdukte)
   }

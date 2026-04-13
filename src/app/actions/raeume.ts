@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export type RaumActionState = { fehler: string } | null
@@ -11,6 +11,7 @@ export async function raumAnlegen(
   formData: FormData
 ): Promise<RaumActionState> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const name = (formData.get('name') as string).trim()
   if (!name) return { fehler: 'Raumname darf nicht leer sein.' }
@@ -24,6 +25,7 @@ export async function raumAnlegen(
     beschreibung: (formData.get('beschreibung') as string) || null,
     icon: (formData.get('icon') as string) || null,
     budget: budget && !isNaN(budget) ? budget : null,
+    organisation_id: orgId,
   })
 
   if (error) {

@@ -1,7 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import type { Rolle, TeamMitglied } from '@/lib/supabase/types'
@@ -83,6 +83,7 @@ export async function mitgliedEinladen(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { fehler: 'Nicht angemeldet.' }
 
+  const orgId = await getOrganisationId()
   const admin = createAdminClient()
 
   // Duplikat verhindern
@@ -109,8 +110,9 @@ export async function mitgliedEinladen(
   const token = crypto.randomUUID()
   const { error } = await admin.from('team_mitglieder').insert({
     email, rolle, status: 'ausstehend',
-    eingeladen_von: user.id,
+    eingeladen_von:   user.id,
     einladungs_token: token,
+    organisation_id:  orgId,
   })
 
   if (error) return { fehler: 'Fehler beim Erstellen der Einladung.' }

@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import type { KonfiguratorSession, KonfiguratorAuswahl, AuswahlStatus } from '@/lib/supabase/types'
@@ -19,14 +19,16 @@ export async function konfiguratorErstellen(
   optionen: KonfiguratorOptionen = {}
 ): Promise<{ token: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const { data, error } = await supabase
     .from('konfigurator_sessions')
     .insert({
-      projekt_id:        projektId,
-      budget_limit:      optionen.budgetLimit  ?? null,
-      show_prices:       optionen.showPrices   ?? true,
-      allow_alternatives:optionen.allowAlternatives ?? true,
-      expires_at:        optionen.expiresAt    ?? null,
+      projekt_id:         projektId,
+      budget_limit:       optionen.budgetLimit       ?? null,
+      show_prices:        optionen.showPrices        ?? true,
+      allow_alternatives: optionen.allowAlternatives ?? true,
+      expires_at:         optionen.expiresAt         ?? null,
+      organisation_id:    orgId,
     })
     .select('token')
     .single()

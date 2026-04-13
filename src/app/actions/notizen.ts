@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export type NotizActionState = { fehler?: string; erfolg?: string } | null
@@ -36,12 +36,14 @@ export async function notizHinzufuegen(
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase.from('notizen').insert({
     typ,
-    referenz_id:  referenzId,
+    referenz_id:     referenzId,
     inhalt,
-    erstellt_von: user?.email ?? null,
+    erstellt_von:    user?.email ?? null,
+    organisation_id: orgId,
   })
 
   if (error) return { fehler: 'Fehler beim Speichern.' }

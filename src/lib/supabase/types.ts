@@ -19,6 +19,7 @@ export type KundeStatus = 'aktiv' | 'abgeschlossen' | 'pausiert'
 
 export interface Kunde {
   id: string
+  organisation_id?: string | null
   name: string
   ansprechpartner: string | null
   email: string | null
@@ -34,6 +35,7 @@ export interface Kunde {
 
 export interface Projekt {
   id: string
+  organisation_id?: string | null
   kunde_id: string
   name: string
   beschreibung: string | null
@@ -57,6 +59,7 @@ export type ProjektMitKunde = Projekt & {
 
 export interface Raum {
   id: string
+  organisation_id?: string | null
   projekt_id: string
   name: string
   beschreibung: string | null
@@ -72,6 +75,7 @@ export type ProvisionsModell = 'Prozent' | 'Fix' | 'Individuell'
 
 export interface Partner {
   id: string
+  organisation_id?: string | null
   name: string
   ansprechpartner: string | null
   email: string | null
@@ -110,6 +114,7 @@ export interface FreigabeRaum {
 
 export interface Produkt {
   id: string
+  organisation_id?: string | null
   raum_id: string | null  // null = Produktbibliothek (kein Projekt/Raum)
   partner_id: string | null
   name: string
@@ -146,6 +151,7 @@ export type ProduktExtern = Pick<
 
 export interface Produktstatus {
   id: string
+  organisation_id?: string | null
   produkt_id: string
   status: ProduktStatus
   kommentar: string | null
@@ -156,6 +162,7 @@ export interface Produktstatus {
 
 export interface FreigabeToken {
   id: string
+  organisation_id?: string | null
   projekt_id: string
   token: string
   gueltig_bis: string | null
@@ -169,6 +176,7 @@ export type TeamStatus = 'ausstehend' | 'aktiv' | 'deaktiviert'
 
 export interface TeamMitglied {
   id: string
+  organisation_id?: string | null
   user_id: string | null
   eingeladen_von: string | null
   email: string
@@ -204,6 +212,7 @@ export interface OnboardingFrage {
 
 export interface OnboardingVorlage {
   id: string
+  organisation_id?: string | null
   name: string
   beschreibung: string | null
   fragen: OnboardingFrage[]
@@ -219,6 +228,7 @@ export type AuswahlStatus = 'ausgewaehlt' | 'abgelehnt' | 'alternative_gewuensch
 
 export interface KonfiguratorSession {
   id: string
+  organisation_id?: string | null
   projekt_id: string
   token: string
   status: KonfiguratorStatus
@@ -234,6 +244,7 @@ export interface KonfiguratorSession {
 
 export interface KonfiguratorAuswahl {
   id: string
+  organisation_id?: string | null
   session_id: string
   produkt_id: string
   status: AuswahlStatus
@@ -248,6 +259,7 @@ export type TimelineEventStatus = 'geplant' | 'in_arbeit' | 'abgeschlossen' | 'v
 
 export interface TimelineEvent {
   id: string
+  organisation_id?: string | null
   projekt_id: string
   titel: string
   beschreibung: string | null
@@ -266,6 +278,7 @@ export interface TimelineEvent {
 
 export interface Branding {
   id: string
+  organisation_id?: string | null
   firmenname: string
   logo_url: string | null
   favicon_url: string | null
@@ -289,6 +302,7 @@ export interface Branding {
 
 export interface OnboardingAnfrage {
   id: string
+  organisation_id?: string | null
   token: string
   status: OnboardingStatus
   vorlage_id: string | null

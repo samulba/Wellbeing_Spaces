@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function getEinstellungen(): Promise<Record<string, string>> {
@@ -26,8 +26,9 @@ export type EinstellungActionState = { fehler?: string; erfolg?: string } | null
 
 async function upsertEinstellung(key: string, value: string) {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   return supabase.from('einstellungen').upsert(
-    { key, value, updated_at: new Date().toISOString() },
+    { key, value, updated_at: new Date().toISOString(), organisation_id: orgId },
     { onConflict: 'key' }
   )
 }

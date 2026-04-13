@@ -25,3 +25,29 @@ export async function createClient() {
     }
   )
 }
+
+/**
+ * Gibt die organisation_id des aktuell eingeloggten Users zurück.
+ * Liest aus team_mitglieder WHERE user_id = auth.uid() AND status = 'aktiv'.
+ * Wirft einen Error wenn kein User eingeloggt ist oder keine Org gefunden wird.
+ */
+export async function getOrganisationId(): Promise<string> {
+  const supabase = await createClient()
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) throw new Error('Nicht angemeldet.')
+
+  const { data, error } = await supabase
+    .from('team_mitglieder')
+    .select('organisation_id')
+    .eq('user_id', user.id)
+    .eq('status', 'aktiv')
+    .limit(1)
+    .single()
+
+  if (error || !data?.organisation_id) {
+    throw new Error('Keine Organisation gefunden. Bitte wenden Sie sich an einen Administrator.')
+  }
+
+  return data.organisation_id as string
+}

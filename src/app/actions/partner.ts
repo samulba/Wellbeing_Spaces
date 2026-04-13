@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -11,6 +11,7 @@ export async function partnerAnlegen(
   formData: FormData
 ): Promise<PartnerActionState> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const provisionsWertRaw = formData.get('provisions_wert') as string
   const provisionsmodell = (formData.get('provisionsmodell') as string) || null
@@ -28,6 +29,7 @@ export async function partnerAnlegen(
         : null,
     einkaufskonditionen: (formData.get('einkaufskonditionen') as string) || null,
     notizen: (formData.get('notizen') as string) || null,
+    organisation_id: orgId,
   })
 
   if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }

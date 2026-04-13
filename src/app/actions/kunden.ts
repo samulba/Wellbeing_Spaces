@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -11,6 +11,7 @@ export async function kundeAnlegen(
   formData: FormData
 ): Promise<KundeActionState> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase.from('kunden').insert({
     name: formData.get('name') as string,
@@ -19,6 +20,7 @@ export async function kundeAnlegen(
     telefon: (formData.get('telefon') as string) || null,
     adresse: (formData.get('adresse') as string) || null,
     notizen: (formData.get('notizen') as string) || null,
+    organisation_id: orgId,
   })
 
   if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }

@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import type { ProduktStatus, BestellStatus } from '@/lib/supabase/types'
@@ -38,6 +38,7 @@ export async function produktInBibliothekAnlegen(
   formData: FormData
 ): Promise<ProduktActionState> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { data: produkt, error } = await supabase
     .from('produkte')
@@ -57,6 +58,7 @@ export async function produktInBibliothekAnlegen(
       produkt_url: (formData.get('produkt_url') as string) || null,
       notizen_intern: (formData.get('notizen_intern') as string) || null,
       ...neueFelder(formData),
+      organisation_id: orgId,
     })
     .select('id')
     .single()
@@ -66,6 +68,7 @@ export async function produktInBibliothekAnlegen(
   await supabase.from('produktstatus').insert({
     produkt_id: produkt.id,
     status: 'ausstehend',
+    organisation_id: orgId,
   })
 
   revalidatePath('/dashboard/produkte')
@@ -79,6 +82,7 @@ export async function produktAnlegen(
   formData: FormData
 ): Promise<ProduktActionState> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { data: produkt, error } = await supabase
     .from('produkte')
@@ -98,6 +102,7 @@ export async function produktAnlegen(
       produkt_url: (formData.get('produkt_url') as string) || null,
       notizen_intern: (formData.get('notizen_intern') as string) || null,
       ...neueFelder(formData),
+      organisation_id: orgId,
     })
     .select('id')
     .single()
@@ -107,6 +112,7 @@ export async function produktAnlegen(
   await supabase.from('produktstatus').insert({
     produkt_id: produkt.id,
     status: 'ausstehend',
+    organisation_id: orgId,
   })
 
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
@@ -216,6 +222,7 @@ export async function produktFuerPartnerAnlegen(
   formData: FormData
 ): Promise<ProduktActionState> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const name = (formData.get('name') as string)?.trim()
   if (!name) return { fehler: 'Produktname ist erforderlich.' }
@@ -230,6 +237,7 @@ export async function produktFuerPartnerAnlegen(
       menge: 1,
       einheit: 'Stk',
       produkt_url: (formData.get('produkt_url') as string) || null,
+      organisation_id: orgId,
     })
     .select('id')
     .single()
@@ -239,6 +247,7 @@ export async function produktFuerPartnerAnlegen(
   await supabase.from('produktstatus').insert({
     produkt_id: produkt.id,
     status: 'ausstehend',
+    organisation_id: orgId,
   })
 
   revalidatePath(`/dashboard/partner/${partnerId}`)
