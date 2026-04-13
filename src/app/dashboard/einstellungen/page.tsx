@@ -2,6 +2,7 @@ import { getEinstellungen } from '@/app/actions/einstellungen'
 import { createClient } from '@/lib/supabase/server'
 import { teamMitgliederAbrufen, meineRolleAbrufen } from '@/app/actions/team'
 import { brandingAbrufen } from '@/app/actions/branding'
+import { getVorlagen } from '@/app/actions/vertraege'
 import EinstellungenTabs from '@/components/EinstellungenTabs'
 
 export default async function EinstellungenPage({
@@ -13,12 +14,13 @@ export default async function EinstellungenPage({
   const tab = tabParam ?? 'profil'
 
   const supabase = await createClient()
-  const [{ data: { user } }, einstellungen, team, userRolle, branding] = await Promise.all([
+  const [{ data: { user } }, einstellungen, team, userRolle, branding, vorlagen] = await Promise.all([
     supabase.auth.getUser(),
     getEinstellungen(),
     teamMitgliederAbrufen(),
     meineRolleAbrufen(),
     brandingAbrufen(),
+    getVorlagen(),
   ])
 
   return (
@@ -33,6 +35,7 @@ export default async function EinstellungenPage({
         userId={user?.id ?? ''}
         lastSignIn={user?.last_sign_in_at ?? null}
         branding={branding}
+        vorlagen={vorlagen}
       />
     </div>
   )

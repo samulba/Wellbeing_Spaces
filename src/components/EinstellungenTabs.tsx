@@ -21,6 +21,8 @@ import type { TeamMitglied, Rolle, Branding } from '@/lib/supabase/types'
 import { ROLLEN_CONFIG } from '@/lib/permissions'
 import HandbuchClient from '@/app/dashboard/einstellungen/handbuch/HandbuchClient'
 import BrandingEditor from '@/components/BrandingEditor'
+import VertragsVorlagenVerwaltung from '@/components/VertragsVorlagenVerwaltung'
+import type { VertragsVorlage } from '@/lib/supabase/types'
 
 // ── Konstanten ────────────────────────────────────────────────
 
@@ -29,6 +31,7 @@ const TABS = [
   { key: 'workspace',          label: 'Workspace' },
   { key: 'branding',           label: 'Branding' },
   { key: 'team',               label: 'Team' },
+  { key: 'vorlagen',           label: 'Vorlagen' },
   { key: 'freigaben',          label: 'Freigaben' },
   { key: 'benachrichtigungen', label: 'Benachrichtigungen' },
   { key: 'abrechnung',         label: 'Abrechnung' },
@@ -988,6 +991,22 @@ function RechtlichesTab() {
   )
 }
 
+// ── Tab: Vorlagen ─────────────────────────────────────────────
+
+function VorlagenTab({ vorlagen }: { vorlagen: VertragsVorlage[] }) {
+  return (
+    <div className="max-w-3xl">
+      <div className="mb-6">
+        <h2 className="text-base font-semibold text-gray-900">Vertragsvorlagen</h2>
+        <p className="text-xs text-gray-500 mt-1">
+          Erstelle HTML-Vorlagen mit Platzhaltern, die beim Erstellen eines Vertrags automatisch mit echten Projektdaten befüllt werden.
+        </p>
+      </div>
+      <VertragsVorlagenVerwaltung initialVorlagen={vorlagen} />
+    </div>
+  )
+}
+
 // ── Tab: Handbuch ─────────────────────────────────────────────
 
 function HandbuchTab() {
@@ -1009,6 +1028,7 @@ export default function EinstellungenTabs({
   userId,
   lastSignIn,
   branding,
+  vorlagen,
 }: {
   aktuellerTab: string
   einstellungen: Record<string, string>
@@ -1018,6 +1038,7 @@ export default function EinstellungenTabs({
   userId: string
   lastSignIn: string | null
   branding: Branding | null
+  vorlagen: VertragsVorlage[]
 }) {
   const istAdmin = userRolle === 'admin'
   const adminOnlyKeys = new Set(['branding'])
@@ -1047,6 +1068,7 @@ export default function EinstellungenTabs({
       {aktuellerTab === 'workspace'          && <WorkspaceTab einstellungen={einstellungen} />}
       {aktuellerTab === 'branding' && istAdmin && <BrandingTab branding={branding} />}
       {aktuellerTab === 'team'               && <TeamTab team={team} userRolle={userRolle} userId={userId} userEmail={userEmail} lastSignIn={lastSignIn} />}
+      {aktuellerTab === 'vorlagen'            && <VorlagenTab vorlagen={vorlagen} />}
       {aktuellerTab === 'freigaben'          && <FreigabenTab einstellungen={einstellungen} />}
       {aktuellerTab === 'benachrichtigungen' && <BenachrichtigungenTab einstellungen={einstellungen} />}
       {aktuellerTab === 'abrechnung'         && <AbrechnungTab />}

@@ -422,6 +422,48 @@ export interface Branding {
   updated_at: string
 }
 
+// ── Vertragssystem (Migration 043) ───────────────────────────
+export type VertragsVorlageKategorie = 'projektvertrag' | 'rahmenvertrag' | 'angebot' | 'sonstiges'
+export type VertragStatus =
+  | 'entwurf' | 'gesendet' | 'unterschrieben_kunde'
+  | 'unterschrieben_beide' | 'abgelaufen' | 'storniert'
+
+export interface VertragsVorlage {
+  id: string
+  organisation_id: string
+  name: string
+  beschreibung: string | null
+  inhalt_html: string
+  platzhalter: Json | null
+  kategorie: VertragsVorlageKategorie | null
+  ist_standard: boolean
+  version: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Vertrag {
+  id: string
+  organisation_id: string
+  vorlage_id: string | null
+  projekt_id: string | null
+  kunde_id: string
+  titel: string
+  inhalt_html: string
+  pdf_url: string | null
+  status: VertragStatus
+  signatur_kunde_url: string | null
+  signatur_kunde_datum: string | null
+  signatur_firma_url: string | null
+  signatur_firma_datum: string | null
+  signatur_token: string | null
+  signatur_token_gueltig: string | null
+  gesamtwert: number | null
+  gueltig_bis: string | null
+  created_at: string
+  updated_at: string
+}
+
 // ── Kommunikationslog (Migration 042) ────────────────────────
 export type KommunikationTyp = 'email' | 'anruf' | 'meeting' | 'notiz' | 'sms' | 'sonstiges'
 export type KommunikationRichtung = 'eingehend' | 'ausgehend'
