@@ -7,14 +7,26 @@ import {
   FolderOpen, Package, Calculator, Link2, Handshake, Users,
   Check, ArrowRight, Shield, Zap, Clock
 } from 'lucide-react'
+import CookieBanner from '@/components/landing/CookieBanner'
 
 export const metadata: Metadata = {
-  title: 'Features – Wellbeing Spaces | Interior Design Projektmanagement Software',
+  title: 'Features | Alle Funktionen im Überblick',
   description:
-    'Alle Features von Wellbeing Spaces im Überblick: Produktlisten, automatische Preiskalkulation, Kundenfreigabe per Link, Partnerverwaltung und mehr – speziell für Interior Designer.',
+    'Projektstruktur, Produktlisten, Auto-Kalkulation, Kundenfreigabe per Link, Partnerverwaltung und Team-Rollen. Entdecke alle Features von Wellbeing Spaces.',
   keywords:
     'Interior Design Software Features, Produktliste Interior Design, Preiskalkulation Interior Designer, Kundenfreigabe Software, Interior Design Projektmanagement Features',
-  alternates: { canonical: 'https://wbc-studio.vercel.app/features' },
+  alternates: {
+    canonical: 'https://wellbeing-spaces.de/features',
+    languages: {
+      'de': 'https://wellbeing-spaces.de/features',
+      'x-default': 'https://wellbeing-spaces.de/features',
+    },
+  },
+  openGraph: {
+    title: 'Features | Wellbeing Spaces – Alle Funktionen im Überblick',
+    description: 'Projektstruktur, Produktlisten, Auto-Kalkulation, Kundenfreigabe per Link, Partnerverwaltung und Team-Rollen.',
+    url: 'https://wellbeing-spaces.de/features',
+  },
 }
 
 const mainFeatures = [
@@ -295,6 +307,7 @@ export default function FeaturesPage() {
       </section>
 
       <Footer />
+      <CookieBanner />
     </div>
   )
 }

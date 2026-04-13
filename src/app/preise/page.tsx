@@ -3,15 +3,27 @@ import Link from 'next/link'
 import Nav from '@/components/landing/Nav'
 import Footer from '@/components/landing/Footer'
 import AnimateOnScroll from '@/components/landing/AnimateOnScroll'
+import CookieBanner from '@/components/landing/CookieBanner'
 import { Check, Minus, HelpCircle } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Preise – Wellbeing Spaces | Kostenlose Interior Design Software',
+  title: 'Preise | Aktuell in der Beta-Phase',
   description:
-    'Wellbeing Spaces Preise im Überblick: Kostenlos starten, monatlich kündbar, kein Jahresabo. Die günstige Alternative zu Houzz Pro ($199/mo) und Mydoma ($64/mo) für Interior Designer.',
+    'Wellbeing Spaces befindet sich in der geschlossenen Beta. Werde Beta-Tester und erhalte exklusiven Rabatt beim Launch.',
   keywords:
     'Interior Design Software Preis, Projektmanagement Software kostenlos, Houzz Pro Alternative günstiger, Interior Design Tool Kosten, Wellbeing Spaces Preis',
-  alternates: { canonical: 'https://wbc-studio.vercel.app/preise' },
+  alternates: {
+    canonical: 'https://wellbeing-spaces.de/preise',
+    languages: {
+      'de': 'https://wellbeing-spaces.de/preise',
+      'x-default': 'https://wellbeing-spaces.de/preise',
+    },
+  },
+  openGraph: {
+    title: 'Preise | Wellbeing Spaces – Aktuell in der Beta-Phase',
+    description: 'Wellbeing Spaces befindet sich in der geschlossenen Beta. Werde Beta-Tester und erhalte exklusiven Rabatt beim Launch.',
+    url: 'https://wellbeing-spaces.de/preise',
+  },
 }
 
 const plans = [
@@ -327,6 +339,7 @@ export default function PreisePage() {
       </section>
 
       <Footer />
+      <CookieBanner />
     </div>
   )
 }

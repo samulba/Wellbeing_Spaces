@@ -4,8 +4,12 @@ import Nav from '@/components/landing/Nav'
 import Footer from '@/components/landing/Footer'
 
 export const metadata: Metadata = {
-  title: 'Impressum – Wellbeing Spaces',
+  title: 'Impressum',
   description: 'Impressum von Wellbeing Spaces gemäß § 5 TMG.',
+  alternates: {
+    canonical: 'https://wellbeing-spaces.de/impressum',
+  },
+  robots: { index: true, follow: true },
 }
 
 export default function ImpressumPage() {

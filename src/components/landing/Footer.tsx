@@ -11,7 +11,7 @@ const cols = [
     links: [
       { label: 'Features', href: '/features' },
       { label: 'Preise',   href: '/preise'   },
-      { label: 'FAQ',      href: '/#faq'     },
+      { label: 'FAQ',      href: '/faq'      },
       { label: 'Anmelden', href: '/login'    },
     ],
   },

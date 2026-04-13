@@ -4,8 +4,11 @@ import Nav from '@/components/landing/Nav'
 import Footer from '@/components/landing/Footer'
 
 export const metadata: Metadata = {
-  title: 'AGB – Wellbeing Spaces',
+  title: 'AGB',
   description: 'Allgemeine Geschäftsbedingungen von Wellbeing Spaces.',
+  alternates: {
+    canonical: 'https://wellbeing-spaces.de/agb',
+  },
 }
 
 const sections = [

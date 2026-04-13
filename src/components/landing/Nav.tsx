@@ -10,7 +10,7 @@ const navLinks = [
   { label: 'Features',  href: '/features'  },
   { label: 'Vorteile',  href: '/#warum-wbc' },
   { label: 'Preise',    href: '/preise'    },
-  { label: 'FAQ',       href: '/#faq'      },
+  { label: 'FAQ',       href: '/faq'       },
 ]
 
 function smoothScroll(href: string) {

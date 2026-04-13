@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /portal/
+Disallow: /login
+Disallow: /einladung/
+Disallow: /freigabe/
+Disallow: /konfigurator/
+Disallow: /onboarding/
+
+Sitemap: https://wellbeing-spaces.de/sitemap.xml

@@ -4,8 +4,11 @@ import Nav from '@/components/landing/Nav'
 import Footer from '@/components/landing/Footer'
 
 export const metadata: Metadata = {
-  title: 'Datenschutzerklärung – Wellbeing Spaces',
+  title: 'Datenschutzerklärung',
   description: 'Datenschutzerklärung von Wellbeing Spaces gemäß DSGVO. Informationen zu Datenerhebung, Verarbeitung und Ihren Rechten.',
+  alternates: {
+    canonical: 'https://wellbeing-spaces.de/datenschutz',
+  },
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
