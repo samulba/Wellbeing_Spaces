@@ -3,7 +3,6 @@
 import { useFormState, useFormStatus } from 'react-dom'
 import { useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import Image from 'next/image'
 import {
   Upload, Loader2, X, Zap, Check, ChevronLeft, ChevronRight,
   Package, AlertCircle,
@@ -107,7 +106,7 @@ function AutoFillModal({
   function toggle(key: keyof ScraperErgebnis) {
     setAusgewaehlt((prev) => {
       const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
+      if (next.has(key)) { next.delete(key) } else { next.add(key) }
       return next
     })
   }
