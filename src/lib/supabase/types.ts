@@ -422,6 +422,28 @@ export interface Branding {
   updated_at: string
 }
 
+// ── Kommunikationslog (Migration 042) ────────────────────────
+export type KommunikationTyp = 'email' | 'anruf' | 'meeting' | 'notiz' | 'sms' | 'sonstiges'
+export type KommunikationRichtung = 'eingehend' | 'ausgehend'
+
+export interface Kommunikation {
+  id: string
+  organisation_id: string
+  kunde_id: string
+  projekt_id: string | null
+  typ: KommunikationTyp
+  richtung: KommunikationRichtung | null
+  betreff: string | null
+  inhalt: string | null
+  kontaktperson: string | null
+  user_id: string | null
+  datum: string
+  dauer_minuten: number | null
+  follow_up_datum: string | null
+  erledigt: boolean
+  created_at: string
+}
+
 export interface OnboardingAnfrage {
   id: string
   organisation_id?: string | null

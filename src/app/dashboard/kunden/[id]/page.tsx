@@ -3,11 +3,13 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { kundeSoftDelete } from '@/app/actions/kunden'
 import { portalBenutzerAbrufen } from '@/app/actions/portal'
+import { getKommunikation } from '@/app/actions/kommunikation'
 import { Plus } from 'lucide-react'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
 import KundenPortalSection from '@/components/KundenPortalSection'
+import KommunikationBlock from '@/components/KommunikationBlock'
 import type { Projekt } from '@/lib/supabase/types'
 
 const projektStatusLabel: Record<string, string> = {
@@ -52,11 +54,12 @@ async function getNotizen(kundeId: string): Promise<Notiz[]> {
 }
 
 export default async function KundeDetailPage({ params }: { params: { id: string } }) {
-  const [kunde, projekte, notizen, portalUser] = await Promise.all([
+  const [kunde, projekte, notizen, portalUser, kommunikation] = await Promise.all([
     getKunde(params.id),
     getProjekte(params.id),
     getNotizen(params.id),
     portalBenutzerAbrufen(params.id),
+    getKommunikation(params.id),
   ])
   if (!kunde) notFound()
 
@@ -90,7 +93,7 @@ export default async function KundeDetailPage({ params }: { params: { id: string
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Stammdaten */}
+        {/* Stammdaten + Sidebar */}
         <div className="space-y-4">
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Kontaktdaten</h2>
@@ -115,8 +118,9 @@ export default async function KundeDetailPage({ params }: { params: { id: string
           />
         </div>
 
-        {/* Projekte */}
-        <div className="lg:col-span-2">
+        {/* Rechte Spalte: Projekte + Kommunikation */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Projekte */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-gray-900">
@@ -151,6 +155,9 @@ export default async function KundeDetailPage({ params }: { params: { id: string
               </ul>
             )}
           </div>
+
+          {/* Kommunikationslog */}
+          <KommunikationBlock kundeId={kunde.id} initialEintraege={kommunikation} />
         </div>
       </div>
     </div>
