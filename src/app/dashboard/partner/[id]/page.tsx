@@ -1,12 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { partnerSoftDelete } from '@/app/actions/partner'
+import { partnerSoftDelete, getPartnerKonditionen } from '@/app/actions/partner'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
 import PartnerProduktHinzufuegen from '@/components/PartnerProduktHinzufuegen'
-import { ExternalLink, Mail, Phone, Globe } from 'lucide-react'
+import PartnerKonditionenBlock from '@/components/PartnerKonditionenBlock'
+import { ExternalLink, Mail, Phone, Globe, Star } from 'lucide-react'
 import type { KategorieOption } from '@/components/KategorieDropdown'
 import { getKategorien } from '@/app/actions/einstellungen'
 
@@ -35,7 +36,13 @@ const statusLabel: Record<string, string> = {
   ausstehend: 'Ausstehend', freigegeben: 'Freigegeben',
   abgelehnt: 'Abgelehnt', ueberarbeitung: 'Überarbeitung',
 }
-
+const partnerTypLabel: Record<string, string> = {
+  lieferant:   'Lieferant',
+  hersteller:  'Hersteller',
+  handwerker:  'Handwerker',
+  planer:      'Planer',
+  sonstiges:   'Sonstiges',
+}
 
 
 async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
@@ -52,7 +59,7 @@ async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
 
 export default async function PartnerDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
-  const [{ data: partner }, { data: produkte }, notizen, kategorienRoh] = await Promise.all([
+  const [{ data: partner }, { data: produkte }, notizen, kategorienRoh, konditionen] = await Promise.all([
     supabase.from('partner').select('*').eq('id', params.id).is('deleted_at', null).single(),
     supabase
       .from('produkte')
@@ -61,6 +68,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
       .order('created_at', { ascending: false }),
     getPartnerNotizen(params.id),
     getKategorien('produktkategorie'),
+    getPartnerKonditionen(params.id),
   ])
   const kategorienListe: KategorieOption[] = kategorienRoh.map((k) => ({ name: k.name, icon: k.icon }))
 
@@ -69,6 +77,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
   const loeschenAktion = partnerSoftDelete.bind(null, partner.id)
   const gesamtUmsatz   = (produkte ?? []).reduce((s, p) => s + (p.verkaufspreis ?? 0) * p.menge, 0)
   const produktListe   = (produkte ?? []) as unknown as ProduktMitRaum[]
+  const bewertung      = partner.bewertung as number | null
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
@@ -81,7 +90,12 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
               ← Partner
             </Link>
             <h1 className="font-syne text-2xl font-bold text-gray-900 leading-tight">{partner.name}</h1>
-            <div className="flex items-center gap-3 mt-1">
+            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+              {partner.partner_typ && (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">
+                  {partnerTypLabel[partner.partner_typ] ?? partner.partner_typ}
+                </span>
+              )}
               {partner.website && (
                 <a href={partner.website} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-1 text-sm text-gray-400 hover:text-wellbeing-green transition-colors">
@@ -96,6 +110,16 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                   {partner.provisions_wert != null && partner.provisionsmodell === 'Prozent' && ` · ${partner.provisions_wert} %`}
                   {partner.provisions_wert != null && partner.provisionsmodell === 'Fix' && ` · ${eur(partner.provisions_wert)}`}
                 </span>
+              )}
+              {bewertung != null && bewertung > 0 && (
+                <div className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star
+                      key={s}
+                      className={`w-3.5 h-3.5 ${s <= bewertung ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -177,7 +201,25 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                   </dd>
                 </div>
               )}
-              {!partner.ansprechpartner && !partner.email && !partner.telefon && (
+              {partner.ust_id && (
+                <div>
+                  <dt className="text-xs text-gray-400 mb-0.5">USt-IdNr.</dt>
+                  <dd className="text-sm text-gray-700 font-mono">{partner.ust_id}</dd>
+                </div>
+              )}
+              {partner.iban && (
+                <div>
+                  <dt className="text-xs text-gray-400 mb-0.5">IBAN</dt>
+                  <dd className="text-sm text-gray-700 font-mono tracking-wide">{partner.iban}</dd>
+                </div>
+              )}
+              {partner.zahlungsziel_tage != null && (
+                <div>
+                  <dt className="text-xs text-gray-400 mb-0.5">Zahlungsziel</dt>
+                  <dd className="text-sm text-gray-700">{partner.zahlungsziel_tage} Tage</dd>
+                </div>
+              )}
+              {!partner.ansprechpartner && !partner.email && !partner.telefon && !partner.ust_id && !partner.iban && (
                 <p className="text-sm text-gray-400">Keine Kontaktdaten hinterlegt.</p>
               )}
             </dl>
@@ -202,8 +244,12 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
           <NotizBlock typ="partner" referenzId={partner.id} initialNotizen={notizen} />
         </div>
 
-        {/* Produkte-Tabelle */}
-        <div className="lg:col-span-2">
+        {/* Rechte Spalte (2/3) */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Konditionen */}
+          <PartnerKonditionenBlock partnerId={partner.id} initialKonditionen={konditionen} />
+
+          {/* Produkte-Tabelle */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-gray-900">

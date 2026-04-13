@@ -106,6 +106,7 @@ export interface Raum {
 }
 
 export type ProvisionsModell = 'Prozent' | 'Fix' | 'Individuell'
+export type PartnerTyp = 'lieferant' | 'hersteller' | 'handwerker' | 'planer' | 'sonstiges'
 
 export interface Partner {
   id: string
@@ -120,7 +121,43 @@ export interface Partner {
   einkaufskonditionen: string | null
   notizen: string | null
   logo_url: string | null
+  // Neue Felder (Migration 039)
+  partner_typ: PartnerTyp | null
+  zahlungsziel_tage: number | null
+  iban: string | null
+  ust_id: string | null
+  bewertung: number | null
   deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ── Partner-Konditionen (Migration 039) ───────────────────────
+export type PartnerKonditionTyp =
+  | 'prozent_fix'
+  | 'prozent_gestaffelt'
+  | 'fix_pro_produkt'
+  | 'fix_pro_bestellung'
+  | 'kategorie_basiert'
+  | 'rabatt_einkauf'
+  | 'mindestbestellwert'
+
+export interface PartnerKondition {
+  id: string
+  organisation_id: string
+  partner_id: string
+  name: string
+  typ: PartnerKonditionTyp
+  wert: number | null
+  staffelung: Json | null
+  kategorie_werte: Json | null
+  gueltig_von: string | null
+  gueltig_bis: string | null
+  zahlungsziel_tage: number | null
+  skonto_prozent: number | null
+  skonto_tage: number | null
+  notizen: string | null
+  aktiv: boolean
   created_at: string
   updated_at: string
 }

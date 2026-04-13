@@ -24,9 +24,18 @@ interface Props {
   abbrechen: string
 }
 
+const PARTNER_TYPEN = [
+  { value: 'lieferant',   label: 'Lieferant' },
+  { value: 'hersteller',  label: 'Hersteller' },
+  { value: 'handwerker',  label: 'Handwerker' },
+  { value: 'planer',      label: 'Planer' },
+  { value: 'sonstiges',   label: 'Sonstiges' },
+]
+
 export default function PartnerFormular({ aktion, initialData, abbrechen }: Props) {
   const [state, formAction] = useFormState(aktion, null)
   const [modell, setModell] = useState<string>(initialData?.provisionsmodell ?? '')
+  const [bewertung, setBewertung] = useState<number>(initialData?.bewertung ?? 0)
 
   return (
     <form action={formAction} className="space-y-5">
@@ -36,17 +45,32 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
         </div>
       )}
 
-      {/* Name */}
-      <div>
-        <label htmlFor="name" className={lbl}>
-          Partnername <span className="text-red-400">*</span>
-        </label>
-        <input
-          id="name" name="name" type="text" required
-          defaultValue={initialData?.name ?? ''}
-          className={inp}
-          placeholder="z. B. Musterleuchten GmbH"
-        />
+      {/* Name + Typ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <label htmlFor="name" className={lbl}>
+            Partnername <span className="text-red-400">*</span>
+          </label>
+          <input
+            id="name" name="name" type="text" required
+            defaultValue={initialData?.name ?? ''}
+            className={inp}
+            placeholder="z. B. Musterleuchten GmbH"
+          />
+        </div>
+        <div>
+          <label htmlFor="partner_typ" className={lbl}>Partnertyp</label>
+          <select
+            id="partner_typ" name="partner_typ"
+            defaultValue={initialData?.partner_typ ?? ''}
+            className={inp}
+          >
+            <option value="">Kein Typ</option>
+            {PARTNER_TYPEN.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Ansprechpartner + E-Mail */}
@@ -87,6 +111,64 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
             className={inp} placeholder="https://partner.de"
           />
         </div>
+      </div>
+
+      {/* USt-IdNr + IBAN */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <label htmlFor="ust_id" className={lbl}>
+            USt-IdNr.{' '}
+            <span className="text-red-400/60 normal-case font-normal">(intern)</span>
+          </label>
+          <input
+            id="ust_id" name="ust_id" type="text"
+            defaultValue={initialData?.ust_id ?? ''}
+            className={inp} placeholder="DE123456789"
+          />
+        </div>
+        <div>
+          <label htmlFor="iban" className={lbl}>
+            IBAN{' '}
+            <span className="text-red-400/60 normal-case font-normal">(intern)</span>
+          </label>
+          <input
+            id="iban" name="iban" type="text"
+            defaultValue={initialData?.iban ?? ''}
+            className={`${inp} font-mono tracking-wide`} placeholder="DE89 3704 0044 0532 0130 00"
+          />
+        </div>
+      </div>
+
+      {/* Bewertung */}
+      <div>
+        <label className={lbl}>Bewertung</label>
+        <input type="hidden" name="bewertung" value={bewertung || ''} />
+        <div className="flex items-center gap-1">
+          {[1, 2, 3, 4, 5].map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setBewertung(bewertung === s ? 0 : s)}
+              className={`text-2xl transition-colors ${s <= bewertung ? 'text-amber-400' : 'text-gray-200 hover:text-amber-200'}`}
+            >
+              ★
+            </button>
+          ))}
+          {bewertung > 0 && (
+            <button
+              type="button"
+              onClick={() => setBewertung(0)}
+              className="ml-2 text-xs text-gray-400 hover:text-gray-600"
+            >
+              Zurücksetzen
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Trennlinie */}
+      <div className="border-t border-gray-100 pt-1">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5">Einfache Provision</p>
       </div>
 
       {/* Provisionsmodell */}
@@ -133,10 +215,25 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
         {modell === 'Individuell' && (
           <div className="flex items-end">
             <p className="text-xs text-gray-500 pb-2.5">
-              Details in den Einkaufskonditionen beschreiben.
+              Details unter „Konditionen" anlegen.
             </p>
           </div>
         )}
+      </div>
+
+      {/* Zahlungsziel */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <label htmlFor="zahlungsziel_tage" className={lbl}>
+            Zahlungsziel (Tage)
+          </label>
+          <input
+            id="zahlungsziel_tage" name="zahlungsziel_tage"
+            type="number" min="0"
+            defaultValue={initialData?.zahlungsziel_tage ?? 30}
+            className={`${inp} font-mono`}
+          />
+        </div>
       </div>
 
       {/* Einkaufskonditionen */}
