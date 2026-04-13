@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import ProduktFormular from '@/components/ProduktFormular'
-import { produktAktualisieren } from '@/app/actions/produkte'
+import { produktAktualisierenBibliothek } from '@/app/actions/produkte'
 import { getMwstSatz } from '@/app/actions/einstellungen'
 import type { Partner, ProduktMitDetails } from '@/lib/supabase/types'
 import type { Notiz } from '@/components/NotizBlock'
@@ -38,22 +38,22 @@ async function getProduktNotizen(produktId: string): Promise<Notiz[]> {
   return (data ?? []) as Notiz[]
 }
 
-export default async function ProduktBearbeitenPage({
+export default async function BibliothekProduktBearbeitenPage({
   params,
 }: {
-  params: { id: string; raumId: string; produktId: string }
+  params: { id: string }
 }) {
   const [produkt, partner, notizen, mwst] = await Promise.all([
-    getProdukt(params.produktId),
+    getProdukt(params.id),
     getPartner(),
-    getProduktNotizen(params.produktId),
+    getProduktNotizen(params.id),
     getMwstSatz(),
   ])
 
   if (!produkt) notFound()
 
-  const aktion   = produktAktualisieren.bind(null, produkt.id, params.raumId, params.id)
-  const zurueck  = `/dashboard/projekte/${params.id}/raeume/${params.raumId}`
+  const aktion  = produktAktualisierenBibliothek.bind(null, produkt.id)
+  const zurueck = '/dashboard/produkte'
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col animate-fadeIn">
@@ -64,7 +64,7 @@ export default async function ProduktBearbeitenPage({
           className="flex items-center gap-1 text-xs text-gray-400 hover:text-wellbeing-green transition-colors"
         >
           <ChevronLeft className="w-3.5 h-3.5" />
-          Zurück zum Raum
+          Bibliothek
         </Link>
         <span className="text-gray-200">/</span>
         <p className="text-sm font-medium text-gray-700 truncate">{produkt.name}</p>
