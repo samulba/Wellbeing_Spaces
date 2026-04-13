@@ -8,13 +8,13 @@ import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
 import { projektSoftDelete } from '@/app/actions/projekte'
-import { portalBenutzerAbrufen } from '@/app/actions/portal'
 import ProjektStatusButtons from '@/components/ProjektStatusButtons'
 import { konfiguratorSessionsAbrufen } from '@/app/actions/konfigurator'
 import { naechsteEventsAbrufen } from '@/app/actions/timeline'
 import {
   ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote,
-  Archive, CalendarDays, Flag, Truck, Layers, Users,
+  Archive, CalendarDays, Flag, Truck, Layers, User, Phone, Mail,
+  AlertTriangle,
 } from 'lucide-react'
 import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
 import SortableRaumListe, { type RaumStat } from '@/components/SortableRaumListe'
@@ -30,7 +30,10 @@ const eur = (n: number) =>
 
 async function getProjekt(id: string): Promise<ProjektMitKunde | null> {
   const supabase = await createClient()
-  const { data } = await supabase.from('projekte').select('*, kunden(id, name)').eq('id', id).is('deleted_at', null).single()
+  const { data } = await supabase
+    .from('projekte')
+    .select('*, kunden(id, name, email, telefon, ansprechpartner)')
+    .eq('id', id).is('deleted_at', null).single()
   return data as ProjektMitKunde | null
 }
 
@@ -147,8 +150,6 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
   const raumIds = raeume.map((r) => r.id)
   const raumStats = await getRaumStats(raumIds)
 
-  const portalUser = projekt.kunde_id ? await portalBenutzerAbrufen(projekt.kunde_id) : null
-
   const raumHinzufuegenAktion = raumAnlegen.bind(null, projekt.id)
   const loeschenAktion        = projektSoftDelete.bind(null, projekt.id)
 
@@ -163,6 +164,17 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
   const ringR       = 52
   const ringCircum  = 2 * Math.PI * ringR
   const ringDash    = budgetPct != null ? Math.min(budgetPct / 100, 1) * ringCircum : 0
+
+  // Deadline Countdown
+  const deadlineInfo = (() => {
+    if (!projekt.deadline) return null
+    const heute = new Date(); heute.setHours(0,0,0,0)
+    const dl = new Date(projekt.deadline + 'T00:00:00')
+    const diffMs = dl.getTime() - heute.getTime()
+    const diffTage = Math.round(diffMs / (1000 * 60 * 60 * 24))
+    const datum = dl.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    return { datum, diffTage }
+  })()
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col animate-fadeIn">
@@ -198,7 +210,27 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
 
         {/* Title + Toolbar */}
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-lg font-semibold text-gray-900 truncate">{projekt.name}</h1>
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="text-lg font-semibold text-gray-900 truncate">{projekt.name}</h1>
+            {/* Deadline Badge */}
+            {deadlineInfo && (
+              <span className={`shrink-0 inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full ${
+                deadlineInfo.diffTage < 0
+                  ? 'bg-red-100 text-red-700'
+                  : deadlineInfo.diffTage <= 7
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {deadlineInfo.diffTage < 0 ? (
+                  <><AlertTriangle className="w-3 h-3" /> {Math.abs(deadlineInfo.diffTage)} Tage überfällig</>
+                ) : deadlineInfo.diffTage === 0 ? (
+                  <><AlertTriangle className="w-3 h-3" /> Heute fällig</>
+                ) : (
+                  <>Deadline: {deadlineInfo.datum} · Noch {deadlineInfo.diffTage} Tage</>
+                )}
+              </span>
+            )}
+          </div>
 
           {!istArchiviert && (
             <div className="flex items-center gap-2 shrink-0">
@@ -253,45 +285,66 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
+      {/* ── Kunde + Details Strip (full-width) ─────────────────── */}
+      <div className="shrink-0 px-6 py-3 border-b border-gray-100 bg-gray-50/30">
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+          {/* Kunden-Card */}
+          {projekt.kunden && (
+            <div className="flex items-center gap-3 mr-4">
+              <div className="w-7 h-7 rounded-full bg-wellbeing-green/10 flex items-center justify-center shrink-0">
+                <User className="w-3.5 h-3.5 text-wellbeing-green" />
+              </div>
+              <div>
+                <Link
+                  href={`/dashboard/kunden/${projekt.kunden.id}`}
+                  className="text-sm font-semibold text-gray-900 hover:text-wellbeing-green transition-colors"
+                >
+                  {projekt.kunden.name}
+                </Link>
+                <div className="flex items-center gap-3 mt-0.5">
+                  {projekt.kunden.email && (
+                    <a href={`mailto:${projekt.kunden.email}`} className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
+                      <Mail className="w-3 h-3" />
+                      {projekt.kunden.email}
+                    </a>
+                  )}
+                  {projekt.kunden.telefon && (
+                    <a href={`tel:${projekt.kunden.telefon}`} className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
+                      <Phone className="w-3 h-3" />
+                      {projekt.kunden.telefon}
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Projektdetails */}
+          <div className="flex flex-wrap items-start gap-x-6 gap-y-1.5">
+            {projekt.projektart && <InfoPill label="Projektart" wert={projekt.projektart} />}
+            {projekt.standort && <InfoPill label="Standort" wert={projekt.standort} />}
+            {projekt.gesamtbudget != null && <InfoPill label="Budget" wert={eur(projekt.gesamtbudget)} />}
+            <InfoPill
+              label="Angelegt"
+              wert={new Date(projekt.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            />
+          </div>
+
+          {projekt.beschreibung && (
+            <p className="w-full text-xs text-gray-500 leading-relaxed max-w-3xl whitespace-pre-wrap mt-0.5">
+              {projekt.beschreibung}
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* ── 2-Spalten Content ──────────────────────────────────── */}
       <div className="flex-1 overflow-hidden flex">
 
         {/* ── Linke Spalte (60%) ─────────────────────────────── */}
         <div className="flex-[3] overflow-y-auto border-r border-gray-100">
 
-          {/* Projektdetails kompakt */}
-          <div className="px-6 py-4 border-b border-gray-50">
-            <div className="flex flex-wrap items-start gap-x-8 gap-y-2">
-              {projekt.projektart && (
-                <InfoPill label="Projektart" wert={projekt.projektart} />
-              )}
-              {projekt.standort && (
-                <InfoPill label="Standort" wert={projekt.standort} />
-              )}
-              {projekt.gesamtbudget != null && (
-                <InfoPill label="Budget" wert={eur(projekt.gesamtbudget)} />
-              )}
-              <InfoPill
-                label="Angelegt"
-                wert={new Date(projekt.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-              />
-              {portalUser?.aktiv && (
-                <div>
-                  <p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-widest font-medium">Portal</p>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span className="text-xs text-gray-600">{portalUser.vorname} {portalUser.nachname}</span>
-                    <Link href={`/dashboard/kunden/${projekt.kunde_id}`} className="text-[10px] text-wellbeing-green hover:underline">verwalten</Link>
-                  </div>
-                </div>
-              )}
-            </div>
-            {projekt.beschreibung && (
-              <p className="text-xs text-gray-500 mt-3 leading-relaxed max-w-2xl whitespace-pre-wrap">{projekt.beschreibung}</p>
-            )}
-          </div>
-
-          {/* ── Räume – prominenter ──────────────────────────── */}
+          {/* ── Räume ────────────────────────────────────────── */}
           <div className="px-6 py-4 border-b border-gray-50">
             <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <RaumHinzufuegen
@@ -331,8 +384,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
 
             {budgetPct != null ? (
               <div className="flex items-center gap-5">
-                {/* SVG Ring */}
-                <svg width="128" height="128" viewBox="0 0 128 128" className="shrink-0">
+                <svg width="120" height="120" viewBox="0 0 128 128" className="shrink-0">
                   <circle cx="64" cy="64" r={ringR} fill="none" stroke="#f3f4f6" strokeWidth="14" />
                   <circle
                     cx="64" cy="64" r={ringR}
@@ -346,11 +398,8 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
                   <text x="64" y="60" textAnchor="middle" fill={ringFarbe} fontSize="20" fontWeight="bold" fontFamily="monospace">
                     {budgetPct}%
                   </text>
-                  <text x="64" y="76" textAnchor="middle" fill="#9ca3af" fontSize="10">
-                    Budget
-                  </text>
+                  <text x="64" y="76" textAnchor="middle" fill="#9ca3af" fontSize="10">Budget</text>
                 </svg>
-
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-400 mb-0.5">VP-Summe netto</p>
                   <p className="text-xl font-bold text-gray-900 font-mono">{eur(stats.gesamtkosten)}</p>
@@ -417,22 +466,6 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
 
           {/* Notizen */}
           <NotizBlock typ="projekt" referenzId={projekt.id} initialNotizen={notizen} />
-
-          {/* Portal Link (wenn kein aktiver User) */}
-          {!portalUser?.aktiv && projekt.kunde_id && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="w-3.5 h-3.5 text-gray-400" />
-                  <p className="text-xs font-medium text-gray-600">Kunden-Portal</p>
-                </div>
-                <Link href={`/dashboard/kunden/${projekt.kunde_id}`} className="text-xs text-wellbeing-green hover:underline">
-                  Einrichten →
-                </Link>
-              </div>
-              <p className="text-xs text-gray-400 mt-1.5">Kein aktiver Portal-Zugang</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -59,6 +59,9 @@ function getIcon(name: string | null): LucideIcon {
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
+const pct = (n: number, total: number) =>
+  total > 0 ? Math.min(Math.round((n / total) * 100), 100) : 0
+
 interface Props {
   projektId: string
   raeume: Raum[]
@@ -122,11 +125,37 @@ function SortableRaumItem({
         <p className="text-sm font-semibold text-gray-900 group-hover:text-wellbeing-green transition-colors truncate">
           {raum.name}
         </p>
-        <p className="text-xs text-gray-400 mt-0.5">
-          {stat
-            ? `${stat.produkteAnzahl} Produkt${stat.produkteAnzahl !== 1 ? 'e' : ''} · ${eur(stat.vpSumme)} · ${stat.freigegeben} freigegeben`
-            : 'Noch keine Produkte'}
-        </p>
+        {stat ? (
+          <>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {stat.produkteAnzahl} Produkt{stat.produkteAnzahl !== 1 ? 'e' : ''} · {eur(stat.vpSumme)} · {stat.freigegeben} freigegeben
+            </p>
+            {raum.budget != null && raum.budget > 0 && (
+              <div className="mt-1.5">
+                {(() => {
+                  const p = pct(stat.vpSumme, raum.budget!)
+                  const farbe = p >= 100 ? 'bg-red-400' : p >= 80 ? 'bg-amber-400' : 'bg-wellbeing-green'
+                  return (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${farbe} transition-all`} style={{ width: `${p}%` }} />
+                      </div>
+                      <span className={`text-[10px] font-medium shrink-0 ${p >= 100 ? 'text-red-500' : p >= 80 ? 'text-amber-500' : 'text-gray-400'}`}>
+                        {p}%
+                      </span>
+                    </div>
+                  )
+                })()}
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Budget: {eur(raum.budget!)}
+                  {stat.vpSumme > raum.budget! && <span className="text-red-500 ml-1">Überschritten</span>}
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-xs text-gray-400 mt-0.5">Noch keine Produkte</p>
+        )}
       </Link>
 
       {/* Actions (hover) */}

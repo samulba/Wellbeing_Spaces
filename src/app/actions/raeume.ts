@@ -15,14 +15,21 @@ export async function raumAnlegen(
   const name = (formData.get('name') as string).trim()
   if (!name) return { fehler: 'Raumname darf nicht leer sein.' }
 
+  const budgetRaw = formData.get('budget') as string
+  const budget = budgetRaw ? parseFloat(budgetRaw) : null
+
   const { error } = await supabase.from('raeume').insert({
     projekt_id: projektId,
     name,
     beschreibung: (formData.get('beschreibung') as string) || null,
     icon: (formData.get('icon') as string) || null,
+    budget: budget && !isNaN(budget) ? budget : null,
   })
 
-  if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
+  if (error) {
+    console.error('raumAnlegen error:', error)
+    return { fehler: 'Fehler beim Speichern: ' + error.message }
+  }
 
   revalidatePath(`/dashboard/projekte/${projektId}`)
   return null

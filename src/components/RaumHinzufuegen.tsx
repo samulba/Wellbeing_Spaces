@@ -13,8 +13,9 @@ import {
   Coffee, Utensils, Wine, ChefHat, Dumbbell, Waves,
   Wrench, Hammer, Paintbrush, Scissors, Ruler, Compass, Map, PenLine, Pencil,
   Package, Box, Archive, Tag, MessageSquare, Truck, Globe, Zap, Shield,
-  ChevronDown,
+  ChevronDown, Settings,
 } from 'lucide-react'
+import Link from 'next/link'
 
 const ICONS: Record<string, LucideIcon> = {
   Sofa, Armchair, Lamp, Lightbulb, Bed, Table2, Wind,
@@ -57,17 +58,15 @@ interface Props {
 }
 
 export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props) {
-  const [offen, setOffen]                     = useState(false)
-  const [state, formAction]                   = useFormState(aktion, null)
-  const [gewaehlt, setGewaehlt]               = useState<string | null>(null)
-  const [gewaehltIcon, setGewaehltIcon]       = useState<string>('Package')
-  const [nameInput, setNameInput]             = useState('')
-  const [dropdownOffen, setDropdownOffen]     = useState(false)
-  const dropdownRef                           = useRef<HTMLDivElement>(null)
+  const [offen, setOffen]                 = useState(false)
+  const [state, formAction]               = useFormState(aktion, null)
+  const [gewaehlt, setGewaehlt]           = useState<string | null>(null)
+  const [gewaehltIcon, setGewaehltIcon]   = useState<string>('Package')
+  const [dropdownOffen, setDropdownOffen] = useState(false)
+  const dropdownRef                       = useRef<HTMLDivElement>(null)
 
   const parsed = raumtypen.map(parseRaumtyp)
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -81,13 +80,6 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
   function selectTyp(typName: string, iconName: string) {
     setGewaehlt(typName)
     setGewaehltIcon(iconName)
-    setNameInput(typName)
-    setDropdownOffen(false)
-  }
-
-  function clearTyp() {
-    setGewaehlt(null)
-    setGewaehltIcon('Package')
     setDropdownOffen(false)
   }
 
@@ -95,7 +87,6 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
     setOffen(false)
     setGewaehlt(null)
     setGewaehltIcon('Package')
-    setNameInput('')
     setDropdownOffen(false)
   }
 
@@ -120,29 +111,52 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
 
       {/* Aufklappbares Formular */}
       {offen && (
-        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/40 space-y-3">
-          <form
-            action={async (formData) => {
-              await formAction(formData)
-              if (!state?.fehler) {
-                setOffen(false)
-                setGewaehlt(null)
-                setGewaehltIcon('Package')
-                setNameInput('')
-                setDropdownOffen(false)
-              }
-            }}
-          >
-            {/* Hidden icon input */}
-            <input type="hidden" name="icon" value={gewaehltIcon} />
+        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/40">
+          {parsed.length === 0 ? (
+            /* Keine Raumtypen konfiguriert */
+            <div className="flex items-center justify-between gap-3 py-2">
+              <p className="text-xs text-gray-500">
+                Keine Raumtypen konfiguriert.
+              </p>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/dashboard/einstellungen?tab=workspace"
+                  className="text-xs text-wellbeing-green hover:underline flex items-center gap-1"
+                >
+                  <Settings className="w-3 h-3" />
+                  Raumtypen einrichten
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                >
+                  Abbrechen
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form
+              action={async (formData) => {
+                await formAction(formData)
+                if (!state?.fehler) {
+                  setOffen(false)
+                  setGewaehlt(null)
+                  setGewaehltIcon('Package')
+                  setDropdownOffen(false)
+                }
+              }}
+            >
+              {/* Hidden inputs */}
+              <input type="hidden" name="icon" value={gewaehltIcon} />
+              <input type="hidden" name="name" value={gewaehlt ?? ''} />
 
-            {/* Dropdown Raumtyp */}
-            {parsed.length > 0 && (
-              <div ref={dropdownRef} className="relative">
+              {/* Dropdown */}
+              <div ref={dropdownRef} className="relative mb-3">
                 <button
                   type="button"
                   onClick={() => setDropdownOffen((v) => !v)}
-                  className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:border-wellbeing-green-light transition-colors"
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white hover:border-wellbeing-green-light transition-colors"
                 >
                   <span className="flex items-center gap-2 min-w-0">
                     {gewaehlt ? (
@@ -151,7 +165,7 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
                         <span className="text-gray-700 truncate">{gewaehlt}</span>
                       </>
                     ) : (
-                      <span className="text-gray-400">Raumtyp wählen (optional)</span>
+                      <span className="text-gray-400">Raumtyp wählen…</span>
                     )}
                   </span>
                   <ChevronDown className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${dropdownOffen ? 'rotate-180' : ''}`} />
@@ -159,13 +173,6 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
 
                 {dropdownOffen && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-52 overflow-y-auto">
-                    <button
-                      type="button"
-                      onClick={clearTyp}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:bg-gray-50 transition-colors"
-                    >
-                      — Kein Typ
-                    </button>
                     {parsed.map(({ name: typName, iconName }) => {
                       const Icon = getIcon(iconName)
                       return (
@@ -173,7 +180,7 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
                           key={typName}
                           type="button"
                           onClick={() => selectTyp(typName, iconName)}
-                          className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${gewaehlt === typName ? 'bg-wellbeing-green/5 text-wellbeing-green' : 'text-gray-700'}`}
+                          className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors ${gewaehlt === typName ? 'bg-wellbeing-green/5 text-wellbeing-green' : 'text-gray-700'}`}
                         >
                           <Icon className={`w-4 h-4 shrink-0 ${gewaehlt === typName ? 'text-wellbeing-green' : 'text-gray-400'}`} />
                           {typName}
@@ -183,34 +190,23 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
                   </div>
                 )}
               </div>
-            )}
 
-            {/* Namensfeld + Buttons */}
-            <div className="flex items-center gap-2 mt-3">
-              <input
-                name="name"
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                required
-                autoFocus={parsed.length === 0}
-                placeholder="Raumname, z. B. Lobby"
-                className="flex-1 min-w-0 px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition"
-              />
-              <HinzufuegenButton />
-              <button
-                type="button"
-                onClick={handleClose}
-                className="px-3 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors whitespace-nowrap"
-              >
-                Abbrechen
-              </button>
-            </div>
-
-            {state?.fehler && (
-              <p className="text-xs text-red-500">{state.fehler}</p>
-            )}
-          </form>
+              {/* Aktionen */}
+              <div className="flex items-center gap-2">
+                <HinzufuegenButton />
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="px-3 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  Abbrechen
+                </button>
+                {state?.fehler && (
+                  <p className="text-xs text-red-500 ml-2">{state.fehler}</p>
+                )}
+              </div>
+            </form>
+          )}
         </div>
       )}
     </>

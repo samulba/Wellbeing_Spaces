@@ -50,6 +50,7 @@ export async function projektAktualisieren(
       gesamtbudget: formData.get('gesamtbudget')
         ? Number(formData.get('gesamtbudget'))
         : null,
+      deadline: (formData.get('deadline') as string) || null,
       status: formData.get('status') as ProjektStatus,
     })
     .eq('id', id)

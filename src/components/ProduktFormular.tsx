@@ -5,7 +5,7 @@ import { useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Upload, Loader2, X, Zap, Check, ChevronLeft, ChevronRight,
-  Package, AlertCircle,
+  Package, AlertCircle, ChevronDown,
 } from 'lucide-react'
 import type { ProduktActionState } from '@/app/actions/produkte'
 import type { Partner, ProduktMitDetails } from '@/lib/supabase/types'
@@ -394,7 +394,10 @@ export default function ProduktFormular({
   const [marge,     setMarge]     = useState(initialData?.marge_prozent ?? 0)
   const [vpNetto,   setVpNetto]   = useState(initialData?.verkaufspreis ?? 0)
   const [provision, setProvision] = useState(initialData?.provision_prozent ?? 0)
-  const [menge,     setMenge]     = useState(initialData?.menge ?? 1)
+  const menge = initialData?.menge ?? 1  // Menge bleibt als Konstante (kein UI-Feld mehr)
+
+  // Kalkulation kollabierbar
+  const [kalkulationOffen, setKalkulationOffen] = useState(false)
 
   // Text-Felder
   const [produktName,    setProduktName]    = useState(initialData?.name          ?? '')
@@ -434,8 +437,6 @@ export default function ProduktFormular({
   // ── Preis-Logik ───────────────────────────────────────────
   const vpBrutto     = r2(vpNetto * (1 + mwst))
   const provisionEur = r2(vpNetto * (provision / 100))
-  const gesamtNetto  = r2(vpNetto * menge)
-  const gesamtBrutto = r2(vpBrutto * menge)
 
   const handleEpChange = useCallback((val: number) => {
     setEp(val); setVpNetto(r2(val * (1 + marge / 100)))
@@ -449,6 +450,12 @@ export default function ProduktFormular({
     setVpNetto(val)
     if (ep > 0) setMarge(r2(((val - ep) / ep) * 100))
   }, [ep])
+
+  const handleVpBruttoChange = useCallback((val: number) => {
+    const netto = r2(val / (1 + mwst))
+    setVpNetto(netto)
+    if (ep > 0) setMarge(r2(((netto - ep) / ep) * 100))
+  }, [ep, mwst])
 
   // ── Bild-Upload ───────────────────────────────────────────
   const handleBildUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -603,6 +610,32 @@ export default function ProduktFormular({
               />
             </div>
 
+            {/* Kundenpreis (VK Brutto) */}
+            <div className="bg-wellbeing-cream/40 border border-wellbeing-green/20 rounded-xl px-4 py-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-wellbeing-green-dark mb-1">
+                    Verkaufspreis für Kunde (brutto inkl. {Math.round(mwst * 100)}% MwSt.)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={vpBrutto > 0 ? vpBrutto : ''}
+                    onChange={(e) => handleVpBruttoChange(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 text-lg font-bold bg-white border border-wellbeing-green/20 rounded-lg text-wellbeing-green-dark placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/30 font-mono"
+                    placeholder="0,00"
+                  />
+                </div>
+                {vpNetto > 0 && (
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] text-gray-400 mb-0.5">Netto</p>
+                    <p className="text-sm font-mono font-semibold text-gray-600">{eur(vpNetto)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Partner + Kategorie */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -625,21 +658,24 @@ export default function ProduktFormular({
               </div>
             </div>
 
-            {/* Menge + Einheit */}
+            {/* Einheit */}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={lbl}>Menge</label>
-                <input
-                  type="number" min="0.01" step="0.01"
-                  value={menge}
-                  onChange={(e) => setMenge(parseFloat(e.target.value) || 1)}
-                  className={inp}
-                />
-              </div>
               <div>
                 <label className={lbl}>Einheit</label>
                 <select name="einheit" defaultValue={initialData?.einheit ?? 'Stk'} className={inp}>
                   {EINHEITEN.map((e) => <option key={e} value={e}>{e}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={lbl}>Verfügbarkeit</label>
+                <select
+                  value={verfuegbarkeit}
+                  onChange={(e) => setVerfuegbarkeit(e.target.value)}
+                  className={inp}
+                >
+                  {VERFUEGBARKEIT_OPTIONEN.map((o) => (
+                    <option key={o.wert} value={o.wert}>{o.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -698,20 +734,6 @@ export default function ProduktFormular({
               </div>
             </div>
 
-            {/* Verfügbarkeit */}
-            <div>
-              <label className={lbl}>Verfügbarkeit</label>
-              <select
-                value={verfuegbarkeit}
-                onChange={(e) => setVerfuegbarkeit(e.target.value)}
-                className={inp}
-              >
-                {VERFUEGBARKEIT_OPTIONEN.map((o) => (
-                  <option key={o.wert} value={o.wert}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-
             {/* Tags */}
             <div>
               <label className={lbl}>Tags <span className="text-gray-400 font-normal normal-case text-[10px]">Enter oder Komma zum Hinzufügen</span></label>
@@ -730,68 +752,67 @@ export default function ProduktFormular({
               />
             </div>
 
-            {/* ── Preiskalkulation ── */}
-            <div className="border-t border-gray-100 pt-4">
-              <div className="flex items-baseline gap-2 mb-3">
-                <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Preiskalkulation</span>
-                <span className="text-[10px] text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">Intern</span>
-              </div>
+            {/* ── Interne Kalkulation (kollabierbar) ── */}
+            <div className="border-t border-gray-100 pt-3">
+              <button
+                type="button"
+                onClick={() => setKalkulationOffen((v) => !v)}
+                className="flex items-center gap-2 text-[11px] font-semibold text-gray-400 hover:text-gray-600 uppercase tracking-widest transition-colors group"
+              >
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${kalkulationOffen ? 'rotate-180' : ''}`} />
+                Interne Kalkulation
+                <span className="text-[10px] text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full normal-case tracking-normal">Nur intern</span>
+                {ep > 0 && !kalkulationOffen && (
+                  <span className="text-[10px] text-gray-400 font-normal tracking-normal normal-case">
+                    EK {eur(ep)} · Marge {marge.toFixed(1)}%{provision > 0 ? ` · Prov. ${provision}%` : ''}
+                  </span>
+                )}
+              </button>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={lbl}>EK netto (€)</label>
-                  <input type="number" min="0" step="0.01"
-                    value={ep || ''}
-                    onChange={(e) => handleEpChange(parseFloat(e.target.value) || 0)}
-                    className={`${inpPreis} font-mono`} placeholder="0,00" />
-                </div>
-                <div>
-                  <label className={lbl}>Marge (%)</label>
-                  <input type="number" step="0.1"
-                    value={marge || ''}
-                    onChange={(e) => handleMargeChange(parseFloat(e.target.value) || 0)}
-                    className={`${inpPreis} font-mono`} placeholder="0,0" />
-                </div>
-                <div>
-                  <label className={lbl}>VP netto (€)</label>
-                  <input type="number" min="0" step="0.01"
-                    value={vpNetto || ''}
-                    onChange={(e) => handleVpNettoChange(parseFloat(e.target.value) || 0)}
-                    className={`${inpPreis} font-mono font-semibold text-wellbeing-green-dark`}
-                    placeholder="0,00" />
-                </div>
-                <div>
-                  <label className={lbl}>VP brutto (€) <span className="text-gray-400 normal-case font-normal">{Math.round(mwst * 100)}%</span></label>
-                  <input type="text" readOnly tabIndex={-1}
-                    value={vpNetto > 0 ? eur(vpBrutto) : ''}
-                    className={`${inpPreis} font-mono font-semibold text-wellbeing-green-dark cursor-default`} />
-                </div>
-                <div>
-                  <label className={lbl}>Provision (%)</label>
-                  <input type="number" min="0" step="0.1"
-                    value={provision || ''}
-                    onChange={(e) => setProvision(parseFloat(e.target.value) || 0)}
-                    className={`${inpPreis} font-mono`} placeholder="0,0" />
-                </div>
-                <div>
-                  <label className={lbl}>Provision (€) <span className="text-gray-400 font-normal normal-case">errechnet</span></label>
-                  <input type="text" readOnly tabIndex={-1}
-                    value={provision > 0 && vpNetto > 0 ? eur(provisionEur) : ''}
-                    className={`${inpPreis} font-mono cursor-default`} />
-                </div>
-              </div>
-
-              {(vpNetto > 0 || ep > 0) && (
-                <div className="mt-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
-                  <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest mb-2">
-                    Kalkulation bei {menge} {initialData?.einheit ?? 'Stk'}
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <KalkulationsZeile label="EP gesamt"       wert={ep > 0 ? eur(r2(ep * menge)) : '–'} />
-                    <KalkulationsZeile label="VP netto gesamt" wert={vpNetto > 0 ? eur(gesamtNetto) : '–'} hervorheben />
-                    <KalkulationsZeile label="VP brutto ges."  wert={vpNetto > 0 ? eur(gesamtBrutto) : '–'} hervorheben />
-                    <KalkulationsZeile label="Provision ges."  wert={provision > 0 && vpNetto > 0 ? eur(r2(provisionEur * menge)) : '–'} />
+              {kalkulationOffen && (
+                <div className="mt-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={lbl}>EK netto (€)</label>
+                      <input type="number" min="0" step="0.01"
+                        value={ep || ''}
+                        onChange={(e) => handleEpChange(parseFloat(e.target.value) || 0)}
+                        className={`${inpPreis} font-mono`} placeholder="0,00" />
+                    </div>
+                    <div>
+                      <label className={lbl}>Marge (%)</label>
+                      <input type="number" step="0.1"
+                        value={marge || ''}
+                        onChange={(e) => handleMargeChange(parseFloat(e.target.value) || 0)}
+                        className={`${inpPreis} font-mono`} placeholder="0,0" />
+                    </div>
+                    <div>
+                      <label className={lbl}>VP netto (€)</label>
+                      <input type="number" min="0" step="0.01"
+                        value={vpNetto || ''}
+                        onChange={(e) => handleVpNettoChange(parseFloat(e.target.value) || 0)}
+                        className={`${inpPreis} font-mono font-semibold text-wellbeing-green-dark`}
+                        placeholder="0,00" />
+                    </div>
+                    <div>
+                      <label className={lbl}>Provision (%)</label>
+                      <input type="number" min="0" step="0.1"
+                        value={provision || ''}
+                        onChange={(e) => setProvision(parseFloat(e.target.value) || 0)}
+                        className={`${inpPreis} font-mono`} placeholder="0,0" />
+                    </div>
                   </div>
+
+                  {(vpNetto > 0 || ep > 0) && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <KalkulationsZeile label="EK netto" wert={ep > 0 ? eur(ep) : '–'} />
+                        <KalkulationsZeile label="VP netto" wert={vpNetto > 0 ? eur(vpNetto) : '–'} hervorheben />
+                        <KalkulationsZeile label="VP brutto" wert={vpNetto > 0 ? eur(vpBrutto) : '–'} hervorheben />
+                        <KalkulationsZeile label="Provision" wert={provision > 0 && vpNetto > 0 ? eur(provisionEur) : '–'} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

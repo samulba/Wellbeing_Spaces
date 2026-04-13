@@ -6,6 +6,15 @@ export type ProduktStatus = 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'uebera
 export type BestellStatus = 'ausstehend' | 'bestellt' | 'geliefert' | 'rechnung_erhalten'
 export type ProjektStatus = 'offen' | 'in_bearbeitung' | 'freigegeben' | 'abgeschlossen'
 
+export interface ProjektAktivitaet {
+  id: string
+  projekt_id: string
+  user_id: string | null
+  typ: string
+  beschreibung: string | null
+  created_at: string
+}
+
 export type KundeStatus = 'aktiv' | 'abgeschlossen' | 'pausiert'
 
 export interface Kunde {
@@ -35,13 +44,15 @@ export interface Projekt {
   freigabe_pin: string | null
   archiviert: boolean
   archiviert_am: string | null
+  deadline: string | null
+  verantwortlicher_id: string | null
   deleted_at: string | null
   created_at: string
   updated_at: string
 }
 
 export type ProjektMitKunde = Projekt & {
-  kunden: { id: string; name: string } | null
+  kunden: { id: string; name: string; email: string | null; telefon: string | null; ansprechpartner: string | null } | null
 }
 
 export interface Raum {
@@ -51,6 +62,7 @@ export interface Raum {
   beschreibung: string | null
   icon: string | null
   reihenfolge: number
+  budget: number | null
   deleted_at: string | null
   created_at: string
   updated_at: string
