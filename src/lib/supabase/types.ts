@@ -49,6 +49,7 @@ export interface Raum {
   projekt_id: string
   name: string
   beschreibung: string | null
+  icon: string | null
   reihenfolge: number
   deleted_at: string | null
   created_at: string

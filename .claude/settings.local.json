@@ -22,7 +22,8 @@
       "Bash(cp \"/d/Internet Downloads/Wellbeing Spaces Logos & Favicons/Wellbeing Spaces Logo groß.png\" \"/c/Users/Samy/wbc-studio/public/logo-gross.png\")",
       "Bash(cp \"/d/Internet Downloads/Wellbeing Spaces Logo groß.svg\" \"/c/Users/Samy/wbc-studio/public/logo.svg\")",
       "Bash(cp \"/d/Internet Downloads/Wellbeing Spaces Logo klein.svg\" \"/c/Users/Samy/wbc-studio/public/logo-klein.svg\")",
-      "Skill(update-config)"
+      "Skill(update-config)",
+      "Bash(ls:*)"
     ]
   }
 }

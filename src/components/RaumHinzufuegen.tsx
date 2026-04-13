@@ -1,7 +1,7 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { RaumActionState } from '@/app/actions/raeume'
 import {
   type LucideIcon,
@@ -13,6 +13,7 @@ import {
   Coffee, Utensils, Wine, ChefHat, Dumbbell, Waves,
   Wrench, Hammer, Paintbrush, Scissors, Ruler, Compass, Map, PenLine, Pencil,
   Package, Box, Archive, Tag, MessageSquare, Truck, Globe, Zap, Shield,
+  ChevronDown,
 } from 'lucide-react'
 
 const ICONS: Record<string, LucideIcon> = {
@@ -56,28 +57,49 @@ interface Props {
 }
 
 export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props) {
-  const [offen, setOffen] = useState(false)
-  const [state, formAction] = useFormState(aktion, null)
-  const [gewaehlt, setGewaehlt] = useState<string | null>(null)
-  const [nameInput, setNameInput] = useState('')
+  const [offen, setOffen]                     = useState(false)
+  const [state, formAction]                   = useFormState(aktion, null)
+  const [gewaehlt, setGewaehlt]               = useState<string | null>(null)
+  const [gewaehltIcon, setGewaehltIcon]       = useState<string>('Package')
+  const [nameInput, setNameInput]             = useState('')
+  const [dropdownOffen, setDropdownOffen]     = useState(false)
+  const dropdownRef                           = useRef<HTMLDivElement>(null)
 
   const parsed = raumtypen.map(parseRaumtyp)
 
-  function handleTile(typName: string) {
-    if (gewaehlt === typName) {
-      setGewaehlt(null)
-      setNameInput('')
-    } else {
-      setGewaehlt(typName)
-      setNameInput(typName)
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOffen(false)
+      }
     }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  function selectTyp(typName: string, iconName: string) {
+    setGewaehlt(typName)
+    setGewaehltIcon(iconName)
+    setNameInput(typName)
+    setDropdownOffen(false)
+  }
+
+  function clearTyp() {
+    setGewaehlt(null)
+    setGewaehltIcon('Package')
+    setDropdownOffen(false)
   }
 
   function handleClose() {
     setOffen(false)
     setGewaehlt(null)
+    setGewaehltIcon('Package')
     setNameInput('')
+    setDropdownOffen(false)
   }
+
+  const SelectedIcon = getIcon(gewaehltIcon)
 
   return (
     <>
@@ -89,7 +111,7 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
         {!offen && (
           <button
             onClick={() => setOffen(true)}
-            className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors"
+            className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark font-medium transition-colors"
           >
             + Raum hinzufügen
           </button>
@@ -98,50 +120,73 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
 
       {/* Aufklappbares Formular */}
       {offen && (
-        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/40">
+        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/40 space-y-3">
           <form
             action={async (formData) => {
               await formAction(formData)
               if (!state?.fehler) {
                 setOffen(false)
                 setGewaehlt(null)
+                setGewaehltIcon('Package')
                 setNameInput('')
+                setDropdownOffen(false)
               }
             }}
-            className="space-y-3"
           >
-            {/* Raumtyp-Kacheln */}
+            {/* Hidden icon input */}
+            <input type="hidden" name="icon" value={gewaehltIcon} />
+
+            {/* Dropdown Raumtyp */}
             {parsed.length > 0 && (
-              <div>
-                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-widest mb-2">
-                  Raumtyp wählen
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {parsed.map(({ name: typName, iconName }) => {
-                    const Icon = getIcon(iconName)
-                    const aktiv = gewaehlt === typName
-                    return (
-                      <button
-                        key={typName}
-                        type="button"
-                        onClick={() => handleTile(typName)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                          aktiv
-                            ? 'bg-wellbeing-green text-white shadow-sm'
-                            : 'bg-white border border-gray-200 text-gray-600 hover:border-wellbeing-green-light hover:text-wellbeing-green'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5 shrink-0" />
-                        {typName}
-                      </button>
-                    )
-                  })}
-                </div>
+              <div ref={dropdownRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOffen((v) => !v)}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:border-wellbeing-green-light transition-colors"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    {gewaehlt ? (
+                      <>
+                        <SelectedIcon className="w-4 h-4 text-wellbeing-green shrink-0" />
+                        <span className="text-gray-700 truncate">{gewaehlt}</span>
+                      </>
+                    ) : (
+                      <span className="text-gray-400">Raumtyp wählen (optional)</span>
+                    )}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${dropdownOffen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {dropdownOffen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-52 overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={clearTyp}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:bg-gray-50 transition-colors"
+                    >
+                      — Kein Typ
+                    </button>
+                    {parsed.map(({ name: typName, iconName }) => {
+                      const Icon = getIcon(iconName)
+                      return (
+                        <button
+                          key={typName}
+                          type="button"
+                          onClick={() => selectTyp(typName, iconName)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${gewaehlt === typName ? 'bg-wellbeing-green/5 text-wellbeing-green' : 'text-gray-700'}`}
+                        >
+                          <Icon className={`w-4 h-4 shrink-0 ${gewaehlt === typName ? 'text-wellbeing-green' : 'text-gray-400'}`} />
+                          {typName}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
             {/* Namensfeld + Buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mt-3">
               <input
                 name="name"
                 type="text"

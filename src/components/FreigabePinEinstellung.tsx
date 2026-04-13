@@ -7,9 +7,10 @@ import { pinSetzen } from '@/app/actions/projekte'
 interface Props {
   projektId: string
   hatPin: boolean
+  hatToken: boolean
 }
 
-export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPin }: Props) {
+export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPin, hatToken }: Props) {
   const [hatPin, setHatPin]         = useState(initialHatPin)
   const [editMode, setEditMode]     = useState(false)
   const [pinInput, setPinInput]     = useState('')
@@ -17,7 +18,15 @@ export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPi
   const [pinSichtbar, setPinSichtbar] = useState(false)
   const [kopiert, setKopiert]       = useState(false)
   const [fehler, setFehler]         = useState<string | null>(null)
+  const [toast, setToast]           = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  if (!hatToken) return null
+
+  function showToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
 
   function handleSpeichern() {
     const pin = pinInput.trim()
@@ -33,6 +42,7 @@ export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPi
       setFehler(null)
       setGespeicherterPin(pin)
       setPinSichtbar(false)
+      showToast('✓ PIN aktiviert')
     })
   }
 
@@ -56,7 +66,13 @@ export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPi
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm relative">
+      {/* Toast */}
+      {toast && (
+        <div className="absolute top-3 right-3 px-3 py-1.5 bg-wellbeing-green text-white text-xs font-medium rounded-lg shadow-md animate-fadeIn">
+          {toast}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
