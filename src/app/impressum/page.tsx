@@ -26,9 +26,10 @@ export default function ImpressumPage() {
               Betreiber
             </h2>
             <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 text-[14px] space-y-1">
-              <p className="font-semibold text-gray-800">Wellbeing Concepts</p>
-              <p>[Straße und Hausnummer]</p>
-              <p>[PLZ] [Ort]</p>
+              <p className="font-semibold text-gray-800">Samuel Liba</p>
+              <p className="text-gray-500">Unternehmensberatung</p>
+              <p>Geranienweg 7</p>
+              <p>85586 Poing</p>
               <p>Deutschland</p>
             </div>
           </section>
@@ -37,8 +38,8 @@ export default function ImpressumPage() {
             <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
               Kontakt
             </h2>
-            <p>E-Mail: <a href="mailto:kontakt@wellbeing-concepts.de" className="text-[#445c49] hover:underline">[kontakt@wellbeing-concepts.de]</a></p>
-            <p className="mt-1">Telefon: [+49 xxx xxx xxxx]</p>
+            <p>Telefon: <a href="tel:+4917631335327" className="text-[#445c49] hover:underline">0176 31335327</a></p>
+            <p className="mt-1">E-Mail: <a href="mailto:info@vicinusmedia.com" className="text-[#445c49] hover:underline">info@vicinusmedia.com</a></p>
           </section>
 
           <section>
@@ -46,16 +47,45 @@ export default function ImpressumPage() {
               Umsatzsteuer-Identifikationsnummer
             </h2>
             <p>
-              Gemäß § 27a Umsatzsteuergesetz:<br />
-              USt-IdNr.: [DE XXXXXXXXX]
+              Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz:<br />
+              DE450215192
             </p>
           </section>
 
           <section>
             <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
-              Verantwortlich für den Inhalt (§ 55 Abs. 2 RStV)
+              Redaktionell verantwortlich
             </h2>
-            <p>[Vorname Nachname]<br />[Adresse wie oben]</p>
+            <p>Samuel Liba</p>
+          </section>
+
+          <section>
+            <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
+              EU-Streitschlichtung
+            </h2>
+            <p className="text-[14px]">
+              Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:{' '}
+              <a
+                href="https://ec.europa.eu/consumers/odr/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#445c49] hover:underline"
+              >
+                https://ec.europa.eu/consumers/odr/
+              </a>
+              .<br />
+              Unsere E-Mail-Adresse finden Sie oben im Impressum.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
+              Verbraucherstreitbeilegung / Universalschlichtungsstelle
+            </h2>
+            <p className="text-[14px]">
+              Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer
+              Verbraucherschlichtungsstelle teilzunehmen.
+            </p>
           </section>
 
           <section>
@@ -92,21 +122,6 @@ export default function ImpressumPage() {
                 </p>
               </div>
             </div>
-          </section>
-
-          <section>
-            <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
-              Streitschlichtung
-            </h2>
-            <p className="text-[14px]">
-              Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:
-              {' '}<a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="text-[#445c49] hover:underline">
-                https://ec.europa.eu/consumers/odr
-              </a>.
-              Unsere E-Mail-Adresse finden Sie oben im Impressum. Wir sind nicht bereit oder
-              verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle
-              teilzunehmen.
-            </p>
           </section>
         </div>
 

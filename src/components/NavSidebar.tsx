@@ -142,6 +142,13 @@ export default function NavSidebar({
           </Link>
         </div>
 
+        {/* Rechtliche Links */}
+        <div className="flex items-center justify-center gap-3 px-4 py-2 border-t border-white/[0.06]">
+          <Link href="/impressum" className="text-[10px] text-white/20 hover:text-white/40 transition-colors">Impressum</Link>
+          <span className="text-white/10 text-[10px]">·</span>
+          <Link href="/datenschutz" className="text-[10px] text-white/20 hover:text-white/40 transition-colors">Datenschutz</Link>
+        </div>
+
         {/* Profil-Zeile + Abmelden-Icon */}
         <div className="flex items-center gap-2 px-4 py-3 border-t border-white/[0.06]">
           <Link
