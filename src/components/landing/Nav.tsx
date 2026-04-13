@@ -3,16 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
-
-function DepthStackIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 18 18" fill="none" aria-hidden>
-      <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.25" />
-      <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
-      <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
-    </svg>
-  )
-}
+import Image from 'next/image'
 
 const navLinks = [
   { label: 'Features',  href: '/features'  },
@@ -56,7 +47,7 @@ export default function Nav() {
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-            <DepthStackIcon />
+            <Image src="/logo-klein.png" alt="Wellbeing Spaces" width={22} height={22} className="w-[22px] h-[22px] object-contain" />
             <span className="font-syne text-[17px] font-bold text-[#445c49] tracking-tight leading-none group-hover:text-[#445c49] transition-colors duration-200">
               Wellbeing Spaces
             </span>

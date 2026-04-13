@@ -219,7 +219,7 @@ export default async function DashboardPage() {
     { label: 'Kunden',          wert: kundenCount,     href: '/dashboard/kunden',   icon: Users,       farbe: 'text-wellbeing-green', bg: 'bg-wellbeing-cream'  },
     { label: 'Projekte',         wert: projekteCount,   href: '/dashboard/projekte', icon: FolderOpen,  farbe: 'text-blue-600',   bg: 'bg-blue-50'    },
     { label: 'Partner',          wert: partnerCount,    href: '/dashboard/partner',  icon: Handshake,   farbe: 'text-violet-600', bg: 'bg-violet-50'  },
-    { label: 'Offene Freigaben', wert: ausstehendCount, href: '/dashboard/projekte', icon: AlertCircle, farbe: 'text-amber-600',  bg: 'bg-amber-50'   },
+    { label: 'Offene Freigaben', wert: ausstehendCount, href: '/dashboard/freigaben', icon: AlertCircle, farbe: 'text-amber-600',  bg: 'bg-amber-50'   },
   ]
 
   return (

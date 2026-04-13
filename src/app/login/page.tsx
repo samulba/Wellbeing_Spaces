@@ -4,18 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react'
-
-function DepthStackIcon({ size = 28 }: { size?: number }) {
-  const s = size
-  const sq = Math.round(s * 0.556)   // ~10/18
-  return (
-    <svg width={s} height={s} viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width={sq} height={sq} rx="2" fill="#445c49" opacity="0.30" />
-      <rect x="4" y="4" width={sq} height={sq} rx="2" fill="#445c49" opacity="0.55" />
-      <rect x="8" y="8" width={sq} height={sq} rx="2" fill="#445c49" />
-    </svg>
-  )
-}
+import Image from 'next/image'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -63,7 +52,7 @@ export default function LoginPage() {
         {/* Logo-Bereich */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-white rounded-2xl shadow-sm border border-gray-200 mb-5">
-            <DepthStackIcon size={28} />
+            <Image src="/logo-klein.png" alt="Wellbeing Spaces" width={36} height={36} className="w-9 h-9 object-contain" />
           </div>
           <h1 className="font-syne text-[22px] font-bold text-gray-900 leading-none tracking-tight">
             Wellbeing Spaces

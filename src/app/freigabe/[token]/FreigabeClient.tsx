@@ -31,14 +31,10 @@ interface Props {
   branding?: Branding | null
 }
 
-// ── DepthStack-Logo ────────────────────────────────────────────
+// ── Logo ────────────────────────────────────────────
 function Logo() {
   return (
-    <svg width="20" height="20" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.30" />
-      <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
-      <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
-    </svg>
+    <Image src="/logo-klein.png" alt="Wellbeing Spaces" width={20} height={20} className="w-5 h-5 object-contain" />
   )
 }
 

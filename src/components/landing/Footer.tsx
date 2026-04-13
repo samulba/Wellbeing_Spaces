@@ -1,14 +1,5 @@
 import Link from 'next/link'
-
-function DepthStackIcon() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 18 18" fill="none" aria-hidden>
-      <rect x="0" y="0" width="10" height="10" rx="2" fill="#445c49" opacity="0.25" />
-      <rect x="4" y="4" width="10" height="10" rx="2" fill="#445c49" opacity="0.55" />
-      <rect x="8" y="8" width="10" height="10" rx="2" fill="#445c49" />
-    </svg>
-  )
-}
+import Image from 'next/image'
 
 const cols = [
   {
@@ -58,7 +49,7 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <Link href="/" className="inline-flex items-center gap-3 mb-5 group">
-              <DepthStackIcon />
+              <Image src="/logo-klein.png" alt="Wellbeing Spaces" width={36} height={36} className="w-9 h-9 object-contain brightness-0 invert opacity-80" />
               <span className="font-syne font-bold text-[28px] text-white group-hover:text-wellbeing-green-light transition-colors leading-none">
                 Wellbeing Spaces
               </span>
