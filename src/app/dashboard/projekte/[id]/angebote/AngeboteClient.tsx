@@ -11,8 +11,8 @@ import {
   angebotAusProduktliste,
   angebotStatusAendern,
   angebotLoeschen,
-  berechneAngebotSummen,
 } from '@/app/actions/angebote'
+import { berechneAngebotSummen } from '@/lib/angebot-utils'
 
 // ── Helpers ───────────────────────────────────────────────────
 

@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react'
 import { Plus, Pencil, Trash2, FileText, ChevronDown } from 'lucide-react'
 import type { VertragsVorlage, VertragsVorlageKategorie } from '@/lib/supabase/types'
-import { vorlageAnlegen, vorlageAktualisieren, vorlageLoeschen, PLATZHALTER } from '@/app/actions/vertraege'
+import { vorlageAnlegen, vorlageAktualisieren, vorlageLoeschen } from '@/app/actions/vertraege'
+import { PLATZHALTER } from '@/lib/vertrags-platzhalter'
 
 const KATEGORIEN: { value: VertragsVorlageKategorie; label: string }[] = [
   { value: 'projektvertrag', label: 'Projektvertrag' },
