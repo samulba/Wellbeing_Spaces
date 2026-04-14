@@ -43,6 +43,28 @@ type Tool = 'select' | 'wall' | 'curve' | 'door' | 'window' | 'measure' | 'erase
 type ShapeSubtype = 'rectangle' | 'circle' | 'line' | 'arrow'
 type GridSize = 10 | 25 | 50 | 100
 
+/**
+ * Baut eine SVG data-URL für das CSS-Hintergrund-Grid.
+ * Kachel = 100×100 world-px (= 1m × 1m).
+ * Minor-Linien alle gSize px, Major-Linie am Kachelrand.
+ * CSS background-size + background-position werden per after:render
+ * direkt auf das Container-Element geschrieben → kein React-Re-render.
+ */
+function buildGridSvgUrl(gSize: number): string {
+  const minorC = 'rgba(150,180,150,0.35)'
+  const majorC = 'rgba(80,130,90,0.45)'
+  const parts: string[] = []
+  for (let v = gSize; v < 100; v += gSize) {
+    parts.push(`<line x1="${v}" y1="0" x2="${v}" y2="100" stroke="${minorC}" stroke-width="0.5"/>`)
+    parts.push(`<line x1="0" y1="${v}" x2="100" y2="${v}" stroke="${minorC}" stroke-width="0.5"/>`)
+  }
+  // Rechte & untere Kante = 1m-Raster
+  parts.push(`<line x1="99.5" y1="0" x2="99.5" y2="100" stroke="${majorC}" stroke-width="1"/>`)
+  parts.push(`<line x1="0" y1="99.5" x2="100" y2="99.5" stroke="${majorC}" stroke-width="1"/>`)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">${parts.join('')}</svg>`
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+}
+
 const MOEBEL_GRUPPEN: { name: string; keys: string[] }[] = [
   { name: 'Wohnzimmer',   keys: ['Sofa', 'Sessel', 'Couchtisch', 'Sideboard', 'TV-Board', 'Stehlampe', 'Bücherregal', 'Pouf', 'Kaminofen', 'Pflanze', 'Teppich', 'Regal'] },
   { name: 'Schlafzimmer', keys: ['Bett', 'Nachttisch', 'Kleiderschrank', 'Kommode', 'Schminktisch', 'Spiegel', 'Wäschekorb'] },
@@ -760,8 +782,22 @@ export default function RaumplanerEditor({
   // ── Ref-Sync ──────────────────────────────────────────────
 
   useEffect(() => { activeToolRef.current = activeTool }, [activeTool])
-  useEffect(() => { showGridRef.current = showGrid; fabricRef.current?.requestRenderAll() }, [showGrid])
-  useEffect(() => { gridSizeRef.current = gridSize; fabricRef.current?.requestRenderAll() }, [gridSize])
+  useEffect(() => {
+    showGridRef.current = showGrid
+    if (containerRef.current) {
+      containerRef.current.style.backgroundImage = showGrid
+        ? buildGridSvgUrl(gridSizeRef.current)
+        : 'none'
+    }
+    fabricRef.current?.requestRenderAll()
+  }, [showGrid])
+  useEffect(() => {
+    gridSizeRef.current = gridSize
+    if (containerRef.current && showGridRef.current) {
+      containerRef.current.style.backgroundImage = buildGridSvgUrl(gridSize)
+    }
+    fabricRef.current?.requestRenderAll()
+  }, [gridSize])
   useEffect(() => { doorWidthRef.current = doorWidth }, [doorWidth])
   useEffect(() => { shapeSubtypeRef.current = shapeSubtype }, [shapeSubtype])
   useEffect(() => { shapeSettingsRef.current = shapeSettings }, [shapeSettings])
@@ -835,74 +871,7 @@ export default function RaumplanerEditor({
     getCustomMoebel().then(data => setCustomMoebel(data)).catch(() => {})
   }, [])
 
-  // ── Grid ─────────────────────────────────────────────────────
-  //
-  // Gezeichnet in after:render im CSS-Pixel-Koordinatensystem.
-  //
-  // Warum setTransform(dpr, 0, 0, dpr, 0, 0)?
-  //   Fabric.js ruft beim Init ctx.scale(dpr, dpr) (Retina-Scaling).
-  //   Nach jedem save()/restore()-Zyklus ist der Context wieder im
-  //   scale(dpr, dpr)-Zustand = CSS-Pixelraum.
-  //   vpt[4]/vpt[5] sind in CSS-Pixeln.
-  //   setTransform(1,0,0,1,0,0) → physischer Pixelraum → Grid off by DPR.
-  //   setTransform(dpr,0,0,dpr,0,0) → CSS-Pixelraum → vpt stimmt direkt.
-
-  function renderGrid(canvas: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-    if (!showGridRef.current) return
-    // Fabric.js interner Context (garantiert identisch mit dem nach _initRetinaScaling skalierten Context)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ctx: CanvasRenderingContext2D = (canvas as any).contextContainer
-    if (!ctx) return
-
-    const vpt: number[] = canvas.viewportTransform ?? [1, 0, 0, 1, 0, 0]
-    const zoom = canvas.getZoom()
-    const gSize = gridSizeRef.current
-
-    // getRetinaScaling() liefert dpr wenn enableRetinaScaling=true, sonst 1
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const dpr: number = typeof (canvas as any).getRetinaScaling === 'function'
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ? (canvas as any).getRetinaScaling()
-      : (window.devicePixelRatio || 1)
-
-    const cW = canvas.getWidth()   // CSS-Breite
-    const cH = canvas.getHeight()  // CSS-Höhe
-
-    ctx.save()
-    // CSS-Pixel-Koordinatensystem wiederherstellen.
-    // Damit entsprechen alle Koordinaten direkt vpt[4]/vpt[5].
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-
-    // Minor Grid
-    const gStep = gSize * zoom   // CSS-Pixel pro Grid-Schritt
-    let startX = vpt[4] % gStep; if (startX > 0) startX -= gStep
-    let startY = vpt[5] % gStep; if (startY > 0) startY -= gStep
-
-    ctx.strokeStyle = 'rgba(150,180,150,0.30)'
-    ctx.lineWidth = 0.5
-    for (let x = startX; x < cW + gStep; x += gStep) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cH); ctx.stroke()
-    }
-    for (let y = startY; y < cH + gStep; y += gStep) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cW, y); ctx.stroke()
-    }
-
-    // Major Grid (1 m = 100 world-px → 100 * zoom CSS-px)
-    const mStep = 100 * zoom
-    let mStartX = vpt[4] % mStep; if (mStartX > 0) mStartX -= mStep
-    let mStartY = vpt[5] % mStep; if (mStartY > 0) mStartY -= mStep
-
-    ctx.strokeStyle = 'rgba(80,130,90,0.40)'
-    ctx.lineWidth = 1
-    for (let x = mStartX; x < cW + mStep; x += mStep) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cH); ctx.stroke()
-    }
-    for (let y = mStartY; y < cH + mStep; y += mStep) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cW, y); ctx.stroke()
-    }
-
-    ctx.restore()
-  }
+  // Grid: CSS background-image auf containerRef (see buildGridSvgUrl + after:render + showGrid/gridSize effects)
 
   // ── Canvas-JSON (ohne Outline/Preview) ───────────────────
 
@@ -1319,9 +1288,18 @@ export default function RaumplanerEditor({
         selection: true, preserveObjectStacking: true,
         stopContextMenu: true, fireRightClick: true,
         renderOnAddRemove: false,
-        backgroundColor: '#ffffff',
+        backgroundColor: 'transparent',  // Grid kommt als CSS background vom Container
       })
       fabricRef.current = canvas
+
+      // Initiales CSS-Grid auf Container setzen
+      if (containerRef.current) {
+        containerRef.current.style.backgroundImage = showGridRef.current
+          ? buildGridSvgUrl(gridSizeRef.current)
+          : 'none'
+        containerRef.current.style.backgroundSize     = '100px 100px'
+        containerRef.current.style.backgroundPosition = '0px 0px'
+      }
       canvas.selectionColor       = 'rgba(68,92,73,0.08)'
       canvas.selectionBorderColor = '#445c49'
       canvas.selectionLineWidth   = 1.5
@@ -1333,9 +1311,16 @@ export default function RaumplanerEditor({
       resizeCanvas()
       const ro = new ResizeObserver(resizeCanvas); ro.observe(cont)
 
-      // Grid nach jedem Render zeichnen
+      // CSS-Grid Position nach jedem Render aktualisieren (direkt auf DOM, kein React-Re-render)
       canvas.on('after:render', () => {
-        if (showGridRef.current) renderGrid(canvas)
+        if (containerRef.current) {
+          const vpt = canvas.viewportTransform ?? [1, 0, 0, 1, 0, 0]
+          const z   = canvas.getZoom()
+          const s   = `${100 * z}px ${100 * z}px`
+          const p   = `${vpt[4]}px ${vpt[5]}px`
+          containerRef.current.style.backgroundSize     = s
+          containerRef.current.style.backgroundPosition = p
+        }
         // Minimap-Update throttled (500ms)
         if (isCapturingMinimap.current || minimapThrottleRef.current) return
         minimapThrottleRef.current = setTimeout(() => {
@@ -3796,7 +3781,8 @@ export default function RaumplanerEditor({
         </div>
 
         {/* ── Canvas ── */}
-        <div ref={containerRef} className="flex-1 relative overflow-hidden" style={{ background: '#ffffff' }}>
+        <div ref={containerRef} className="flex-1 relative overflow-hidden" style={{ backgroundColor: '#ffffff' }}>
+          {/* backgroundImage/Size/Position werden per after:render + useEffect direkt auf dieses div gesetzt */}
           <canvas ref={canvasRef} className="absolute inset-0 z-10" />
 
           {/* Mini-Map */}
