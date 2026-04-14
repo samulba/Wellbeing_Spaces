@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
+import { ChevronDown } from 'lucide-react'
 
 interface Props {
   kategorien: string[]
@@ -46,40 +47,37 @@ export default function FilterBar({ kategorien }: Props) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       {/* Kategorie */}
-      <select
-        value={kategorie}
-        onChange={(e) => setParam('kategorie', e.target.value)}
-        className={sel}
-      >
-        <option value="">Alle Kategorien</option>
-        {kategorien.map((k) => (
-          <option key={k} value={k}>{k}</option>
-        ))}
-      </select>
+      <div className="relative">
+        <select value={kategorie} onChange={(e) => setParam('kategorie', e.target.value)} className={sel}>
+          <option value="">Alle Kategorien</option>
+          {kategorien.map((k) => (
+            <option key={k} value={k}>{k}</option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+      </div>
 
       {/* Status */}
-      <select
-        value={status}
-        onChange={(e) => setParam('status', e.target.value)}
-        className={sel}
-      >
-        <option value="">Alle Status</option>
-        {STATUS_OPTIONEN.map((s) => (
-          <option key={s.wert} value={s.wert}>{s.label}</option>
-        ))}
-      </select>
+      <div className="relative">
+        <select value={status} onChange={(e) => setParam('status', e.target.value)} className={sel}>
+          <option value="">Alle Status</option>
+          {STATUS_OPTIONEN.map((s) => (
+            <option key={s.wert} value={s.wert}>{s.label}</option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+      </div>
 
       {/* Sortierung */}
-      <select
-        value={sort}
-        onChange={(e) => setParam('sort', e.target.value)}
-        className={sel}
-      >
-        <option value="">Sortierung</option>
-        {SORT_OPTIONEN.map((s) => (
-          <option key={s.wert} value={s.wert}>{s.label}</option>
-        ))}
-      </select>
+      <div className="relative">
+        <select value={sort} onChange={(e) => setParam('sort', e.target.value)} className={sel}>
+          <option value="">Sortierung</option>
+          {SORT_OPTIONEN.map((s) => (
+            <option key={s.wert} value={s.wert}>{s.label}</option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+      </div>
 
       {hatFilter && (
         <button
@@ -93,4 +91,4 @@ export default function FilterBar({ kategorien }: Props) {
   )
 }
 
-const sel = 'px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition cursor-pointer'
+const sel = 'px-3 py-1.5 pr-8 text-xs bg-white border border-gray-200 rounded-lg text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition cursor-pointer'

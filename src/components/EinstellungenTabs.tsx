@@ -2,6 +2,7 @@
 
 import { useFormState, useFormStatus } from 'react-dom'
 import { useState, useTransition } from 'react'
+import { ChevronDown } from 'lucide-react'
 import {
   saveAllgemein,
   saveFreigabeLinks,
@@ -101,12 +102,15 @@ function AuswahlFeld({
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       {hint && <p className="text-xs text-gray-400 mb-1.5">{hint}</p>}
-      <select
-        name={name} defaultValue={defaultValue}
-        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light bg-white"
-      >
-        {optionen.map((o) => <option key={o.wert} value={o.wert}>{o.label}</option>)}
-      </select>
+      <div className="relative">
+        <select
+          name={name} defaultValue={defaultValue}
+          className="w-full px-3 py-2 pr-9 text-sm border border-gray-200 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light bg-white"
+        >
+          {optionen.map((o) => <option key={o.wert} value={o.wert}>{o.label}</option>)}
+        </select>
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+      </div>
     </div>
   )
 }
@@ -662,21 +666,27 @@ function FreigabenTab({ einstellungen }: { einstellungen: Record<string, string>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1.5">Standard-Ablaufzeit</label>
-              <select name="freigabe_ablaufzeit" defaultValue={einstellungen.freigabe_ablaufzeit ?? '30'}
-                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition">
-                <option value="7">7 Tage</option>
-                <option value="14">14 Tage</option>
-                <option value="30">30 Tage</option>
-                <option value="0">Kein Ablauf</option>
-              </select>
+              <div className="relative">
+                <select name="freigabe_ablaufzeit" defaultValue={einstellungen.freigabe_ablaufzeit ?? '30'}
+                  className="w-full px-3 py-2.5 pr-9 text-sm bg-white border border-gray-200 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition">
+                  <option value="7">7 Tage</option>
+                  <option value="14">14 Tage</option>
+                  <option value="30">30 Tage</option>
+                  <option value="0">Kein Ablauf</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1.5">PIN-Länge</label>
-              <select name="freigabe_pin_laenge" defaultValue={einstellungen.freigabe_pin_laenge ?? '4'}
-                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition">
-                <option value="4">4-stellig</option>
-                <option value="6">6-stellig</option>
-              </select>
+              <div className="relative">
+                <select name="freigabe_pin_laenge" defaultValue={einstellungen.freigabe_pin_laenge ?? '4'}
+                  className="w-full px-3 py-2.5 pr-9 text-sm bg-white border border-gray-200 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition">
+                  <option value="4">4-stellig</option>
+                  <option value="6">6-stellig</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
           </div>
 

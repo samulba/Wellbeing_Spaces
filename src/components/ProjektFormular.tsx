@@ -2,6 +2,7 @@
 
 import { useFormState, useFormStatus } from 'react-dom'
 import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import type { ProjektActionState } from '@/app/actions/projekte'
 import type { Kunde, Projekt } from '@/lib/supabase/types'
 
@@ -76,18 +77,21 @@ export default function ProjektFormular({
         <label htmlFor="kunde_id" className={lbl}>
           Kunde <span className="text-red-400">*</span>
         </label>
-        <select
-          id="kunde_id"
-          name="kunde_id"
-          required
-          defaultValue={initialData?.kunde_id ?? vorausgewaehlterKundeId ?? ''}
-          className={inp}
-        >
-          <option value="" disabled>Kunde auswählen…</option>
-          {kunden.map((k) => (
-            <option key={k.id} value={k.id}>{k.name}</option>
-          ))}
-        </select>
+        <div className="relative">
+          <select
+            id="kunde_id"
+            name="kunde_id"
+            required
+            defaultValue={initialData?.kunde_id ?? vorausgewaehlterKundeId ?? ''}
+            className={sel}
+          >
+            <option value="" disabled>Kunde auswählen…</option>
+            {kunden.map((k) => (
+              <option key={k.id} value={k.id}>{k.name}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        </div>
       </div>
 
       {/* Standort & Projektart */}
@@ -105,17 +109,20 @@ export default function ProjektFormular({
         </div>
         <div>
           <label htmlFor="projektart" className={lbl}>Projektart</label>
-          <select
-            id="projektart"
-            name="projektart"
-            defaultValue={initialData?.projektart ?? ''}
-            className={inp}
-          >
-            <option value="">Bitte wählen…</option>
-            {projektarten.map((art) => (
-              <option key={art.name} value={art.name}>{art.name}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              id="projektart"
+              name="projektart"
+              defaultValue={initialData?.projektart ?? ''}
+              className={sel}
+            >
+              <option value="">Bitte wählen…</option>
+              {projektarten.map((art) => (
+                <option key={art.name} value={art.name}>{art.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 
@@ -141,16 +148,19 @@ export default function ProjektFormular({
       {istBearbeiten && (
         <div>
           <label htmlFor="status" className={lbl}>Status</label>
-          <select
-            id="status"
-            name="status"
-            defaultValue={initialData?.status ?? 'offen'}
-            className={inp}
-          >
-            {PROJEKT_STATUS.map((s) => (
-              <option key={s.wert} value={s.wert}>{s.label}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              id="status"
+              name="status"
+              defaultValue={initialData?.status ?? 'offen'}
+              className={sel}
+            >
+              {PROJEKT_STATUS.map((s) => (
+                <option key={s.wert} value={s.wert}>{s.label}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          </div>
         </div>
       )}
 
@@ -165,17 +175,20 @@ export default function ProjektFormular({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
           <label htmlFor="service_modell" className={lbl}>Abrechnungsmodell</label>
-          <select
-            id="service_modell"
-            name="service_modell"
-            value={serviceModell}
-            onChange={(e) => setServiceModell(e.target.value)}
-            className={inp}
-          >
-            <option value="">Keins</option>
-            <option value="pauschale">Pauschale</option>
-            <option value="stundensatz">Stundensatz</option>
-          </select>
+          <div className="relative">
+            <select
+              id="service_modell"
+              name="service_modell"
+              value={serviceModell}
+              onChange={(e) => setServiceModell(e.target.value)}
+              className={sel}
+            >
+              <option value="">Keins</option>
+              <option value="pauschale">Pauschale</option>
+              <option value="stundensatz">Stundensatz</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          </div>
         </div>
 
         {serviceModell === 'pauschale' && (
@@ -261,3 +274,5 @@ export default function ProjektFormular({
 
 const lbl = 'block text-xs font-medium text-gray-700 mb-1.5'
 const inp = 'w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition'
+// Select-specific: hides native arrow, adds right padding for custom chevron
+const sel = `${inp} appearance-none pr-10`

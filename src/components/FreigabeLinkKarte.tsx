@@ -2,11 +2,13 @@
 
 import { useState, useTransition } from 'react'
 import { tokenGenerieren, tokenDeaktivieren, tokenErneuern } from '@/app/actions/freigabe-token'
-import { RefreshCw, Clock } from 'lucide-react'
+import { pinSetzen } from '@/app/actions/projekte'
+import { RefreshCw, Clock, Lock, LockOpen, Copy, Check, Eye, EyeOff, Share2 } from 'lucide-react'
 
 interface Props {
   projektId: string
   initialToken: { id: string; token: string; gueltig_bis: string | null } | null
+  initialHatPin?: boolean
 }
 
 function restlaufzeit(gueltigBis: string | null): { tage: number; text: string; farbe: string } | null {
@@ -19,10 +21,21 @@ function restlaufzeit(gueltigBis: string | null): { tage: number; text: string; 
   return { tage, text, farbe }
 }
 
-export default function FreigabeLinkKarte({ projektId, initialToken }: Props) {
-  const [tokenData, setTokenData] = useState(initialToken)
-  const [kopiert, setKopiert] = useState(false)
+export default function FreigabeLinkKarte({ projektId, initialToken, initialHatPin = false }: Props) {
+  // Token state
+  const [tokenData, setTokenData]   = useState(initialToken)
+  const [kopiert, setKopiert]       = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  // PIN state
+  const [hatPin, setHatPin]               = useState(initialHatPin)
+  const [pinEditMode, setPinEditMode]     = useState(false)
+  const [pinInput, setPinInput]           = useState('')
+  const [gespeicherterPin, setGespeicherterPin] = useState<string | null>(null)
+  const [pinSichtbar, setPinSichtbar]     = useState(false)
+  const [pinKopiert, setPinKopiert]       = useState(false)
+  const [pinFehler, setPinFehler]         = useState<string | null>(null)
+  const [toast, setToast]                 = useState<string | null>(null)
 
   const freigabeUrl = tokenData
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/freigabe/${tokenData.token}`
@@ -30,6 +43,12 @@ export default function FreigabeLinkKarte({ projektId, initialToken }: Props) {
 
   const laufzeit = tokenData ? restlaufzeit(tokenData.gueltig_bis) : null
 
+  function showToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  // ── Token-Aktionen ────────────────────────────────────────────
   function handleGenerieren() {
     startTransition(async () => {
       const result = await tokenGenerieren(projektId)
@@ -64,9 +83,57 @@ export default function FreigabeLinkKarte({ projektId, initialToken }: Props) {
     })
   }
 
+  // ── PIN-Aktionen ──────────────────────────────────────────────
+  function handlePinSpeichern() {
+    const pin = pinInput.trim()
+    if (!/^\d{4,6}$/.test(pin)) {
+      setPinFehler('PIN muss 4–6 Ziffern enthalten.')
+      return
+    }
+    startTransition(async () => {
+      await pinSetzen(projektId, pin)
+      setHatPin(true)
+      setPinEditMode(false)
+      setPinInput('')
+      setPinFehler(null)
+      setGespeicherterPin(pin)
+      setPinSichtbar(false)
+      showToast('✓ PIN aktiviert')
+    })
+  }
+
+  function handlePinEntfernen() {
+    startTransition(async () => {
+      await pinSetzen(projektId, null)
+      setHatPin(false)
+      setPinEditMode(false)
+      setPinInput('')
+      setGespeicherterPin(null)
+      setPinFehler(null)
+      showToast('PIN entfernt')
+    })
+  }
+
+  function handlePinKopieren() {
+    if (!gespeicherterPin) return
+    navigator.clipboard.writeText(gespeicherterPin).then(() => {
+      setPinKopiert(true)
+      setTimeout(() => setPinKopiert(false), 2000)
+    })
+  }
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-      <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm relative">
+      {/* Toast */}
+      {toast && (
+        <div className="absolute top-3 right-3 px-3 py-1.5 bg-wellbeing-green text-white text-xs font-medium rounded-lg shadow-md animate-fadeIn z-10">
+          {toast}
+        </div>
+      )}
+
+      {/* Header */}
+      <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+        <Share2 className="w-3.5 h-3.5" />
         Kunden-Freigabelink
       </h2>
 
@@ -74,7 +141,6 @@ export default function FreigabeLinkKarte({ projektId, initialToken }: Props) {
         <div>
           <p className="text-sm text-gray-500 mb-4 leading-relaxed">
             Erstellen Sie einen Link, den Sie an Ihren Kunden senden können.
-            Der Kunde sieht alle Produkte und kann sie freigeben oder Änderungen anfordern.
           </p>
           <button
             onClick={handleGenerieren}
@@ -141,6 +207,95 @@ export default function FreigabeLinkKarte({ projektId, initialToken }: Props) {
                   Deaktivieren
                 </button>
               </>
+            )}
+          </div>
+
+          {/* ── PIN-Schutz ────────────────────────────────────── */}
+          <div className="border-t border-gray-100 pt-3 mt-1">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
+                {hatPin
+                  ? <Lock className="w-3.5 h-3.5 text-wellbeing-green" />
+                  : <LockOpen className="w-3.5 h-3.5 text-gray-400" />
+                }
+                PIN-Schutz
+              </span>
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                hatPin
+                  ? 'bg-wellbeing-green/10 text-wellbeing-green'
+                  : 'bg-gray-100 text-gray-400'
+              }`}>
+                {hatPin ? 'Aktiv' : 'Inaktiv'}
+              </span>
+            </div>
+
+            {!pinEditMode ? (
+              <div>
+                {/* Gespeicherter PIN anzeigen */}
+                {gespeicherterPin && (
+                  <div className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-wellbeing-green/5 border border-wellbeing-green/20 rounded-lg">
+                    <span className="font-mono text-sm font-bold text-wellbeing-green-dark tracking-[0.25em] flex-1">
+                      {pinSichtbar ? gespeicherterPin : '·'.repeat(gespeicherterPin.length)}
+                    </span>
+                    <button onClick={() => setPinSichtbar(v => !v)} className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                      {pinSichtbar ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                    <button onClick={handlePinKopieren} className="p-1 text-gray-400 hover:text-wellbeing-green transition-colors">
+                      {pinKopiert ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setPinEditMode(true); setPinFehler(null) }}
+                    disabled={isPending}
+                    className="px-3 py-1.5 text-xs font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {hatPin ? 'PIN ändern' : 'PIN einrichten'}
+                  </button>
+                  {hatPin && (
+                    <button
+                      onClick={handlePinEntfernen}
+                      disabled={isPending}
+                      className="px-3 py-1.5 text-xs font-medium text-red-500 hover:text-red-600 border border-red-200 hover:border-red-300 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {isPending ? '…' : 'Entfernen'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  value={pinInput}
+                  onChange={(e) => { setPinInput(e.target.value.replace(/\D/g, '')); setPinFehler(null) }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handlePinSpeichern() }}
+                  placeholder="4–6 stellige PIN"
+                  autoFocus
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light font-mono tracking-[0.3em] text-center"
+                />
+                {pinFehler && <p className="text-xs text-red-500">{pinFehler}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handlePinSpeichern}
+                    disabled={isPending}
+                    className="px-3 py-1.5 text-xs font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {isPending ? '…' : 'Speichern'}
+                  </button>
+                  <button
+                    onClick={() => { setPinEditMode(false); setPinInput(''); setPinFehler(null) }}
+                    disabled={isPending}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg transition-colors"
+                  >
+                    Abbrechen
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

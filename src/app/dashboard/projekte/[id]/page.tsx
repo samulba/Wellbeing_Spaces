@@ -3,13 +3,11 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import RaumHinzufuegen from '@/components/RaumHinzufuegen'
 import FreigabeLinkKarte from '@/components/FreigabeLinkKarte'
-import FreigabePinEinstellung from '@/components/FreigabePinEinstellung'
 import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
 import { projektSoftDelete } from '@/app/actions/projekte'
 import ProjektStatusButtons from '@/components/ProjektStatusButtons'
-import { konfiguratorSessionsAbrufen } from '@/app/actions/konfigurator'
 import { naechsteEventsAbrufen } from '@/app/actions/timeline'
 import {
   ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote,
@@ -19,7 +17,6 @@ import {
 import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
 import SortableRaumListe, { type RaumStat } from '@/components/SortableRaumListe'
 import PdfExportButton, { type PdfProdukt } from '@/components/PdfExportButton'
-import KonfiguratorLinkKarte from '@/components/KonfiguratorLinkKarte'
 import ZeiterfassungBlock from '@/components/ZeiterfassungBlock'
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import { getZeiterfassung, getZeitSumme } from '@/app/actions/zeiterfassung'
@@ -170,7 +167,7 @@ async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
   const supabaseForBranding = await (await import('@/lib/supabase/server')).createClient()
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, konfigSessions, naechsteEvents, zeitEintraege, zeitSumme, { data: branding }] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, naechsteEvents, zeitEintraege, zeitSumme, { data: branding }] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
@@ -181,7 +178,6 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
     getMwstSatz(),
     getKategorien('raumtyp'),
     getKunden(),
-    konfiguratorSessionsAbrufen(params.id),
     naechsteEventsAbrufen(params.id, 3),
     getZeiterfassung(params.id),
     getZeitSumme(params.id),
@@ -197,7 +193,6 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
   const loeschenAktion        = projektSoftDelete.bind(null, projekt.id)
 
   const istArchiviert  = projekt.archiviert === true
-  const hatToken       = aktiverToken != null
 
   // Produkt-Budget-Ring: bevorzuge produkt_budget, Fallback auf gesamtbudget
   const produktBudget = projekt.produkt_budget ?? projekt.gesamtbudget
@@ -439,15 +434,15 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
           </div>
 
           {/* ── Kunden-Freigabe & PIN ────────────────────────── */}
-          <div className="px-6 py-4 border-b border-gray-50 space-y-3">
-            <FreigabeLinkKarte projektId={projekt.id} initialToken={aktiverToken ?? null} />
-            <FreigabePinEinstellung projektId={projekt.id} hatPin={projekt.freigabe_pin != null} hatToken={hatToken} />
+          <div className="px-6 py-4 border-b border-gray-50">
+            <FreigabeLinkKarte
+              projektId={projekt.id}
+              initialToken={aktiverToken ?? null}
+              initialHatPin={projekt.freigabe_pin != null}
+            />
           </div>
 
-          {/* ── Konfigurator ─────────────────────────────────── */}
-          <div className="px-6 py-4">
-            <KonfiguratorLinkKarte projektId={projekt.id} initialSessions={konfigSessions} />
-          </div>
+          {/* ── Konfigurator (deaktiviert) ─────────────────────── */}
         </div>
 
         {/* ── Rechte Spalte (40%) ────────────────────────────── */}

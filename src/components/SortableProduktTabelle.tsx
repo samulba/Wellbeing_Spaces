@@ -18,7 +18,8 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical } from 'lucide-react'
+import { GripVertical, ChevronDown, Clock, Package, CheckCircle2, Receipt } from 'lucide-react'
+import { useRef, useEffect } from 'react'
 import Link from 'next/link'
 import ConfirmDeleteButton from './ConfirmDeleteButton'
 import {
@@ -46,11 +47,57 @@ const statusLabel: Record<string, string> = {
   ueberarbeitung: 'Überarbeitung',
 }
 
-const bestellBadge: Record<BestellStatus, string> = {
-  ausstehend:        'bg-gray-100 text-gray-400',
-  bestellt:          'bg-blue-50 text-blue-700',
-  geliefert:         'bg-emerald-50 text-emerald-700',
-  rechnung_erhalten: 'bg-violet-50 text-violet-700',
+const BESTELL_CONFIG: Record<BestellStatus, { label: string; bg: string; text: string; Icon: React.ComponentType<{ className?: string }> }> = {
+  ausstehend:        { label: 'Offen',    bg: 'bg-gray-100',     text: 'text-gray-500',   Icon: Clock       },
+  bestellt:          { label: 'Bestellt', bg: 'bg-blue-50',      text: 'text-blue-700',   Icon: Package     },
+  geliefert:         { label: 'Geliefert',bg: 'bg-emerald-50',   text: 'text-emerald-700',Icon: CheckCircle2},
+  rechnung_erhalten: { label: 'Rechnung', bg: 'bg-violet-50',    text: 'text-violet-700', Icon: Receipt     },
+}
+
+function BestellStatusDropdown({ status, onChange }: { status: BestellStatus; onChange: (s: BestellStatus) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  const current = BESTELL_CONFIG[status] ?? BESTELL_CONFIG.ausstehend
+  const { Icon } = current
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${current.bg} ${current.text}`}
+      >
+        <Icon className="w-3 h-3" />
+        {current.label}
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+      {open && (
+        <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[130px]">
+          {(Object.entries(BESTELL_CONFIG) as [BestellStatus, typeof BESTELL_CONFIG[BestellStatus]][]).map(([key, cfg]) => {
+            const ItemIcon = cfg.Icon
+            return (
+              <button
+                key={key}
+                onClick={() => { onChange(key); setOpen(false) }}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors ${status === key ? 'bg-gray-50 font-medium' : ''}`}
+              >
+                <ItemIcon className={`w-3.5 h-3.5 ${cfg.text}`} />
+                <span className={cfg.text}>{cfg.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 const th = 'px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest'
@@ -172,16 +219,10 @@ function SortableProduktZeile({ eintrag, mwst, projektId, raumId, isLast, onBest
 
       {/* Bestellstatus */}
       <td className="px-3 py-3.5 text-center">
-        <select
-          value={bestellstatus}
-          onChange={(e) => onBestellstatusChange(eintrag.id, e.target.value as BestellStatus)}
-          className={`text-xs px-2 py-1 rounded-full font-medium cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light ${bestellBadge[bestellstatus]}`}
-        >
-          <option value="ausstehend">Offen</option>
-          <option value="bestellt">Bestellt</option>
-          <option value="geliefert">Geliefert</option>
-          <option value="rechnung_erhalten">Rechnung</option>
-        </select>
+        <BestellStatusDropdown
+          status={bestellstatus}
+          onChange={(s) => onBestellstatusChange(eintrag.id, s)}
+        />
       </td>
 
       {/* Aktionen */}
