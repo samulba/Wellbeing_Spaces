@@ -77,12 +77,26 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
   }
 
   function handleAddRaum() {
-    if (!newRaumName.trim()) {
+    // Raumtypen vorhanden → Raumtyp ist Pflicht
+    if (raumtypen.length > 0 && !newRaumTyp) {
+      setFehler('Bitte Raumtyp wählen.')
+      return
+    }
+    // Kein Raumtyp konfiguriert → Name ist Pflicht
+    if (raumtypen.length === 0 && !newRaumName.trim()) {
       setFehler('Raumname darf nicht leer sein.')
       return
     }
+
+    // Name leer → Raumtyp-Name als Fallback
+    const finalName = newRaumName.trim() || newRaumTyp?.name || ''
+    if (!finalName) {
+      setFehler('Raumname darf nicht leer sein.')
+      return
+    }
+
     const formData = new FormData()
-    formData.set('name', newRaumName.trim())
+    formData.set('name', finalName)
     if (newRaumTyp?.id) formData.set('raumtyp_id', newRaumTyp.id)
 
     startTransition(async () => {
@@ -98,6 +112,7 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
   }
 
   const SelectedIcon = getIcon(newRaumTyp?.icon ?? 'Package')
+  const hatRaumtypen = raumtypen.length > 0
 
   return (
     <>
@@ -120,24 +135,17 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
       {showAddRaum && (
         <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/40">
           <div className="space-y-3">
-            {/* Raumname-Input */}
-            <input
-              type="text"
-              value={newRaumName}
-              onChange={(e) => { setNewRaumName(e.target.value); setFehler(null) }}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddRaum()}
-              placeholder="Raumname…"
-              autoFocus
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/30 focus:border-wellbeing-green-light transition-colors"
-            />
 
-            {/* Raumtyp-Dropdown – nur wenn Raumtypen konfiguriert */}
-            {raumtypen.length > 0 ? (
+            {/* Raumtyp-Dropdown (Pflicht wenn konfiguriert) */}
+            {hatRaumtypen ? (
               <div ref={dropdownRef} className="relative">
                 <button
                   type="button"
                   onClick={() => setDropdownOffen((v) => !v)}
-                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white hover:border-wellbeing-green-light transition-colors"
+                  className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm border rounded-lg bg-white transition-colors
+                    ${newRaumTyp
+                      ? 'border-wellbeing-green/50 hover:border-wellbeing-green'
+                      : 'border-gray-200 hover:border-wellbeing-green-light'}`}
                 >
                   <span className="flex items-center gap-2 min-w-0">
                     {newRaumTyp ? (
@@ -146,7 +154,9 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
                         <span className="text-gray-700 truncate">{newRaumTyp.name}</span>
                       </>
                     ) : (
-                      <span className="text-gray-400">Raumtyp wählen (optional)…</span>
+                      <span className="text-gray-400">
+                        Raumtyp wählen <span className="text-red-400">*</span>
+                      </span>
                     )}
                   </span>
                   <ChevronDown className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${dropdownOffen ? 'rotate-180' : ''}`} />
@@ -164,6 +174,7 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
                           onClick={() => {
                             setNewRaumTyp({ id: typ.id, name: typ.name, icon: typ.icon })
                             setDropdownOffen(false)
+                            setFehler(null)
                           }}
                           className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors ${aktiv ? 'bg-wellbeing-green/5 text-wellbeing-green' : 'text-gray-700'}`}
                         >
@@ -185,13 +196,27 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
               </p>
             )}
 
+            {/* Raumname-Input (optional wenn Raumtypen vorhanden) */}
+            <input
+              type="text"
+              value={newRaumName}
+              onChange={(e) => { setNewRaumName(e.target.value); setFehler(null) }}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddRaum()}
+              placeholder={hatRaumtypen ? 'Raumname (optional, z.B. "Wohnzimmer EG")…' : 'Raumname…'}
+              autoFocus={!hatRaumtypen}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/30 focus:border-wellbeing-green-light transition-colors"
+            />
+            {hatRaumtypen && (
+              <p className="text-xs text-gray-400 -mt-1">Leer lassen = Raumtyp-Name wird verwendet</p>
+            )}
+
             {/* Aktionen */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleAddRaum}
-                disabled={isPending}
-                className="px-4 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+                disabled={isPending || (hatRaumtypen && !newRaumTyp)}
+                className="px-4 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
               >
                 {isPending ? '…' : 'Hinzufügen'}
               </button>
