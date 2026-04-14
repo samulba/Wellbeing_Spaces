@@ -129,6 +129,47 @@ function ShortcutOverlay({ onClose }: { onClose: () => void }) {
   )
 }
 
+// ── Snap & Alignment Helpers ──────────────────────────────────
+
+/** Nächsten Punkt auf einem Liniensegment (a→b) zum Punkt p berechnen */
+function getClosestPointOnSegment(
+  px: number, py: number,
+  ax: number, ay: number,
+  bx: number, by: number
+): { x: number; y: number; distance: number } {
+  const dx = bx - ax, dy = by - ay
+  const len2 = dx * dx + dy * dy
+  if (len2 === 0) return { x: ax, y: ay, distance: Math.hypot(px - ax, py - ay) }
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2))
+  const cx = ax + t * dx, cy = ay + t * dy
+  return { x: cx, y: cy, distance: Math.hypot(px - cx, py - cy) }
+}
+
+/** Wand-Endpunkte in Canvas-Weltkoordinaten ermitteln (korrigiert Offset bei verschobenen Wänden) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getWallWorldPoints(wall: any): { p1: { x: number; y: number }; p2: { x: number; y: number } } {
+  const origLeft = Math.min(wall.x1, wall.x2)
+  const origTop  = Math.min(wall.y1, wall.y2)
+  const dx = (wall.left ?? origLeft) - origLeft
+  const dy = (wall.top  ?? origTop)  - origTop
+  return {
+    p1: { x: wall.x1 + dx, y: wall.y1 + dy },
+    p2: { x: wall.x2 + dx, y: wall.y2 + dy },
+  }
+}
+
+/** Achsenparallele Bounds eines Fabric-Objekts in Weltkoordinaten */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getObjBounds(obj: any) {
+  const c = obj.getCenterPoint()
+  const w = obj.getScaledWidth(), h = obj.getScaledHeight()
+  return {
+    left: c.x - w / 2, right:  c.x + w / 2,
+    top:  c.y - h / 2, bottom: c.y + h / 2,
+    centerX: c.x,      centerY: c.y,
+  }
+}
+
 // ── Haupt-Editor ──────────────────────────────────────────────
 
 export default function RaumplanerEditor({
@@ -184,6 +225,8 @@ export default function RaumplanerEditor({
   const measurePreviewRef = useRef<any>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const outlineRef       = useRef<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const alignmentLinesRef = useRef<any[]>([])
 
   // ── Ref-Sync ──────────────────────────────────────────────
 
@@ -246,7 +289,7 @@ export default function RaumplanerEditor({
     const full = canvas.toJSON(['data', 'name'])
     full.objects = (full.objects ?? []).filter(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview'
+      (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview' && o.data?.type !== 'alignment'
     )
     return JSON.stringify(full)
   }, [])
@@ -574,7 +617,128 @@ export default function RaumplanerEditor({
       canvas.on('selection:created', (e: any) => { const o = e.selected?.[0]; if (o) setSelectedProps(extractObjProps(o)) }) // eslint-disable-line @typescript-eslint/no-explicit-any
       canvas.on('selection:updated', (e: any) => { const o = e.selected?.[0]; if (o) setSelectedProps(extractObjProps(o)) }) // eslint-disable-line @typescript-eslint/no-explicit-any
       canvas.on('selection:cleared', () => setSelectedProps(null))
-      canvas.on('object:modified', () => { pushHistory(); triggerAutoSave() })
+
+      canvas.on('object:modified', () => {
+        // Alignment-Linien + Wand-Highlights aufräumen
+        alignmentLinesRef.current.forEach((l: any) => { try { canvas.remove(l) } catch { /* ignore */ } }) // eslint-disable-line @typescript-eslint/no-explicit-any
+        alignmentLinesRef.current = []
+        canvas.getObjects().forEach((o: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+          if (o.data?.type === 'wall') o.set('stroke', '#1e293b')
+        })
+        pushHistory(); triggerAutoSave()
+      })
+
+      // ── SNAP-TO-WALL + ALIGNMENT-HILFSLINIEN ──────────────
+      canvas.on('object:moving', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        const obj = opt.target as any // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (!obj) return
+
+        // Alignment-Linien aus letztem Frame entfernen
+        alignmentLinesRef.current.forEach((l: any) => { try { canvas.remove(l) } catch { /* ignore */ } }) // eslint-disable-line @typescript-eslint/no-explicit-any
+        alignmentLinesRef.current = []
+
+        const allObjs: any[] = canvas.getObjects() // eslint-disable-line @typescript-eslint/no-explicit-any
+
+        // ── TEIL 1: Snap Tür/Fenster an nächste Wand ──────
+        if (obj.data?.type === 'door' || obj.data?.type === 'window') {
+          const SNAP_PX = 25
+          const walls = allObjs.filter((o: any) => o.data?.type === 'wall') // eslint-disable-line @typescript-eslint/no-explicit-any
+          const center = obj.getCenterPoint()
+
+          let best: { d: number; x: number; y: number; angle: number; wall: any } | null = null // eslint-disable-line @typescript-eslint/no-explicit-any
+          for (const wall of walls) {
+            const { p1, p2 } = getWallWorldPoints(wall)
+            const snap = getClosestPointOnSegment(center.x, center.y, p1.x, p1.y, p2.x, p2.y)
+            if (snap.distance < SNAP_PX && (!best || snap.distance < best.d)) {
+              const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI
+              best = { d: snap.distance, x: snap.x, y: snap.y, angle, wall }
+            }
+          }
+
+          // Alle Wände zurücksetzen, dann beste highlighten
+          walls.forEach((w: any) => w.set('stroke', '#1e293b')) // eslint-disable-line @typescript-eslint/no-explicit-any
+          if (best) {
+            // Einrasten: Objekt auf Wand-Mittellinie positionieren + ausrichten
+            const hw = obj.getScaledWidth() / 2
+            const hh = obj.getScaledHeight() / 2
+            obj.set({ left: best.x - hw, top: best.y - hh, angle: best.angle })
+            obj.setCoords()
+            best.wall.set('stroke', '#94c1a4')
+          }
+        }
+
+        // ── TEIL 2: Alignment-Hilfslinien ─────────────────
+        const others = allObjs.filter((o: any) => // eslint-disable-line @typescript-eslint/no-explicit-any
+          o !== obj &&
+          o.data?.type !== 'outline' &&
+          o.data?.type !== 'alignment' &&
+          o.data?.type !== 'preview'
+        )
+        if (others.length === 0 || others.length >= 50) {
+          canvas.requestRenderAll()
+          return
+        }
+
+        const TOLS = 5   // Toleranz in Canvas-Weltpixeln
+        const mov = getObjBounds(obj)
+        const newAlignLines: any[] = [] // eslint-disable-line @typescript-eslint/no-explicit-any
+        const { Line: FLine } = fabricImports.current ?? {}
+        if (!FLine) { canvas.requestRenderAll(); return }
+
+        const lineOpts = {
+          stroke: '#445c49', strokeWidth: 1, strokeDashArray: [5, 5],
+          selectable: false, evented: false, opacity: 0.75,
+          data: { type: 'alignment' },
+        }
+
+        for (const other of others) {
+          const oth = getObjBounds(other)
+
+          // Vertikale Hilfslinien (gleiche X-Koordinate)
+          const vChecks: [number, number][] = [
+            [mov.left,    oth.left],    [mov.left,    oth.centerX], [mov.left,    oth.right],
+            [mov.centerX, oth.left],    [mov.centerX, oth.centerX], [mov.centerX, oth.right],
+            [mov.right,   oth.left],    [mov.right,   oth.centerX], [mov.right,   oth.right],
+          ]
+          for (const [mVal, oVal] of vChecks) {
+            if (Math.abs(mVal - oVal) < TOLS) {
+              // Snap
+              obj.set('left', obj.left + (oVal - mVal))
+              obj.setCoords()
+              Object.assign(mov, getObjBounds(obj))
+              // Linie von oben nach unten durch beide Objekte
+              const minY = Math.min(mov.top, oth.top) - 24
+              const maxY = Math.max(mov.bottom, oth.bottom) + 24
+              newAlignLines.push(new FLine([oVal, minY, oVal, maxY], lineOpts))
+              break
+            }
+          }
+
+          // Horizontale Hilfslinien (gleiche Y-Koordinate)
+          const hChecks: [number, number][] = [
+            [mov.top,     oth.top],     [mov.top,     oth.centerY], [mov.top,     oth.bottom],
+            [mov.centerY, oth.top],     [mov.centerY, oth.centerY], [mov.centerY, oth.bottom],
+            [mov.bottom,  oth.top],     [mov.bottom,  oth.centerY], [mov.bottom,  oth.bottom],
+          ]
+          for (const [mVal, oVal] of hChecks) {
+            if (Math.abs(mVal - oVal) < TOLS) {
+              // Snap
+              obj.set('top', obj.top + (oVal - mVal))
+              obj.setCoords()
+              Object.assign(mov, getObjBounds(obj))
+              // Linie von links nach rechts durch beide Objekte
+              const minX = Math.min(mov.left, oth.left) - 24
+              const maxX = Math.max(mov.right, oth.right) + 24
+              newAlignLines.push(new FLine([minX, oVal, maxX, oVal], lineOpts))
+              break
+            }
+          }
+        }
+
+        newAlignLines.forEach((l: any) => canvas.add(l)) // eslint-disable-line @typescript-eslint/no-explicit-any
+        alignmentLinesRef.current = newAlignLines
+        canvas.requestRenderAll()
+      })
 
       // Drag & Drop
       cont.addEventListener('dragover', (e: DragEvent) => e.preventDefault())
