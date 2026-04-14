@@ -18,7 +18,7 @@ import {
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   AlignHorizontalSpaceBetween, AlignVerticalSpaceBetween,
   Group, Ungroup, List, PenLine, Sheet, Layers,
-  Eye, EyeOff,
+  Eye, EyeOff, Shapes, Circle, ArrowRight, Square,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -39,7 +39,8 @@ const MIN_ZOOM       = 0.1
 const MAX_ZOOM       = 5
 const AUTOSAVE_DELAY = 3000
 
-type Tool = 'select' | 'wall' | 'curve' | 'door' | 'window' | 'measure' | 'eraser' | 'note'
+type Tool = 'select' | 'wall' | 'curve' | 'door' | 'window' | 'measure' | 'eraser' | 'note' | 'shape'
+type ShapeSubtype = 'rectangle' | 'circle' | 'line' | 'arrow'
 type GridSize = 10 | 25 | 50 | 100
 
 const MOEBEL_GRUPPEN: { name: string; keys: string[] }[] = [
@@ -62,6 +63,7 @@ const LAYERS: LayerDef[] = [
   { id: 'notes',      name: 'Notizen',         types: ['note'],                color: '#fbbf24' },
   { id: 'dimensions', name: 'Maße',            types: ['dimension', 'measure'],color: '#6b7280' },
   { id: 'legend',     name: 'Legende',         types: ['legend'],              color: '#8b5cf6' },
+  { id: 'shapes',     name: 'Formen',          types: ['shape'],               color: '#ec4899' },
 ]
 type LayerState = Record<string, { visible: boolean; locked: boolean }>
 const DEFAULT_LAYER_STATE: LayerState = Object.fromEntries(
@@ -683,6 +685,22 @@ export default function RaumplanerEditor({
   const [layerStates,     setLayerStates]     = useState<LayerState>(DEFAULT_LAYER_STATE)
   const [layersExpanded,  setLayersExpanded]  = useState(true)
 
+  // ── Formen-Tool ───────────────────────────────────────────────
+  const [shapeSubtype,        setShapeSubtype]        = useState<ShapeSubtype>('rectangle')
+  const [showShapesDropdown,  setShowShapesDropdown]  = useState(false)
+  const [shapeSettings,       setShapeSettings]       = useState({
+    fillColor:   '#94c1a4',
+    strokeColor: '#445c49',
+    strokeWidth: 2,
+    filled:      true,
+    opacity:     0.6,
+  })
+  const shapeSubtypeRef   = useRef<ShapeSubtype>('rectangle')
+  const shapeSettingsRef  = useRef(shapeSettings)
+  const isDrawingShapeRef = useRef(false)
+  const shapeStartRef2    = useRef<{ x: number; y: number } | null>(null)
+  const tempShapeRef      = useRef<unknown>(null)
+
   // ── Türen & Fenster Varianten ────────────────────────────────
   const [openTuerFenster,   setOpenTuerFenster]   = useState(true)
 
@@ -742,6 +760,8 @@ export default function RaumplanerEditor({
   useEffect(() => { showGridRef.current = showGrid; fabricRef.current?.requestRenderAll() }, [showGrid])
   useEffect(() => { gridSizeRef.current = gridSize; fabricRef.current?.requestRenderAll() }, [gridSize])
   useEffect(() => { doorWidthRef.current = doorWidth }, [doorWidth])
+  useEffect(() => { shapeSubtypeRef.current = shapeSubtype }, [shapeSubtype])
+  useEffect(() => { shapeSettingsRef.current = shapeSettings }, [shapeSettings])
   useEffect(() => { windowWidthRef.current = windowWidth }, [windowWidth])
   useEffect(() => { snapToGridRef.current = snapToGrid }, [snapToGrid])
   useEffect(() => { triggerDimUpdateRef.current() }, [showDimensions])
@@ -1368,6 +1388,33 @@ export default function RaumplanerEditor({
           curvePreviewRef.current.set('path', [['M', x1, y1], ['Q', snapped.x, snapped.y, x2, y2]])
           canvas.requestRenderAll()
         }
+        // Formen-Preview
+        if (tool === 'shape' && isDrawingShapeRef.current && shapeStartRef2.current && tempShapeRef.current) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const shape = tempShapeRef.current as any
+          const start = shapeStartRef2.current
+          const sub = shapeSubtypeRef.current
+          if (sub === 'rectangle') {
+            const w = p.x - start.x, h = p.y - start.y
+            shape.set({ left: w > 0 ? start.x : p.x, top: h > 0 ? start.y : p.y, width: Math.abs(w), height: Math.abs(h) })
+          } else if (sub === 'circle') {
+            const rx = Math.abs(p.x - start.x) / 2, ry = Math.abs(p.y - start.y) / 2
+            shape.set({ left: Math.min(start.x, p.x), top: Math.min(start.y, p.y), rx, ry })
+          } else if (sub === 'line') {
+            shape.set({ x2: p.x, y2: p.y })
+          } else if (sub === 'arrow') {
+            const { x: x1, y: y1 } = start
+            const [x2, y2] = [p.x, p.y]
+            const angle = Math.atan2(y2 - y1, x2 - x1)
+            const hl = 18, ha = Math.PI / 6
+            const pathStr = `M ${x1} ${y1} L ${x2} ${y2} M ${x2} ${y2} L ${x2 - hl * Math.cos(angle - ha)} ${y2 - hl * Math.sin(angle - ha)} M ${x2} ${y2} L ${x2 - hl * Math.cos(angle + ha)} ${y2 - hl * Math.sin(angle + ha)}`
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const imp = fabricImports.current as any
+            if (imp?.util?.parsePath) shape.set('path', imp.util.parsePath(pathStr))
+            shape.set('data', { ...shape.data, x1, y1, x2, y2 })
+          }
+          shape.setCoords?.(); canvas.requestRenderAll()
+        }
       })
 
       // ── RECHTSKLICK (via Fabric mouse:down) ──
@@ -1460,6 +1507,36 @@ export default function RaumplanerEditor({
         if (tool === 'note') {
           setNoteModalText('')
           setNoteModal({ mode: 'create', canvasX: snapped.x, canvasY: snapped.y })
+        }
+        if (tool === 'shape') {
+          const imp = fabricImports.current; if (!imp) return
+          const st = shapeSettingsRef.current
+          const sub = shapeSubtypeRef.current
+          const fill = st.filled ? st.fillColor : 'transparent'
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let shape: any = null
+          if (sub === 'rectangle') {
+            shape = new imp.Rect({ left: p.x, top: p.y, width: 1, height: 1,
+              fill, stroke: st.strokeColor, strokeWidth: st.strokeWidth, opacity: st.opacity,
+              data: { type: 'shape', shapeType: 'rectangle' } })
+          } else if (sub === 'circle') {
+            shape = new imp.Ellipse({ left: p.x, top: p.y, rx: 1, ry: 1,
+              fill, stroke: st.strokeColor, strokeWidth: st.strokeWidth, opacity: st.opacity,
+              data: { type: 'shape', shapeType: 'circle' } })
+          } else if (sub === 'line') {
+            shape = new imp.Line([p.x, p.y, p.x, p.y], {
+              stroke: st.strokeColor, strokeWidth: st.strokeWidth, opacity: st.opacity,
+              data: { type: 'shape', shapeType: 'line' } })
+          } else if (sub === 'arrow') {
+            shape = new imp.Path(`M ${p.x} ${p.y} L ${p.x} ${p.y}`, {
+              stroke: st.strokeColor, strokeWidth: st.strokeWidth, fill: 'transparent', opacity: st.opacity,
+              data: { type: 'shape', shapeType: 'arrow', x1: p.x, y1: p.y, x2: p.x, y2: p.y } })
+          }
+          if (!shape) return
+          isDrawingShapeRef.current = true
+          shapeStartRef2.current = { x: p.x, y: p.y }
+          tempShapeRef.current = shape
+          canvas.add(shape); canvas.requestRenderAll()
         }
       })
 
@@ -1657,6 +1734,21 @@ export default function RaumplanerEditor({
         canvas.requestRenderAll()
       }
       function onMouseUp(e: MouseEvent) {
+        // Formen-Tool: Shape finalisieren
+        if (activeToolRef.current === 'shape' && isDrawingShapeRef.current && tempShapeRef.current) {
+          isDrawingShapeRef.current = false
+          shapeStartRef2.current = null
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const shape = tempShapeRef.current as any
+          const b = shape.getBoundingRect?.()
+          if (b && b.width < 5 && b.height < 5) {
+            canvas.remove(shape)
+          } else {
+            pushHistory(); triggerAutoSave(); updateObjCount()
+          }
+          tempShapeRef.current = null
+          return
+        }
         if (!isPanningRef.current) return
         if (e.button === 1 || e.button === 0) {
           isPanningRef.current = false
@@ -1732,6 +1824,7 @@ export default function RaumplanerEditor({
           if (ev.key.toLowerCase() === 'l') { toggleLockRef.current(); return }
           const map: Record<string, Tool> = { v:'select', w:'wall', k:'curve', d:'door', f:'window', m:'measure', e:'eraser', n:'note' }
           if (map[ev.key.toLowerCase()]) switchToolRef.current(map[ev.key.toLowerCase()] as Tool)
+          if (ev.key.toLowerCase() === 's') { setShowShapesDropdown(v => !v) }
         }
         if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z' && !ev.shiftKey) { ev.preventDefault(); undo() }
         if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'y' || (ev.key === 'z' && ev.shiftKey))) { ev.preventDefault(); redo() }
@@ -3136,6 +3229,39 @@ export default function RaumplanerEditor({
           </div>
         ))}
 
+        {/* Formen-Dropdown */}
+        <div className={tbSep} style={{ background: C.border }} />
+        <div className="relative">
+          <button type="button" title="Formen (S)"
+            onClick={e => { e.stopPropagation(); setShowShapesDropdown(v => !v) }}
+            className={tbBtn}
+            style={{
+              background: activeTool === 'shape' ? '#445c49' : 'transparent',
+              color: activeTool === 'shape' ? '#fff' : C.textLt,
+              boxShadow: activeTool === 'shape' ? '0 1px 4px rgba(0,0,0,0.3)' : 'none',
+            }}>
+            <Shapes className="w-4 h-4" />
+          </button>
+          {showShapesDropdown && (
+            <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-2xl border border-gray-100 py-1.5 z-50 min-w-[160px]"
+              onClick={e => e.stopPropagation()}>
+              {([
+                { sub: 'rectangle' as ShapeSubtype, Icon: Square,    label: 'Rechteck' },
+                { sub: 'circle'    as ShapeSubtype, Icon: Circle,    label: 'Kreis / Ellipse' },
+                { sub: 'line'      as ShapeSubtype, Icon: Minus,     label: 'Linie' },
+                { sub: 'arrow'     as ShapeSubtype, Icon: ArrowRight, label: 'Pfeil' },
+              ]).map(({ sub, Icon, label }) => (
+                <button key={sub} type="button"
+                  onClick={() => { setShapeSubtype(sub); shapeSubtypeRef.current = sub; switchTool('shape'); setShowShapesDropdown(false) }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-left transition-colors hover:bg-gray-50"
+                  style={{ color: shapeSubtype === sub && activeTool === 'shape' ? '#445c49' : '#374151', fontWeight: shapeSubtype === sub && activeTool === 'shape' ? 600 : 400 }}>
+                  <Icon className="w-3.5 h-3.5" /> {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className={tbSep} style={{ background: C.border }} />
 
         {/* Undo/Redo */}
@@ -3747,7 +3873,7 @@ export default function RaumplanerEditor({
                       {selectedProps.objType === 'wall' ? 'Wand' : selectedProps.objType === 'door' ? 'Tür' :
                        selectedProps.objType === 'window' ? 'Fenster' : selectedProps.objType === 'measure' ? 'Bemaßung' :
                        selectedProps.objType === 'moebel' ? 'Möbel' : selectedProps.objType === 'group' ? 'Gruppe' :
-                       selectedProps.objType === 'legend' ? 'Legende' : 'Objekt'}
+                       selectedProps.objType === 'legend' ? 'Legende' : selectedProps.objType === 'shape' ? 'Form' : 'Objekt'}
                     </p>
                     <p className="text-xs font-medium truncate max-w-[140px]" style={{ color: '#fff' }}>
                       {selectedProps.name || '–'}
@@ -3761,6 +3887,103 @@ export default function RaumplanerEditor({
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
+                {/* Form-Einstellungen (nur bei Shape) */}
+                {selectedProps.objType === 'shape' && (
+                  <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                    <p className="text-[9px] uppercase tracking-wider font-semibold mb-2.5" style={{ color: `${C.textLt}60` }}>Form-Stil</p>
+                    {/* Füllung */}
+                    <div className="mb-2.5">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px]" style={{ color: `${C.textLt}80` }}>Füllung</span>
+                        <label className="flex items-center gap-1 text-[10px] cursor-pointer" style={{ color: `${C.textLt}80` }}>
+                          <input type="checkbox" checked={shapeSettings.filled}
+                            onChange={e => {
+                              const next = { ...shapeSettings, filled: e.target.checked }
+                              setShapeSettings(next)
+                              const obj = fabricRef.current?.getActiveObject() as any // eslint-disable-line @typescript-eslint/no-explicit-any
+                              if (obj?.data?.type === 'shape') { obj.set('fill', e.target.checked ? next.fillColor : 'transparent'); fabricRef.current?.requestRenderAll() }
+                            }} className="w-3 h-3" />
+                          Gefüllt
+                        </label>
+                      </div>
+                      {shapeSettings.filled && (
+                        <div className="flex flex-wrap gap-1">
+                          {['#94c1a4','#cba178','#f6ede2','#fef3c7','#dbeafe','#fce7f3','#e5e7eb'].map(c => (
+                            <button key={c} type="button" onClick={() => {
+                              const next = { ...shapeSettings, fillColor: c }
+                              setShapeSettings(next)
+                              const obj = fabricRef.current?.getActiveObject() as any // eslint-disable-line @typescript-eslint/no-explicit-any
+                              if (obj?.data?.type === 'shape') { obj.set('fill', c); fabricRef.current?.requestRenderAll() }
+                            }} className="w-5 h-5 rounded transition-all hover:scale-110"
+                              style={{ background: c, border: `2px solid ${shapeSettings.fillColor === c ? '#fff' : 'rgba(255,255,255,0.1)'}`, boxShadow: shapeSettings.fillColor === c ? '0 0 0 1.5px #445c49' : 'none' }} />
+                          ))}
+                          <input type="color" value={shapeSettings.fillColor}
+                            onChange={e => {
+                              const next = { ...shapeSettings, fillColor: e.target.value }
+                              setShapeSettings(next)
+                              const obj = fabricRef.current?.getActiveObject() as any // eslint-disable-line @typescript-eslint/no-explicit-any
+                              if (obj?.data?.type === 'shape') { obj.set('fill', e.target.value); fabricRef.current?.requestRenderAll() }
+                            }} className="w-5 h-5 rounded cursor-pointer p-0"
+                            style={{ border: '1px solid rgba(255,255,255,0.2)', background: 'transparent' }} />
+                        </div>
+                      )}
+                    </div>
+                    {/* Rahmen */}
+                    <div className="mb-2.5">
+                      <span className="text-[10px] block mb-1.5" style={{ color: `${C.textLt}80` }}>Rahmen</span>
+                      <div className="flex flex-wrap gap-1">
+                        {['#445c49','#1e293b','#ef4444','#3b82f6','#f59e0b','#8b5cf6'].map(c => (
+                          <button key={c} type="button" onClick={() => {
+                            const next = { ...shapeSettings, strokeColor: c }
+                            setShapeSettings(next)
+                            const obj = fabricRef.current?.getActiveObject() as any // eslint-disable-line @typescript-eslint/no-explicit-any
+                            if (obj?.data?.type === 'shape') { obj.set('stroke', c); fabricRef.current?.requestRenderAll() }
+                          }} className="w-5 h-5 rounded transition-all hover:scale-110"
+                            style={{ background: c, border: `2px solid ${shapeSettings.strokeColor === c ? '#fff' : 'rgba(255,255,255,0.1)'}`, boxShadow: shapeSettings.strokeColor === c ? '0 0 0 1.5px #94c1a4' : 'none' }} />
+                        ))}
+                        <input type="color" value={shapeSettings.strokeColor}
+                          onChange={e => {
+                            const next = { ...shapeSettings, strokeColor: e.target.value }
+                            setShapeSettings(next)
+                            const obj = fabricRef.current?.getActiveObject() as any // eslint-disable-line @typescript-eslint/no-explicit-any
+                            if (obj?.data?.type === 'shape') { obj.set('stroke', e.target.value); fabricRef.current?.requestRenderAll() }
+                          }} className="w-5 h-5 rounded cursor-pointer p-0"
+                          style={{ border: '1px solid rgba(255,255,255,0.2)', background: 'transparent' }} />
+                      </div>
+                    </div>
+                    {/* Strichstärke */}
+                    <div className="mb-2">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-[10px]" style={{ color: `${C.textLt}80` }}>Strichstärke</span>
+                        <span className="text-[10px] font-mono" style={{ color: C.textLt }}>{shapeSettings.strokeWidth}px</span>
+                      </div>
+                      <input type="range" min="1" max="12" value={shapeSettings.strokeWidth}
+                        onChange={e => {
+                          const v = parseInt(e.target.value)
+                          const next = { ...shapeSettings, strokeWidth: v }
+                          setShapeSettings(next)
+                          const obj = fabricRef.current?.getActiveObject() as any // eslint-disable-line @typescript-eslint/no-explicit-any
+                          if (obj?.data?.type === 'shape') { obj.set('strokeWidth', v); fabricRef.current?.requestRenderAll() }
+                        }} className="w-full h-1.5 rounded accent-[#445c49]" />
+                    </div>
+                    {/* Transparenz */}
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-[10px]" style={{ color: `${C.textLt}80` }}>Deckkraft</span>
+                        <span className="text-[10px] font-mono" style={{ color: C.textLt }}>{Math.round(shapeSettings.opacity * 100)}%</span>
+                      </div>
+                      <input type="range" min="10" max="100" value={Math.round(shapeSettings.opacity * 100)}
+                        onChange={e => {
+                          const v = parseInt(e.target.value) / 100
+                          const next = { ...shapeSettings, opacity: v }
+                          setShapeSettings(next)
+                          const obj = fabricRef.current?.getActiveObject() as any // eslint-disable-line @typescript-eslint/no-explicit-any
+                          if (obj?.data?.type === 'shape') { obj.set('opacity', v); fabricRef.current?.requestRenderAll() }
+                        }} className="w-full h-1.5 rounded accent-[#445c49]" />
+                    </div>
+                  </div>
+                )}
+
                 {/* Name */}
                 <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${C.border}20` }}>
                   <p className="text-[9px] uppercase tracking-wider font-semibold mb-1.5" style={{ color: `${C.textLt}60` }}>Name</p>
