@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -43,27 +43,7 @@ type Tool = 'select' | 'wall' | 'curve' | 'door' | 'window' | 'measure' | 'erase
 type ShapeSubtype = 'rectangle' | 'circle' | 'line' | 'arrow'
 type GridSize = 10 | 25 | 50 | 100
 
-/**
- * Baut eine SVG data-URL für das CSS-Hintergrund-Grid.
- * Kachel = 100×100 world-px (= 1m × 1m).
- * Minor-Linien alle gSize px, Major-Linie am Kachelrand.
- * CSS background-size + background-position werden per after:render
- * direkt auf das Container-Element geschrieben → kein React-Re-render.
- */
-function buildGridSvgUrl(gSize: number): string {
-  const minorC = 'rgba(150,180,150,0.35)'
-  const majorC = 'rgba(80,130,90,0.45)'
-  const parts: string[] = []
-  for (let v = gSize; v < 100; v += gSize) {
-    parts.push(`<line x1="${v}" y1="0" x2="${v}" y2="100" stroke="${minorC}" stroke-width="0.5"/>`)
-    parts.push(`<line x1="0" y1="${v}" x2="100" y2="${v}" stroke="${minorC}" stroke-width="0.5"/>`)
-  }
-  // Rechte & untere Kante = 1m-Raster
-  parts.push(`<line x1="99.5" y1="0" x2="99.5" y2="100" stroke="${majorC}" stroke-width="1"/>`)
-  parts.push(`<line x1="0" y1="99.5" x2="100" y2="99.5" stroke="${majorC}" stroke-width="1"/>`)
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">${parts.join('')}</svg>`
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
-}
+// Grid wird als Fabric.js Line-Objekte gezeichnet (data.type='gridLine')
 
 const MOEBEL_GRUPPEN: { name: string; keys: string[] }[] = [
   { name: 'Wohnzimmer',   keys: ['Sofa', 'Sessel', 'Couchtisch', 'Sideboard', 'TV-Board', 'Stehlampe', 'Bücherregal', 'Pouf', 'Kaminofen', 'Pflanze', 'Teppich', 'Regal'] },
@@ -588,6 +568,50 @@ const RAUM_TEMPLATES: RaumTemplate[] = [
   },
 ]
 
+// ── Toolbar-Dropdown (für kompakte Ansicht) ───────────────────
+interface TbDropItem { icon: React.ReactNode; label: string; onClick: () => void; active?: boolean }
+function ToolbarDropdown({ label, icon, items, tbStyle }: {
+  label: string; icon: React.ReactNode; items: TbDropItem[]
+  tbStyle: { color: string; hover: string; border: string; textLt: string }
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1 h-9 px-2 text-xs rounded-lg transition-all"
+        style={{ color: open ? '#fff' : tbStyle.textLt, background: open ? 'rgba(68,92,73,0.5)' : 'transparent' }}
+        onMouseEnter={e => { if (!open) e.currentTarget.style.background = tbStyle.hover }}
+        onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'transparent' }}>
+        {icon}
+        <span className="text-[11px]">{label}</span>
+        <ChevronDown className="w-2.5 h-2.5 opacity-60" />
+      </button>
+      {open && (
+        <div className="absolute top-full mt-1 left-0 bg-white rounded-xl shadow-2xl border border-gray-100 py-1 z-50 min-w-[160px]"
+          onClick={() => setOpen(false)}>
+          {items.map((item, i) => (
+            <button key={i} type="button" onClick={item.onClick}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-left transition-colors hover:bg-gray-50"
+              style={{ color: item.active ? '#445c49' : '#374151', fontWeight: item.active ? 600 : 400 }}>
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Haupt-Editor ──────────────────────────────────────────────
 
 export default function RaumplanerEditor({
@@ -709,6 +733,16 @@ export default function RaumplanerEditor({
   const [layerStates,     setLayerStates]     = useState<LayerState>(DEFAULT_LAYER_STATE)
   const [layersExpanded,  setLayersExpanded]  = useState(true)
 
+  // ── Responsive Toolbar ───────────────────────────────────────
+  const [isCompactToolbar,    setIsCompactToolbar]    = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsCompactToolbar(window.innerWidth < 1400)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   // ── Formen-Tool ───────────────────────────────────────────────
   const [shapeSubtype,        setShapeSubtype]        = useState<ShapeSubtype>('rectangle')
   const [showShapesDropdown,  setShowShapesDropdown]  = useState(false)
@@ -772,6 +806,7 @@ export default function RaumplanerEditor({
   const ungroupSelectedRef   = useRef(() => {})
   const aktiveEtageIdRef     = useRef<string | null>(null)
   const wandfarbeRef         = useRef(initialWandfarbe)
+  const createGridLinesRef   = useRef<() => void>(() => {})
   // Kurven-Tool Refs
   const curvePhaseRef        = useRef<'idle' | 'start_set' | 'end_set'>('idle')
   const curveStartRef        = useRef<{ x: number; y: number } | null>(null)
@@ -784,19 +819,16 @@ export default function RaumplanerEditor({
   useEffect(() => { activeToolRef.current = activeTool }, [activeTool])
   useEffect(() => {
     showGridRef.current = showGrid
-    if (containerRef.current) {
-      containerRef.current.style.backgroundImage = showGrid
-        ? buildGridSvgUrl(gridSizeRef.current)
-        : 'none'
-    }
-    fabricRef.current?.requestRenderAll()
+    const canvas = fabricRef.current; if (!canvas) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.getObjects().filter((o: any) => o.data?.type === 'gridLine').forEach((o: any) => {
+      o.set('visible', showGrid)
+    })
+    canvas.requestRenderAll()
   }, [showGrid])
   useEffect(() => {
     gridSizeRef.current = gridSize
-    if (containerRef.current && showGridRef.current) {
-      containerRef.current.style.backgroundImage = buildGridSvgUrl(gridSize)
-    }
-    fabricRef.current?.requestRenderAll()
+    createGridLinesRef.current()
   }, [gridSize])
   useEffect(() => { doorWidthRef.current = doorWidth }, [doorWidth])
   useEffect(() => { shapeSubtypeRef.current = shapeSubtype }, [shapeSubtype])
@@ -871,14 +903,14 @@ export default function RaumplanerEditor({
     getCustomMoebel().then(data => setCustomMoebel(data)).catch(() => {})
   }, [])
 
-  // Grid: CSS background-image auf containerRef (see buildGridSvgUrl + after:render + showGrid/gridSize effects)
+  // Grid: Fabric.js Line-Objekte (createGridLinesRef)
 
   // ── Canvas-JSON (ohne Outline/Preview) ───────────────────
 
   const getCanvasJson = useCallback(() => {
     const canvas = fabricRef.current; if (!canvas) return '{}'
     const full = canvas.toJSON(['data', 'name'])
-    const SKIP = new Set(['outline','preview','alignment','floor','dimension','collision'])
+    const SKIP = new Set(['outline','preview','alignment','floor','dimension','collision','gridLine'])
     full.objects = (full.objects ?? []).filter(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (o: any) => !SKIP.has(o.data?.type)
@@ -888,7 +920,7 @@ export default function RaumplanerEditor({
 
   const updateObjCount = useCallback(() => {
     const canvas = fabricRef.current; if (!canvas) return
-    const SKIP_COUNT = new Set(['outline','preview','floor','dimension','collision'])
+    const SKIP_COUNT = new Set(['outline','preview','floor','dimension','collision','gridLine'])
     const allObjs = canvas.getObjects()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setObjCount(allObjs.filter((o: any) => !SKIP_COUNT.has(o.data?.type)).length)
@@ -927,6 +959,7 @@ export default function RaumplanerEditor({
     canvas.clear()
     await canvas.loadFromJSON(JSON.parse(json))
     if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
+    createGridLinesRef.current()
     canvas.requestRenderAll(); updateObjCount()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [breiteM, laengeM, updateObjCount])
@@ -967,8 +1000,61 @@ export default function RaumplanerEditor({
       selectable: false, evented: false, data: { type: 'outline' }, name: 'Raumumriss',
     })
     outlineRef.current = outline
-    canvas.add(outline); canvas.sendObjectToBack(outline); canvas.requestRenderAll()
+    canvas.add(outline)
+    reorderLayersRef.current()
+    canvas.requestRenderAll()
   }, [])
+
+  // ── Grid + Layer-Ordnung ──────────────────────────────────
+
+  // Schiebt gridLines → floor → outline ans Ende (= unterste Ebene)
+  const reorderLayersRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    reorderLayersRef.current = () => {
+      const canvas = fabricRef.current; if (!canvas) return
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const objs = (canvas as any)._objects as unknown[]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const gridLines: unknown[] = [], floors: unknown[] = [], outlines: unknown[] = [], rest: unknown[] = []
+      for (const o of objs) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const t = (o as any).data?.type
+        if (t === 'gridLine') gridLines.push(o)
+        else if (t === 'floor') floors.push(o)
+        else if (t === 'outline') outlines.push(o)
+        else rest.push(o)
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(canvas as any)._objects = [...gridLines, ...floors, ...outlines, ...rest]
+      canvas.requestRenderAll()
+    }
+  })
+
+  // Fabric.js Line-Objekte als Grid (keine CSS-Hacks)
+  useEffect(() => {
+    createGridLinesRef.current = () => {
+      const canvas = fabricRef.current, imp = fabricImports.current
+      if (!canvas || !imp) return
+      const gSize = gridSizeRef.current
+      const RANGE = 3000
+      const MINOR_STROKE = 'rgba(200,215,200,0.55)'
+      const MAJOR_STROKE = 'rgba(140,170,140,0.75)'
+      // Alte Grid-Linien entfernen
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.getObjects().filter((o: any) => o.data?.type === 'gridLine').forEach((o: any) => canvas.remove(o))
+      for (let pos = -RANGE; pos <= RANGE; pos += gSize) {
+        const isMajor = pos % 100 === 0
+        const stroke  = isMajor ? MAJOR_STROKE : MINOR_STROKE
+        const sw      = isMajor ? 1 : 0.5
+        const opts = { stroke, strokeWidth: sw, selectable: false, evented: false, excludeFromExport: true, data: { type: 'gridLine' }, visible: showGridRef.current }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        canvas.add(new imp.Line([-RANGE, pos, RANGE, pos], opts) as any)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        canvas.add(new imp.Line([pos, -RANGE, pos, RANGE], opts) as any)
+      }
+      reorderLayersRef.current()
+    }
+  })
 
   // ── Tool-Stopper ─────────────────────────────────────────
 
@@ -1288,18 +1374,9 @@ export default function RaumplanerEditor({
         selection: true, preserveObjectStacking: true,
         stopContextMenu: true, fireRightClick: true,
         renderOnAddRemove: false,
-        backgroundColor: 'transparent',  // Grid kommt als CSS background vom Container
+        backgroundColor: '#ffffff',
       })
       fabricRef.current = canvas
-
-      // Initiales CSS-Grid auf Container setzen
-      if (containerRef.current) {
-        containerRef.current.style.backgroundImage = showGridRef.current
-          ? buildGridSvgUrl(gridSizeRef.current)
-          : 'none'
-        containerRef.current.style.backgroundSize     = '100px 100px'
-        containerRef.current.style.backgroundPosition = '0px 0px'
-      }
       canvas.selectionColor       = 'rgba(68,92,73,0.08)'
       canvas.selectionBorderColor = '#445c49'
       canvas.selectionLineWidth   = 1.5
@@ -1311,17 +1388,8 @@ export default function RaumplanerEditor({
       resizeCanvas()
       const ro = new ResizeObserver(resizeCanvas); ro.observe(cont)
 
-      // CSS-Grid Position nach jedem Render aktualisieren (direkt auf DOM, kein React-Re-render)
+      // Minimap-Update throttled (500ms)
       canvas.on('after:render', () => {
-        if (containerRef.current) {
-          const vpt = canvas.viewportTransform ?? [1, 0, 0, 1, 0, 0]
-          const z   = canvas.getZoom()
-          const s   = `${100 * z}px ${100 * z}px`
-          const p   = `${vpt[4]}px ${vpt[5]}px`
-          containerRef.current.style.backgroundSize     = s
-          containerRef.current.style.backgroundPosition = p
-        }
-        // Minimap-Update throttled (500ms)
         if (isCapturingMinimap.current || minimapThrottleRef.current) return
         minimapThrottleRef.current = setTimeout(() => {
           minimapThrottleRef.current = null
@@ -1803,6 +1871,8 @@ export default function RaumplanerEditor({
         } catch { /* ignore */ }
       }
       if (breiteM && laengeM) updateOutline(breiteM, laengeM)
+      // Grid-Linien erstellen
+      createGridLinesRef.current()
       // Boden-Textur wiederherstellen
       if (initialBodenTextur && initialBodenTextur !== 'none') {
         setTimeout(() => applyFloorTexture(initialBodenTextur, canvas, breiteM, laengeM), 50)
@@ -2118,16 +2188,11 @@ export default function RaumplanerEditor({
     if (!patternCanvas) return
     const pattern = new imp.Pattern({ source: patternCanvas, repeat: 'repeat' })
 
-    // Existing floor rect? → just update fill (preserves position/size set by user)
+    // Immer alte Bodenrechtecke entfernen und neu berechnen
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const existing = c.getObjects().find((o: any) => o.data?.type === 'floor')
-    if (existing) {
-      existing.set('fill', pattern)
-      c.requestRenderAll()
-      return
-    }
+    c.getObjects().filter((o: any) => o.data?.type === 'floor').forEach((o: any) => c.remove(o))
 
-    // No existing rect → determine bounding box from walls or room dimensions
+    // Bounding-Box aus allen Wänden berechnen (absolute Koordinaten)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const walls: any[] = c.getObjects().filter((o: any) => o.data?.type === 'wall')
     const bW = (bM ?? breiteM) ?? (parseFloat(raumBreite) || 4)
@@ -2138,25 +2203,24 @@ export default function RaumplanerEditor({
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       walls.forEach((w: any) => {
-        const bb = w.getBoundingRect()
+        const bb = w.getBoundingRect(true)  // absolute coords
         minX = Math.min(minX, bb.left);  maxX = Math.max(maxX, bb.left + bb.width)
         minY = Math.min(minY, bb.top);   maxY = Math.max(maxY, bb.top  + bb.height)
       })
-      left = minX; top = minY; width = maxX - minX; height = maxY - minY
+      const PAD = WALL_THICKNESS / 2
+      left = minX - PAD; top = minY - PAD
+      width = maxX - minX + PAD * 2; height = maxY - minY + PAD * 2
     }
 
     const floorRect = new imp.Rect({
       left, top, width, height,
-      selectable: true, evented: true, hasControls: true,
+      selectable: false, evented: false, hasControls: false,
       data: { type: 'floor' }, name: 'Bodenfläche',
       fill: pattern,
     })
 
     c.add(floorRect)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const outlineObj = c.getObjects().find((o: any) => o.data?.type === 'outline')
-    if (outlineObj) c.sendObjectTo(floorRect, c.getObjects().indexOf(outlineObj) + 1)
-    else c.sendObjectToBack(floorRect)
+    reorderLayersRef.current()
     c.requestRenderAll()
   }
 
@@ -2447,6 +2511,7 @@ export default function RaumplanerEditor({
       await canvas.loadFromJSON(parsed)
     } catch { /* ignore */ }
     if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
+    createGridLinesRef.current()
     if (data.bodenTextur && data.bodenTextur !== 'none') applyFloorTexture(data.bodenTextur, canvas, breiteM, laengeM)
     setBodenTextur(data.bodenTextur)
     setWandfarbe(data.wandfarbe)
@@ -2905,6 +2970,7 @@ export default function RaumplanerEditor({
       } catch { /* ignore */ }
     }
     if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
+    createGridLinesRef.current()
     canvas.requestRenderAll(); updateObjCount()
     fitToViewRef.current()
     setAktiveEtageId(etage.id)
@@ -2931,6 +2997,7 @@ export default function RaumplanerEditor({
         if (canvas && imp) {
           canvas.clear()
           if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
+          createGridLinesRef.current()
           canvas.requestRenderAll()
           updateObjCount()
         }
@@ -2957,7 +3024,7 @@ export default function RaumplanerEditor({
     const canvas = fabricRef.current; if (!canvas) return
     // Grid-Objekte temporär ausblenden
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const gridObjs = canvas.getObjects().filter((o: any) => o.data?.type === 'grid')
+    const gridObjs = canvas.getObjects().filter((o: any) => o.data?.type === 'gridLine')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     gridObjs.forEach((o: any) => o.set('visible', false))
 
@@ -2975,7 +3042,7 @@ export default function RaumplanerEditor({
     // Wiederherstellen
     canvas.backgroundColor = prevBg
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    gridObjs.forEach((o: any) => o.set('visible', true))
+    gridObjs.forEach((o: any) => o.set('visible', showGridRef.current))
     canvas.requestRenderAll()
 
     const a = document.createElement('a')
@@ -3046,7 +3113,7 @@ export default function RaumplanerEditor({
     const GREEN: [number, number, number] = [68, 92, 73]
 
     // ── Bounding Box aller sichtbaren Inhalts-Objekte ──
-    const SKIP_PDF = new Set(['alignment','preview','dimension','collision'])
+    const SKIP_PDF = new Set(['alignment','preview','dimension','collision','gridLine'])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const exportObjs = canvas.getObjects().filter((o: any) => !SKIP_PDF.has(o.data?.type ?? ''))
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
@@ -3074,7 +3141,7 @@ export default function RaumplanerEditor({
     const ty     = (cH - contentH * scale) / 2 - (minY - PAD) * scale
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hiddenObjs = canvas.getObjects().filter((o: any) => o.data?.type === 'grid')
+    const hiddenObjs = canvas.getObjects().filter((o: any) => o.data?.type === 'gridLine')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     hiddenObjs.forEach((o: any) => o.set('visible', false))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -3089,7 +3156,7 @@ export default function RaumplanerEditor({
     canvas.setViewportTransform(savedVpt as any)
     canvas.backgroundColor = savedBg
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    hiddenObjs.forEach((o: any) => o.set('visible', true))
+    hiddenObjs.forEach((o: any) => o.set('visible', showGridRef.current))
     canvas.renderAll()
 
     // ── PDF aufbauen ──
@@ -3221,19 +3288,119 @@ export default function RaumplanerEditor({
       )}
 
       {/* ── TOOLBAR ── */}
-      <div className="flex items-center h-12 px-3 shrink-0 gap-1.5"
+      <div className="flex items-center h-12 px-3 shrink-0 gap-1.5 overflow-x-auto"
         style={{ background: C.toolbar, borderBottom: `1px solid ${C.border}` }}>
 
         {/* Zurück */}
         <Link href={`/dashboard/projekte/${projektId}/raeume/${raumId}`}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg transition-colors mr-1"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg transition-colors mr-1 shrink-0"
           style={{ color: C.textLt }}
           onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           <ChevronLeft className="w-3.5 h-3.5" />
-          <span className="font-medium">{raumName}</span>
+          <span className="font-medium truncate max-w-[80px]">{raumName}</span>
         </Link>
 
+        {isCompactToolbar ? (
+          <>
+            {/* Compact: Sidebar-Toggle */}
+            <button type="button" title="Sidebar" onClick={() => setSidebarOffen(v => !v)}
+              className={tbBtn} style={{ color: sidebarOffen ? '#fff' : C.textLt, background: sidebarOffen ? 'rgba(68,92,73,0.5)' : 'transparent' }}>
+              <PanelLeft className="w-4 h-4" />
+            </button>
+            <div className={tbSep} style={{ background: C.border }} />
+            {/* Compact: Select + Wall + Eraser always visible */}
+            {[
+              { key: 'select' as Tool, Icon: MousePointer2, label: 'Auswahl (V)' },
+              { key: 'wall' as Tool, Icon: Pencil, label: 'Wand (W)' },
+              { key: 'eraser' as Tool, Icon: Eraser, label: 'Radierer (E)' },
+            ].map(({ key, Icon, label }) => (
+              <button key={key} type="button" title={label} onClick={() => switchTool(key)}
+                className={tbBtn}
+                style={{ background: activeTool === key ? '#445c49' : 'transparent', color: activeTool === key ? '#fff' : C.textLt }}>
+                <Icon className="w-4 h-4" />
+              </button>
+            ))}
+            <div className={tbSep} style={{ background: C.border }} />
+            {/* Compact: Zeichnen dropdown */}
+            <ToolbarDropdown label="Zeichnen" icon={<PenLine className="w-3.5 h-3.5" />} tbStyle={{ color: C.textLt, hover: C.hover, border: C.border, textLt: C.textLt }} items={[
+              { icon: <PenLine className="w-3.5 h-3.5" />, label: 'Kurve (K)', onClick: () => switchTool('curve'), active: activeTool === 'curve' },
+              { icon: <DoorOpen className="w-3.5 h-3.5" />, label: 'Tür (D)', onClick: () => switchTool('door'), active: activeTool === 'door' },
+              { icon: <AppWindow className="w-3.5 h-3.5" />, label: 'Fenster (F)', onClick: () => switchTool('window'), active: activeTool === 'window' },
+              { icon: <Shapes className="w-3.5 h-3.5" />, label: 'Formen (S)', onClick: () => switchTool('shape'), active: activeTool === 'shape' },
+              { icon: <StickyNote className="w-3.5 h-3.5" />, label: 'Notiz (N)', onClick: () => switchTool('note'), active: activeTool === 'note' },
+            ]} />
+            {/* Compact: Bearbeiten dropdown */}
+            <ToolbarDropdown label="Bearbeiten" icon={<RotateCcw className="w-3.5 h-3.5" />} tbStyle={{ color: C.textLt, hover: C.hover, border: C.border, textLt: C.textLt }} items={[
+              { icon: <RotateCcw className="w-3.5 h-3.5" />, label: 'Rückgängig', onClick: undo },
+              { icon: <RotateCw className="w-3.5 h-3.5" />, label: 'Wiederholen', onClick: redo },
+              { icon: <Maximize2 className="w-3.5 h-3.5" />, label: 'Einpassen', onClick: fitToView },
+              { icon: <Trash2 className="w-3.5 h-3.5" />, label: 'Alle löschen', onClick: clearAll },
+            ]} />
+            {/* Compact: Ansicht dropdown */}
+            <ToolbarDropdown label="Ansicht" icon={<Grid3x3 className="w-3.5 h-3.5" />} tbStyle={{ color: C.textLt, hover: C.hover, border: C.border, textLt: C.textLt }} items={[
+              { icon: <Grid3x3 className="w-3.5 h-3.5" />, label: `Raster ${showGrid ? 'aus' : 'an'}`, onClick: () => setShowGrid(v => !v), active: showGrid },
+              { icon: <Magnet className="w-3.5 h-3.5" />, label: `Einrasten ${snapToGrid ? 'aus' : 'an'}`, onClick: () => setSnapToGrid(v => !v), active: snapToGrid },
+              { icon: <Ruler className="w-3.5 h-3.5" />, label: `Maßketten ${showDimensions ? 'aus' : 'an'}`, onClick: () => setShowDimensions(v => !v), active: showDimensions },
+              { icon: <TriangleAlert className="w-3.5 h-3.5" />, label: `Kollision ${showKollision ? 'aus' : 'an'}`, onClick: () => setShowKollision(v => !v), active: showKollision },
+              { icon: isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />, label: isFullscreen ? 'Vollbild beenden' : 'Vollbild (F11)', onClick: toggleFullscreen },
+            ]} />
+            {/* Compact: Export dropdown */}
+            <ToolbarDropdown label="Export" icon={<FileDown className="w-3.5 h-3.5" />} tbStyle={{ color: C.textLt, hover: C.hover, border: C.border, textLt: C.textLt }} items={[
+              { icon: <ImageIcon className="w-3.5 h-3.5" />, label: 'Als Bild', onClick: () => setShowBildModal(true) },
+              { icon: <FileDown className="w-3.5 h-3.5" />, label: 'Als PDF', onClick: exportPdf },
+              { icon: <Sheet className="w-3.5 h-3.5" />, label: 'Stückliste', onClick: () => setShowStuecklisteModal(true) },
+              { icon: <FileText className="w-3.5 h-3.5" />, label: 'Angebot erstellen', onClick: createAngebotFromCanvas },
+              { icon: <Share2 className="w-3.5 h-3.5" />, label: 'Freigabe-Link', onClick: () => setShowFreigabeModal(true), active: freigabeAktiv },
+            ]} />
+            <div className={tbSep} style={{ background: C.border }} />
+            {/* Compact: Versionen */}
+            <button type="button" title="Versionen" onClick={() => setShowVersionenModal(true)}
+              className="flex items-center gap-1 h-9 px-2 text-[11px] rounded-lg transition-all relative"
+              style={{ color: C.textLt }}
+              onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+              <GitBranch className="w-4 h-4" />
+              {versionen.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: '#445c49' }}>{versionen.length}</span>
+              )}
+            </button>
+            {/* Compact: Etagen */}
+            {etagen.length > 0 && (
+              <div className="flex items-center gap-0.5 rounded-lg px-0.5 py-0.5" style={{ background: 'rgba(0,0,0,0.2)' }}>
+                {etagen.map(etage => (
+                  <button key={etage.id} type="button" onClick={() => ladeEtage(etage)}
+                    className="flex items-center gap-0.5 px-1.5 py-1 text-[10px] rounded-md transition-all"
+                    style={{ background: aktiveEtageId === etage.id ? '#445c49' : 'transparent', color: aktiveEtageId === etage.id ? '#fff' : C.textLt }}>
+                    <Layers className="w-3 h-3" />
+                    <span className="truncate max-w-[40px]">{etage.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex-1" />
+            {/* Compact: Zoom */}
+            <button type="button" onClick={() => zoomBy(1 / 1.2)} className={tbBtn} style={{ color: C.textLt }}>
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-xs font-mono px-1" style={{ color: C.textLt }}>{Math.round(zoom * 100)}%</span>
+            <button type="button" onClick={() => zoomBy(1.2)} className={tbBtn} style={{ color: C.textLt }}>
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+            <div className={tbSep} style={{ background: C.border }} />
+            {/* Compact: Speichern */}
+            <button type="button" onClick={saveNow}
+              className="flex items-center gap-1 h-9 px-2 text-xs font-semibold rounded-lg transition-all"
+              style={{
+                background: saveStatus === 'unsaved' ? '#445c49' : saveStatus === 'error' ? 'rgba(239,68,68,0.15)' : 'transparent',
+                color: saveStatus === 'saved' ? C.textLt : saveStatus === 'saving' ? `${C.textLt}60` : saveStatus === 'error' ? '#f87171' : '#fff',
+                border: saveStatus === 'error' ? '1px solid rgba(239,68,68,0.4)' : '1px solid transparent',
+              }}>
+              {saveStatus === 'saving' ? <Save className="w-3.5 h-3.5 animate-pulse" /> : <Save className="w-3.5 h-3.5" />}
+            </button>
+          </>
+        ) : (
+          <>
         {/* Sidebar-Toggle */}
         <button type="button" title="Möbel-Sidebar ein/ausblenden" onClick={() => setSidebarOffen(v => !v)}
           className={tbBtn}
@@ -3347,7 +3514,7 @@ export default function RaumplanerEditor({
         {/* Grid-Größe: 4 Toggle-Buttons */}
         <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: 'rgba(0,0,0,0.2)' }}>
           {([10, 25, 50, 100] as GridSize[]).map(v => (
-            <button key={v} type="button" onClick={() => { setGridSize(v); gridSizeRef.current = v; fabricRef.current?.requestRenderAll() }}
+            <button key={v} type="button" onClick={() => { setGridSize(v); gridSizeRef.current = v; createGridLinesRef.current() }}
               className="px-2 py-1 text-[11px] font-medium rounded-md transition-all"
               style={{
                 background: gridSize === v ? '#445c49' : 'transparent',
@@ -3592,6 +3759,8 @@ export default function RaumplanerEditor({
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           <HelpCircle className="w-4 h-4" />
         </button>
+          </>
+        )}
       </div>
 
       {/* ── Hauptbereich ── */}
@@ -3782,7 +3951,6 @@ export default function RaumplanerEditor({
 
         {/* ── Canvas ── */}
         <div ref={containerRef} className="flex-1 relative overflow-hidden" style={{ backgroundColor: '#ffffff' }}>
-          {/* backgroundImage/Size/Position werden per after:render + useEffect direkt auf dieses div gesetzt */}
           <canvas ref={canvasRef} className="absolute inset-0 z-10" />
 
           {/* Mini-Map */}
