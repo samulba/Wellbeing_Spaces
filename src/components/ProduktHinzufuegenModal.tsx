@@ -26,7 +26,7 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
   const [toast, setToast]             = useState<{ msg: string; err?: boolean } | null>(null)
   const [selected, setSelected]       = useState<Set<string>>(new Set())
   const [adding, setAdding]           = useState(false)
-  const [isPending, startTransition]  = useTransition()
+  const [, startTransition]           = useTransition()
 
   function showToast(msg: string, err = false) {
     setToast({ msg, err })
@@ -79,42 +79,37 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
     if (selected.size === 0 || adding) return
     setAdding(true)
 
-    startTransition(async () => {
-      let erfolgreich = 0
-      let duplikate = 0
-      let fehler = 0
+    let erfolgreich = 0
+    let duplikate = 0
+    let fehler = 0
 
-      for (const produktId of Array.from(selected)) {
-        const result = await produktZuRaumHinzufuegen(produktId, raumId, 1, null, projektId)
-        if (!result.fehler) {
-          erfolgreich++
-        } else if (result.fehler.includes('bereits')) {
-          duplikate++
-        } else {
-          fehler++
-        }
-      }
-
-      setAdding(false)
-
-      if (erfolgreich > 0) {
-        router.refresh()
-      }
-
-      if (fehler > 0) {
-        showToast(`${fehler} Fehler beim Hinzufügen.`, true)
-      } else if (duplikate > 0 && erfolgreich === 0) {
-        showToast(`${duplikate} Produkt${duplikate > 1 ? 'e' : ''} bereits im Raum.`, true)
-      } else if (duplikate > 0) {
-        showToast(`${erfolgreich} hinzugefügt, ${duplikate} bereits vorhanden.`)
+    for (const produktId of Array.from(selected)) {
+      const result = await produktZuRaumHinzufuegen(produktId, raumId, 1, null, projektId)
+      if (!result.fehler) {
+        erfolgreich++
+      } else if (result.fehler.includes('bereits')) {
+        duplikate++
       } else {
-        showToast(`${erfolgreich} Produkt${erfolgreich > 1 ? 'e' : ''} hinzugefügt`)
+        fehler++
       }
+    }
 
-      if (erfolgreich > 0) {
-        close()
-      }
-    })
+    setAdding(false)
+
+    if (fehler > 0) {
+      showToast(`${fehler} Fehler beim Hinzufügen.`, true)
+    } else if (duplikate > 0 && erfolgreich === 0) {
+      showToast(`${duplikate} Produkt${duplikate > 1 ? 'e' : ''} bereits im Raum.`, true)
+    } else if (duplikate > 0) {
+      showToast(`${erfolgreich} hinzugefügt, ${duplikate} bereits vorhanden.`)
+    } else {
+      showToast(`${erfolgreich} Produkt${erfolgreich > 1 ? 'e' : ''} hinzugefügt`)
+    }
+
+    if (erfolgreich > 0) {
+      close()
+      startTransition(() => { router.refresh() })
+    }
   }
 
   // Filtered products
@@ -140,7 +135,7 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
   const eur = (n: number) =>
     new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
-  const isWorking = adding || isPending
+  const isWorking = adding
 
   return (
     <>

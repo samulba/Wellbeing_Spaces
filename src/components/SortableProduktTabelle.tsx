@@ -335,9 +335,9 @@ export default function SortableProduktTabelle({
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={eintraege.map((e) => e.id)} strategy={verticalListSortingStrategy}>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[52vh]">
           <table className="w-full text-sm min-w-[1120px]">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="w-8 px-2 py-3" />
                 <th className="w-10 px-3 py-3" />
