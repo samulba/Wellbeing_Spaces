@@ -8,6 +8,7 @@ import {
   Eraser, CheckCircle, DoorOpen, AppWindow, Ruler,
   HelpCircle, X, Maximize2, ChevronDown, ChevronRight,
   AlertCircle, Trash2, FileDown, PanelLeft,
+  Copy, ArrowUpToLine, ArrowDownToLine, ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { grundrissSpeichern, raumMasseAktualisieren } from '@/app/actions/raumplaner'
 import type { MoebelSymbol } from '@/lib/supabase/types'
@@ -201,6 +202,8 @@ export default function RaumplanerEditor({
   const [contextMenu,   setContextMenu]   = useState<ContextMenuState | null>(null)
   const [openGroups,    setOpenGroups]    = useState<Set<string>>(new Set(MOEBEL_GRUPPEN.map(g => g.name)))
   const [sidebarOffen,  setSidebarOffen]  = useState(true)
+  const [minimapImage,  setMinimapImage]  = useState('')
+  const [viewportRect,  setViewportRect]  = useState({ x: 0, y: 0, w: 150, h: 100 })
 
   const [raumBreite, setRaumBreite] = useState(breiteM?.toString() ?? '')
   const [raumLaenge, setRaumLaenge] = useState(laengeM?.toString() ?? '')
@@ -227,7 +230,11 @@ export default function RaumplanerEditor({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const outlineRef       = useRef<any>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const alignmentLinesRef = useRef<any[]>([])
+  const alignmentLinesRef    = useRef<any[]>([])
+  const isCapturingMinimap   = useRef(false)
+  const minimapThrottleRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateMinimapRef     = useRef<() => void>(() => {})
 
   // ── Ref-Sync ──────────────────────────────────────────────
 
@@ -521,7 +528,15 @@ export default function RaumplanerEditor({
       const ro = new ResizeObserver(resizeCanvas); ro.observe(cont)
 
       // Grid nach jedem Render zeichnen
-      canvas.on('after:render', () => { if (showGridRef.current) renderGrid(canvas) })
+      canvas.on('after:render', () => {
+        if (showGridRef.current) renderGrid(canvas)
+        // Minimap-Update throttled (500ms)
+        if (isCapturingMinimap.current || minimapThrottleRef.current) return
+        minimapThrottleRef.current = setTimeout(() => {
+          minimapThrottleRef.current = null
+          updateMinimapRef.current()
+        }, 500)
+      })
 
       // ── ZOOM (smooth, zoomToPoint) + Mac Trackpad Support ──
       canvas.on('mouse:wheel', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -900,6 +915,7 @@ export default function RaumplanerEditor({
         cont.removeEventListener('contextmenu', onContextMenu)
         upperEl.removeEventListener('gesturestart', onGestureStart)
         upperEl.removeEventListener('gesturechange', onGestureChange)
+        if (minimapThrottleRef.current) clearTimeout(minimapThrottleRef.current)
         ro.disconnect(); canvas.dispose()
       }
     })
@@ -999,6 +1015,64 @@ export default function RaumplanerEditor({
     if (outlineRef.current) c.sendObjectToBack(outlineRef.current)
     c.requestRenderAll(); setContextMenu(null)
   }
+  function bringToFront() {
+    const c = fabricRef.current; if (!c) return
+    const obj = c.getActiveObject(); if (!obj) return
+    c.bringObjectToFront(obj); c.requestRenderAll(); setContextMenu(null)
+  }
+  function sendToBack() {
+    const c = fabricRef.current; if (!c) return
+    const obj = c.getActiveObject(); if (!obj) return
+    c.sendObjectToBack(obj)
+    if (outlineRef.current) c.sendObjectToBack(outlineRef.current)
+    c.requestRenderAll(); setContextMenu(null)
+  }
+
+  function handleMinimapClick(e: React.MouseEvent<HTMLDivElement>) {
+    const canvas = fabricRef.current; if (!canvas) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const mx = (e.clientX - rect.left) / rect.width   // 0..1
+    const my = (e.clientY - rect.top)  / rect.height  // 0..1
+    const cW = canvas.getWidth(), cH = canvas.getHeight()
+    const Z  = canvas.getZoom()
+    // Klickpunkt in Weltkoordinaten (bei Zoom=1, Pan=0)
+    const wx = mx * cW, wy = my * cH
+    // Viewport auf diesen Weltpunkt zentrieren
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.setViewportTransform([Z, 0, 0, Z, cW / 2 - wx * Z, cH / 2 - wy * Z] as any)
+    canvas.requestRenderAll()
+  }
+
+  // Minimap-Update: kurz auf Identitäts-Viewport schalten, PNG schießen, zurück
+  function doUpdateMinimap() {
+    if (isCapturingMinimap.current) return
+    const canvas = fabricRef.current; if (!canvas) return
+    const cW = canvas.getWidth(), cH = canvas.getHeight()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vpt = [...canvas.viewportTransform] as any[]
+    isCapturingMinimap.current = true
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0] as any)
+    canvas.renderAll()
+    const dataUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.5 })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.setViewportTransform(vpt as any)
+    canvas.renderAll()
+    isCapturingMinimap.current = false
+    setMinimapImage(dataUrl)
+    // Viewport-Rechteck berechnen
+    const Z = vpt[0], pX = vpt[4], pY = vpt[5]
+    const MW = 150, MH = 100
+    const rx = Math.max(0, -pX / Z * (MW / cW))
+    const ry = Math.max(0, -pY / Z * (MH / cH))
+    setViewportRect({
+      x: rx,
+      y: ry,
+      w: Math.min(MW - rx, MW / Z),
+      h: Math.min(MH - ry, MH / Z),
+    })
+  }
+  updateMinimapRef.current = doUpdateMinimap
 
   async function saveRaumMasse() {
     const b = parseFloat(raumBreite) || null
@@ -1106,31 +1180,38 @@ export default function RaumplanerEditor({
 
       {/* Kontext-Menü */}
       {contextMenu && (
-        <div className="fixed z-50 rounded-xl shadow-2xl py-1 w-44"
-          style={{ left: contextMenu.x, top: contextMenu.y, background: C.sidebar, border: `1px solid ${C.border}` }}
+        <div className="fixed z-50 bg-white rounded-xl shadow-2xl border border-gray-200 py-1.5 min-w-[180px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={e => e.stopPropagation()}>
-          {[
-            { label: 'Duplizieren',       fn: duplicateSelected, red: false },
-            { label: 'Ebene nach vorne',  fn: bringForward,      red: false },
-            { label: 'Ebene nach hinten', fn: sendBackward,      red: false },
-          ].map(({ label, fn, red }) => (
-            <button key={label} type="button" onClick={fn}
-              className={`w-full text-left px-3 py-2 text-xs transition-colors ${red ? 'text-red-400 hover:text-red-300' : ''}`}
-              style={{ color: red ? undefined : C.textMd }}
-              onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-              {label}
-            </button>
-          ))}
-          <div className="my-1" style={{ borderTop: `1px solid ${C.border}` }} />
+          <button type="button" onClick={duplicateSelected}
+            className="w-full flex items-center gap-2.5 px-3.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+            <Copy className="w-3.5 h-3.5 text-gray-400" /> Duplizieren
+          </button>
+          <div className="my-1 border-t border-gray-100" />
+          <button type="button" onClick={bringToFront}
+            className="w-full flex items-center gap-2.5 px-3.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+            <ArrowUpToLine className="w-3.5 h-3.5 text-gray-400" /> Ganz nach vorne
+          </button>
+          <button type="button" onClick={bringForward}
+            className="w-full flex items-center gap-2.5 px-3.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+            <ArrowUp className="w-3.5 h-3.5 text-gray-400" /> Eine Ebene hoch
+          </button>
+          <button type="button" onClick={sendBackward}
+            className="w-full flex items-center gap-2.5 px-3.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+            <ArrowDown className="w-3.5 h-3.5 text-gray-400" /> Eine Ebene runter
+          </button>
+          <button type="button" onClick={sendToBack}
+            className="w-full flex items-center gap-2.5 px-3.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors">
+            <ArrowDownToLine className="w-3.5 h-3.5 text-gray-400" /> Ganz nach hinten
+          </button>
+          <div className="my-1 border-t border-gray-100" />
           <button type="button" onClick={() => {
             const c = fabricRef.current; if (!c) return
+            if (contextMenu.target?.data?.type === 'outline') { setContextMenu(null); return }
             c.remove(contextMenu.target); setSelectedProps(null)
             pushHistory(); triggerAutoSave(); updateObjCount(); c.requestRenderAll(); setContextMenu(null)
-          }} className="w-full text-left px-3 py-2 text-xs text-red-400 hover:text-red-300 transition-colors"
-            onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-            Löschen
+          }} className="w-full flex items-center gap-2.5 px-3.5 py-1.5 text-xs text-red-500 hover:bg-red-50 transition-colors">
+            <Trash2 className="w-3.5 h-3.5" /> Löschen
           </button>
         </div>
       )}
@@ -1353,6 +1434,31 @@ export default function RaumplanerEditor({
         {/* ── Canvas ── */}
         <div ref={containerRef} className="flex-1 relative overflow-hidden" style={{ background: '#ffffff' }}>
           <canvas ref={canvasRef} className="absolute inset-0 z-10" />
+
+          {/* Mini-Map */}
+          <div className="absolute bottom-10 left-3 z-20 select-none">
+            <div
+              className="relative rounded-lg overflow-hidden shadow-lg cursor-crosshair"
+              style={{ width: 150, height: 100, border: `1px solid rgba(68,92,73,0.3)`, background: '#f0f0f0' }}
+              onClick={handleMinimapClick}
+            >
+              {minimapImage
+                ? <img src={minimapImage} alt="" className="absolute inset-0 w-full h-full pointer-events-none" style={{ objectFit: 'fill' }} draggable={false} />
+                : <div className="flex items-center justify-center w-full h-full text-[10px] text-gray-400">Minimap</div>
+              }
+              {/* Viewport-Indikator */}
+              <div
+                className="absolute pointer-events-none"
+                style={{
+                  left: viewportRect.x, top: viewportRect.y,
+                  width: Math.max(4, viewportRect.w), height: Math.max(4, viewportRect.h),
+                  border: '2px solid #445c49',
+                  background: 'rgba(68,92,73,0.12)',
+                }}
+              />
+            </div>
+            <p className="text-center text-[9px] mt-0.5" style={{ color: 'rgba(148,193,164,0.4)' }}>Übersicht</p>
+          </div>
         </div>
 
         {/* ── Rechte Sidebar ── */}
