@@ -11,6 +11,7 @@ import { Timeline } from '@/components/Timeline'
 import type { RaumProduktMitDetails } from '@/lib/supabase/types'
 import { LayoutDashboard } from 'lucide-react'
 import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
+import ProduktHinzufuegenModal from '@/components/ProduktHinzufuegenModal'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
@@ -122,12 +123,7 @@ export default async function RaumDetailPage({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark hover:scale-[1.02] active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap"
-          >
-            + Produkt hinzufügen
-          </Link>
+          <ProduktHinzufuegenModal raumId={params.raumId} projektId={params.id} />
         </div>
       </div>
 

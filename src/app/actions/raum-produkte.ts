@@ -9,7 +9,8 @@ export async function produktZuRaumHinzufuegen(
   produktId: string,
   raumId: string,
   menge = 1,
-  verkaufspreisOverride: number | null = null
+  verkaufspreisOverride: number | null = null,
+  projektId?: string
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
@@ -28,6 +29,7 @@ export async function produktZuRaumHinzufuegen(
   }
 
   revalidatePath('/dashboard/produkte')
+  if (projektId) revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   return {}
 }
 

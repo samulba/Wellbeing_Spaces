@@ -470,3 +470,27 @@ export async function variantenDefinitionLoeschen(
   revalidatePath('/dashboard/produkte')
   return {}
 }
+
+// ── Bibliothek für Raum-Zuweisung ────────────────────────────
+export interface BibliothekProdukt {
+  id: string
+  name: string
+  artikelnummer: string | null
+  bild_url: string | null
+  verkaufspreis: number | null
+  kategorie_id: string | null
+  kategorie: { id: string; name: string; icon: string | null } | null
+}
+
+export async function bibliothekProdukteAbrufen(): Promise<BibliothekProdukt[]> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data } = await supabase
+    .from('produkte')
+    .select('id, name, artikelnummer, bild_url, verkaufspreis, kategorie_id, kategorie:kategorien(id, name, icon)')
+    .eq('organisation_id', orgId)
+    .is('deleted_at', null)
+    .eq('ist_variante', false)
+    .order('name')
+  return (data ?? []) as unknown as BibliothekProdukt[]
+}
