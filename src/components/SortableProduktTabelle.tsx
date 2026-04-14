@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   DndContext,
   closestCenter,
@@ -18,9 +19,8 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, ChevronDown, Clock, Package, CheckCircle2, Receipt } from 'lucide-react'
+import { GripVertical, ChevronDown, Clock, Package, CheckCircle2, Receipt, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
-import ConfirmDeleteButton from './ConfirmDeleteButton'
 import {
   produktAusRaumEntfernen,
   updateRaumProduktPositionen,
@@ -67,7 +67,6 @@ function BestellStatusDropdown({ status, onChange }: { status: BestellStatus; on
     return () => document.removeEventListener('mousedown', handleOutside)
   }, [open])
 
-  // Schließen beim Scrollen
   useEffect(() => {
     if (!open) return
     const handleScroll = () => setOpen(false)
@@ -78,7 +77,7 @@ function BestellStatusDropdown({ status, onChange }: { status: BestellStatus; on
   function handleOpen() {
     if (!buttonRef.current) return setOpen(o => !o)
     const rect = buttonRef.current.getBoundingClientRect()
-    const DROPDOWN_H = 148 // 4 items × 37px
+    const DROPDOWN_H = 148
     const spaceBelow = window.innerHeight - rect.bottom
     const top = spaceBelow >= DROPDOWN_H
       ? rect.bottom + 4
@@ -135,20 +134,19 @@ interface ZeileProps {
   raumId: string
   isLast: boolean
   onBestellstatusChange: (raumProduktId: string, status: BestellStatus) => void
+  onDeleteRequest: (id: string, name: string) => void
 }
 
-function SortableProduktZeile({ eintrag, mwst, projektId, raumId, isLast, onBestellstatusChange }: ZeileProps) {
+function SortableProduktZeile({ eintrag, mwst, isLast, onBestellstatusChange, onDeleteRequest }: ZeileProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: eintrag.id })
 
   const p = eintrag.produkte
-  // Effektiver Verkaufspreis: Override aus raum_produkte, sonst Produkt-VP
   const effektivVP  = eintrag.verkaufspreis_override ?? p.verkaufspreis
   const vpBrutto    = r2((effektivVP ?? 0) * (1 + mwst))
   const gesamtNetto = r2((effektivVP ?? 0) * eintrag.menge)
   const provisionEur = r2((effektivVP ?? 0) * ((p.provision_prozent ?? 0) / 100))
 
-  const loeschenAktion = produktAusRaumEntfernen.bind(null, eintrag.id, raumId, projektId)
   const status = p.produktstatus?.status ?? 'ausstehend'
   const bestellstatus = (p.bestellstatus ?? 'ausstehend') as BestellStatus
 
@@ -259,12 +257,13 @@ function SortableProduktZeile({ eintrag, mwst, projektId, raumId, isLast, onBest
           >
             Bearb.
           </Link>
-          <ConfirmDeleteButton
-            action={loeschenAktion}
-            label="✕"
-            confirmMessage={`„${p.name}" aus diesem Raum entfernen?`}
+          <button
+            type="button"
+            onClick={() => onDeleteRequest(eintrag.id, p.name)}
             className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
-          />
+          >
+            ✕
+          </button>
         </div>
       </td>
     </tr>
@@ -282,8 +281,11 @@ export default function SortableProduktTabelle({
   projektId: string
   raumId: string
 }) {
+  const router = useRouter()
   const [eintraege, setEintraege] = useState(initialEintraege)
   const [, startTransition] = useTransition()
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -311,7 +313,8 @@ export default function SortableProduktTabelle({
     })
   }
 
-  function handleBestellstatusChange(raumProduktId: string, neuerStatus: BestellStatus) {
+  async function handleBestellstatusChange(raumProduktId: string, neuerStatus: BestellStatus) {
+    // Optimistisch aktualisieren
     setEintraege((prev) =>
       prev.map((e) =>
         e.id === raumProduktId
@@ -319,57 +322,124 @@ export default function SortableProduktTabelle({
           : e
       )
     )
-    startTransition(() => {
-      // Bestellstatus bleibt auf dem Produkt (nicht auf raum_produkt)
-      const eintrag = eintraege.find((e) => e.id === raumProduktId)
-      if (eintrag) {
-        bestellstatusAendern(eintrag.produkt_id, raumId, projektId, neuerStatus)
-      }
-    })
+    const eintrag = eintraege.find((e) => e.id === raumProduktId)
+    if (eintrag) {
+      await bestellstatusAendern(eintrag.produkt_id, raumId, projektId, neuerStatus)
+      startTransition(() => router.refresh())
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget || isDeleting) return
+    setIsDeleting(true)
+
+    // Optimistisch entfernen
+    setEintraege((prev) => prev.filter((e) => e.id !== deleteTarget.id))
+
+    await produktAusRaumEntfernen(deleteTarget.id, raumId, projektId)
+    setIsDeleting(false)
+    setDeleteTarget(null)
+    startTransition(() => router.refresh())
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext items={eintraege.map((e) => e.id)} strategy={verticalListSortingStrategy}>
-        <div className="overflow-x-auto overflow-y-auto max-h-[52vh]">
-          <table className="w-full text-sm min-w-[1120px]">
-            <thead className="sticky top-0 z-10">
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="w-8 px-2 py-3" />
-                <th className="w-10 px-3 py-3" />
-                <th className={th + ' text-left'}>Produkt</th>
-                <th className={th}>Menge</th>
-                <th className={`${th} text-red-400/70`} title="Intern">EP netto</th>
-                <th className={`${th} text-red-400/70`} title="Intern">Marge</th>
-                <th className={th}>VP netto</th>
-                <th className={th}>VP brutto</th>
-                <th className={`${th} text-red-400/70`} title="Intern">Provision</th>
-                <th className={th}>Gesamt netto</th>
-                <th className={th}>Freigabe</th>
-                <th className={th}>Bestellung</th>
-                <th className="w-16" />
-              </tr>
-            </thead>
-            <tbody>
-              {eintraege.map((e, i) => (
-                <SortableProduktZeile
-                  key={e.id}
-                  eintrag={e}
-                  mwst={mwst}
-                  projektId={projektId}
-                  raumId={raumId}
-                  isLast={i === eintraege.length - 1}
-                  onBestellstatusChange={handleBestellstatusChange}
-                />
-              ))}
-            </tbody>
-          </table>
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={eintraege.map((e) => e.id)} strategy={verticalListSortingStrategy}>
+          <div className="overflow-x-auto overflow-y-auto max-h-[52vh]">
+            <table className="w-full text-sm min-w-[1120px]">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="w-8 px-2 py-3" />
+                  <th className="w-10 px-3 py-3" />
+                  <th className={th + ' text-left'}>Produkt</th>
+                  <th className={th}>Menge</th>
+                  <th className={`${th} text-red-400/70`} title="Intern">EP netto</th>
+                  <th className={`${th} text-red-400/70`} title="Intern">Marge</th>
+                  <th className={th}>VP netto</th>
+                  <th className={th}>VP brutto</th>
+                  <th className={`${th} text-red-400/70`} title="Intern">Provision</th>
+                  <th className={th}>Gesamt netto</th>
+                  <th className={th}>Freigabe</th>
+                  <th className={th}>Bestellung</th>
+                  <th className="w-16" />
+                </tr>
+              </thead>
+              <tbody>
+                {eintraege.map((e, i) => (
+                  <SortableProduktZeile
+                    key={e.id}
+                    eintrag={e}
+                    mwst={mwst}
+                    projektId={projektId}
+                    raumId={raumId}
+                    isLast={i === eintraege.length - 1}
+                    onBestellstatusChange={handleBestellstatusChange}
+                    onDeleteRequest={(id, name) => setDeleteTarget({ id, name })}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SortableContext>
+      </DndContext>
+
+      {/* ── Lösch-Bestätigungs-Modal ───────────────────────── */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4"
+          onClick={() => !isDeleting && setDeleteTarget(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Icon */}
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
+
+            <h3 className="text-base font-semibold text-gray-900 text-center mb-2">
+              Produkt entfernen?
+            </h3>
+            <p className="text-sm text-gray-500 text-center mb-6">
+              &bdquo;{deleteTarget.name}&ldquo; wird aus diesem Raum entfernt.<br />
+              Das Produkt bleibt in der Bibliothek erhalten.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Entferne…
+                  </>
+                ) : (
+                  <>
+                    <X className="w-4 h-4" />
+                    Entfernen
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-      </SortableContext>
-    </DndContext>
+      )}
+    </>
   )
 }
