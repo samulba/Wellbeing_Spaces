@@ -4,7 +4,7 @@ import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus, X, ChevronRight, BookOpen, PlusCircle,
-  Search, ChevronDown, Package,
+  Search, ChevronDown, Package, Check,
 } from 'lucide-react'
 import { bibliothekProdukteAbrufen, type BibliothekProdukt } from '@/app/actions/produkte'
 import { produktZuRaumHinzufuegen } from '@/app/actions/raum-produkte'
@@ -24,12 +24,13 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
   const [search, setSearch]           = useState('')
   const [kategorie, setKategorie]     = useState('')
   const [toast, setToast]             = useState<{ msg: string; err?: boolean } | null>(null)
-  const [adding, setAdding]           = useState<string | null>(null) // produktId being added
+  const [selected, setSelected]       = useState<Set<string>>(new Set())
+  const [adding, setAdding]           = useState(false)
   const [isPending, startTransition]  = useTransition()
 
   function showToast(msg: string, err = false) {
     setToast({ msg, err })
-    setTimeout(() => setToast(null), 3000)
+    setTimeout(() => setToast(null), 3500)
   }
 
   const loadLibrary = useCallback(async () => {
@@ -46,6 +47,7 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
 
   function openLibrary() {
     setView('library')
+    setSelected(new Set())
     loadLibrary()
   }
 
@@ -53,19 +55,64 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
     setView('idle')
     setSearch('')
     setKategorie('')
+    setSelected(new Set())
   }
 
-  async function handleAdd(produktId: string) {
-    if (adding) return
-    setAdding(produktId)
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    if (selected.size === gefiltert.length && gefiltert.length > 0) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(gefiltert.map((p) => p.id)))
+    }
+  }
+
+  async function handleBatchAdd() {
+    if (selected.size === 0 || adding) return
+    setAdding(true)
+
     startTransition(async () => {
-      const result = await produktZuRaumHinzufuegen(produktId, raumId, 1, null, projektId)
-      setAdding(null)
-      if (result.fehler) {
-        showToast(result.fehler, true)
-      } else {
-        showToast('Produkt hinzugefügt')
+      let erfolgreich = 0
+      let duplikate = 0
+      let fehler = 0
+
+      for (const produktId of Array.from(selected)) {
+        const result = await produktZuRaumHinzufuegen(produktId, raumId, 1, null, projektId)
+        if (!result.fehler) {
+          erfolgreich++
+        } else if (result.fehler.includes('bereits')) {
+          duplikate++
+        } else {
+          fehler++
+        }
+      }
+
+      setAdding(false)
+
+      if (erfolgreich > 0) {
         router.refresh()
+      }
+
+      if (fehler > 0) {
+        showToast(`${fehler} Fehler beim Hinzufügen.`, true)
+      } else if (duplikate > 0 && erfolgreich === 0) {
+        showToast(`${duplikate} Produkt${duplikate > 1 ? 'e' : ''} bereits im Raum.`, true)
+      } else if (duplikate > 0) {
+        showToast(`${erfolgreich} hinzugefügt, ${duplikate} bereits vorhanden.`)
+      } else {
+        showToast(`${erfolgreich} Produkt${erfolgreich > 1 ? 'e' : ''} hinzugefügt`)
+      }
+
+      if (erfolgreich > 0) {
+        close()
       }
     })
   }
@@ -79,6 +126,8 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
     return matchSearch && matchKat
   })
 
+  const allSelected = gefiltert.length > 0 && selected.size === gefiltert.length
+
   // Unique categories from loaded products
   const kategorien = Array.from(
     new Map(
@@ -90,6 +139,8 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
 
   const eur = (n: number) =>
     new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
+
+  const isWorking = adding || isPending
 
   return (
     <>
@@ -213,6 +264,19 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
               )}
+              {/* Alle auswählen */}
+              {gefiltert.length > 0 && !loading && (
+                <button
+                  onClick={toggleAll}
+                  className={`px-3 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${
+                    allSelected
+                      ? 'border-wellbeing-green bg-wellbeing-green/10 text-wellbeing-green'
+                      : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {allSelected ? 'Alle abwählen' : 'Alle auswählen'}
+                </button>
+              )}
             </div>
 
             {/* Produktliste */}
@@ -233,21 +297,34 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {gefiltert.map((p) => {
-                    const isAdding = adding === p.id || (isPending && adding === p.id)
+                    const isSelected = selected.has(p.id)
                     return (
                       <button
                         key={p.id}
-                        onClick={() => handleAdd(p.id)}
-                        disabled={!!adding}
-                        className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:border-wellbeing-green hover:bg-wellbeing-green/5 transition-all text-left disabled:opacity-60 group"
+                        onClick={() => toggleSelect(p.id)}
+                        disabled={isWorking}
+                        className={`flex items-center gap-3 p-3 border rounded-xl transition-all text-left disabled:opacity-60 ${
+                          isSelected
+                            ? 'border-wellbeing-green bg-wellbeing-green/8 ring-1 ring-wellbeing-green/30'
+                            : 'border-gray-200 hover:border-wellbeing-green/50 hover:bg-gray-50'
+                        }`}
                       >
+                        {/* Checkbox */}
+                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          isSelected
+                            ? 'border-wellbeing-green bg-wellbeing-green'
+                            : 'border-gray-300'
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                        </div>
+
                         {/* Bild */}
-                        <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
                           {p.bild_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={p.bild_url} alt={p.name} className="w-full h-full object-cover" />
                           ) : (
-                            <Package className="w-6 h-6 text-gray-300" />
+                            <Package className="w-5 h-5 text-gray-300" />
                           )}
                         </div>
 
@@ -270,13 +347,6 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
                             )}
                           </div>
                         </div>
-
-                        {/* Add-Icon */}
-                        {isAdding ? (
-                          <div className="w-6 h-6 rounded-full border-2 border-wellbeing-green border-t-transparent animate-spin shrink-0" />
-                        ) : (
-                          <Plus className="w-5 h-5 text-wellbeing-green shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        )}
                       </button>
                     )
                   })}
@@ -285,19 +355,40 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between">
-              <span className="text-xs text-gray-400">
-                {loading ? 'Lädt…' : `${gefiltert.length} von ${produkte.length} Produkten`}
-              </span>
+            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400">
+                  {loading ? 'Lädt…' : `${gefiltert.length} von ${produkte.length} Produkten`}
+                </span>
+                <button
+                  onClick={() => {
+                    close()
+                    router.push(`/dashboard/projekte/${projektId}/raeume/${raumId}/produkte/neu`)
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs text-wellbeing-green hover:underline"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  Neues Produkt erstellen
+                </button>
+              </div>
+
+              {/* Hinzufügen Button */}
               <button
-                onClick={() => {
-                  close()
-                  router.push(`/dashboard/projekte/${projektId}/raeume/${raumId}/produkte/neu`)
-                }}
-                className="inline-flex items-center gap-1.5 text-xs text-wellbeing-green hover:underline"
+                onClick={handleBatchAdd}
+                disabled={selected.size === 0 || isWorking}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
               >
-                <PlusCircle className="w-3.5 h-3.5" />
-                Neues Produkt erstellen
+                {isWorking ? (
+                  <>
+                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    Hinzufügen…
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    {selected.size > 0 ? `${selected.size} hinzufügen` : 'Hinzufügen'}
+                  </>
+                )}
               </button>
             </div>
           </div>
