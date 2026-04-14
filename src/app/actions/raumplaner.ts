@@ -109,6 +109,23 @@ export async function raumFreigabeAktualisieren(
   return { token: data.freigabe_token as string }
 }
 
+/** Boden-Textur und Wandfarbe eines Raums speichern. */
+export async function raumTexturenSpeichern(
+  raumId: string,
+  bodenTextur: string,
+  wandfarbe: string,
+  projektId: string
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('raeume')
+    .update({ boden_textur: bodenTextur, wandfarbe })
+    .eq('id', raumId)
+  if (error) return { fehler: 'Fehler beim Speichern.' }
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}/planer`)
+  return {}
+}
+
 /** Öffentlichen Raumplan via Token laden (Admin-Client, kein Auth erforderlich). */
 export async function getRaumplanOeffentlich(token: string): Promise<{
   raumName: string

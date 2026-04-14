@@ -13,7 +13,7 @@ async function getRaumFuerPlaner(raumId: string, projektId: string) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('raeume')
-    .select('id, name, beschreibung, projekt_id, breite_m, laenge_m, hoehe_m, grundriss_json, freigabe_token, freigabe_aktiv')
+    .select('id, name, beschreibung, projekt_id, breite_m, laenge_m, hoehe_m, grundriss_json, freigabe_token, freigabe_aktiv, boden_textur, wandfarbe')
     .eq('id', raumId)
     .eq('projekt_id', projektId)
     .is('deleted_at', null)
@@ -56,6 +56,8 @@ export default async function RaumplanerPage({ params }: Props) {
         produkte={produkte}
         freigabeToken={raum.freigabe_token as string | null}
         freigabeAktiv={raum.freigabe_aktiv ?? false}
+        bodenTextur={raum.boden_textur ?? 'none'}
+        wandfarbe={raum.wandfarbe ?? '#1e293b'}
       />
     </div>
   )

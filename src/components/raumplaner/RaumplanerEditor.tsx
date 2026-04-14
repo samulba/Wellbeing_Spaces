@@ -12,7 +12,7 @@ import {
   Magnet, Lock, LockOpen, Star, Share2, Image as ImageIcon, Check, Link2,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
-import { grundrissSpeichern, raumMasseAktualisieren, getCustomMoebel, customMoebelErstellen, getRaumFreigabeInfo, raumFreigabeAktualisieren } from '@/app/actions/raumplaner'
+import { grundrissSpeichern, raumMasseAktualisieren, getCustomMoebel, customMoebelErstellen, getRaumFreigabeInfo, raumFreigabeAktualisieren, raumTexturenSpeichern } from '@/app/actions/raumplaner'
 import type { MoebelSymbol, CustomMoebel as CustomMoebelType } from '@/lib/supabase/types'
 
 // ── Konstanten ────────────────────────────────────────────────
@@ -27,12 +27,154 @@ type Tool = 'select' | 'wall' | 'door' | 'window' | 'measure' | 'eraser'
 type GridSize = 10 | 25 | 50 | 100
 
 const MOEBEL_GRUPPEN: { name: string; keys: string[] }[] = [
-  { name: 'Wohnzimmer',   keys: ['Sofa', 'Sessel', 'Couchtisch', 'Sideboard', 'Regal'] },
-  { name: 'Schlafzimmer', keys: ['Doppelbett', 'Einzelbett', 'Nachttisch', 'Kleiderschrank'] },
-  { name: 'Büro',         keys: ['Schreibtisch', 'Stuhl', 'Barhocker'] },
-  { name: 'Küche',        keys: ['Küchenzeile', 'Herd', 'Esstisch'] },
-  { name: 'Bad',          keys: ['Badewanne', 'Dusche', 'Waschbecken', 'Toilette'] },
+  { name: 'Wohnzimmer',   keys: ['Sofa', 'Sessel', 'Couchtisch', 'Sideboard', 'TV-Board', 'Stehlampe', 'Bücherregal', 'Pouf', 'Kaminofen', 'Pflanze', 'Teppich', 'Regal'] },
+  { name: 'Schlafzimmer', keys: ['Bett', 'Nachttisch', 'Kleiderschrank', 'Kommode', 'Schminktisch', 'Spiegel', 'Wäschekorb'] },
+  { name: 'Esszimmer',    keys: ['Esstisch', 'Esszimmerstuhl', 'Eckbank', 'Vitrine', 'Anrichte'] },
+  { name: 'Büro',         keys: ['Schreibtisch', 'Bürostuhl', 'Barhocker', 'Aktenschrank', 'Rollcontainer', 'Konferenztisch', 'Stehpult', 'Flipchart', 'Drucker', 'Papierkorb'] },
+  { name: 'Küche',        keys: ['Küchenzeile', 'Kücheninsel', 'Herd', 'Kühlschrank', 'Spüle', 'Geschirrspüler', 'Mikrowelle'] },
+  { name: 'Bad',          keys: ['Badewanne', 'Dusche', 'Waschbecken', 'Toilette', 'WC', 'Bidet', 'Handtuchhalter', 'Wäschetrockner'] },
+  { name: 'Garten',       keys: ['Gartentisch', 'Gartenstuhl', 'Sonnenliege', 'Sonnenschirm', 'Grill', 'Pflanzkübel', 'Outdoor', 'Pool'] },
+  { name: 'Wellness',     keys: ['Sauna', 'Infrarotkabine', 'Whirlpool', 'Massageliege', 'Ruheliege', 'Handtuchregal'] },
 ]
+
+// ── Boden-Texturen ────────────────────────────────────────────
+interface FloorTexture { name: string; preview: string }
+const FLOOR_TEXTURES: Record<string, FloorTexture> = {
+  'none':           { name: 'Kein',          preview: '#f8f9fa' },
+  'holz-hell':      { name: 'Holz hell',     preview: '#d4a574' },
+  'holz-dunkel':    { name: 'Holz dunkel',   preview: '#7c5c3a' },
+  'parkett':        { name: 'Parkett',       preview: '#c49a6c' },
+  'laminat-grau':   { name: 'Laminat',       preview: '#9ca3af' },
+  'fliesen-weiss':  { name: 'Fliesen weiß',  preview: '#f5f5f5' },
+  'fliesen-grau':   { name: 'Fliesen grau',  preview: '#d1d5db' },
+  'fliesen-schwarz':{ name: 'Fliesen schwarz',preview: '#374151' },
+  'marmor':         { name: 'Marmor',        preview: '#e8e0d8' },
+  'beton':          { name: 'Beton',         preview: '#9ca3af' },
+  'teppich-beige':  { name: 'Teppich beige', preview: '#d4b896' },
+  'teppich-grau':   { name: 'Teppich grau',  preview: '#9ca3af' },
+}
+
+// Wand-Farbpalette
+const WANDFARBEN = [
+  '#ffffff', '#f5f5dc', '#e8e8e8', '#d3d3d3',
+  '#c2b280', '#cba178', '#add8e6', '#98e8c0',
+  '#ffe4e1', '#e6e6fa', '#e2725b', '#9dc183',
+  '#1e293b', '#445c49', '#2d3e31', '#4b4b4b',
+]
+
+function createPatternCanvas(textur: string): HTMLCanvasElement | null {
+  const c = document.createElement('canvas')
+  const ctx = c.getContext('2d')
+  if (!ctx) return null
+
+  switch (textur) {
+    case 'holz-hell': {
+      c.width = 20; c.height = 120
+      ctx.fillStyle = '#d4a574'; ctx.fillRect(0, 0, 20, 120)
+      ctx.strokeStyle = '#b8925a'; ctx.lineWidth = 1
+      ctx.strokeRect(0.5, 0.5, 19, 119)
+      ctx.strokeStyle = '#c9a06a'; ctx.lineWidth = 0.5
+      ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(3, 120); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(14, 120); ctx.stroke()
+      break
+    }
+    case 'holz-dunkel': {
+      c.width = 20; c.height = 120
+      ctx.fillStyle = '#7c5c3a'; ctx.fillRect(0, 0, 20, 120)
+      ctx.strokeStyle = '#5e4428'; ctx.lineWidth = 1
+      ctx.strokeRect(0.5, 0.5, 19, 119)
+      ctx.strokeStyle = '#6b4e30'; ctx.lineWidth = 0.5
+      ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(4, 120); ctx.stroke()
+      break
+    }
+    case 'parkett': {
+      c.width = 40; c.height = 40
+      // Fischgrät - zwei diagonale Planken
+      ctx.fillStyle = '#c49a6c'; ctx.fillRect(0, 0, 40, 40)
+      ctx.strokeStyle = '#a07848'; ctx.lineWidth = 1
+      // Plank 1
+      ctx.fillStyle = '#c49a6c'
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(20, 0); ctx.lineTo(20, 20); ctx.lineTo(0, 20); ctx.closePath(); ctx.fill(); ctx.stroke()
+      ctx.fillStyle = '#b8904e'
+      ctx.beginPath(); ctx.moveTo(20, 20); ctx.lineTo(40, 20); ctx.lineTo(40, 40); ctx.lineTo(20, 40); ctx.closePath(); ctx.fill(); ctx.stroke()
+      ctx.fillStyle = '#c49a6c'
+      ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(40, 0); ctx.lineTo(40, 20); ctx.lineTo(20, 20); ctx.closePath(); ctx.fill(); ctx.stroke()
+      ctx.fillStyle = '#b8904e'
+      ctx.beginPath(); ctx.moveTo(0, 20); ctx.lineTo(20, 20); ctx.lineTo(20, 40); ctx.lineTo(0, 40); ctx.closePath(); ctx.fill(); ctx.stroke()
+      break
+    }
+    case 'laminat-grau': {
+      c.width = 20; c.height = 80
+      ctx.fillStyle = '#b0b8c0'; ctx.fillRect(0, 0, 20, 80)
+      ctx.strokeStyle = '#8a9299'; ctx.lineWidth = 1
+      ctx.strokeRect(0.5, 0.5, 19, 79)
+      break
+    }
+    case 'fliesen-weiss': {
+      c.width = 52; c.height = 52
+      ctx.fillStyle = '#f8f8f8'; ctx.fillRect(0, 0, 52, 52)
+      ctx.strokeStyle = '#d8d8d8'; ctx.lineWidth = 2
+      ctx.strokeRect(1, 1, 50, 50)
+      break
+    }
+    case 'fliesen-grau': {
+      c.width = 52; c.height = 52
+      ctx.fillStyle = '#d1d5db'; ctx.fillRect(0, 0, 52, 52)
+      ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = 2
+      ctx.strokeRect(1, 1, 50, 50)
+      break
+    }
+    case 'fliesen-schwarz': {
+      c.width = 52; c.height = 52
+      ctx.fillStyle = '#374151'; ctx.fillRect(0, 0, 52, 52)
+      ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2
+      ctx.strokeRect(1, 1, 50, 50)
+      break
+    }
+    case 'marmor': {
+      c.width = 100; c.height = 100
+      ctx.fillStyle = '#ece8e0'; ctx.fillRect(0, 0, 100, 100)
+      ctx.strokeStyle = '#d8d0c0'; ctx.lineWidth = 2
+      ctx.strokeRect(1, 1, 98, 98)
+      // Maserung
+      ctx.strokeStyle = 'rgba(180,160,140,0.4)'; ctx.lineWidth = 1
+      ctx.beginPath(); ctx.moveTo(0, 30); ctx.bezierCurveTo(30, 20, 70, 40, 100, 35); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(0, 60); ctx.bezierCurveTo(40, 55, 60, 70, 100, 65); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(20, 0); ctx.bezierCurveTo(25, 40, 15, 60, 22, 100); ctx.stroke()
+      break
+    }
+    case 'beton': {
+      c.width = 80; c.height = 80
+      ctx.fillStyle = '#9ca3af'; ctx.fillRect(0, 0, 80, 80)
+      // Grober Textur-Effekt
+      for (let i = 0; i < 40; i++) {
+        const x = Math.random() * 80, y = Math.random() * 80
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
+        ctx.fillRect(x, y, 3, 3)
+      }
+      ctx.strokeStyle = 'rgba(107,114,128,0.3)'; ctx.lineWidth = 0.5
+      ctx.beginPath(); ctx.moveTo(0, 40); ctx.lineTo(80, 40); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(40, 0); ctx.lineTo(40, 80); ctx.stroke()
+      break
+    }
+    case 'teppich-beige': {
+      c.width = 8; c.height = 8
+      ctx.fillStyle = '#d4b896'; ctx.fillRect(0, 0, 8, 8)
+      ctx.fillStyle = '#c4a886'; ctx.fillRect(0, 0, 4, 4)
+      ctx.fillRect(4, 4, 4, 4)
+      break
+    }
+    case 'teppich-grau': {
+      c.width = 8; c.height = 8
+      ctx.fillStyle = '#9ca3af'; ctx.fillRect(0, 0, 8, 8)
+      ctx.fillStyle = '#8c939e'; ctx.fillRect(0, 0, 4, 4)
+      ctx.fillRect(4, 4, 4, 4)
+      break
+    }
+    default: return null
+  }
+  return c
+}
 
 interface SelectedProps {
   x: number; y: number; w: number; h: number; angle: number; name: string; objType?: string
@@ -52,6 +194,8 @@ interface Props {
   produkte: Array<{ id: string; name: string; kategorie: string | null }>
   freigabeToken?: string | null
   freigabeAktiv?: boolean
+  bodenTextur?: string
+  wandfarbe?: string
 }
 
 // ── Möbel SVG-Preview ─────────────────────────────────────────
@@ -190,6 +334,8 @@ export default function RaumplanerEditor({
   initialCanvasJson, moebelSymbole,
   freigabeToken: initialFreigabeToken = null,
   freigabeAktiv: initialFreigabeAktiv = false,
+  bodenTextur: initialBodenTextur = 'none',
+  wandfarbe: initialWandfarbe = '#1e293b',
 }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canvasRef     = useRef<HTMLCanvasElement>(null)
@@ -239,6 +385,11 @@ export default function RaumplanerEditor({
   const [bildFormat,        setBildFormat]         = useState<'png' | 'jpg'>('png')
   const [bildMultiplier,    setBildMultiplier]     = useState<1 | 2 | 4>(2)
   const [bildTransparent,   setBildTransparent]    = useState(false)
+
+  // Boden + Wand
+  const [bodenTextur,       setBodenTextur]        = useState(initialBodenTextur)
+  const [wandfarbe,         setWandfarbe]          = useState(initialWandfarbe)
+  const bodenTexturRef = useRef(initialBodenTextur)
 
   const [raumBreite, setRaumBreite] = useState(breiteM?.toString() ?? '')
   const [raumLaenge, setRaumLaenge] = useState(laengeM?.toString() ?? '')
@@ -356,7 +507,7 @@ export default function RaumplanerEditor({
     const full = canvas.toJSON(['data', 'name'])
     full.objects = (full.objects ?? []).filter(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview' && o.data?.type !== 'alignment'
+      (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview' && o.data?.type !== 'alignment' && o.data?.type !== 'floor'
     )
     return JSON.stringify(full)
   }, [])
@@ -365,7 +516,7 @@ export default function RaumplanerEditor({
     const canvas = fabricRef.current; if (!canvas) return
     setObjCount(canvas.getObjects().filter(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview'
+      (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview' && o.data?.type !== 'floor'
     ).length)
   }, [])
 
@@ -923,7 +1074,7 @@ export default function RaumplanerEditor({
           if (parsed.objects) {
             parsed.objects = parsed.objects.filter(
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview'
+              (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview' && o.data?.type !== 'floor'
             )
           }
           await canvas.loadFromJSON(parsed)
@@ -933,6 +1084,10 @@ export default function RaumplanerEditor({
         } catch { /* ignore */ }
       }
       if (breiteM && laengeM) updateOutline(breiteM, laengeM)
+      // Boden-Textur wiederherstellen
+      if (initialBodenTextur && initialBodenTextur !== 'none') {
+        setTimeout(() => applyFloorTexture(initialBodenTextur, canvas, breiteM, laengeM), 50)
+      }
       canvas.requestRenderAll(); pushHistory(); updateObjCount()
       setLoading(false)
 
@@ -1218,6 +1373,74 @@ export default function RaumplanerEditor({
     await navigator.clipboard.writeText(url)
     setLinkKopiert(true)
     setTimeout(() => setLinkKopiert(false), 2000)
+  }
+
+  // ── Boden-Textur ─────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function applyFloorTexture(textur: string, canvas?: any, bM?: number | null, lM?: number | null) {
+    const c = canvas ?? fabricRef.current
+    const imp = fabricImports.current
+    if (!c || !imp) return
+
+    const bW = (bM ?? breiteM) ?? (parseFloat(raumBreite) || 4)
+    const lL = (lM ?? laengeM) ?? (parseFloat(raumLaenge) || 5)
+
+    // Alte Floor-Objekte entfernen
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    c.getObjects().filter((o: any) => o.data?.type === 'floor').forEach((o: any) => c.remove(o))
+
+    if (textur === 'none') {
+      c.requestRenderAll()
+      return
+    }
+
+    const patternCanvas = createPatternCanvas(textur)
+    if (!patternCanvas) return
+
+    const floorRect = new imp.Rect({
+      left: 0, top: 0,
+      width: bW * SCALE, height: lL * SCALE,
+      selectable: false, evented: false, hoverCursor: 'default',
+      data: { type: 'floor' },
+    })
+
+    // Pattern zuweisen
+    const pattern = new imp.Pattern({ source: patternCanvas, repeat: 'repeat' })
+    floorRect.set('fill', pattern)
+
+    c.add(floorRect)
+    // Hinter outline, aber sichtbar
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const outlineObj = c.getObjects().find((o: any) => o.data?.type === 'outline')
+    if (outlineObj) c.sendObjectTo(floorRect, c.getObjects().indexOf(outlineObj) + 1)
+    else c.sendObjectToBack(floorRect)
+    c.requestRenderAll()
+  }
+
+  async function changeBodenTextur(textur: string) {
+    setBodenTextur(textur)
+    bodenTexturRef.current = textur
+    applyFloorTexture(textur)
+    // Debounced save
+    await raumTexturenSpeichern(raumId, textur, wandfarbe, projektId)
+  }
+
+  // ── Wandfarbe ─────────────────────────────────────────────
+  function applyWallColor(color: string) {
+    const canvas = fabricRef.current; if (!canvas) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.getObjects().filter((o: any) => o.data?.type === 'wall').forEach((o: any) => {
+      o.set('stroke', color)
+    })
+    canvas.requestRenderAll()
+    pushHistory()
+    triggerAutoSave()
+  }
+
+  async function changeWandfarbe(color: string) {
+    setWandfarbe(color)
+    applyWallColor(color)
+    await raumTexturenSpeichern(raumId, bodenTextur, color, projektId)
   }
 
   // ── Bild-Export ─────────────────────────────────────────────
@@ -1901,7 +2124,7 @@ export default function RaumplanerEditor({
                     ))}
                   </div>
                 </div>
-                <div className="px-3 py-3">
+                <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
                   <p className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: `${C.textLt}60` }}>Standard-Maße</p>
                   <div className="space-y-2">
                     <div>
@@ -1922,6 +2145,59 @@ export default function RaumplanerEditor({
                         <span className="text-[10px] shrink-0" style={{ color: `${C.textLt}60` }}>cm</span>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Boden-Textur */}
+                <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                  <p className="text-[9px] uppercase tracking-wider font-semibold mb-2.5" style={{ color: `${C.textLt}60` }}>Boden</p>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {Object.entries(FLOOR_TEXTURES).map(([key, tex]) => (
+                      <button key={key} type="button" onClick={() => changeBodenTextur(key)}
+                        title={tex.name}
+                        className="flex flex-col items-center gap-1 rounded-lg p-1 transition-all"
+                        style={{
+                          background: bodenTextur === key ? 'rgba(68,92,73,0.4)' : 'rgba(0,0,0,0.15)',
+                          border: `1.5px solid ${bodenTextur === key ? '#445c49' : 'transparent'}`,
+                        }}>
+                        <div className="w-8 h-8 rounded-md border flex items-center justify-center"
+                          style={{ background: tex.preview, borderColor: `${C.border}40` }}>
+                          {key === 'none' && <span className="text-[8px]" style={{ color: C.textLt }}>–</span>}
+                        </div>
+                        <span className="text-[8px] text-center leading-tight" style={{ color: C.textLt }}>{tex.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Wandfarbe */}
+                <div className="px-3 py-3">
+                  <p className="text-[9px] uppercase tracking-wider font-semibold mb-2.5" style={{ color: `${C.textLt}60` }}>Wandfarbe</p>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {WANDFARBEN.map(c => (
+                      <button key={c} type="button" onClick={() => changeWandfarbe(c)}
+                        title={c}
+                        className="w-6 h-6 rounded-full transition-all hover:scale-110"
+                        style={{
+                          background: c,
+                          border: `2px solid ${wandfarbe === c ? '#fff' : 'rgba(255,255,255,0.1)'}`,
+                          boxShadow: wandfarbe === c ? '0 0 0 1.5px #445c49' : 'none',
+                        }} />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={wandfarbe}
+                      onChange={e => setWandfarbe(e.target.value)}
+                      onBlur={e => changeWandfarbe(e.target.value)}
+                      className="w-7 h-7 rounded-lg cursor-pointer p-0.5"
+                      style={{ border: `1px solid ${C.border}`, background: 'transparent' }}
+                      title="Eigene Farbe" />
+                    <span className="text-[10px] font-mono" style={{ color: `${C.textLt}80` }}>{wandfarbe}</span>
+                    <button type="button" onClick={() => changeWandfarbe(wandfarbe)}
+                      className="ml-auto text-[10px] px-2 py-1 rounded-lg transition-colors"
+                      style={{ background: C.input, color: C.textLt, border: `1px solid ${C.border}` }}>
+                      Anwenden
+                    </button>
                   </div>
                 </div>
               </div>
