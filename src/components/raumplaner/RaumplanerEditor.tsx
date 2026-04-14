@@ -52,6 +52,7 @@ const MOEBEL_GRUPPEN: { name: string; keys: string[] }[] = [
   { name: 'Bad',          keys: ['Badewanne', 'Dusche', 'Waschbecken', 'Toilette', 'WC', 'Bidet', 'Handtuchhalter', 'Wäschetrockner'] },
   { name: 'Garten',       keys: ['Gartentisch', 'Gartenstuhl', 'Sonnenliege', 'Sonnenschirm', 'Grill', 'Pflanzkübel', 'Outdoor', 'Pool'] },
   { name: 'Wellness',     keys: ['Sauna', 'Infrarotkabine', 'Whirlpool', 'Massageliege', 'Ruheliege', 'Handtuchregal'] },
+  { name: 'Elektro',      keys: ['Steckdose', 'Lichtschalter', 'Deckenlampe', 'Wandlampe', 'Spot', 'Einbauleuchte', 'TV-Anschluss', 'Netzwerk', 'LAN', 'Rauchmelder', 'Thermostat'] },
 ]
 
 // ── Layer-Definitionen ───────────────────────────────────────
@@ -64,6 +65,7 @@ const LAYERS: LayerDef[] = [
   { id: 'dimensions', name: 'Maße',            types: ['dimension', 'measure'],color: '#6b7280' },
   { id: 'legend',     name: 'Legende',         types: ['legend'],              color: '#8b5cf6' },
   { id: 'shapes',     name: 'Formen',          types: ['shape'],               color: '#ec4899' },
+  { id: 'elektro',   name: 'Elektro',         types: ['elektro'],             color: '#f59e0b' },
 ]
 type LayerState = Record<string, { visible: boolean; locked: boolean }>
 const DEFAULT_LAYER_STATE: LayerState = Object.fromEntries(
@@ -747,6 +749,7 @@ export default function RaumplanerEditor({
   const groupSelectedRef     = useRef(() => {})
   const ungroupSelectedRef   = useRef(() => {})
   const aktiveEtageIdRef     = useRef<string | null>(null)
+  const wandfarbeRef         = useRef(initialWandfarbe)
   // Kurven-Tool Refs
   const curvePhaseRef        = useRef<'idle' | 'start_set' | 'end_set'>('idle')
   const curveStartRef        = useRef<{ x: number; y: number } | null>(null)
@@ -764,6 +767,7 @@ export default function RaumplanerEditor({
   useEffect(() => { shapeSettingsRef.current = shapeSettings }, [shapeSettings])
   useEffect(() => { windowWidthRef.current = windowWidth }, [windowWidth])
   useEffect(() => { snapToGridRef.current = snapToGrid }, [snapToGrid])
+  useEffect(() => { wandfarbeRef.current = wandfarbe }, [wandfarbe])
   useEffect(() => { triggerDimUpdateRef.current() }, [showDimensions])
   useEffect(() => { triggerKollUpdateRef.current() }, [showKollision])
 
@@ -841,37 +845,41 @@ export default function RaumplanerEditor({
     const zoom = canvas.getZoom()
     const gSize = gridSizeRef.current
 
-    ctx.save()
-    // Apply viewport transform → draw in world/canvas coordinates
-    ctx.setTransform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5])
+    const cW = canvas.getWidth()
+    const cH = canvas.getHeight()
 
-    const cW = canvas.getWidth() / zoom
-    const cH = canvas.getHeight() / zoom
-    const ox = -vpt[4] / zoom
-    const oy = -vpt[5] / zoom
+    ctx.save()
+    // Draw in screen pixel space (identity transform) so the grid is always
+    // pixel-perfect regardless of device pixel ratio or canvas scaling.
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+
+    const gStep = gSize * zoom   // minor grid step in screen pixels
+    // First visible minor grid line (at or before x=0 / y=0)
+    let startX = vpt[4] % gStep; if (startX > 0) startX -= gStep
+    let startY = vpt[5] % gStep; if (startY > 0) startY -= gStep
 
     // Minor grid
-    const sX = Math.floor(ox / gSize) * gSize
-    const sY = Math.floor(oy / gSize) * gSize
     ctx.strokeStyle = 'rgba(150,180,150,0.30)'
-    ctx.lineWidth = 0.5 / zoom
-    for (let x = sX; x <= ox + cW + gSize; x += gSize) {
-      ctx.beginPath(); ctx.moveTo(x, oy); ctx.lineTo(x, oy + cH); ctx.stroke()
+    ctx.lineWidth = 0.5
+    for (let x = startX; x < cW + gStep; x += gStep) {
+      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, cH); ctx.stroke()
     }
-    for (let y = sY; y <= oy + cH + gSize; y += gSize) {
-      ctx.beginPath(); ctx.moveTo(ox, y); ctx.lineTo(ox + cW, y); ctx.stroke()
+    for (let y = startY; y < cH + gStep; y += gStep) {
+      ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(cW, y + 0.5); ctx.stroke()
     }
 
-    // Major grid (1 m = 100 px)
-    const mX = Math.floor(ox / 100) * 100
-    const mY = Math.floor(oy / 100) * 100
+    // Major grid (1 m = 100 world-px → 100*zoom screen-px)
+    const mStep = 100 * zoom
+    let mStartX = vpt[4] % mStep; if (mStartX > 0) mStartX -= mStep
+    let mStartY = vpt[5] % mStep; if (mStartY > 0) mStartY -= mStep
+
     ctx.strokeStyle = 'rgba(80,130,90,0.40)'
-    ctx.lineWidth = 1 / zoom
-    for (let x = mX; x <= ox + cW + 100; x += 100) {
-      ctx.beginPath(); ctx.moveTo(x, oy); ctx.lineTo(x, oy + cH); ctx.stroke()
+    ctx.lineWidth = 1
+    for (let x = mStartX; x < cW + mStep; x += mStep) {
+      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, cH); ctx.stroke()
     }
-    for (let y = mY; y <= oy + cH + 100; y += 100) {
-      ctx.beginPath(); ctx.moveTo(ox, y); ctx.lineTo(ox + cW, y); ctx.stroke()
+    for (let y = mStartY; y < cH + mStep; y += mStep) {
+      ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(cW, y + 0.5); ctx.stroke()
     }
 
     ctx.restore()
@@ -1026,7 +1034,7 @@ export default function RaumplanerEditor({
     if (wallPreviewRef.current) { canvas.remove(wallPreviewRef.current); wallPreviewRef.current = null }
     if (Math.abs(x2 - x1) < 3 && Math.abs(y2 - y1) < 3) return
     canvas.add(new imp.Line([x1, y1, x2, y2], {
-      stroke: '#1e293b', strokeWidth: WALL_THICKNESS, strokeLineCap: 'square',
+      stroke: wandfarbeRef.current, strokeWidth: WALL_THICKNESS, strokeLineCap: 'square',
       selectable: true, data: { type: 'wall' }, name: 'Wand',
     }))
     pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
@@ -1560,7 +1568,7 @@ export default function RaumplanerEditor({
         alignmentLinesRef.current.forEach((l: any) => { try { canvas.remove(l) } catch { /* ignore */ } }) // eslint-disable-line @typescript-eslint/no-explicit-any
         alignmentLinesRef.current = []
         canvas.getObjects().forEach((o: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-          if (o.data?.type === 'wall') o.set('stroke', '#1e293b')
+          if (o.data?.type === 'wall') o.set('stroke', wandfarbeRef.current)
         })
         pushHistory(); triggerAutoSave()
         triggerDimUpdateRef.current(); triggerKollUpdateRef.current()
@@ -1612,8 +1620,8 @@ export default function RaumplanerEditor({
             }
           }
 
-          // Alle Wände zurücksetzen, dann beste highlighten
-          walls.forEach((w: any) => w.set('stroke', '#1e293b')) // eslint-disable-line @typescript-eslint/no-explicit-any
+          // Alle Wände zurücksetzen (auf aktuelle Wandfarbe), dann beste highlighten
+          walls.forEach((w: any) => w.set('stroke', wandfarbeRef.current)) // eslint-disable-line @typescript-eslint/no-explicit-any
           if (best) {
             // Einrasten: Objekt auf Wand-Mittellinie positionieren + ausrichten
             const hw = obj.getScaledWidth() / 2
@@ -2090,39 +2098,57 @@ export default function RaumplanerEditor({
 
   // ── Boden-Textur ─────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function applyFloorTexture(textur: string, canvas?: any, bM?: number | null, lM?: number | null) {
+  function applyFloorTexture(textur: string, canvas?: any, bM?: number | null, lM?: number | null) { // eslint-disable-line @typescript-eslint/no-explicit-any
     const c = canvas ?? fabricRef.current
     const imp = fabricImports.current
     if (!c || !imp) return
 
-    const bW = (bM ?? breiteM) ?? (parseFloat(raumBreite) || 4)
-    const lL = (lM ?? laengeM) ?? (parseFloat(raumLaenge) || 5)
-
-    // Alte Floor-Objekte entfernen
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    c.getObjects().filter((o: any) => o.data?.type === 'floor').forEach((o: any) => c.remove(o))
-
     if (textur === 'none') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      c.getObjects().filter((o: any) => o.data?.type === 'floor').forEach((o: any) => c.remove(o))
       c.requestRenderAll()
       return
     }
 
     const patternCanvas = createPatternCanvas(textur)
     if (!patternCanvas) return
+    const pattern = new imp.Pattern({ source: patternCanvas, repeat: 'repeat' })
+
+    // Existing floor rect? → just update fill (preserves position/size set by user)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing = c.getObjects().find((o: any) => o.data?.type === 'floor')
+    if (existing) {
+      existing.set('fill', pattern)
+      c.requestRenderAll()
+      return
+    }
+
+    // No existing rect → determine bounding box from walls or room dimensions
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const walls: any[] = c.getObjects().filter((o: any) => o.data?.type === 'wall')
+    const bW = (bM ?? breiteM) ?? (parseFloat(raumBreite) || 4)
+    const lL = (lM ?? laengeM) ?? (parseFloat(raumLaenge) || 5)
+
+    let left = 0, top = 0, width = bW * SCALE, height = lL * SCALE
+    if (walls.length > 0) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      walls.forEach((w: any) => {
+        const bb = w.getBoundingRect()
+        minX = Math.min(minX, bb.left);  maxX = Math.max(maxX, bb.left + bb.width)
+        minY = Math.min(minY, bb.top);   maxY = Math.max(maxY, bb.top  + bb.height)
+      })
+      left = minX; top = minY; width = maxX - minX; height = maxY - minY
+    }
 
     const floorRect = new imp.Rect({
-      left: 0, top: 0,
-      width: bW * SCALE, height: lL * SCALE,
-      selectable: false, evented: false, hoverCursor: 'default',
-      data: { type: 'floor' },
+      left, top, width, height,
+      selectable: true, evented: true, hasControls: true,
+      data: { type: 'floor' }, name: 'Bodenfläche',
+      fill: pattern,
     })
 
-    // Pattern zuweisen
-    const pattern = new imp.Pattern({ source: patternCanvas, repeat: 'repeat' })
-    floorRect.set('fill', pattern)
-
     c.add(floorRect)
-    // Hinter outline, aber sichtbar
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const outlineObj = c.getObjects().find((o: any) => o.data?.type === 'outline')
     if (outlineObj) c.sendObjectTo(floorRect, c.getObjects().indexOf(outlineObj) + 1)
@@ -2468,21 +2494,26 @@ export default function RaumplanerEditor({
   }
 
   function toggleLayerVisibility(layerId: string) {
-    const cur = layerStates[layerId]; if (!cur) return
-    const newVisible = !cur.visible
-    applyLayerToCanvas(layerId, newVisible, cur.locked)
-    const next = { ...layerStates, [layerId]: { ...cur, visible: newVisible } }
-    setLayerStates(next)
-    try { localStorage.setItem(`raumplaner-layers-${raumId}`, JSON.stringify(next)) } catch { /* ignore */ }
+    // Use functional update to always read latest state (avoids stale closure)
+    setLayerStates(prev => {
+      const cur = prev[layerId]; if (!cur) return prev
+      const newVisible = !cur.visible
+      applyLayerToCanvas(layerId, newVisible, cur.locked)
+      const next = { ...prev, [layerId]: { ...cur, visible: newVisible } }
+      try { localStorage.setItem(`raumplaner-layers-${raumId}`, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
   }
 
   function toggleLayerLock(layerId: string) {
-    const cur = layerStates[layerId]; if (!cur) return
-    const newLocked = !cur.locked
-    applyLayerToCanvas(layerId, cur.visible, newLocked)
-    const next = { ...layerStates, [layerId]: { ...cur, locked: newLocked } }
-    setLayerStates(next)
-    try { localStorage.setItem(`raumplaner-layers-${raumId}`, JSON.stringify(next)) } catch { /* ignore */ }
+    setLayerStates(prev => {
+      const cur = prev[layerId]; if (!cur) return prev
+      const newLocked = !cur.locked
+      applyLayerToCanvas(layerId, cur.visible, newLocked)
+      const next = { ...prev, [layerId]: { ...cur, locked: newLocked } }
+      try { localStorage.setItem(`raumplaner-layers-${raumId}`, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
   }
 
   function showAllLayers() {
