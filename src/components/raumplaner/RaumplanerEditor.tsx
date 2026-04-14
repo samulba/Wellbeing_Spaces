@@ -828,7 +828,7 @@ export default function RaumplanerEditor({
   }, [showGrid])
   useEffect(() => {
     gridSizeRef.current = gridSize
-    createGridLinesRef.current()
+    // Visuelles Grid bleibt bei 1m – nur Snap-Raster ändert sich
   }, [gridSize])
   useEffect(() => { doorWidthRef.current = doorWidth }, [doorWidth])
   useEffect(() => { shapeSubtypeRef.current = shapeSubtype }, [shapeSubtype])
@@ -959,7 +959,8 @@ export default function RaumplanerEditor({
     canvas.clear()
     await canvas.loadFromJSON(JSON.parse(json))
     if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
-    createGridLinesRef.current()
+    // Grid neu erstellen (loadFromJSON hat alle Objekte ersetzt, inkl. gridLines)
+    gridCreatedRef.current = false; createGridLinesRef.current()
     canvas.requestRenderAll(); updateObjCount()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [breiteM, laengeM, updateObjCount])
@@ -1030,28 +1031,30 @@ export default function RaumplanerEditor({
     }
   })
 
-  // Fabric.js Line-Objekte als Grid (keine CSS-Hacks)
+  // Fabric.js Line-Objekte als Grid – nur einmal erstellen (Major-Lines 100px = 1m)
+  const gridCreatedRef = useRef(false)
   useEffect(() => {
     createGridLinesRef.current = () => {
       const canvas = fabricRef.current, imp = fabricImports.current
       if (!canvas || !imp) return
-      const gSize = gridSizeRef.current
-      const RANGE = 3000
-      const MINOR_STROKE = 'rgba(200,215,200,0.55)'
-      const MAJOR_STROKE = 'rgba(140,170,140,0.75)'
-      // Alte Grid-Linien entfernen
+      // Nur erstellen wenn noch nicht vorhanden
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      canvas.getObjects().filter((o: any) => o.data?.type === 'gridLine').forEach((o: any) => canvas.remove(o))
-      for (let pos = -RANGE; pos <= RANGE; pos += gSize) {
-        const isMajor = pos % 100 === 0
-        const stroke  = isMajor ? MAJOR_STROKE : MINOR_STROKE
-        const sw      = isMajor ? 1 : 0.5
-        const opts = { stroke, strokeWidth: sw, selectable: false, evented: false, excludeFromExport: true, data: { type: 'gridLine' }, visible: showGridRef.current }
+      if (canvas.getObjects().some((o: any) => o.data?.type === 'gridLine')) {
+        reorderLayersRef.current(); return
+      }
+      const RANGE  = 10000  // 100m × 100m – sieht man nie den Rand
+      const STEP   = 100    // immer 1m = 100px (Major only für Performance)
+      const STROKE = 'rgba(200,200,200,0.4)'
+      const opts   = { stroke: STROKE, strokeWidth: 1, selectable: false, evented: false,
+                       excludeFromExport: true, objectCaching: true, data: { type: 'gridLine' },
+                       visible: showGridRef.current }
+      for (let pos = -RANGE; pos <= RANGE; pos += STEP) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         canvas.add(new imp.Line([-RANGE, pos, RANGE, pos], opts) as any)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         canvas.add(new imp.Line([pos, -RANGE, pos, RANGE], opts) as any)
       }
+      gridCreatedRef.current = true
       reorderLayersRef.current()
     }
   })
@@ -1871,7 +1874,7 @@ export default function RaumplanerEditor({
         } catch { /* ignore */ }
       }
       if (breiteM && laengeM) updateOutline(breiteM, laengeM)
-      // Grid-Linien erstellen
+      // Grid-Linien beim Init erstellen (Canvas ist frisch – gridCreatedRef ist false)
       createGridLinesRef.current()
       // Boden-Textur wiederherstellen
       if (initialBodenTextur && initialBodenTextur !== 'none') {
@@ -1976,19 +1979,22 @@ export default function RaumplanerEditor({
 
   function fitToView() {
     const canvas = fabricRef.current; if (!canvas) return
+    const SKIP_FIT = new Set(['gridLine', 'floor', 'outline', 'preview', 'alignment', 'dimension', 'collision'])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const objs = canvas.getObjects().filter((o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview')
-    const targets = objs.length > 0 ? objs : canvas.getObjects()
+    const objs = canvas.getObjects().filter((o: any) => !SKIP_FIT.has(o.data?.type ?? ''))
+    // Fallback: outline only (leere Leinwand mit Raumumriss)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const targets = objs.length > 0 ? objs : canvas.getObjects().filter((o: any) => o.data?.type === 'outline')
     if (!targets.length) { zoomReset(); return }
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     targets.forEach((o: any) => {
-      const b = o.getBoundingRect()
+      const b = o.getBoundingRect(true)
       minX = Math.min(minX, b.left); minY = Math.min(minY, b.top)
       maxX = Math.max(maxX, b.left + b.width); maxY = Math.max(maxY, b.top + b.height)
     })
-    const pad = 60
-    const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.min(
+    const pad = 80
+    const z = Math.min(2, Math.max(MIN_ZOOM, Math.min(
       (canvas.getWidth() - pad * 2) / (maxX - minX || 1),
       (canvas.getHeight() - pad * 2) / (maxY - minY || 1)
     )))
@@ -2511,7 +2517,7 @@ export default function RaumplanerEditor({
       await canvas.loadFromJSON(parsed)
     } catch { /* ignore */ }
     if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
-    createGridLinesRef.current()
+    gridCreatedRef.current = false; createGridLinesRef.current()
     if (data.bodenTextur && data.bodenTextur !== 'none') applyFloorTexture(data.bodenTextur, canvas, breiteM, laengeM)
     setBodenTextur(data.bodenTextur)
     setWandfarbe(data.wandfarbe)
@@ -2970,7 +2976,7 @@ export default function RaumplanerEditor({
       } catch { /* ignore */ }
     }
     if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
-    createGridLinesRef.current()
+    gridCreatedRef.current = false; createGridLinesRef.current()
     canvas.requestRenderAll(); updateObjCount()
     fitToViewRef.current()
     setAktiveEtageId(etage.id)
@@ -2997,7 +3003,7 @@ export default function RaumplanerEditor({
         if (canvas && imp) {
           canvas.clear()
           if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
-          createGridLinesRef.current()
+          gridCreatedRef.current = false; createGridLinesRef.current()
           canvas.requestRenderAll()
           updateObjCount()
         }
@@ -3514,7 +3520,7 @@ export default function RaumplanerEditor({
         {/* Grid-Größe: 4 Toggle-Buttons */}
         <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: 'rgba(0,0,0,0.2)' }}>
           {([10, 25, 50, 100] as GridSize[]).map(v => (
-            <button key={v} type="button" onClick={() => { setGridSize(v); gridSizeRef.current = v; createGridLinesRef.current() }}
+            <button key={v} type="button" onClick={() => { setGridSize(v); gridSizeRef.current = v }}
               className="px-2 py-1 text-[11px] font-medium rounded-md transition-all"
               style={{
                 background: gridSize === v ? '#445c49' : 'transparent',
