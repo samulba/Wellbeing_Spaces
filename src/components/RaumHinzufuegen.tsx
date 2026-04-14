@@ -83,7 +83,6 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
     }
     const formData = new FormData()
     formData.set('name', newRaumName.trim())
-    formData.set('icon', newRaumTyp?.icon ?? '')
     if (newRaumTyp?.id) formData.set('raumtyp_id', newRaumTyp.id)
 
     startTransition(async () => {

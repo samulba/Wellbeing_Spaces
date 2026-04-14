@@ -25,7 +25,6 @@ export async function raumAnlegen(
     projekt_id: projektId,
     name,
     beschreibung: (formData.get('beschreibung') as string) || null,
-    icon: (formData.get('icon') as string) || null,
     raumtyp_id: raumtypId,
     budget: budget && !isNaN(budget) ? budget : null,
     organisation_id: orgId,
