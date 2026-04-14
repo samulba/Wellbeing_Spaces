@@ -620,8 +620,14 @@ export default function RaumplanerEditor({
       cont.addEventListener('mousedown', onMouseDown)
       cont.addEventListener('mousemove', onMouseMove)
       cont.addEventListener('mouseup', onMouseUp)
-      // Mittlere Taste deselektiert sonst den Canvas
-      cont.addEventListener('contextmenu', (e) => e.preventDefault())
+      // Rechtsklick: Browser-Menü unterdrücken + Wand/Maß-Tool abbrechen
+      function onContextMenu(e: MouseEvent) {
+        e.preventDefault()
+        const t = activeToolRef.current
+        if (t === 'wall')    { stopWallTool();    return }
+        if (t === 'measure') { stopMeasureTool(); return }
+      }
+      cont.addEventListener('contextmenu', onContextMenu)
 
       // Ctrl+Scroll = Browser-Zoom verhindern
       const preventCtrlScroll = (e: WheelEvent) => { if (e.ctrlKey || e.metaKey) e.preventDefault() }
@@ -690,6 +696,7 @@ export default function RaumplanerEditor({
         cont.removeEventListener('mousedown', onMouseDown)
         cont.removeEventListener('mousemove', onMouseMove)
         cont.removeEventListener('mouseup', onMouseUp)
+        cont.removeEventListener('contextmenu', onContextMenu)
         ro.disconnect(); canvas.dispose()
       }
     })

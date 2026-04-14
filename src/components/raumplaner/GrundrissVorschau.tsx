@@ -28,14 +28,14 @@ export default function GrundrissVorschau({
       if (disposed || !canvasRef.current) return
       const { Canvas, Rect } = fabric
 
-      // Höhe proportional zur Raumgröße oder feste Fallback-Höhe
+      // Sichtbare Höhe = proportional zur Raumgröße, aber maximal 280px
       const aspect = (laengeM && breiteM) ? laengeM / breiteM : 0.7
-      const h = Math.round(vorschauBreite * aspect)
+      const visH = Math.min(Math.round(vorschauBreite * aspect), 280)
       el.width  = vorschauBreite
-      el.height = h
+      el.height = visH
 
       const canvas = new Canvas(el, {
-        width: vorschauBreite, height: h,
+        width: vorschauBreite, height: visH,
         selection: false, interactive: false,
         renderOnAddRemove: false,
         backgroundColor: '#ffffff',
@@ -67,28 +67,37 @@ export default function GrundrissVorschau({
         canvas.sendObjectToBack(outline)
       }
 
-      // Zoom so anpassen dass alles passt
+      // Alle Objekte nicht interaktiv setzen
+      canvas.getObjects().forEach((o: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        o.selectable = false; o.evented = false; o.hoverCursor = 'default'
+      })
+
+      // Fit-to-View: Bounding Box aller Objekte berechnen (Weltkoordinaten)
       const allObjs = canvas.getObjects()
       if (allObjs.length > 0) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
         allObjs.forEach((o: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           const b = o.getBoundingRect()
-          minX = Math.min(minX, b.left); minY = Math.min(minY, b.top)
-          maxX = Math.max(maxX, b.left + b.width); maxY = Math.max(maxY, b.top + b.height)
+          minX = Math.min(minX, b.left)
+          minY = Math.min(minY, b.top)
+          maxX = Math.max(maxX, b.left + b.width)
+          maxY = Math.max(maxY, b.top + b.height)
         })
-        const pad = 20
-        const scaleX = (vorschauBreite - pad * 2) / (maxX - minX || 1)
-        const scaleY = (h - pad * 2) / (maxY - minY || 1)
+        const pad = 40
+        const contentW = maxX - minX || 1
+        const contentH = maxY - minY || 1
+        const scaleX = (vorschauBreite - pad * 2) / contentW
+        const scaleY = (visH - pad * 2) / contentH
         const z = Math.min(scaleX, scaleY, 1)
+        // Mittelpunkt des Inhalts zentrieren auf sichtbarer Fläche
         const cx = (minX + maxX) / 2
         const cy = (minY + maxY) / 2
-        canvas.setViewportTransform([z, 0, 0, z, vorschauBreite / 2 - cx * z, h / 2 - cy * z])
+        canvas.setViewportTransform([
+          z, 0, 0, z,
+          vorschauBreite / 2 - cx * z,
+          visH / 2 - cy * z,
+        ])
       }
-
-      // Alle Objekte nicht interaktiv
-      canvas.getObjects().forEach((o: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-        o.selectable = false; o.evented = false; o.hoverCursor = 'default'
-      })
 
       canvas.requestRenderAll()
 
@@ -100,11 +109,11 @@ export default function GrundrissVorschau({
   }, [grundrissJson])
 
   const aspect = (laengeM && breiteM) ? laengeM / breiteM : 0.7
-  const h = Math.round(vorschauBreite * aspect)
+  const visH = Math.min(Math.round(vorschauBreite * aspect), 280)
 
   return (
     <div ref={containerRef} className={`overflow-hidden rounded-xl border border-gray-200 shadow-sm ${className}`}
-      style={{ width: '100%', maxWidth: vorschauBreite, height: Math.min(h, 280), maxHeight: 280, background: '#ffffff' }}>
+      style={{ width: '100%', maxWidth: vorschauBreite, height: visH, background: '#ffffff' }}>
       <canvas ref={canvasRef} style={{ display: 'block' }} />
     </div>
   )
