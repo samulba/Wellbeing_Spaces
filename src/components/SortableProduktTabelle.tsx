@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -19,7 +19,6 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, ChevronDown, Clock, Package, CheckCircle2, Receipt } from 'lucide-react'
-import { useRef, useEffect } from 'react'
 import Link from 'next/link'
 import ConfirmDeleteButton from './ConfirmDeleteButton'
 import {
@@ -56,31 +55,57 @@ const BESTELL_CONFIG: Record<BestellStatus, { label: string; bg: string; text: s
 
 function BestellStatusDropdown({ status, onChange }: { status: BestellStatus; onChange: (s: BestellStatus) => void }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
+    if (!open) return
     function handleOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (buttonRef.current && !buttonRef.current.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', handleOutside)
     return () => document.removeEventListener('mousedown', handleOutside)
-  }, [])
+  }, [open])
+
+  // Schließen beim Scrollen
+  useEffect(() => {
+    if (!open) return
+    const handleScroll = () => setOpen(false)
+    window.addEventListener('scroll', handleScroll, true)
+    return () => window.removeEventListener('scroll', handleScroll, true)
+  }, [open])
+
+  function handleOpen() {
+    if (!buttonRef.current) return setOpen(o => !o)
+    const rect = buttonRef.current.getBoundingClientRect()
+    const DROPDOWN_H = 148 // 4 items × 37px
+    const spaceBelow = window.innerHeight - rect.bottom
+    const top = spaceBelow >= DROPDOWN_H
+      ? rect.bottom + 4
+      : rect.top - DROPDOWN_H - 4
+    setPos({ top, left: rect.right - 130, width: 130 })
+    setOpen(o => !o)
+  }
 
   const current = BESTELL_CONFIG[status] ?? BESTELL_CONFIG.ausstehend
   const { Icon } = current
 
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
-        onClick={() => setOpen(o => !o)}
+        ref={buttonRef}
+        onClick={handleOpen}
         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${current.bg} ${current.text}`}
       >
         <Icon className="w-3 h-3" />
         {current.label}
-        <ChevronDown className="w-3 h-3 opacity-60" />
+        <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && (
-        <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[130px]">
+      {open && pos && (
+        <div
+          style={{ position: 'fixed', top: pos.top, left: pos.left, minWidth: pos.width, zIndex: 9999 }}
+          className="bg-white border border-gray-200 rounded-lg shadow-xl py-1"
+        >
           {(Object.entries(BESTELL_CONFIG) as [BestellStatus, typeof BESTELL_CONFIG[BestellStatus]][]).map(([key, cfg]) => {
             const ItemIcon = cfg.Icon
             return (
@@ -96,7 +121,7 @@ function BestellStatusDropdown({ status, onChange }: { status: BestellStatus; on
           })}
         </div>
       )}
-    </div>
+    </>
   )
 }
 
