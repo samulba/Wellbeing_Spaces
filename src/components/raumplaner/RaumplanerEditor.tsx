@@ -10,6 +10,7 @@ import {
   AlertCircle, Trash2, FileDown, PanelLeft,
   Copy, ArrowUpToLine, ArrowDownToLine, ArrowUp, ArrowDown,
   Magnet, Lock, LockOpen, Star, Share2, Image as ImageIcon, Check, Link2,
+  LayoutTemplate, Upload, TriangleAlert,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import { grundrissSpeichern, raumMasseAktualisieren, getCustomMoebel, customMoebelErstellen, getRaumFreigabeInfo, raumFreigabeAktualisieren, raumTexturenSpeichern } from '@/app/actions/raumplaner'
@@ -326,6 +327,73 @@ function getObjBounds(obj: any) {
   }
 }
 
+// ── Raum-Templates ────────────────────────────────────────────
+interface RaumTemplateObj { name: string; x: number; y: number; breite: number; tiefe: number; farbe: string }
+interface RaumTemplate { name: string; emoji: string; beschreibung: string; objekte: RaumTemplateObj[] }
+
+const RAUM_TEMPLATES: RaumTemplate[] = [
+  {
+    name: 'Wohnzimmer', emoji: '🛋️', beschreibung: 'Sofa, Couchtisch, TV-Board, Sessel',
+    objekte: [
+      { name: 'Sofa 3-Sitzer', x: 60,  y: 200, breite: 200, tiefe:  90, farbe: '#b8cfc7' },
+      { name: 'Sessel',        x: 290, y: 200, breite:  80, tiefe:  80, farbe: '#b8cfc7' },
+      { name: 'Couchtisch',    x: 100, y: 310, breite: 120, tiefe:  60, farbe: '#d4b896' },
+      { name: 'TV-Board',      x: 60,  y: 40,  breite: 160, tiefe:  45, farbe: '#8b7355' },
+    ],
+  },
+  {
+    name: 'Schlafzimmer', emoji: '🛏️', beschreibung: 'Doppelbett, Nachttische, Kleiderschrank',
+    objekte: [
+      { name: 'Doppelbett',      x: 100, y: 100, breite: 200, tiefe: 180, farbe: '#c8d8e8' },
+      { name: 'Nachttisch',      x: 38,  y: 115, breite:  45, tiefe:  40, farbe: '#d4b896' },
+      { name: 'Nachttisch',      x: 317, y: 115, breite:  45, tiefe:  40, farbe: '#d4b896' },
+      { name: 'Kleiderschrank',  x: 80,  y: 330, breite: 200, tiefe:  60, farbe: '#c8c8c8' },
+    ],
+  },
+  {
+    name: 'Büro', emoji: '💼', beschreibung: 'L-Schreibtisch, Bürostuhl, Aktenschrank',
+    objekte: [
+      { name: 'Schreibtisch L-Form', x: 40, y: 40,  breite: 180, tiefe: 150, farbe: '#d4b896' },
+      { name: 'Bürostuhl',           x: 110, y: 210, breite: 45,  tiefe:  45, farbe: '#b8cfc7' },
+      { name: 'Aktenschrank',        x: 280, y: 40,  breite: 80,  tiefe:  45, farbe: '#c8c8c8' },
+      { name: 'Regal',               x: 370, y: 40,  breite: 120, tiefe:  35, farbe: '#d4b896' },
+    ],
+  },
+  {
+    name: 'Küche', emoji: '🍳', beschreibung: 'Küchenzeile, Herd, Kühlschrank, Esstisch',
+    objekte: [
+      { name: 'Küchenzeile 3m', x: 30,  y: 30,  breite: 300, tiefe:  60, farbe: '#e0e0e0' },
+      { name: 'Herd',           x: 330, y: 30,  breite:  60, tiefe:  60, farbe: '#e0e0e0' },
+      { name: 'Kühlschrank',    x: 390, y: 30,  breite:  70, tiefe:  70, farbe: '#e0e0e0' },
+      { name: 'Esstisch 4P',    x: 100, y: 180, breite: 120, tiefe:  80, farbe: '#d4b896' },
+      { name: 'Esszimmerstuhl', x: 105, y: 120, breite:  45, tiefe:  45, farbe: '#b8cfc7' },
+      { name: 'Esszimmerstuhl', x: 175, y: 120, breite:  45, tiefe:  45, farbe: '#b8cfc7' },
+    ],
+  },
+  {
+    name: 'Badezimmer', emoji: '🛁', beschreibung: 'Badewanne, Dusche, WC, Waschbecken',
+    objekte: [
+      { name: 'Badewanne freistehend', x: 30,  y: 30,  breite: 180, tiefe:  80, farbe: '#aed4e8' },
+      { name: 'Dusche 90x90',          x: 240, y: 30,  breite:  90, tiefe:  90, farbe: '#aed4e8' },
+      { name: 'WC wandhängend',        x: 30,  y: 210, breite:  40, tiefe:  55, farbe: '#aed4e8' },
+      { name: 'Waschbecken',           x: 100, y: 215, breite:  60, tiefe:  45, farbe: '#aed4e8' },
+    ],
+  },
+  {
+    name: 'Esszimmer', emoji: '🍽️', beschreibung: 'Esstisch 6P mit Stühlen und Vitrine',
+    objekte: [
+      { name: 'Esstisch 6P',    x: 80,  y: 130, breite: 180, tiefe:  90, farbe: '#d4b896' },
+      { name: 'Esszimmerstuhl', x: 90,  y: 65,  breite:  45, tiefe:  45, farbe: '#b8cfc7' },
+      { name: 'Esszimmerstuhl', x: 160, y: 65,  breite:  45, tiefe:  45, farbe: '#b8cfc7' },
+      { name: 'Esszimmerstuhl', x: 230, y: 65,  breite:  45, tiefe:  45, farbe: '#b8cfc7' },
+      { name: 'Esszimmerstuhl', x: 90,  y: 245, breite:  45, tiefe:  45, farbe: '#b8cfc7' },
+      { name: 'Esszimmerstuhl', x: 160, y: 245, breite:  45, tiefe:  45, farbe: '#b8cfc7' },
+      { name: 'Esszimmerstuhl', x: 230, y: 245, breite:  45, tiefe:  45, farbe: '#b8cfc7' },
+      { name: 'Vitrine',        x: 380, y: 130, breite: 100, tiefe:  45, farbe: '#d4b896' },
+    ],
+  },
+]
+
 // ── Haupt-Editor ──────────────────────────────────────────────
 
 export default function RaumplanerEditor({
@@ -391,6 +459,19 @@ export default function RaumplanerEditor({
   const [wandfarbe,         setWandfarbe]          = useState(initialWandfarbe)
   const bodenTexturRef = useRef(initialBodenTextur)
 
+  // Maßketten + Kollision + Modals
+  const [showDimensions,    setShowDimensions]    = useState(false)
+  const [showKollision,     setShowKollision]      = useState(false)
+  const [kollisionAnzahl,   setKollisionAnzahl]   = useState(0)
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false)
+  const [showImportModal,   setShowImportModal]   = useState(false)
+  const showDimensionsRef   = useRef(false)
+  const showKollisionRef    = useRef(false)
+  const dimTimerRef         = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const kollTimerRef        = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const triggerDimUpdateRef = useRef(() => {})
+  const triggerKollUpdateRef = useRef(() => {})
+
   const [raumBreite, setRaumBreite] = useState(breiteM?.toString() ?? '')
   const [raumLaenge, setRaumLaenge] = useState(laengeM?.toString() ?? '')
   const [raumHoehe,  setRaumHoehe]  = useState(hoeheM?.toString() ?? '2.50')
@@ -433,6 +514,8 @@ export default function RaumplanerEditor({
   useEffect(() => { doorWidthRef.current = doorWidth }, [doorWidth])
   useEffect(() => { windowWidthRef.current = windowWidth }, [windowWidth])
   useEffect(() => { snapToGridRef.current = snapToGrid }, [snapToGrid])
+  useEffect(() => { triggerDimUpdateRef.current() }, [showDimensions])
+  useEffect(() => { triggerKollUpdateRef.current() }, [showKollision])
 
   // Fullscreen-Änderung beobachten
   useEffect(() => {
@@ -505,18 +588,20 @@ export default function RaumplanerEditor({
   const getCanvasJson = useCallback(() => {
     const canvas = fabricRef.current; if (!canvas) return '{}'
     const full = canvas.toJSON(['data', 'name'])
+    const SKIP = new Set(['outline','preview','alignment','floor','dimension','collision'])
     full.objects = (full.objects ?? []).filter(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview' && o.data?.type !== 'alignment' && o.data?.type !== 'floor'
+      (o: any) => !SKIP.has(o.data?.type)
     )
     return JSON.stringify(full)
   }, [])
 
   const updateObjCount = useCallback(() => {
     const canvas = fabricRef.current; if (!canvas) return
+    const SKIP_COUNT = new Set(['outline','preview','floor','dimension','collision'])
     setObjCount(canvas.getObjects().filter(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview' && o.data?.type !== 'floor'
+      (o: any) => !SKIP_COUNT.has(o.data?.type)
     ).length)
   }, [])
 
@@ -889,7 +974,10 @@ export default function RaumplanerEditor({
           if (o.data?.type === 'wall') o.set('stroke', '#1e293b')
         })
         pushHistory(); triggerAutoSave()
+        triggerDimUpdateRef.current(); triggerKollUpdateRef.current()
       })
+      canvas.on('object:added', () => { triggerDimUpdateRef.current(); triggerKollUpdateRef.current() })
+      canvas.on('object:removed', () => { triggerDimUpdateRef.current(); triggerKollUpdateRef.current() })
 
       // ── SNAP-TO-WALL + ALIGNMENT-HILFSLINIEN ──────────────
       canvas.on('object:moving', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -1072,9 +1160,10 @@ export default function RaumplanerEditor({
         try {
           const parsed = JSON.parse(initialCanvasJson)
           if (parsed.objects) {
+            const SKIP_LOAD = new Set(['outline','preview','floor','dimension','collision'])
             parsed.objects = parsed.objects.filter(
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview' && o.data?.type !== 'floor'
+              (o: any) => !SKIP_LOAD.has(o.data?.type)
             )
           }
           await canvas.loadFromJSON(parsed)
@@ -1443,6 +1532,190 @@ export default function RaumplanerEditor({
     await raumTexturenSpeichern(raumId, bodenTextur, color, projektId)
   }
 
+  // ── Maßketten ─────────────────────────────────────────────
+  function generateDimensions() {
+    const canvas = fabricRef.current, imp = fabricImports.current
+    if (!canvas || !imp) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.getObjects().filter((o: any) => o.data?.type === 'dimension').forEach((o: any) => canvas.remove(o))
+    if (!showDimensionsRef.current) { canvas.requestRenderAll(); return }
+
+    const color = '#64748b'
+    const GAP = 38, TICK = 6, FS = 10
+
+    // Outline-Dimensionen (Breite & Länge des Raums)
+    const bW = (breiteM ?? 0) * SCALE
+    const lL = (laengeM ?? 0) * SCALE
+    if (bW > 0 && lL > 0) {
+      addDimLine(canvas, imp, 0, -GAP, bW, -GAP, `${breiteM?.toFixed(2)} m`, false, color, TICK, FS)
+      addDimLine(canvas, imp, -GAP, 0, -GAP, lL, `${laengeM?.toFixed(2)} m`, true, color, TICK, FS)
+    }
+
+    // Wand-Segment-Längen
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.getObjects().filter((o: any) => o.data?.type === 'wall').forEach((wall: any) => {
+      const pts = getWallWorldPoints(wall)
+      const dx = pts.p2.x - pts.p1.x, dy = pts.p2.y - pts.p1.y
+      const len = Math.sqrt(dx * dx + dy * dy) / SCALE  // meters
+      if (len < 0.05) return
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI
+      const cx = (pts.p1.x + pts.p2.x) / 2
+      const cy = (pts.p1.y + pts.p2.y) / 2
+      const lbl = new imp.Text(`${len.toFixed(2)} m`, {
+        left: cx, top: cy - 12, angle,
+        fontSize: 8, fill: color, fontFamily: 'monospace',
+        originX: 'center', originY: 'center',
+        selectable: false, evented: false, hoverCursor: 'default',
+        data: { type: 'dimension' },
+      })
+      canvas.add(lbl)
+    })
+
+    canvas.requestRenderAll()
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function addDimLine(canvas: any, imp: any, x1: number, y1: number, x2: number, y2: number, label: string, isVert: boolean, color: string, TICK: number, FS: number) {
+    const mk = (obj: object) => Object.assign(obj, { data: { type: 'dimension' } })
+    const objs = [
+      mk(new imp.Line([x1, y1, x2, y2], { stroke: color, strokeWidth: 0.8, selectable: false, evented: false, strokeDashArray: [5, 3] })),
+    ]
+    if (isVert) {
+      objs.push(mk(new imp.Line([x1 - TICK, y1, x1 + TICK, y1], { stroke: color, strokeWidth: 1.5, selectable: false, evented: false })))
+      objs.push(mk(new imp.Line([x2 - TICK, y2, x2 + TICK, y2], { stroke: color, strokeWidth: 1.5, selectable: false, evented: false })))
+      objs.push(mk(new imp.Text(label, {
+        left: x1 - 20, top: (y1 + y2) / 2, angle: -90,
+        fontSize: FS, fill: color, fontFamily: 'monospace',
+        originX: 'center', originY: 'center', selectable: false, evented: false,
+      })))
+    } else {
+      objs.push(mk(new imp.Line([x1, y1 - TICK, x1, y1 + TICK], { stroke: color, strokeWidth: 1.5, selectable: false, evented: false })))
+      objs.push(mk(new imp.Line([x2, y2 - TICK, x2, y2 + TICK], { stroke: color, strokeWidth: 1.5, selectable: false, evented: false })))
+      objs.push(mk(new imp.Text(label, {
+        left: (x1 + x2) / 2, top: y1 - 18,
+        fontSize: FS, fill: color, fontFamily: 'monospace',
+        originX: 'center', originY: 'center', selectable: false, evented: false,
+      })))
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    objs.forEach((o: any) => canvas.add(o))
+  }
+
+  function triggerDimUpdate() {
+    if (dimTimerRef.current) clearTimeout(dimTimerRef.current)
+    dimTimerRef.current = setTimeout(generateDimensions, 400)
+  }
+  triggerDimUpdateRef.current = triggerDimUpdate
+
+  // ── Kollisionserkennung ─────────────────────────────────────
+  function checkKollisionen() {
+    const canvas = fabricRef.current, imp = fabricImports.current
+    if (!canvas || !imp) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.getObjects().filter((o: any) => o.data?.type === 'collision').forEach((o: any) => canvas.remove(o))
+    if (!showKollisionRef.current) { setKollisionAnzahl(0); canvas.requestRenderAll(); return }
+
+    const SKIP = new Set(['outline','preview','alignment','floor','dimension','collision','wall','door','window','measure'])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const objs = canvas.getObjects().filter((o: any) => o.data?.type && !SKIP.has(o.data.type))
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const overlapping = new Set<any>()
+    for (let i = 0; i < objs.length; i++) {
+      for (let j = i + 1; j < objs.length; j++) {
+        const a = objs[i], b = objs[j]
+        const ba = a.getBoundingRect(true), bb = b.getBoundingRect(true)
+        const hit = !(ba.left + ba.width < bb.left || bb.left + bb.width < ba.left ||
+                      ba.top + ba.height < bb.top  || bb.top  + bb.height < ba.top)
+        if (hit) { overlapping.add(a); overlapping.add(b) }
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    overlapping.forEach((obj: any) => {
+      const b = obj.getBoundingRect(true)
+      canvas.add(new imp.Rect({
+        left: b.left, top: b.top, width: b.width, height: b.height,
+        fill: 'rgba(239,68,68,0.15)', stroke: '#ef4444', strokeWidth: 1.5,
+        selectable: false, evented: false, strokeDashArray: [4, 3],
+        data: { type: 'collision' },
+      }))
+    })
+
+    setKollisionAnzahl(overlapping.size)
+    canvas.requestRenderAll()
+  }
+
+  function triggerKollUpdate() {
+    if (kollTimerRef.current) clearTimeout(kollTimerRef.current)
+    kollTimerRef.current = setTimeout(checkKollisionen, 300)
+  }
+  triggerKollUpdateRef.current = triggerKollUpdate
+
+  // Sync refs
+  showDimensionsRef.current  = showDimensions
+  showKollisionRef.current   = showKollision
+
+  // ── Templates laden ─────────────────────────────────────────
+  function ladeTemplate(template: RaumTemplate) {
+    const canvas = fabricRef.current, imp = fabricImports.current
+    if (!canvas || !imp) return
+    const { Rect, Text, Group } = imp
+    template.objekte.forEach(obj => {
+      const w = obj.breite * SCALE / 100
+      const h = obj.tiefe  * SCALE / 100
+      const bg  = new Rect({ width: w, height: h, fill: obj.farbe, stroke: '#1e293b', strokeWidth: 1.5, rx: 3, ry: 3, originX: 'left', originY: 'top' })
+      const lbl = new Text(obj.name, {
+        fontSize: Math.max(7, Math.min(11, w / Math.max(obj.name.length, 4) * 1.4)),
+        fill: '#1e293b', textAlign: 'center',
+        originX: 'center', originY: 'center', left: w / 2, top: h / 2,
+        fontFamily: 'system-ui, sans-serif',
+      })
+      canvas.add(new Group([bg, lbl], {
+        left: obj.x * SCALE / 100, top: obj.y * SCALE / 100,
+        data: { type: 'moebel', name: obj.name }, name: obj.name,
+      }))
+    })
+    pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
+    setShowTemplatesModal(false)
+  }
+
+  // ── Datei-Import ────────────────────────────────────────────
+  function importDatei(file: File) {
+    const canvas = fabricRef.current, imp = fabricImports.current
+    if (!canvas || !imp) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string
+      const imgEl = document.createElement('img')
+      imgEl.onload = () => {
+        const Z = canvas.getZoom()
+        const scale = Math.min(
+          (canvas.getWidth() / Z * 0.7) / imgEl.naturalWidth,
+          (canvas.getHeight() / Z * 0.7) / imgEl.naturalHeight,
+          1,
+        )
+        const vpt = canvas.viewportTransform ?? [1,0,0,1,0,0]
+        const cx = (canvas.getWidth() / 2 - vpt[4]) / Z
+        const cy = (canvas.getHeight() / 2 - vpt[5]) / Z
+        const fabricImg = new imp.Image(imgEl, {
+          left: cx, top: cy, scaleX: scale, scaleY: scale,
+          originX: 'center', originY: 'center', opacity: 0.5,
+          data: { type: 'import_bild', name: file.name }, name: file.name,
+        })
+        canvas.add(fabricImg)
+        // Hinter echte Objekte aber über Floor schieben
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const floorIdx = canvas.getObjects().findIndex((o: any) => o.data?.type === 'floor')
+        if (floorIdx >= 0) canvas.sendObjectTo(fabricImg, floorIdx + 1)
+        pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
+      }
+      imgEl.src = dataUrl
+    }
+    reader.readAsDataURL(file)
+    setShowImportModal(false)
+  }
+
   // ── Bild-Export ─────────────────────────────────────────────
   function exportAsImage() {
     const canvas = fabricRef.current; if (!canvas) return
@@ -1768,6 +2041,45 @@ export default function RaumplanerEditor({
           ))}
           <span className="text-[10px] px-1" style={{ color: `${C.textLt}80` }}>cm</span>
         </div>
+
+        <div className={tbSep} style={{ background: C.border }} />
+
+        {/* Maßketten */}
+        <button type="button" title="Maßketten ein/aus" onClick={() => setShowDimensions(v => !v)}
+          className={tbBtn}
+          style={{ color: showDimensions ? '#fff' : C.textLt, background: showDimensions ? 'rgba(68,92,73,0.5)' : 'transparent' }}
+          onMouseEnter={e => { if (!showDimensions) e.currentTarget.style.background = C.hover }}
+          onMouseLeave={e => { if (!showDimensions) e.currentTarget.style.background = 'transparent' }}>
+          <Ruler className="w-4 h-4" />
+        </button>
+
+        {/* Kollisionserkennung */}
+        <button type="button" title="Kollisionserkennung ein/aus" onClick={() => setShowKollision(v => !v)}
+          className={tbBtn}
+          style={{
+            color: showKollision ? (kollisionAnzahl > 0 ? '#f87171' : '#fff') : C.textLt,
+            background: showKollision ? (kollisionAnzahl > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(68,92,73,0.5)') : 'transparent',
+          }}
+          onMouseEnter={e => { if (!showKollision) e.currentTarget.style.background = C.hover }}
+          onMouseLeave={e => { if (!showKollision) e.currentTarget.style.background = 'transparent' }}>
+          <TriangleAlert className="w-4 h-4" />
+        </button>
+
+        {/* Templates */}
+        <button type="button" title="Raum-Templates" onClick={() => setShowTemplatesModal(true)}
+          className={tbBtn} style={{ color: C.textLt }}
+          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          <LayoutTemplate className="w-4 h-4" />
+        </button>
+
+        {/* Bild importieren */}
+        <button type="button" title="Bild importieren" onClick={() => setShowImportModal(true)}
+          className={tbBtn} style={{ color: C.textLt }}
+          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          <Upload className="w-4 h-4" />
+        </button>
 
         <div className="flex-1" />
 
@@ -2124,6 +2436,34 @@ export default function RaumplanerEditor({
                     ))}
                   </div>
                 </div>
+                {/* Raum-Info */}
+                {(parseFloat(raumBreite) > 0 || (breiteM ?? 0) > 0) && (parseFloat(raumLaenge) > 0 || (laengeM ?? 0) > 0) && (() => {
+                  const b = parseFloat(raumBreite) || breiteM || 0
+                  const l = parseFloat(raumLaenge) || laengeM || 0
+                  const h = parseFloat(raumHoehe) || hoeheM || 0
+                  const flaeche = b * l
+                  const umfang = 2 * (b + l)
+                  const volumen = h > 0 ? flaeche * h : null
+                  return (
+                    <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                      <p className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: `${C.textLt}60` }}>Raum-Info</p>
+                      <div className="space-y-1.5">
+                        {[
+                          { label: 'Fläche',   value: `${flaeche.toFixed(2)} m²` },
+                          { label: 'Umfang',   value: `${umfang.toFixed(2)} m` },
+                          ...(volumen !== null ? [{ label: 'Volumen', value: `${volumen.toFixed(2)} m³` }] : []),
+                          { label: 'Möbel',    value: `${objCount}` },
+                        ].map(({ label, value }) => (
+                          <div key={label} className="flex items-center justify-between">
+                            <span className="text-[10px]" style={{ color: `${C.textLt}70` }}>{label}</span>
+                            <span className="text-[10px] font-medium font-mono" style={{ color: C.textMd }}>{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
                   <p className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: `${C.textLt}60` }}>Standard-Maße</p>
                   <div className="space-y-2">
@@ -2453,6 +2793,67 @@ export default function RaumplanerEditor({
         </div>
       )}
 
+      {/* ── Templates Modal ── */}
+      {showTemplatesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowTemplatesModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-[560px] max-w-[95vw] max-h-[80vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Raum-Templates</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Voreingerichtete Layouts als Ausgangspunkt laden</p>
+              </div>
+              <button type="button" onClick={() => setShowTemplatesModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {RAUM_TEMPLATES.map(tpl => (
+                <button key={tpl.name} type="button" onClick={() => ladeTemplate(tpl)}
+                  className="text-left p-4 rounded-xl border border-gray-200 hover:border-[#445c49] hover:bg-[#f6faf7] transition-all group">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl leading-none mt-0.5">{tpl.emoji}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 group-hover:text-[#445c49] transition-colors">{tpl.name}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{tpl.beschreibung}</p>
+                      <p className="text-[10px] text-gray-300 mt-1">{tpl.objekte.length} Objekte</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Import Modal ── */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowImportModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-80 max-w-full"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Bild importieren</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Als Referenz-Hintergrund einfügen (50% transparent)</p>
+              </div>
+              <button type="button" onClick={() => setShowImportModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+            <label className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-[#445c49] hover:bg-[#f6faf7] transition-all cursor-pointer">
+              <Upload className="w-8 h-8 text-gray-300" />
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-700">Bild auswählen</p>
+                <p className="text-xs text-gray-400 mt-0.5">PNG, JPG, SVG – als transparente Referenzebene</p>
+              </div>
+              <input type="file" accept="image/*,.svg" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) importDatei(f) }} />
+            </label>
+            <p className="text-[10px] text-gray-400 mt-3 text-center">
+              Das Bild wird mit 50% Transparenz eingefügt und kann danach wie jedes andere Objekt verschoben werden.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Status-Bar ── */}
       <div className="flex items-center justify-between px-4 py-1.5 shrink-0 h-8"
         style={{ background: C.toolbar, borderTop: `1px solid ${C.border}` }}>
@@ -2464,6 +2865,11 @@ export default function RaumplanerEditor({
           {snapToGrid && (
             <span className="flex items-center gap-1" style={{ color: '#94c1a4' }}>
               <Magnet className="w-3 h-3" />Snap
+            </span>
+          )}
+          {showKollision && kollisionAnzahl > 0 && (
+            <span className="flex items-center gap-1" style={{ color: '#f87171' }}>
+              <TriangleAlert className="w-3 h-3" />{kollisionAnzahl} Überschn.
             </span>
           )}
           <span style={{
