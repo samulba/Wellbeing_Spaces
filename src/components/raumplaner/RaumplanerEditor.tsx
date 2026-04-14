@@ -14,6 +14,10 @@ import {
   LayoutTemplate, Upload, TriangleAlert,
   Package, Tag, ExternalLink, Link2Off, FileText, StickyNote,
   GitBranch, ArrowLeftRight, Download,
+  AlignLeft, AlignCenterHorizontal, AlignRight,
+  AlignStartVertical, AlignCenterVertical, AlignEndVertical,
+  AlignHorizontalSpaceBetween, AlignVerticalSpaceBetween,
+  Group, Ungroup, List,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -268,6 +272,8 @@ function ShortcutOverlay({ onClose }: { onClose: () => void }) {
     { keys: ['Ctrl','Z'],  desc: 'Rückgängig' },
     { keys: ['Ctrl','Y'],  desc: 'Wiederholen' },
     { keys: ['Ctrl','S'],  desc: 'Speichern' },
+    { keys: ['Ctrl','G'],           desc: 'Objekte gruppieren' },
+    { keys: ['Ctrl','Shift','G'],   desc: 'Gruppe auflösen' },
     { keys: ['Del'],       desc: 'Löschen' },
     { keys: ['L'],         desc: 'Sperren / Entsperren' },
     { keys: ['F11'],       desc: 'Vollbild' },
@@ -512,6 +518,10 @@ export default function RaumplanerEditor({
   // ── Angebot ──────────────────────────────────────────────────
   const [angebotCreating,   setAngebotCreating]   = useState(false)
 
+  // ── Multi-Select / Ausrichten / Gruppieren ───────────────────
+  const [isMultiSelect,     setIsMultiSelect]     = useState(false)
+  const [multiSelectCount,  setMultiSelectCount]  = useState(0)
+
   const showDimensionsRef   = useRef(false)
   const showKollisionRef    = useRef(false)
   const dimTimerRef         = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -552,6 +562,8 @@ export default function RaumplanerEditor({
   const snapToGridRef        = useRef(false)
   const fitToViewRef         = useRef<() => void>(() => {})
   const toggleLockRef        = useRef(() => {})
+  const groupSelectedRef     = useRef(() => {})
+  const ungroupSelectedRef   = useRef(() => {})
 
   // ── Ref-Sync ──────────────────────────────────────────────
 
@@ -1019,9 +1031,20 @@ export default function RaumplanerEditor({
         }
       })
 
-      canvas.on('selection:created', (e: any) => { const o = e.selected?.[0]; if (o) setSelectedProps(extractObjProps(o)) }) // eslint-disable-line @typescript-eslint/no-explicit-any
-      canvas.on('selection:updated', (e: any) => { const o = e.selected?.[0]; if (o) setSelectedProps(extractObjProps(o)) }) // eslint-disable-line @typescript-eslint/no-explicit-any
-      canvas.on('selection:cleared', () => setSelectedProps(null))
+      canvas.on('selection:created', (e: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        const selected = e.selected ?? []
+        const multi = selected.length > 1
+        setIsMultiSelect(multi); setMultiSelectCount(selected.length)
+        const o = selected[0]; if (o) setSelectedProps(extractObjProps(o))
+      })
+      canvas.on('selection:updated', () => {
+        const active = canvas.getActiveObject() as any // eslint-disable-line @typescript-eslint/no-explicit-any
+        const objs = active?.type === 'activeSelection' ? active.getObjects() : (active ? [active] : [])
+        const multi = objs.length > 1
+        setIsMultiSelect(multi); setMultiSelectCount(objs.length)
+        const o = objs[0]; if (o) setSelectedProps(extractObjProps(o))
+      })
+      canvas.on('selection:cleared', () => { setSelectedProps(null); setIsMultiSelect(false); setMultiSelectCount(0) })
 
       canvas.on('object:modified', () => {
         // Alignment-Linien + Wand-Highlights aufräumen
@@ -1276,6 +1299,8 @@ export default function RaumplanerEditor({
         if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z' && !ev.shiftKey) { ev.preventDefault(); undo() }
         if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'y' || (ev.key === 'z' && ev.shiftKey))) { ev.preventDefault(); redo() }
         if ((ev.ctrlKey || ev.metaKey) && ev.key === 's') { ev.preventDefault(); saveNow() }
+        if ((ev.ctrlKey || ev.metaKey) && ev.key === 'g' && !ev.shiftKey) { ev.preventDefault(); groupSelectedRef.current() }
+        if ((ev.ctrlKey || ev.metaKey) && ev.key === 'g' && ev.shiftKey)  { ev.preventDefault(); ungroupSelectedRef.current() }
       }
       function handleKeyUp(ev: KeyboardEvent) {
         if (ev.code === 'Space') {
@@ -1966,6 +1991,198 @@ export default function RaumplanerEditor({
     setShowImportModal(false)
   }
 
+  // ── Ausrichten ───────────────────────────────────────────────
+
+  function alignSelected(direction: 'left' | 'centerH' | 'right' | 'top' | 'centerV' | 'bottom') {
+    const canvas = fabricRef.current, imp = fabricImports.current; if (!canvas || !imp) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const active = canvas.getActiveObject() as any
+    if (!active) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const objs: any[] = active.type === 'activeSelection' ? active.getObjects() : [active]
+    if (objs.length < 2) return
+
+    canvas.discardActiveObject()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rects = objs.map((o: any) => ({ obj: o, ...o.getBoundingRect(true) }))
+
+    const minLeft   = Math.min(...rects.map(r => r.left))
+    const maxRight  = Math.max(...rects.map(r => r.left + r.width))
+    const minTop    = Math.min(...rects.map(r => r.top))
+    const maxBottom = Math.max(...rects.map(r => r.top + r.height))
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rects.forEach(({ obj, left, top, width, height }: any) => {
+      switch (direction) {
+        case 'left':    obj.set('left', obj.left + (minLeft - left)); break
+        case 'right':   obj.set('left', obj.left + (maxRight - (left + width))); break
+        case 'centerH': obj.set('left', obj.left + ((minLeft + maxRight) / 2 - (left + width / 2))); break
+        case 'top':     obj.set('top',  obj.top  + (minTop  - top)); break
+        case 'bottom':  obj.set('top',  obj.top  + (maxBottom - (top + height))); break
+        case 'centerV': obj.set('top',  obj.top  + ((minTop + maxBottom) / 2 - (top + height / 2))); break
+      }
+      obj.setCoords()
+    })
+
+    const sel = new imp.ActiveSelection(objs, { canvas })
+    canvas.setActiveObject(sel); canvas.requestRenderAll()
+    pushHistory(); triggerAutoSave()
+  }
+
+  function distributeSelected(direction: 'H' | 'V') {
+    const canvas = fabricRef.current, imp = fabricImports.current; if (!canvas || !imp) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const active = canvas.getActiveObject() as any
+    if (!active) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const objs: any[] = active.type === 'activeSelection' ? active.getObjects() : [active]
+    if (objs.length < 3) return
+
+    canvas.discardActiveObject()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rects = objs.map((o: any) => ({ obj: o, ...o.getBoundingRect(true) }))
+
+    if (direction === 'H') {
+      rects.sort((a, b) => a.left - b.left)
+      const totalW = rects.reduce((s, r) => s + r.width, 0)
+      const span   = rects[rects.length - 1].left + rects[rects.length - 1].width - rects[0].left
+      const gap    = (span - totalW) / (rects.length - 1)
+      let x = rects[0].left
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rects.forEach(({ obj, left, width }: any) => {
+        obj.set('left', obj.left + (x - left)); obj.setCoords(); x += width + gap
+      })
+    } else {
+      rects.sort((a, b) => a.top - b.top)
+      const totalH = rects.reduce((s, r) => s + r.height, 0)
+      const span   = rects[rects.length - 1].top + rects[rects.length - 1].height - rects[0].top
+      const gap    = (span - totalH) / (rects.length - 1)
+      let y = rects[0].top
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rects.forEach(({ obj, top, height }: any) => {
+        obj.set('top', obj.top + (y - top)); obj.setCoords(); y += height + gap
+      })
+    }
+
+    const sel = new imp.ActiveSelection(objs, { canvas })
+    canvas.setActiveObject(sel); canvas.requestRenderAll()
+    pushHistory(); triggerAutoSave()
+  }
+
+  // ── Gruppieren ────────────────────────────────────────────────
+
+  function groupSelected() {
+    const canvas = fabricRef.current; if (!canvas) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const active = canvas.getActiveObject() as any
+    if (!active || active.type !== 'activeSelection') return
+    active.toGroup()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const grp = canvas.getActiveObject() as any
+    if (grp) { grp.set('data', { type: 'group' }); grp.set('name', `Gruppe (${grp.getObjects().length})`) }
+    canvas.requestRenderAll()
+    pushHistory(); triggerAutoSave(); updateObjCount()
+    setIsMultiSelect(false)
+  }
+
+  function ungroupSelected() {
+    const canvas = fabricRef.current; if (!canvas) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const active = canvas.getActiveObject() as any
+    if (!active || active.data?.type !== 'group') return
+    active.toActiveSelection()
+    canvas.requestRenderAll()
+    pushHistory(); triggerAutoSave(); updateObjCount()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sel = canvas.getActiveObject() as any
+    if (sel) {
+      setIsMultiSelect(true)
+      setMultiSelectCount(sel.getObjects?.()?.length ?? 0)
+    }
+  }
+
+  groupSelectedRef.current   = groupSelected
+  ungroupSelectedRef.current = ungroupSelected
+
+  // ── Legende einfügen ─────────────────────────────────────────
+
+  function insertLegende() {
+    const canvas = fabricRef.current, imp = fabricImports.current; if (!canvas || !imp) return
+    const SKIP_LEG = new Set(['outline','preview','floor','dimension','collision','alignment','wall','door','window','measure','note','legend','import_bild'])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const moebelObjs = canvas.getObjects().filter((o: any) => !SKIP_LEG.has(o.data?.type ?? ''))
+
+    // Zähle nach Name
+    const counts = new Map<string, { count: number; w: number; h: number }>()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    moebelObjs.forEach((o: any) => {
+      const nm = o.name ?? 'Unbekannt'
+      const existing = counts.get(nm)
+      if (existing) existing.count++
+      else counts.set(nm, {
+        count: 1,
+        w: Math.round((o.getScaledWidth?.() ?? 0) / SCALE * 100),
+        h: Math.round((o.getScaledHeight?.() ?? 0) / SCALE * 100),
+      })
+    })
+
+    if (counts.size === 0) { alert('Keine Möbel im Grundriss vorhanden.'); return }
+
+    const { Rect, Text, Group } = imp
+    const W = 210, PAD = 10, LINE_H = 18, HEADER_H = 28
+    const totalH = HEADER_H + counts.size * LINE_H + PAD * 1.5
+    const items: object[] = []
+
+    // Hintergrund
+    items.push(new Rect({ left: 0, top: 0, width: W, height: totalH,
+      fill: '#ffffff', stroke: '#1e293b', strokeWidth: 1.5, rx: 4, ry: 4, originX: 'left', originY: 'top' }))
+
+    // Header-Hintergrund
+    items.push(new Rect({ left: 0, top: 0, width: W, height: HEADER_H,
+      fill: '#445c49', rx: 4, ry: 4, originX: 'left', originY: 'top' }))
+
+    // Header-Text
+    items.push(new Text('Möbel-Legende', {
+      left: W / 2, top: HEADER_H / 2,
+      fontSize: 11, fill: '#ffffff', fontWeight: 'bold',
+      fontFamily: 'system-ui, sans-serif', originX: 'center', originY: 'center',
+    }))
+
+    // Einträge
+    let row = 0
+    counts.forEach(({ count, w, h }, name) => {
+      const y = HEADER_H + PAD + row * LINE_H + LINE_H / 2
+      items.push(new Text(`${count}×`, {
+        left: PAD, top: y, fontSize: 9, fill: '#445c49', fontWeight: 'bold',
+        fontFamily: 'system-ui, sans-serif', originX: 'left', originY: 'center',
+      }))
+      items.push(new Text(name, {
+        left: PAD + 26, top: y, fontSize: 9, fill: '#1e293b',
+        fontFamily: 'system-ui, sans-serif', originX: 'left', originY: 'center',
+      }))
+      if (w > 0 && h > 0) {
+        items.push(new Text(`${w}×${h}cm`, {
+          left: W - PAD, top: y, fontSize: 8, fill: '#94a3b8',
+          fontFamily: 'monospace', originX: 'right', originY: 'center',
+        }))
+      }
+      row++
+    })
+
+    // Legende in sichtbaren Bereich platzieren
+    const vpt = canvas.viewportTransform ?? [1,0,0,1,0,0]
+    const Z = canvas.getZoom()
+    const cx = (canvas.getWidth() * 0.75 - vpt[4]) / Z
+    const cy = (50 - vpt[5]) / Z
+
+    const grp = new Group(items, {
+      left: cx, top: cy,
+      data: { type: 'legend' }, name: 'Möbel-Legende',
+    })
+    canvas.add(grp); canvas.setActiveObject(grp); canvas.requestRenderAll()
+    pushHistory(); triggerAutoSave(); updateObjCount()
+  }
+
   // ── Bild-Export ─────────────────────────────────────────────
   function exportAsImage() {
     const canvas = fabricRef.current; if (!canvas) return
@@ -2052,41 +2269,87 @@ export default function RaumplanerEditor({
     updateOutline(b, l)
   }
 
-  // ── PDF Export ────────────────────────────────────────────
+  // ── PDF Export (FIXED: Bounding-Box basierter Export) ────────
 
   async function exportPdf() {
     const canvas = fabricRef.current; if (!canvas) return
     const { default: jsPDF } = await import('jspdf')
+    const GREEN: [number, number, number] = [68, 92, 73]
+
+    // ── Bounding Box aller sichtbaren Inhalts-Objekte ──
+    const SKIP_PDF = new Set(['alignment','preview','dimension','collision'])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const exportObjs = canvas.getObjects().filter((o: any) => !SKIP_PDF.has(o.data?.type ?? ''))
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    exportObjs.forEach((o: any) => {
+      const b = o.getBoundingRect(true)
+      minX = Math.min(minX, b.left); minY = Math.min(minY, b.top)
+      maxX = Math.max(maxX, b.left + b.width); maxY = Math.max(maxY, b.top + b.height)
+    })
+    if (!isFinite(minX)) { minX = 0; minY = 0; maxX = canvas.getWidth(); maxY = canvas.getHeight() }
+
+    const PAD = 40
+    const contentW = maxX - minX + PAD * 2
+    const contentH = maxY - minY + PAD * 2
+
+    // ── Viewport + Grid temporär anpassen ──
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const savedVpt = [...(canvas.viewportTransform ?? [1,0,0,1,0,0])] as any[]
+    const savedBg  = canvas.backgroundColor
+    const cW = canvas.getWidth(), cH = canvas.getHeight()
+
+    const scaleX = cW / contentW, scaleY = cH / contentH
+    const scale  = Math.min(scaleX, scaleY)
+    const tx     = (cW - contentW * scale) / 2 - (minX - PAD) * scale
+    const ty     = (cH - contentH * scale) / 2 - (minY - PAD) * scale
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hiddenObjs = canvas.getObjects().filter((o: any) => o.data?.type === 'grid')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    hiddenObjs.forEach((o: any) => o.set('visible', false))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.setViewportTransform([scale, 0, 0, scale, tx, ty] as any)
+    canvas.backgroundColor = '#ffffff'
+    canvas.renderAll()
+
     const imgData = canvas.toDataURL({ format: 'png', multiplier: 2 })
+
+    // ── Viewport wiederherstellen ──
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.setViewportTransform(savedVpt as any)
+    canvas.backgroundColor = savedBg
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    hiddenObjs.forEach((o: any) => o.set('visible', true))
+    canvas.renderAll()
+
+    // ── PDF aufbauen ──
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
     const pw = pdf.internal.pageSize.getWidth()
     const ph = pdf.internal.pageSize.getHeight()
-    const GREEN: [number, number, number] = [68, 92, 73]
 
     // Header
     pdf.setFillColor(...GREEN); pdf.rect(0, 0, pw, 14, 'F')
     pdf.setTextColor(255, 255, 255); pdf.setFontSize(11); pdf.setFont('helvetica', 'bold')
     pdf.text('Raumplaner – Grundriss', 10, 9)
     pdf.setFontSize(8); pdf.setFont('helvetica', 'normal')
-    pdf.text(`${raumName}`, pw - 10, 6, { align: 'right' })
+    pdf.text(raumName, pw - 10, 6, { align: 'right' })
     const heute = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
     pdf.text(`Datum: ${heute}`, pw - 10, 10, { align: 'right' })
 
     // Raummaße
     if (breiteM || laengeM) {
       pdf.setTextColor(80, 80, 80); pdf.setFontSize(8)
-      const mText = `Raummaße: ${breiteM ?? '–'} m × ${laengeM ?? '–'} m${hoeheM ? ` · H ${hoeheM} m` : ''}`
-      pdf.text(mText, 10, 20)
+      pdf.text(`Raummaße: ${breiteM ?? '–'} m × ${laengeM ?? '–'} m${hoeheM ? ` · H ${hoeheM} m` : ''}`, 10, 20)
     }
 
-    // Canvas-Bild zentriert skaliert
+    // Canvas-Screenshot zentriert + proportional
     const imgTop = 24
     const maxW = pw - 20, maxH = ph - imgTop - 14
-    const cAspect = canvas.getWidth() / canvas.getHeight()
-    let iW = maxW, iH = maxW / cAspect
-    if (iH > maxH) { iH = maxH; iW = maxH * cAspect }
-    const iX = (pw - iW) / 2
-    pdf.addImage(imgData, 'PNG', iX, imgTop, iW, iH)
+    const aspect = contentW / contentH
+    let iW = maxW, iH = maxW / aspect
+    if (iH > maxH) { iH = maxH; iW = maxH * aspect }
+    pdf.addImage(imgData, 'PNG', (pw - iW) / 2, imgTop, iW, iH)
 
     // Footer
     pdf.setFillColor(...GREEN); pdf.rect(0, ph - 8, pw, 8, 'F')
@@ -2330,6 +2593,14 @@ export default function RaumplanerEditor({
           onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           <Upload className="w-4 h-4" />
+        </button>
+
+        {/* Legende einfügen */}
+        <button type="button" title="Möbel-Legende einfügen" onClick={insertLegende}
+          className={tbBtn} style={{ color: C.textLt }}
+          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          <List className="w-4 h-4" />
         </button>
 
         <div className={tbSep} style={{ background: C.border }} />
@@ -2611,7 +2882,92 @@ export default function RaumplanerEditor({
         <div className="w-60 flex flex-col overflow-hidden shrink-0"
           style={{ background: C.sidebar, borderLeft: `1px solid ${C.border}` }}>
           <div className="flex-1 overflow-y-auto">
-            {selectedProps ? (
+            {isMultiSelect ? (
+              /* ── Multi-Select Panel ── */
+              <div>
+                <div className="flex items-center justify-between px-3 py-2.5"
+                  style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider" style={{ color: `${C.textLt}60` }}>Mehrfachauswahl</p>
+                    <p className="text-xs font-medium" style={{ color: '#fff' }}>{multiSelectCount} Objekte</p>
+                  </div>
+                  <button type="button" onClick={deleteSelected}
+                    className="p-1.5 rounded-lg transition-colors"
+                    style={{ color: `${C.textLt}60` }}
+                    onMouseEnter={e => { e.currentTarget.style.background = C.hover; e.currentTarget.style.color = '#f87171' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = `${C.textLt}60` }}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                {/* Ausrichten */}
+                <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                  <p className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: `${C.textLt}60` }}>Horizontal ausrichten</p>
+                  <div className="grid grid-cols-3 gap-1 mb-1">
+                    {([
+                      { dir: 'left'    as const, Icon: AlignLeft,             title: 'Linksbündig' },
+                      { dir: 'centerH' as const, Icon: AlignCenterHorizontal, title: 'Zentriert H' },
+                      { dir: 'right'   as const, Icon: AlignRight,            title: 'Rechtsbündig' },
+                    ]).map(({ dir, Icon, title }) => (
+                      <button key={dir} type="button" title={title} onClick={() => alignSelected(dir)}
+                        className="flex items-center justify-center py-1.5 rounded-lg transition-colors text-[11px]"
+                        style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textLt }}
+                        onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                        onMouseLeave={e => (e.currentTarget.style.background = C.input)}>
+                        <Icon className="w-3.5 h-3.5" />
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[9px] uppercase tracking-wider font-semibold mb-2 mt-2.5" style={{ color: `${C.textLt}60` }}>Vertikal ausrichten</p>
+                  <div className="grid grid-cols-3 gap-1">
+                    {([
+                      { dir: 'top'     as const, Icon: AlignStartVertical,  title: 'Oben ausrichten' },
+                      { dir: 'centerV' as const, Icon: AlignCenterVertical, title: 'Zentriert V' },
+                      { dir: 'bottom'  as const, Icon: AlignEndVertical,    title: 'Unten ausrichten' },
+                    ]).map(({ dir, Icon, title }) => (
+                      <button key={dir} type="button" title={title} onClick={() => alignSelected(dir)}
+                        className="flex items-center justify-center py-1.5 rounded-lg transition-colors"
+                        style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textLt }}
+                        onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                        onMouseLeave={e => (e.currentTarget.style.background = C.input)}>
+                        <Icon className="w-3.5 h-3.5" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Verteilen (nur bei 3+) */}
+                {multiSelectCount >= 3 && (
+                  <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                    <p className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: `${C.textLt}60` }}>Gleichmäßig verteilen</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      <button type="button" title="Horizontal verteilen" onClick={() => distributeSelected('H')}
+                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-[10px]"
+                        style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textLt }}
+                        onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                        onMouseLeave={e => (e.currentTarget.style.background = C.input)}>
+                        <AlignHorizontalSpaceBetween className="w-3.5 h-3.5" /> H
+                      </button>
+                      <button type="button" title="Vertikal verteilen" onClick={() => distributeSelected('V')}
+                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-[10px]"
+                        style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textLt }}
+                        onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                        onMouseLeave={e => (e.currentTarget.style.background = C.input)}>
+                        <AlignVerticalSpaceBetween className="w-3.5 h-3.5" /> V
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {/* Gruppieren */}
+                <div className="px-3 py-3">
+                  <button type="button" onClick={groupSelected}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                    style={{ background: 'rgba(68,92,73,0.2)', border: `1px solid rgba(68,92,73,0.4)`, color: C.textMd }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(68,92,73,0.35)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(68,92,73,0.2)')}>
+                    <Group className="w-3.5 h-3.5" /> Gruppieren (Ctrl+G)
+                  </button>
+                </div>
+              </div>
+            ) : selectedProps ? (
               <div>
                 <div className="flex items-center justify-between px-3 py-2.5"
                   style={{ borderBottom: `1px solid ${C.border}` }}>
@@ -2619,7 +2975,8 @@ export default function RaumplanerEditor({
                     <p className="text-[10px] uppercase tracking-wider" style={{ color: `${C.textLt}60` }}>
                       {selectedProps.objType === 'wall' ? 'Wand' : selectedProps.objType === 'door' ? 'Tür' :
                        selectedProps.objType === 'window' ? 'Fenster' : selectedProps.objType === 'measure' ? 'Bemaßung' :
-                       selectedProps.objType === 'moebel' ? 'Möbel' : 'Objekt'}
+                       selectedProps.objType === 'moebel' ? 'Möbel' : selectedProps.objType === 'group' ? 'Gruppe' :
+                       selectedProps.objType === 'legend' ? 'Legende' : 'Objekt'}
                     </p>
                     <p className="text-xs font-medium truncate max-w-[140px]" style={{ color: '#fff' }}>
                       {selectedProps.name || '–'}
@@ -2699,7 +3056,7 @@ export default function RaumplanerEditor({
                 </div>
 
                 {/* Duplizieren */}
-                <div className="px-3 py-2.5" style={{ borderBottom: selectedProps.objType === 'moebel' ? `1px solid ${C.border}20` : 'none' }}>
+                <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${C.border}20` }}>
                   <button type="button" onClick={duplicateSelected}
                     className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
                     style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textMd }}
@@ -2708,6 +3065,19 @@ export default function RaumplanerEditor({
                     <Copy className="w-3 h-3" /> Duplizieren
                   </button>
                 </div>
+
+                {/* Gruppe auflösen */}
+                {selectedProps.objType === 'group' && (
+                  <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                    <button type="button" onClick={ungroupSelected}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                      style={{ background: 'rgba(68,92,73,0.15)', border: `1px solid rgba(68,92,73,0.35)`, color: C.textMd }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(68,92,73,0.3)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'rgba(68,92,73,0.15)')}>
+                      <Ungroup className="w-3.5 h-3.5" /> Gruppe auflösen (Ctrl+Shift+G)
+                    </button>
+                  </div>
+                )}
 
                 {/* Produkt-Verknüpfung (nur für Möbel) */}
                 {selectedProps.objType === 'moebel' && (() => {
