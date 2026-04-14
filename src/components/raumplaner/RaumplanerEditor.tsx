@@ -18,6 +18,7 @@ import {
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   AlignHorizontalSpaceBetween, AlignVerticalSpaceBetween,
   Group, Ungroup, List, PenLine, Sheet, Layers,
+  Eye, EyeOff,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -51,6 +52,21 @@ const MOEBEL_GRUPPEN: { name: string; keys: string[] }[] = [
   { name: 'Garten',       keys: ['Gartentisch', 'Gartenstuhl', 'Sonnenliege', 'Sonnenschirm', 'Grill', 'Pflanzkübel', 'Outdoor', 'Pool'] },
   { name: 'Wellness',     keys: ['Sauna', 'Infrarotkabine', 'Whirlpool', 'Massageliege', 'Ruheliege', 'Handtuchregal'] },
 ]
+
+// ── Layer-Definitionen ───────────────────────────────────────
+interface LayerDef { id: string; name: string; types: string[]; color: string }
+const LAYERS: LayerDef[] = [
+  { id: 'walls',      name: 'Wände',          types: ['wall'],                color: '#475569' },
+  { id: 'doors',      name: 'Türen & Fenster', types: ['door', 'window'],      color: '#3b82f6' },
+  { id: 'furniture',  name: 'Möbel',           types: ['moebel'],              color: '#94c1a4' },
+  { id: 'notes',      name: 'Notizen',         types: ['note'],                color: '#fbbf24' },
+  { id: 'dimensions', name: 'Maße',            types: ['dimension', 'measure'],color: '#6b7280' },
+  { id: 'legend',     name: 'Legende',         types: ['legend'],              color: '#8b5cf6' },
+]
+type LayerState = Record<string, { visible: boolean; locked: boolean }>
+const DEFAULT_LAYER_STATE: LayerState = Object.fromEntries(
+  LAYERS.map(l => [l.id, { visible: true, locked: false }])
+)
 
 // ── Türen & Fenster Varianten ────────────────────────────────
 interface TuerFensterVariante {
@@ -663,6 +679,10 @@ export default function RaumplanerEditor({
   // ── Stückliste ───────────────────────────────────────────────
   const [showStuecklisteModal, setShowStuecklisteModal] = useState(false)
 
+  // ── Layer-System ─────────────────────────────────────────────
+  const [layerStates,     setLayerStates]     = useState<LayerState>(DEFAULT_LAYER_STATE)
+  const [layersExpanded,  setLayersExpanded]  = useState(true)
+
   // ── Türen & Fenster Varianten ────────────────────────────────
   const [openTuerFenster,   setOpenTuerFenster]   = useState(true)
 
@@ -758,6 +778,33 @@ export default function RaumplanerEditor({
       if (raw) setFavoriten(new Set(JSON.parse(raw)))
     } catch { /* ignore */ }
   }, [])
+
+  // Layer-States aus localStorage laden und auf Canvas anwenden (nach Canvas-Init)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`raumplaner-layers-${raumId}`)
+      if (!saved) return
+      const parsed: LayerState = JSON.parse(saved)
+      setLayerStates(parsed)
+      // Canvas ist beim ersten Render noch nicht initialisiert → 500ms warten
+      setTimeout(() => {
+        const canvas = fabricRef.current; if (!canvas) return
+        Object.entries(parsed).forEach(([layerId, state]) => {
+          const layer = LAYERS.find(l => l.id === layerId); if (!layer) return
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          canvas.getObjects().forEach((obj: any) => {
+            if (!layer.types.includes(obj.data?.type)) return
+            obj.set('visible', state.visible)
+            if (state.locked) {
+              obj.set({ selectable: false, evented: false, lockMovementX: true, lockMovementY: true, lockScalingX: true, lockScalingY: true, lockRotation: true })
+            }
+          })
+        })
+        canvas.requestRenderAll()
+      }, 500)
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raumId])
 
   // Custom-Möbel aus DB laden
   useEffect(() => {
@@ -2294,6 +2341,77 @@ export default function RaumplanerEditor({
     setVersionen(updated)
     if (vergleichV1 === id) setVergleichV1('')
     if (vergleichV2 === id) setVergleichV2('')
+  }
+
+  // ── Layer-System ─────────────────────────────────────────────
+
+  function countObjectsInLayer(types: string[]): number {
+    const canvas = fabricRef.current; if (!canvas) return 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return canvas.getObjects().filter((o: any) =>
+      types.includes(o.data?.type) &&
+      o.data?.type !== 'outline' && o.data?.type !== 'preview' &&
+      o.data?.type !== 'collision' && o.data?.type !== 'dimension'
+    ).length
+  }
+
+  function applyLayerToCanvas(layerId: string, visible: boolean, locked: boolean) {
+    const canvas = fabricRef.current; if (!canvas) return
+    const layer = LAYERS.find(l => l.id === layerId); if (!layer) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.getObjects().forEach((obj: any) => {
+      if (!layer.types.includes(obj.data?.type)) return
+      obj.set('visible', visible)
+      obj.set('selectable', !locked)
+      obj.set('evented', !locked)
+      obj.set({ lockMovementX: locked, lockMovementY: locked, lockScalingX: locked, lockScalingY: locked, lockRotation: locked })
+    })
+    if (locked) {
+      const active = canvas.getActiveObject()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (active && layer.types.includes((active as any).data?.type)) canvas.discardActiveObject()
+    }
+    canvas.requestRenderAll()
+  }
+
+  function toggleLayerVisibility(layerId: string) {
+    const cur = layerStates[layerId]; if (!cur) return
+    const newVisible = !cur.visible
+    applyLayerToCanvas(layerId, newVisible, cur.locked)
+    const next = { ...layerStates, [layerId]: { ...cur, visible: newVisible } }
+    setLayerStates(next)
+    try { localStorage.setItem(`raumplaner-layers-${raumId}`, JSON.stringify(next)) } catch { /* ignore */ }
+  }
+
+  function toggleLayerLock(layerId: string) {
+    const cur = layerStates[layerId]; if (!cur) return
+    const newLocked = !cur.locked
+    applyLayerToCanvas(layerId, cur.visible, newLocked)
+    const next = { ...layerStates, [layerId]: { ...cur, locked: newLocked } }
+    setLayerStates(next)
+    try { localStorage.setItem(`raumplaner-layers-${raumId}`, JSON.stringify(next)) } catch { /* ignore */ }
+  }
+
+  function showAllLayers() {
+    const canvas = fabricRef.current; if (!canvas) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.getObjects().forEach((obj: any) => { if (obj.data?.type !== 'outline' && obj.data?.type !== 'preview') obj.set('visible', true) })
+    canvas.requestRenderAll()
+    const next = Object.fromEntries(LAYERS.map(l => [l.id, { visible: true, locked: layerStates[l.id]?.locked ?? false }]))
+    setLayerStates(next)
+    try { localStorage.setItem(`raumplaner-layers-${raumId}`, JSON.stringify(next)) } catch { /* ignore */ }
+  }
+
+  function hideAllLayers() {
+    const canvas = fabricRef.current; if (!canvas) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.getObjects().forEach((obj: any) => {
+      if (obj.data?.type !== 'outline' && obj.data?.type !== 'preview' && obj.data?.type !== 'wall') obj.set('visible', false)
+    })
+    canvas.requestRenderAll()
+    const next = Object.fromEntries(LAYERS.map(l => [l.id, { visible: l.id === 'walls', locked: layerStates[l.id]?.locked ?? false }]))
+    setLayerStates(next)
+    try { localStorage.setItem(`raumplaner-layers-${raumId}`, JSON.stringify(next)) } catch { /* ignore */ }
   }
 
   async function ladeVergleich() {
@@ -3937,7 +4055,7 @@ export default function RaumplanerEditor({
                 )}
 
                 {/* Wandfarbe */}
-                <div className="px-3 py-3">
+                <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
                   <p className="text-[9px] uppercase tracking-wider font-semibold mb-2.5" style={{ color: `${C.textLt}60` }}>Wandfarbe</p>
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {WANDFARBEN.map(c => (
@@ -3965,6 +4083,75 @@ export default function RaumplanerEditor({
                       Anwenden
                     </button>
                   </div>
+                </div>
+
+                {/* ── Ebenen-Panel ── */}
+                <div className="px-3 py-3">
+                  <button type="button"
+                    onClick={() => setLayersExpanded(v => !v)}
+                    className="flex items-center justify-between w-full mb-0 text-left">
+                    <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: `${C.textLt}60` }}>Ebenen</span>
+                    <ChevronDown className="w-3 h-3 transition-transform" style={{ color: `${C.textLt}60`, transform: layersExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+                  </button>
+
+                  {layersExpanded && (
+                    <div className="mt-2.5 space-y-0.5">
+                      {LAYERS.map(layer => {
+                        const st = layerStates[layer.id] ?? { visible: true, locked: false }
+                        const cnt = countObjectsInLayer(layer.types)
+                        return (
+                          <div key={layer.id} className="flex items-center gap-1.5 py-1 px-1.5 rounded-lg transition-colors"
+                            style={{
+                              background: !st.visible ? 'rgba(0,0,0,0.1)' : 'transparent',
+                              opacity: !st.visible ? 0.55 : 1,
+                            }}>
+                            {/* Farb-Dot */}
+                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: layer.color }} />
+                            {/* Name */}
+                            <span className="flex-1 text-[11px] truncate" style={{ color: C.textMd }}>
+                              {layer.name}
+                              {cnt > 0 && <span className="ml-1 text-[9px]" style={{ color: `${C.textLt}60` }}>({cnt})</span>}
+                            </span>
+                            {/* Sichtbarkeit */}
+                            <button type="button" title={st.visible ? 'Ausblenden' : 'Einblenden'}
+                              onClick={() => toggleLayerVisibility(layer.id)}
+                              className="w-6 h-6 flex items-center justify-center rounded transition-colors"
+                              style={{ color: st.visible ? C.textLt : `${C.textLt}30` }}
+                              onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                              {st.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                            </button>
+                            {/* Sperren */}
+                            <button type="button" title={st.locked ? 'Entsperren' : 'Sperren'}
+                              onClick={() => toggleLayerLock(layer.id)}
+                              className="w-6 h-6 flex items-center justify-center rounded transition-colors"
+                              style={{ color: st.locked ? '#fbbf24' : `${C.textLt}30` }}
+                              onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                              {st.locked ? <Lock className="w-3 h-3" /> : <LockOpen className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        )
+                      })}
+                      {/* Quick Actions */}
+                      <div className="flex gap-1 pt-2 mt-1" style={{ borderTop: `1px solid ${C.border}20` }}>
+                        <button type="button" onClick={showAllLayers}
+                          className="flex-1 text-[10px] py-1 rounded-lg transition-colors"
+                          style={{ color: C.textLt, background: 'transparent' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          Alle zeigen
+                        </button>
+                        <button type="button" onClick={hideAllLayers}
+                          className="flex-1 text-[10px] py-1 rounded-lg transition-colors"
+                          style={{ color: C.textLt, background: 'transparent' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          Alle aus
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -4725,6 +4912,20 @@ export default function RaumplanerEditor({
         <div className="flex items-center gap-4 text-[10px] font-mono" style={{ color: `${C.textLt}60` }}>
           <span>X {mousePos.x.toFixed(2)} m</span>
           <span>Y {mousePos.y.toFixed(2)} m</span>
+          {/* Ausgeblendete Ebenen Indikator */}
+          {(() => {
+            const hidden = LAYERS.filter(l => !(layerStates[l.id]?.visible ?? true))
+            if (hidden.length === 0) return null
+            return (
+              <button type="button" onClick={showAllLayers}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors"
+                style={{ color: '#fbbf24', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)' }}
+                title="Ausgeblendete Ebenen – klicken um alle anzuzeigen">
+                <EyeOff className="w-3 h-3" />
+                {hidden.length} {hidden.length === 1 ? 'Ebene' : 'Ebenen'} ausgeblendet
+              </button>
+            )
+          })()}
         </div>
         <div className="flex items-center gap-3 text-[10px]" style={{ color: `${C.textLt}60` }}>
           {snapToGrid && (
