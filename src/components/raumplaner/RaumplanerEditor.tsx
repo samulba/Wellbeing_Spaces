@@ -939,10 +939,10 @@ export default function RaumplanerEditor({
       const etageId = aktiveEtageIdRef.current
       const res = etageId
         ? await etageSpeichern(etageId, json)
-        : await grundrissSpeichern(raumId, json)
+        : await grundrissSpeichern(raumId, json, projektId)
       setSaveStatus(res.fehler ? 'error' : 'saved')
     }, AUTOSAVE_DELAY)
-  }, [raumId, getCanvasJson])
+  }, [raumId, projektId, getCanvasJson])
 
   // ── History ───────────────────────────────────────────────
 
@@ -984,9 +984,9 @@ export default function RaumplanerEditor({
     const etageId = aktiveEtageIdRef.current
     const res = etageId
       ? await etageSpeichern(etageId, json)
-      : await grundrissSpeichern(raumId, json)
+      : await grundrissSpeichern(raumId, json, projektId)
     setSaveStatus(res.fehler ? 'error' : 'saved')
-  }, [raumId, getCanvasJson])
+  }, [raumId, projektId, getCanvasJson])
 
   // ── Raum-Umriss ──────────────────────────────────────────
 

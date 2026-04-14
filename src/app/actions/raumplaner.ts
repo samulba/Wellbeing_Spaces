@@ -9,7 +9,8 @@ import { getOrganisationIdOrNull } from '@/lib/supabase/server'
 /** Canvas-State (Fabric.js JSON) in der DB speichern. */
 export async function grundrissSpeichern(
   raumId: string,
-  canvasJson: string
+  canvasJson: string,
+  projektId?: string
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const { error } = await supabase
@@ -17,6 +18,11 @@ export async function grundrissSpeichern(
     .update({ grundriss_json: JSON.parse(canvasJson) })
     .eq('id', raumId)
   if (error) return { fehler: 'Fehler beim Speichern.' }
+  if (projektId) {
+    revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+    revalidatePath(`/dashboard/projekte/${projektId}`)
+  }
+  revalidatePath('/dashboard/raumplaner')
   return {}
 }
 
@@ -51,6 +57,9 @@ export async function raumMasseAktualisieren(
     .eq('id', raumId)
   if (error) return { fehler: 'Fehler beim Speichern der Maße.' }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}/planer`)
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  revalidatePath(`/dashboard/projekte/${projektId}`)
+  revalidatePath('/dashboard/raumplaner')
   return {}
 }
 
@@ -106,6 +115,8 @@ export async function raumFreigabeAktualisieren(
     .single()
   if (error || !data) return { fehler: 'Fehler beim Aktualisieren.' }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}/planer`)
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  revalidatePath(`/dashboard/projekte/${projektId}`)
   return { token: data.freigabe_token as string }
 }
 
@@ -123,6 +134,8 @@ export async function raumTexturenSpeichern(
     .eq('id', raumId)
   if (error) return { fehler: 'Fehler beim Speichern.' }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}/planer`)
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  revalidatePath(`/dashboard/projekte/${projektId}`)
   return {}
 }
 
