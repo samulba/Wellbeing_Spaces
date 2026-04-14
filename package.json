@@ -16,6 +16,7 @@
     "@supabase/supabase-js": "^2.103.0",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",
+    "date-fns": "^4.1.0",
     "fabric": "^6.9.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
