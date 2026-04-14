@@ -173,7 +173,8 @@ export async function getAllProdukteForPlaner(): Promise<Array<{
 
 /** Raumplan-Version speichern. */
 export async function raumplanVersionSpeichern(
-  raumId: string, name: string, grundrissJson: string, bodenTextur: string, wandfarbe: string
+  raumId: string, name: string, grundrissJson: string, bodenTextur: string, wandfarbe: string,
+  beschreibung?: string
 ): Promise<{ id: string } | { fehler: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationIdOrNull()
@@ -182,7 +183,8 @@ export async function raumplanVersionSpeichern(
     .from('raumplan_versionen')
     .insert({
       raum_id: raumId, organisation_id: orgId,
-      name: name.trim(), grundriss_json: JSON.parse(grundrissJson),
+      name: name.trim(), beschreibung: beschreibung?.trim() || null,
+      grundriss_json: JSON.parse(grundrissJson),
       boden_textur: bodenTextur, wandfarbe, created_by: user?.id,
     })
     .select('id').single()
@@ -192,15 +194,21 @@ export async function raumplanVersionSpeichern(
 
 /** Alle Versionen eines Raums laden. */
 export async function getRaumplanVersionen(raumId: string): Promise<Array<{
-  id: string; name: string; created_at: string
+  id: string; name: string; created_at: string; beschreibung: string | null; grundriss_json: string | null
 }>> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('raumplan_versionen')
-    .select('id, name, created_at')
+    .select('id, name, created_at, beschreibung, grundriss_json')
     .eq('raum_id', raumId)
     .order('created_at', { ascending: false })
-  return (data ?? []) as Array<{ id: string; name: string; created_at: string }>
+  return (data ?? []).map(d => ({
+    id: d.id,
+    name: d.name,
+    created_at: d.created_at,
+    beschreibung: d.beschreibung ?? null,
+    grundriss_json: d.grundriss_json ? JSON.stringify(d.grundriss_json) : null,
+  }))
 }
 
 /** Eine Raumplan-Version laden. */
