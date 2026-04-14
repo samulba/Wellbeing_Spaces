@@ -144,7 +144,7 @@ export default async function RaumDetailPage({
               </div>
               <Link
                 href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-xs font-medium rounded-lg transition-colors"
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
                 Im Raumplaner bearbeiten

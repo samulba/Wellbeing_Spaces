@@ -102,8 +102,8 @@ export default function GrundrissVorschau({
   const h = Math.round(vorschauBreite * aspect)
 
   return (
-    <div ref={containerRef} className={`overflow-hidden rounded-xl bg-gray-100 ${className}`}
-      style={{ width: vorschauBreite, height: h, maxWidth: '100%' }}>
+    <div ref={containerRef} className={`overflow-hidden rounded-xl bg-[#e8ede9] border border-gray-200 shadow-sm ${className}`}
+      style={{ width: '100%', maxWidth: vorschauBreite, height: Math.min(h, 300), maxHeight: 300 }}>
       <canvas ref={canvasRef} style={{ display: 'block' }} />
     </div>
   )
