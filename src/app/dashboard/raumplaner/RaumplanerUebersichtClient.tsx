@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { Search, LayoutDashboard, PenTool } from 'lucide-react'
+import { Search, LayoutDashboard, PenTool, FileDown } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
 import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
@@ -199,9 +199,124 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
   )
 }
 
+// ── PDF-Export ─────────────────────────────────────────────────
+
+async function grundrissPdfExport(raum: RaumMitProjekt) {
+  if (!raum.grundriss_json) return
+
+  // Fabric.js + jsPDF dynamisch laden
+  const [fabric, { default: jsPDF }] = await Promise.all([
+    import('fabric'),
+    import('jspdf'),
+  ])
+  const { Canvas, Rect } = fabric
+
+  // Temporäres unsichtbares Canvas-Element
+  const el = document.createElement('canvas')
+  el.style.display = 'none'
+  document.body.appendChild(el)
+
+  const PDF_W = 1120  // ~A4-Querformat bei 96dpi
+  const PDF_H = 792
+  el.width  = PDF_W
+  el.height = PDF_H
+
+  const canvas = new Canvas(el, {
+    width: PDF_W, height: PDF_H,
+    selection: false, interactive: false,
+    renderOnAddRemove: false,
+    backgroundColor: '#ffffff',
+  })
+
+  try {
+    // JSON laden (Outline + Preview herausfiltern)
+    const parsed = raum.grundriss_json as Record<string, unknown>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const objects = ((parsed.objects ?? []) as any[]).filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview'
+    )
+    await canvas.loadFromJSON({ ...parsed, objects })
+
+    // Raum-Umriss hinzufügen
+    const SCALE = 100
+    if (raum.breite_m && raum.laenge_m) {
+      const outline = new Rect({
+        left: 0, top: 0,
+        width: raum.breite_m * SCALE, height: raum.laenge_m * SCALE,
+        fill: 'transparent', stroke: '#374151', strokeWidth: 20,
+        selectable: false, evented: false,
+      })
+      canvas.add(outline)
+      canvas.sendObjectToBack(outline)
+    }
+
+    // Fit-to-view
+    const allObjs = canvas.getObjects()
+    if (allObjs.length > 0) {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      allObjs.forEach((o: any) => {
+        const b = o.getBoundingRect()
+        minX = Math.min(minX, b.left);  minY = Math.min(minY, b.top)
+        maxX = Math.max(maxX, b.left + b.width); maxY = Math.max(maxY, b.top + b.height)
+      })
+      const pad = 60
+      const z = Math.min(
+        (PDF_W - pad * 2) / (maxX - minX || 1),
+        (PDF_H - pad * 2) / (maxY - minY || 1),
+        1
+      )
+      const cx = (minX + maxX) / 2
+      const cy = (minY + maxY) / 2
+      canvas.setViewportTransform([z, 0, 0, z, PDF_W / 2 - cx * z, PDF_H / 2 - cy * z])
+    }
+
+    canvas.requestRenderAll()
+
+    // PNG → jsPDF
+    const imgData = canvas.toDataURL({ format: 'png', multiplier: 1 })
+
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const pageW = pdf.internal.pageSize.getWidth()
+    const pageH = pdf.internal.pageSize.getHeight()
+
+    // Grüner Header-Streifen
+    pdf.setFillColor(68, 92, 73)
+    pdf.rect(0, 0, pageW, 14, 'F')
+
+    // Raumname
+    pdf.setTextColor(255, 255, 255)
+    pdf.setFontSize(11)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text(raum.name, 10, 9.5)
+
+    // Maße rechts im Header
+    if (raum.breite_m && raum.laenge_m) {
+      pdf.setFontSize(8)
+      pdf.setFont('helvetica', 'normal')
+      const massText = `${raum.breite_m} m × ${raum.laenge_m} m${raum.hoehe_m ? ` · H ${raum.hoehe_m} m` : ''}`
+      pdf.text(massText, pageW - 10, 9.5, { align: 'right' })
+    }
+
+    // Grundriss-Bild zentriert unter dem Header
+    const imgMargin = 4
+    const imgY = 14 + imgMargin
+    const imgH = pageH - imgY - imgMargin
+    pdf.addImage(imgData, 'PNG', 0, imgY, pageW, imgH, undefined, 'FAST')
+
+    pdf.save(`Grundriss-${raum.name}.pdf`)
+  } finally {
+    canvas.dispose()
+    document.body.removeChild(el)
+  }
+}
+
 // ── Karte ──────────────────────────────────────────────────────
 
 function RaumCard({ raum }: { raum: RaumMitProjekt }) {
+  const [pdfLaden, setPdfLaden] = useState(false)
+
   const projekt    = raum.projekte
   const planerHref = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}/planer`
   const raumHref   = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}`
@@ -210,6 +325,18 @@ function RaumCard({ raum }: { raum: RaumMitProjekt }) {
     addSuffix: true,
     locale: de,
   })
+
+  async function handlePdf(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (pdfLaden) return
+    setPdfLaden(true)
+    try {
+      await grundrissPdfExport(raum)
+    } finally {
+      setPdfLaden(false)
+    }
+  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
@@ -264,13 +391,28 @@ function RaumCard({ raum }: { raum: RaumMitProjekt }) {
               </p>
             )}
           </div>
-          <Link
-            href={planerHref}
-            className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#445c49] hover:bg-[#354a3a] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
-          >
-            <LayoutDashboard className="w-3 h-3" />
-            Planer
-          </Link>
+
+          {/* Buttons */}
+          <div className="shrink-0 flex items-center gap-1.5">
+            {raum.grundriss_json && (
+              <button
+                onClick={handlePdf}
+                disabled={pdfLaden}
+                title="Grundriss als PDF exportieren"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+              >
+                <FileDown className="w-3 h-3" />
+                {pdfLaden ? '...' : 'PDF'}
+              </button>
+            )}
+            <Link
+              href={planerHref}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#445c49] hover:bg-[#354a3a] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+            >
+              <LayoutDashboard className="w-3 h-3" />
+              Planer
+            </Link>
+          </div>
         </div>
       </div>
     </div>

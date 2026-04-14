@@ -14,7 +14,7 @@ import {
   Settings,
   LogOut,
   ClipboardList,
-  Grid3X3,
+  PencilRuler,
 } from 'lucide-react'
 import type { Rolle } from '@/lib/supabase/types'
 import { ROLLEN_CONFIG } from '@/lib/permissions'
@@ -68,7 +68,7 @@ export default function NavSidebar({
     { label: 'Projekte',   href: '/dashboard/projekte',   icon: FolderOpen,      badge: 0 },
     { label: 'Partner',    href: '/dashboard/partner',    icon: Handshake,       badge: 0 },
     { label: 'Produkte',   href: '/dashboard/produkte',   icon: Package,         badge: 0 },
-    { label: 'Raumplaner', href: '/dashboard/raumplaner', icon: Grid3X3,         badge: 0 },
+    { label: 'Raumplaner', href: '/dashboard/raumplaner', icon: PencilRuler,     badge: 0 },
     { label: 'Freigaben',  href: '/dashboard/freigaben',  icon: CheckSquare,     badge: offeneFreigaben },
     { label: 'Onboarding', href: '/dashboard/onboarding', icon: ClipboardList,   badge: offeneAnfragen },
     { label: 'Kategorien', href: '/dashboard/kategorien', icon: Tag,             badge: 0 },
