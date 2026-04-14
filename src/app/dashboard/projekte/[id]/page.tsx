@@ -8,10 +8,11 @@ import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
 import { projektSoftDelete } from '@/app/actions/projekte'
 import ProjektStatusButtons from '@/components/ProjektStatusButtons'
-import { naechsteEventsAbrufen } from '@/app/actions/timeline'
+import { projektEventsAbrufen } from '@/app/actions/timeline'
+import { Timeline } from '@/components/Timeline'
 import {
   ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote,
-  Archive, CalendarDays, Flag, Truck, Layers, User, Phone, Mail,
+  Archive, CalendarDays, User, Phone, Mail,
   AlertTriangle, Wrench, FileText, ReceiptText,
 } from 'lucide-react'
 import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
@@ -21,7 +22,6 @@ import ZeiterfassungBlock from '@/components/ZeiterfassungBlock'
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import { getZeiterfassung, getZeitSumme } from '@/app/actions/zeiterfassung'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
-import type { TimelineEvent } from '@/lib/supabase/types'
 import type { DateiItem } from '@/components/DateiUpload'
 
 const eur = (n: number) =>
@@ -167,7 +167,7 @@ async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
   const supabaseForBranding = await (await import('@/lib/supabase/server')).createClient()
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, naechsteEvents, zeitEintraege, zeitSumme, { data: branding }] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, zeitEintraege, zeitSumme, { data: branding }, alleEvents] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
@@ -178,10 +178,10 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
     getMwstSatz(),
     getKategorien('raumtyp'),
     getKunden(),
-    naechsteEventsAbrufen(params.id, 3),
     getZeiterfassung(params.id),
     getZeitSumme(params.id),
     supabaseForBranding.from('branding').select('firmenname, logo_url, adresse, email, telefon').maybeSingle(),
+    projektEventsAbrufen(params.id),
   ])
 
   if (!projekt) notFound()
@@ -564,10 +564,24 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
             />
           )}
 
-          {/* Nächste Events */}
-          {naechsteEvents.length > 0 && (
-            <NaechsteEvents projektId={projekt.id} events={naechsteEvents} />
-          )}
+          {/* Projekt-Timeline */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Projekt-Timeline</p>
+              <Link
+                href={`/dashboard/projekte/${projekt.id}/timeline`}
+                className="text-xs text-wellbeing-green hover:underline"
+              >
+                Bearbeiten →
+              </Link>
+            </div>
+            <Timeline
+              events={alleEvents}
+              showRaumBadge={true}
+              alleLink={`/dashboard/projekte/${projekt.id}/timeline`}
+              limit={6}
+            />
+          </div>
 
           {/* Dateien */}
           <DateiUpload projektId={projekt.id} initialDateien={dateien} />
@@ -580,49 +594,6 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
   )
 }
 
-function NaechsteEvents({ projektId, events }: { projektId: string; events: TimelineEvent[] }) {
-  const typIcon: Record<string, typeof CalendarDays> = {
-    meilenstein: Flag, lieferung: Truck, termin: CalendarDays, phase: Layers,
-  }
-  const typFarbe: Record<string, string> = {
-    meilenstein: 'text-purple-600 bg-purple-50',
-    lieferung:   'text-blue-600 bg-blue-50',
-    termin:      'text-emerald-600 bg-emerald-50',
-    phase:       'text-gray-600 bg-gray-100',
-  }
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nächste Termine</p>
-        <Link href={`/dashboard/projekte/${projektId}/timeline`} className="text-xs text-wellbeing-green hover:underline">
-          Alle →
-        </Link>
-      </div>
-      <div className="space-y-2">
-        {events.map((ev) => {
-          const Icon  = typIcon[ev.typ] ?? CalendarDays
-          const farbe = typFarbe[ev.typ] ?? 'text-gray-600 bg-gray-100'
-          const ueberfaellig = ev.start_datum < new Date().toISOString().split('T')[0] && ev.status !== 'abgeschlossen'
-          return (
-            <div key={ev.id} className="flex items-center gap-3">
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${farbe}`}>
-                <Icon className="w-3.5 h-3.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-xs font-medium truncate ${ueberfaellig ? 'text-red-600' : 'text-gray-800'}`}>{ev.titel}</p>
-                <p className="text-[10px] text-gray-400">
-                  {new Date(ev.start_datum + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })}
-                </p>
-              </div>
-              {ueberfaellig && <span className="shrink-0 text-[10px] font-medium text-red-500">Überfällig</span>}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 function InfoPill({ label, wert }: { label: string; wert: string }) {
   return (

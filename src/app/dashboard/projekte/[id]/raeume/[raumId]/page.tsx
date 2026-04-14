@@ -4,8 +4,10 @@ import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import { getMwstSatz } from '@/app/actions/einstellungen'
 import { getRaumProdukte } from '@/app/actions/raum-produkte'
+import { raumEventsAbrufen } from '@/app/actions/timeline'
 import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
+import { Timeline } from '@/components/Timeline'
 import type { RaumProduktMitDetails } from '@/lib/supabase/types'
 import { LayoutDashboard } from 'lucide-react'
 import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
@@ -67,10 +69,11 @@ export default async function RaumDetailPage({
   params: { id: string; raumId: string }
   searchParams: SearchParams
 }) {
-  const [raum, alleEintraege, MWST] = await Promise.all([
+  const [raum, alleEintraege, MWST, timelineEvents] = await Promise.all([
     getRaum(params.raumId, params.id),
     getRaumProdukte(params.raumId),
     getMwstSatz(),
+    raumEventsAbrufen(params.raumId),
   ])
 
   if (!raum) notFound()
@@ -246,6 +249,20 @@ export default async function RaumDetailPage({
           </p>
         </>
       )}
+
+      {/* Raum-Timeline */}
+      <div className="mt-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Raum-Timeline</p>
+          <Link
+            href={`/dashboard/projekte/${params.id}/timeline`}
+            className="text-xs text-wellbeing-green hover:underline"
+          >
+            Zur Projekt-Timeline →
+          </Link>
+        </div>
+        <Timeline events={timelineEvents} />
+      </div>
     </div>
   )
 }

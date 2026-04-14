@@ -81,6 +81,35 @@ export async function naechsteEventsAbrufen(projektId: string, limit = 3): Promi
   return (data ?? []) as TimelineEvent[]
 }
 
+// ── Events eines Projekts (alle, mit Raum-Join) ───────────────
+export async function projektEventsAbrufen(
+  projektId: string
+): Promise<(TimelineEvent & { raum: { id: string; name: string } | null })[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('timeline_events')
+    .select('*, raum:raeume(id, name)')
+    .eq('projekt_id', projektId)
+    .order('start_datum')
+    .order('reihenfolge')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []) as any
+}
+
+// ── Events eines Raums ────────────────────────────────────────
+export async function raumEventsAbrufen(
+  raumId: string
+): Promise<TimelineEvent[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('timeline_events')
+    .select('*')
+    .eq('raum_id', raumId)
+    .order('start_datum')
+    .order('reihenfolge')
+  return (data ?? []) as TimelineEvent[]
+}
+
 // ── Liefertermin auf Produkt setzen ──────────────────────────
 export async function lieferterminSetzen(
   produktId: string,
