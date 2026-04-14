@@ -17,7 +17,7 @@ import {
   AlignLeft, AlignCenterHorizontal, AlignRight,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   AlignHorizontalSpaceBetween, AlignVerticalSpaceBetween,
-  Group, Ungroup, List,
+  Group, Ungroup, List, PenLine, Sheet, Layers, Plus as PlusIcon,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -25,6 +25,7 @@ import {
   getRaumFreigabeInfo, raumFreigabeAktualisieren, raumTexturenSpeichern,
   getAllProdukteForPlaner, raumplanVersionSpeichern, getRaumplanVersionen,
   getRaumplanVersion, raumplanVersionLoeschen, raumplanAngebotErstellen,
+  getRaumEtagen, etageErstellen, etageSpeichern, etageLoeschen,
 } from '@/app/actions/raumplaner'
 import type { MoebelSymbol, CustomMoebel as CustomMoebelType } from '@/lib/supabase/types'
 import GrundrissVorschau from './GrundrissVorschau'
@@ -37,7 +38,7 @@ const MIN_ZOOM       = 0.1
 const MAX_ZOOM       = 5
 const AUTOSAVE_DELAY = 3000
 
-type Tool = 'select' | 'wall' | 'door' | 'window' | 'measure' | 'eraser' | 'note'
+type Tool = 'select' | 'wall' | 'curve' | 'door' | 'window' | 'measure' | 'eraser' | 'note'
 type GridSize = 10 | 25 | 50 | 100
 
 const MOEBEL_GRUPPEN: { name: string; keys: string[] }[] = [
@@ -50,6 +51,127 @@ const MOEBEL_GRUPPEN: { name: string; keys: string[] }[] = [
   { name: 'Garten',       keys: ['Gartentisch', 'Gartenstuhl', 'Sonnenliege', 'Sonnenschirm', 'Grill', 'Pflanzkübel', 'Outdoor', 'Pool'] },
   { name: 'Wellness',     keys: ['Sauna', 'Infrarotkabine', 'Whirlpool', 'Massageliege', 'Ruheliege', 'Handtuchregal'] },
 ]
+
+// ── Türen & Fenster Varianten ────────────────────────────────
+interface TuerFensterVariante {
+  id: string; label: string; kategorie: 'tuer' | 'fenster'
+  breite: number; beschreibung: string
+}
+const TUER_VARIANTEN: TuerFensterVariante[] = [
+  { id: 'tuer-links',   label: 'Standard L', kategorie: 'tuer',    breite: 80,  beschreibung: 'Öffnung links'    },
+  { id: 'tuer-rechts',  label: 'Standard R', kategorie: 'tuer',    breite: 80,  beschreibung: 'Öffnung rechts'   },
+  { id: 'tuer-doppel',  label: 'Doppeltür',  kategorie: 'tuer',    breite: 160, beschreibung: 'Zweiflügelig'     },
+  { id: 'tuer-schiebe', label: 'Schiebetür', kategorie: 'tuer',    breite: 100, beschreibung: 'Schiebend'        },
+  { id: 'tuer-falt',    label: 'Falttür',    kategorie: 'tuer',    breite: 80,  beschreibung: 'Faltend'          },
+  { id: 'tuer-glas',    label: 'Glastür',    kategorie: 'tuer',    breite: 80,  beschreibung: 'Transparent'      },
+  { id: 'fen-standard', label: 'Standard',   kategorie: 'fenster', breite: 100, beschreibung: '100 cm'           },
+  { id: 'fen-breit',    label: 'Breit',      kategorie: 'fenster', breite: 150, beschreibung: '150 cm'           },
+  { id: 'fen-bodentief',label: 'Bodentief',  kategorie: 'fenster', breite: 100, beschreibung: '200 cm hoch'      },
+  { id: 'fen-dach',     label: 'Dachfenster',kategorie: 'fenster', breite: 80,  beschreibung: 'Flach, mit Kreuz' },
+  { id: 'fen-bogen',    label: 'Bogenfenster',kategorie: 'fenster',breite: 100, beschreibung: 'Mit Rundbogen'    },
+  { id: 'fen-rund',     label: 'Rundfenster',kategorie: 'fenster', breite: 80,  beschreibung: 'Rund, Ø 80 cm'   },
+]
+
+function TuerFensterPreviewSvg({ variant }: { variant: TuerFensterVariante }) {
+  const w = 48, h = 28
+  const T = 5  // wall thickness visual
+  if (variant.kategorie === 'tuer') {
+    switch (variant.id) {
+      case 'tuer-links': return (
+        <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+          <rect x="0" y={h/2-T/2} width={w*0.7} height={T} fill="#e2e8f0" stroke="#64748b" strokeWidth="0.8"/>
+          <path d={`M 0,${h/2+T/2} A ${w*0.7},${w*0.7} 0 0 0 ${w*0.7},${h/2-T/2}`} stroke="#445c49" strokeWidth="1" strokeDasharray="3,2" fill="rgba(68,92,73,0.05)"/>
+          <line x1={w*0.7} y1={h/2-T/2} x2={w*0.7} y2={h/2+T/2} stroke="#64748b" strokeWidth="0.8"/>
+        </svg>
+      )
+      case 'tuer-rechts': return (
+        <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+          <rect x={w*0.3} y={h/2-T/2} width={w*0.7} height={T} fill="#e2e8f0" stroke="#64748b" strokeWidth="0.8"/>
+          <path d={`M ${w},${h/2+T/2} A ${w*0.7},${w*0.7} 0 0 1 ${w*0.3},${h/2-T/2}`} stroke="#445c49" strokeWidth="1" strokeDasharray="3,2" fill="rgba(68,92,73,0.05)"/>
+          <line x1={w*0.3} y1={h/2-T/2} x2={w*0.3} y2={h/2+T/2} stroke="#64748b" strokeWidth="0.8"/>
+        </svg>
+      )
+      case 'tuer-doppel': return (
+        <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+          <rect x="1" y={h/2-T/2} width={w-2} height={T} fill="#e2e8f0" stroke="#64748b" strokeWidth="0.8"/>
+          <path d={`M ${w/2},${h/2+T/2} A ${w/2-1},${w/2-1} 0 0 0 1,${h/2-T/2}`} stroke="#445c49" strokeWidth="1" strokeDasharray="3,2" fill="rgba(68,92,73,0.05)"/>
+          <path d={`M ${w/2},${h/2+T/2} A ${w/2-1},${w/2-1} 0 0 1 ${w-1},${h/2-T/2}`} stroke="#445c49" strokeWidth="1" strokeDasharray="3,2" fill="rgba(68,92,73,0.05)"/>
+        </svg>
+      )
+      case 'tuer-schiebe': return (
+        <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+          <rect x="1" y={h/2-T/2} width={w-2} height={T} fill="#e2e8f0" stroke="#64748b" strokeWidth="0.8"/>
+          <rect x="3" y={h/2-T/2+1} width={w/2-4} height={T-2} fill="rgba(100,116,139,0.2)" stroke="#94a3b8" strokeWidth="0.5"/>
+          <path d={`M ${w*0.3},${h/2} L ${w*0.15},${h/2-3} M ${w*0.3},${h/2} L ${w*0.15},${h/2+3}`} stroke="#445c49" strokeWidth="1"/>
+          <path d={`M ${w*0.7},${h/2} L ${w*0.85},${h/2-3} M ${w*0.7},${h/2} L ${w*0.85},${h/2+3}`} stroke="#445c49" strokeWidth="1"/>
+        </svg>
+      )
+      case 'tuer-falt': return (
+        <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+          <rect x="1" y={h/2-T/2} width={w/2} height={T} fill="#e2e8f0" stroke="#64748b" strokeWidth="0.8"/>
+          <path d={`M 1,${h/2+T/2} L ${w*0.2},${h*0.1} L ${w*0.4},${h/2+T/2} L ${w/2},${h*0.1}`} stroke="#445c49" strokeWidth="1" fill="none"/>
+          <path d={`M 1,${h/2+T/2} A ${w*0.5},${w*0.5} 0 0 0 ${w/2},${h/2-T/2}`} stroke="#94a3b8" strokeWidth="0.5" strokeDasharray="2,2"/>
+        </svg>
+      )
+      case 'tuer-glas': return (
+        <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+          <rect x="0" y={h/2-T/2} width={w*0.7} height={T} fill="rgba(147,197,253,0.3)" stroke="#64748b" strokeWidth="0.8"/>
+          <line x1={w*0.15} y1={h/2-T/2+1} x2={w*0.15} y2={h/2+T/2-1} stroke="#93c5fd" strokeWidth="0.7"/>
+          <line x1={w*0.25} y1={h/2-T/2+1} x2={w*0.25} y2={h/2+T/2-1} stroke="#93c5fd" strokeWidth="0.7"/>
+          <path d={`M 0,${h/2+T/2} A ${w*0.7},${w*0.7} 0 0 0 ${w*0.7},${h/2-T/2}`} stroke="#445c49" strokeWidth="1" strokeDasharray="3,2" fill="rgba(147,197,253,0.08)"/>
+        </svg>
+      )
+      default: return <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}><rect x="1" y={h/2-T/2} width={w-2} height={T} fill="#e2e8f0" stroke="#64748b" strokeWidth="0.8"/></svg>
+    }
+  }
+  // Fenster previews
+  switch (variant.id) {
+    case 'fen-standard': return (
+      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+        <rect x="1" y={h/2-T/2} width={w-2} height={T} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
+        <line x1={w*0.33} y1={h/2-T/2+1} x2={w*0.33} y2={h/2+T/2-1} stroke="#94c1a4" strokeWidth="1.5"/>
+        <line x1={w*0.66} y1={h/2-T/2+1} x2={w*0.66} y2={h/2+T/2-1} stroke="#94c1a4" strokeWidth="1.5"/>
+      </svg>
+    )
+    case 'fen-breit': return (
+      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+        <rect x="1" y={h/2-T/2} width={w-2} height={T} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
+        <line x1={w*0.25} y1={h/2-T/2+1} x2={w*0.25} y2={h/2+T/2-1} stroke="#94c1a4" strokeWidth="1.2"/>
+        <line x1={w*0.5}  y1={h/2-T/2+1} x2={w*0.5}  y2={h/2+T/2-1} stroke="#94c1a4" strokeWidth="1.2"/>
+        <line x1={w*0.75} y1={h/2-T/2+1} x2={w*0.75} y2={h/2+T/2-1} stroke="#94c1a4" strokeWidth="1.2"/>
+      </svg>
+    )
+    case 'fen-bodentief': return (
+      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+        <rect x={w*0.2} y="1" width={w*0.6} height={h-2} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
+        <line x1={w*0.5} y1="1" x2={w*0.5} y2={h-1} stroke="#94c1a4" strokeWidth="1.2"/>
+        <line x1={w*0.2+1} y1={h/2} x2={w*0.8-1} y2={h/2} stroke="#94c1a4" strokeWidth="0.7" strokeDasharray="2,2"/>
+      </svg>
+    )
+    case 'fen-dach': return (
+      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+        <rect x="4" y="4" width={w-8} height={h-8} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
+        <line x1="4" y1="4" x2={w-4} y2={h-4} stroke="#94c1a4" strokeWidth="1"/>
+        <line x1={w-4} y1="4" x2="4" y2={h-4} stroke="#94c1a4" strokeWidth="1"/>
+      </svg>
+    )
+    case 'fen-bogen': return (
+      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+        <rect x="3" y={h/2} width={w-6} height={h/2-2} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
+        <path d={`M 3,${h/2} A ${(w-6)/2},${h/2-2} 0 0 1 ${w-3},${h/2}`} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
+        <line x1={w/2} y1="2" x2={w/2} y2={h-2} stroke="#94c1a4" strokeWidth="1"/>
+      </svg>
+    )
+    case 'fen-rund': return (
+      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
+        <circle cx={w/2} cy={h/2} r={h/2-2} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
+        <line x1={w/2} y1="2" x2={w/2} y2={h-2} stroke="#94c1a4" strokeWidth="1"/>
+        <line x1="3" y1={h/2} x2={w-3} y2={h/2} stroke="#94c1a4" strokeWidth="1"/>
+      </svg>
+    )
+    default: return <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}><rect x="1" y={h/2-T/2} width={w-2} height={T} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/></svg>
+  }
+}
 
 // ── Boden-Texturen ────────────────────────────────────────────
 interface FloorTexture { name: string; preview: string }
@@ -190,6 +312,13 @@ function createPatternCanvas(textur: string): HTMLCanvasElement | null {
   return c
 }
 
+interface EtageType {
+  id: string; name: string; etage_nummer: number; sortierung: number; grundriss_json: string | null
+}
+interface StuecklisteItem {
+  nr: number; name: string; breite: number; laenge: number; menge: number
+  einzelpreis: number | null; gesamt: number | null
+}
 interface SelectedProps {
   x: number; y: number; w: number; h: number; angle: number; name: string; objType?: string
   locked: boolean; produkt_id?: string
@@ -263,6 +392,7 @@ function ShortcutOverlay({ onClose }: { onClose: () => void }) {
   const shortcuts = [
     { keys: ['V'],         desc: 'Auswahl' },
     { keys: ['W'],         desc: 'Wand zeichnen' },
+    { keys: ['K'],         desc: 'Gebogene Wand (3 Klicks)' },
     { keys: ['D'],         desc: 'Tür platzieren' },
     { keys: ['F'],         desc: 'Fenster platzieren' },
     { keys: ['M'],         desc: 'Bemaßung' },
@@ -522,6 +652,17 @@ export default function RaumplanerEditor({
   const [isMultiSelect,     setIsMultiSelect]     = useState(false)
   const [multiSelectCount,  setMultiSelectCount]  = useState(0)
 
+  // ── Etagen ────────────────────────────────────────────────────
+  const [etagen,            setEtagen]            = useState<EtageType[]>([])
+  const [aktiveEtageId,     setAktiveEtageId]     = useState<string | null>(null)
+  const [etagenLoading,     setEtagenLoading]     = useState(false)
+
+  // ── Stückliste ───────────────────────────────────────────────
+  const [showStuecklisteModal, setShowStuecklisteModal] = useState(false)
+
+  // ── Türen & Fenster Varianten ────────────────────────────────
+  const [openTuerFenster,   setOpenTuerFenster]   = useState(true)
+
   const showDimensionsRef   = useRef(false)
   const showKollisionRef    = useRef(false)
   const dimTimerRef         = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -564,6 +705,13 @@ export default function RaumplanerEditor({
   const toggleLockRef        = useRef(() => {})
   const groupSelectedRef     = useRef(() => {})
   const ungroupSelectedRef   = useRef(() => {})
+  const aktiveEtageIdRef     = useRef<string | null>(null)
+  // Kurven-Tool Refs
+  const curvePhaseRef        = useRef<'idle' | 'start_set' | 'end_set'>('idle')
+  const curveStartRef        = useRef<{ x: number; y: number } | null>(null)
+  const curveEndRef          = useRef<{ x: number; y: number } | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const curvePreviewRef      = useRef<any>(null)
 
   // ── Ref-Sync ──────────────────────────────────────────────
 
@@ -580,6 +728,18 @@ export default function RaumplanerEditor({
   useEffect(() => {
     getRaumplanVersionen(raumId).then(setVersionen).catch(() => {})
   }, [raumId])
+
+  // Etagen beim Start laden
+  useEffect(() => {
+    getRaumEtagen(raumId).then(data => {
+      setEtagen(data)
+      if (data.length > 0 && !aktiveEtageId) setAktiveEtageId(data[0].id)
+    }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raumId])
+
+  // Aktive-Etage-Ref sync
+  useEffect(() => { aktiveEtageIdRef.current = aktiveEtageId }, [aktiveEtageId])
 
   // Fullscreen-Änderung beobachten
   useEffect(() => {
@@ -677,7 +837,11 @@ export default function RaumplanerEditor({
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {
       setSaveStatus('saving')
-      const res = await grundrissSpeichern(raumId, getCanvasJson())
+      const json = getCanvasJson()
+      const etageId = aktiveEtageIdRef.current
+      const res = etageId
+        ? await etageSpeichern(etageId, json)
+        : await grundrissSpeichern(raumId, json)
       setSaveStatus(res.fehler ? 'error' : 'saved')
     }, AUTOSAVE_DELAY)
   }, [raumId, getCanvasJson])
@@ -750,6 +914,13 @@ export default function RaumplanerEditor({
     measureStartRef.current = null; canvas.requestRenderAll(); switchToolRef.current('select')
   }, [])
 
+  const stopCurveTool = useCallback(() => {
+    const canvas = fabricRef.current; if (!canvas) return
+    if (curvePreviewRef.current) { canvas.remove(curvePreviewRef.current); curvePreviewRef.current = null }
+    curvePhaseRef.current = 'idle'; curveStartRef.current = null; curveEndRef.current = null
+    canvas.requestRenderAll(); switchToolRef.current('select')
+  }, [])
+
   // ── Möbel platzieren ─────────────────────────────────────
 
   const placeMoebel = useCallback((symbol: MoebelSymbol, canvasX: number, canvasY: number) => {
@@ -815,6 +986,179 @@ export default function RaumplanerEditor({
       new Line([w * 0.66, 2, w * 0.66, thick - 2], { stroke: '#94c1a4', strokeWidth: 1.5 }),
     ], { left: x - w / 2, top: y - thick / 2, data: { type: 'window', breite: w }, name: 'Fenster' }))
     canvas.requestRenderAll(); pushHistory(); triggerAutoSave(); updateObjCount()
+  }, [pushHistory, triggerAutoSave, updateObjCount])
+
+  // ── Tür/Fenster Varianten platzieren ─────────────────────
+
+  const placeTuerVariante = useCallback((varianteId: string, x: number, y: number) => {
+    const canvas = fabricRef.current, imp = fabricImports.current
+    if (!canvas || !imp) return
+    const { Group, Rect, Path, Line } = imp
+    const T = WALL_THICKNESS
+    let group: ReturnType<typeof Group>
+    let breite = 80
+
+    switch (varianteId) {
+      case 'tuer-rechts': {
+        breite = 80
+        group = new Group([
+          new Rect({ left: 0, top: 0, width: breite, height: T, fill: '#f8fafc', stroke: '#64748b', strokeWidth: 1 }),
+          new Path(`M ${breite},${T} A ${breite},${breite} 0 0 0 0,${T + breite} L 0,${T} Z`,
+            { fill: 'transparent', stroke: '#445c49', strokeWidth: 1.5, strokeDashArray: [4, 3] }),
+        ], { left: x - breite / 2, top: y - T / 2, data: { type: 'door', doorType: 'tuer-rechts', breite }, name: 'Tür (Rechts)' })
+        break
+      }
+      case 'tuer-doppel': {
+        breite = 160
+        const hw = breite / 2
+        group = new Group([
+          new Rect({ left: 0, top: 0, width: breite, height: T, fill: '#f8fafc', stroke: '#64748b', strokeWidth: 1 }),
+          new Path(`M 0,${T} A ${hw},${hw} 0 0 1 ${hw},${T + hw} L ${hw},${T} Z`,
+            { fill: 'transparent', stroke: '#445c49', strokeWidth: 1.5, strokeDashArray: [4, 3] }),
+          new Path(`M ${breite},${T} A ${hw},${hw} 0 0 0 ${hw},${T + hw} L ${hw},${T} Z`,
+            { fill: 'transparent', stroke: '#445c49', strokeWidth: 1.5, strokeDashArray: [4, 3] }),
+        ], { left: x - breite / 2, top: y - T / 2, data: { type: 'door', doorType: 'tuer-doppel', breite }, name: 'Doppeltür' })
+        break
+      }
+      case 'tuer-schiebe': {
+        breite = 100
+        group = new Group([
+          new Rect({ left: 0, top: 0, width: breite, height: T, fill: '#f8fafc', stroke: '#64748b', strokeWidth: 1 }),
+          new Rect({ left: 2, top: 1, width: breite / 2 - 4, height: T - 2, fill: 'rgba(100,116,139,0.15)', stroke: '#94a3b8', strokeWidth: 0.8 }),
+          new Line([breite * 0.25, T / 2, breite * 0.1, T / 2], { stroke: '#445c49', strokeWidth: 1.5 }),
+          new Path(`M ${breite * 0.1},${T / 2 - 3} L ${breite * 0.1},${T / 2 + 3}`, { stroke: '#445c49', strokeWidth: 1.5 }),
+          new Line([breite * 0.75, T / 2, breite * 0.9, T / 2], { stroke: '#445c49', strokeWidth: 1.5 }),
+          new Path(`M ${breite * 0.9},${T / 2 - 3} L ${breite * 0.9},${T / 2 + 3}`, { stroke: '#445c49', strokeWidth: 1.5 }),
+        ], { left: x - breite / 2, top: y - T / 2, data: { type: 'door', doorType: 'tuer-schiebe', breite }, name: 'Schiebetür' })
+        break
+      }
+      case 'tuer-falt': {
+        breite = 80
+        group = new Group([
+          new Rect({ left: 0, top: 0, width: breite, height: T, fill: '#f8fafc', stroke: '#64748b', strokeWidth: 1 }),
+          new Path(`M 0,${T} L ${breite * 0.25},0 L ${breite * 0.5},${T} L ${breite * 0.75},0 L ${breite},${T}`,
+            { fill: 'transparent', stroke: '#445c49', strokeWidth: 1.5 }),
+          new Path(`M 0,${T} A ${breite},${breite} 0 0 0 ${breite},${T + breite} L ${breite},${T} Z`,
+            { fill: 'transparent', stroke: '#94a3b8', strokeWidth: 0.8, strokeDashArray: [3, 3] }),
+        ], { left: x - breite / 2, top: y - T / 2, data: { type: 'door', doorType: 'tuer-falt', breite }, name: 'Falttür' })
+        break
+      }
+      case 'tuer-glas': {
+        breite = 80
+        group = new Group([
+          new Rect({ left: 0, top: 0, width: breite, height: T, fill: 'rgba(147,197,253,0.25)', stroke: '#64748b', strokeWidth: 1 }),
+          new Line([breite * 0.2, 2, breite * 0.2, T - 2], { stroke: '#93c5fd', strokeWidth: 1 }),
+          new Line([breite * 0.4, 2, breite * 0.4, T - 2], { stroke: '#93c5fd', strokeWidth: 1 }),
+          new Path(`M 0,${T} A ${breite},${breite} 0 0 1 ${breite},${T + breite} L ${breite},${T} Z`,
+            { fill: 'rgba(147,197,253,0.06)', stroke: '#445c49', strokeWidth: 1.5, strokeDashArray: [4, 3] }),
+        ], { left: x - breite / 2, top: y - T / 2, data: { type: 'door', doorType: 'tuer-glas', breite }, name: 'Glastür' })
+        break
+      }
+      default: {
+        // tuer-links (standard)
+        breite = 80
+        group = new Group([
+          new Rect({ left: 0, top: 0, width: breite, height: T, fill: '#f8fafc', stroke: '#64748b', strokeWidth: 1 }),
+          new Path(`M 0,${T} A ${breite},${breite} 0 0 1 ${breite},${T + breite} L ${breite},${T} Z`,
+            { fill: 'transparent', stroke: '#445c49', strokeWidth: 1.5, strokeDashArray: [4, 3] }),
+        ], { left: x - breite / 2, top: y - T / 2, data: { type: 'door', doorType: 'tuer-links', breite }, name: 'Tür (Links)' })
+      }
+    }
+    canvas.add(group); canvas.setActiveObject(group); canvas.requestRenderAll()
+    pushHistory(); triggerAutoSave(); updateObjCount()
+  }, [pushHistory, triggerAutoSave, updateObjCount])
+
+  const placeFensterVariante = useCallback((varianteId: string, x: number, y: number) => {
+    const canvas = fabricRef.current, imp = fabricImports.current
+    if (!canvas || !imp) return
+    const { Group, Rect, Line, Path, Circle } = imp
+    const T = WALL_THICKNESS
+    let breite = 100
+
+    switch (varianteId) {
+      case 'fen-breit': {
+        breite = 150
+        const group = new Group([
+          new Rect({ left: 0, top: 0, width: breite, height: T, fill: '#e0f2fe', stroke: '#64748b', strokeWidth: 1 }),
+          new Line([breite * 0.25, 2, breite * 0.25, T - 2], { stroke: '#94c1a4', strokeWidth: 1.2 }),
+          new Line([breite * 0.5,  2, breite * 0.5,  T - 2], { stroke: '#94c1a4', strokeWidth: 1.2 }),
+          new Line([breite * 0.75, 2, breite * 0.75, T - 2], { stroke: '#94c1a4', strokeWidth: 1.2 }),
+        ], { left: x - breite / 2, top: y - T / 2, data: { type: 'window', windowType: 'fen-breit', breite }, name: 'Fenster Breit (150cm)' })
+        canvas.add(group); canvas.setActiveObject(group); canvas.requestRenderAll()
+        pushHistory(); triggerAutoSave(); updateObjCount(); return
+      }
+      case 'fen-bodentief': {
+        // Bodentiefes Fenster – hochkant, größer
+        const W = 80, H = 200
+        const group = new Group([
+          new Rect({ left: 0, top: 0, width: W, height: H, fill: '#e0f2fe', stroke: '#64748b', strokeWidth: 1.5 }),
+          new Line([W / 2, 2, W / 2, H - 2], { stroke: '#94c1a4', strokeWidth: 1.5 }),
+          new Line([2, H / 2, W - 2, H / 2], { stroke: '#94c1a4', strokeWidth: 0.8, strokeDashArray: [3, 3] }),
+        ], { left: x - W / 2, top: y - H / 2, data: { type: 'window', windowType: 'fen-bodentief', breite: W }, name: 'Fenster Bodentief' })
+        canvas.add(group); canvas.setActiveObject(group); canvas.requestRenderAll()
+        pushHistory(); triggerAutoSave(); updateObjCount(); return
+      }
+      case 'fen-dach': {
+        const W = 80, H = 60
+        const group = new Group([
+          new Rect({ left: 0, top: 0, width: W, height: H, fill: '#e0f2fe', stroke: '#64748b', strokeWidth: 1.5 }),
+          new Line([0, 0, W, H], { stroke: '#94c1a4', strokeWidth: 1 }),
+          new Line([W, 0, 0, H], { stroke: '#94c1a4', strokeWidth: 1 }),
+        ], { left: x - W / 2, top: y - H / 2, data: { type: 'window', windowType: 'fen-dach', breite: W }, name: 'Dachfenster' })
+        canvas.add(group); canvas.setActiveObject(group); canvas.requestRenderAll()
+        pushHistory(); triggerAutoSave(); updateObjCount(); return
+      }
+      case 'fen-bogen': {
+        const W = 100, H = 80, halfW = W / 2
+        const group = new Group([
+          new Rect({ left: 0, top: halfW, width: W, height: H - halfW, fill: '#e0f2fe', stroke: '#64748b', strokeWidth: 1 }),
+          new Path(`M 0,${halfW} A ${halfW},${halfW} 0 0 1 ${W},${halfW}`, { fill: '#e0f2fe', stroke: '#64748b', strokeWidth: 1 }),
+          new Line([halfW, 0, halfW, H], { stroke: '#94c1a4', strokeWidth: 1.5 }),
+        ], { left: x - W / 2, top: y - H / 2, data: { type: 'window', windowType: 'fen-bogen', breite: W }, name: 'Bogenfenster' })
+        canvas.add(group); canvas.setActiveObject(group); canvas.requestRenderAll()
+        pushHistory(); triggerAutoSave(); updateObjCount(); return
+      }
+      case 'fen-rund': {
+        const R = 40
+        const group = new Group([
+          new Circle({ radius: R, left: 0, top: 0, fill: '#e0f2fe', stroke: '#64748b', strokeWidth: 1.5, originX: 'center', originY: 'center' }),
+          new Line([-R + 2, 0, R - 2, 0], { stroke: '#94c1a4', strokeWidth: 1.2 }),
+          new Line([0, -R + 2, 0, R - 2], { stroke: '#94c1a4', strokeWidth: 1.2 }),
+        ], { left: x, top: y, data: { type: 'window', windowType: 'fen-rund', breite: R * 2 }, name: 'Rundfenster' })
+        canvas.add(group); canvas.setActiveObject(group); canvas.requestRenderAll()
+        pushHistory(); triggerAutoSave(); updateObjCount(); return
+      }
+      default: {
+        // fen-standard (100cm) - already covered by placeWindow, but add here too
+        breite = 100
+        const group = new Group([
+          new Rect({ left: 0, top: 0, width: breite, height: T, fill: '#e0f2fe', stroke: '#64748b', strokeWidth: 1 }),
+          new Line([breite * 0.33, 2, breite * 0.33, T - 2], { stroke: '#94c1a4', strokeWidth: 1.5 }),
+          new Line([breite * 0.66, 2, breite * 0.66, T - 2], { stroke: '#94c1a4', strokeWidth: 1.5 }),
+        ], { left: x - breite / 2, top: y - T / 2, data: { type: 'window', windowType: 'fen-standard', breite }, name: 'Fenster Standard' })
+        canvas.add(group); canvas.setActiveObject(group); canvas.requestRenderAll()
+        pushHistory(); triggerAutoSave(); updateObjCount(); return
+      }
+    }
+  }, [pushHistory, triggerAutoSave, updateObjCount])
+
+  // ── Gebogene Wand (Kurven-Tool) ───────────────────────────────
+
+  const placeCurvedWall = useCallback((cx: number, cy: number) => {
+    const canvas = fabricRef.current, imp = fabricImports.current
+    if (!canvas || !imp || !curveStartRef.current || !curveEndRef.current) return
+    if (curvePreviewRef.current) { canvas.remove(curvePreviewRef.current); curvePreviewRef.current = null }
+    const { x: x1, y: y1 } = curveStartRef.current
+    const { x: x2, y: y2 } = curveEndRef.current
+    const pathStr = `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`
+    canvas.add(new imp.Path(pathStr, {
+      fill: 'transparent', stroke: '#1e293b', strokeWidth: WALL_THICKNESS,
+      strokeLineCap: 'round', strokeLineJoin: 'round',
+      selectable: true, data: { type: 'wall', wallType: 'curved' }, name: 'Gebogene Wand',
+    }))
+    curvePhaseRef.current = 'idle'; curveStartRef.current = null; curveEndRef.current = null
+    pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
+    switchToolRef.current('select')
   }, [pushHistory, triggerAutoSave, updateObjCount])
 
   // ── Bemaßung ─────────────────────────────────────────────
@@ -962,6 +1306,14 @@ export default function RaumplanerEditor({
         if (tool === 'measure' && measureStartRef.current && measurePreviewRef.current) {
           measurePreviewRef.current.set({ x2: snapped.x, y2: snapped.y }); canvas.requestRenderAll()
         }
+        // Kurven-Preview: wenn Phase 'end_set' → live Bézier aktualisieren
+        if (tool === 'curve' && curvePhaseRef.current === 'end_set' && curvePreviewRef.current
+            && curveStartRef.current && curveEndRef.current) {
+          const { x: x1, y: y1 } = curveStartRef.current
+          const { x: x2, y: y2 } = curveEndRef.current
+          curvePreviewRef.current.set('path', [['M', x1, y1], ['Q', snapped.x, snapped.y, x2, y2]])
+          canvas.requestRenderAll()
+        }
       })
 
       // ── RECHTSKLICK (via Fabric mouse:down) ──
@@ -972,6 +1324,7 @@ export default function RaumplanerEditor({
           const tool = activeToolRef.current
           if (tool === 'wall')    { stopWallTool();    return }
           if (tool === 'measure') { stopMeasureTool(); return }
+          if (tool === 'curve')   { stopCurveTool();   return }
           if (opt.target && opt.target.data?.type !== 'outline') {
             canvas.setActiveObject(opt.target)
             setContextMenu({ x: e.clientX, y: e.clientY, target: opt.target })
@@ -1016,6 +1369,31 @@ export default function RaumplanerEditor({
             })
             measurePreviewRef.current = prev; canvas.add(prev); canvas.requestRenderAll()
           } else { finishMeasure(snapped.x, snapped.y); switchToolRef.current('select') }
+          return
+        }
+        if (tool === 'curve') {
+          if (curvePhaseRef.current === 'idle') {
+            // Klick 1: Startpunkt
+            curveStartRef.current = snapped; curvePhaseRef.current = 'start_set'; return
+          }
+          if (curvePhaseRef.current === 'start_set') {
+            // Klick 2: Endpunkt – Preview starten
+            curveEndRef.current = snapped; curvePhaseRef.current = 'end_set'
+            const { x: x1, y: y1 } = curveStartRef.current!
+            const { x: x2, y: y2 } = curveEndRef.current
+            // Preview-Pfad hinzufügen (gerade Linie zunächst)
+            const prev = new (fabricImports.current!.Path)(`M ${x1} ${y1} Q ${x1} ${y1} ${x2} ${y2}`, {
+              fill: 'transparent', stroke: '#445c49', strokeWidth: WALL_THICKNESS,
+              strokeLineCap: 'round', strokeDashArray: [6, 4],
+              selectable: false, evented: false, opacity: 0.55, data: { type: 'preview' },
+            })
+            curvePreviewRef.current = prev; canvas.add(prev); canvas.requestRenderAll()
+            return
+          }
+          if (curvePhaseRef.current === 'end_set') {
+            // Klick 3: Kontrollpunkt bestätigen
+            placeCurvedWall(snapped.x, snapped.y); return
+          }
           return
         }
         if (tool === 'eraser') {
@@ -1192,11 +1570,14 @@ export default function RaumplanerEditor({
       cont.addEventListener('dragover', (e: DragEvent) => e.preventDefault())
       cont.addEventListener('drop', (e: DragEvent) => {
         e.preventDefault()
-        const json = e.dataTransfer?.getData('application/moebel-symbol'); if (!json) return
-        const symbol: MoebelSymbol = JSON.parse(json)
         const rect = cont.getBoundingClientRect()
         const p = canvas.getPointer({ offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top } as MouseEvent)
-        placeMoebel(symbol, p.x, p.y)
+        const moebelJson = e.dataTransfer?.getData('application/moebel-symbol')
+        if (moebelJson) { placeMoebel(JSON.parse(moebelJson) as MoebelSymbol, p.x, p.y); return }
+        const tuerVariante = e.dataTransfer?.getData('application/tuer-variante')
+        if (tuerVariante) { placeTuerVariante(tuerVariante, p.x, p.y); return }
+        const fensterVariante = e.dataTransfer?.getData('application/fenster-variante')
+        if (fensterVariante) { placeFensterVariante(fensterVariante, p.x, p.y); return }
       })
 
       // ── PAN via native events (zuverlässig für Mitte-Taste + Space+LMB) ──
@@ -1276,8 +1657,9 @@ export default function RaumplanerEditor({
         if (tag === 'INPUT' || tag === 'TEXTAREA') return
         if (ev.key === 'Escape') {
           const t = activeToolRef.current
-          if (t === 'wall') { stopWallTool(); return }
+          if (t === 'wall')    { stopWallTool();    return }
           if (t === 'measure') { stopMeasureTool(); return }
+          if (t === 'curve')   { stopCurveTool();   return }
           switchToolRef.current('select'); return
         }
         if (ev.code === 'Space') { isSpaceRef.current = true; canvas.setCursor('grab'); ev.preventDefault(); return }
@@ -1293,7 +1675,7 @@ export default function RaumplanerEditor({
         if (ev.key === 'F11') { ev.preventDefault(); toggleFullscreenRef.current(); return }
         if (!ev.ctrlKey && !ev.metaKey) {
           if (ev.key.toLowerCase() === 'l') { toggleLockRef.current(); return }
-          const map: Record<string, Tool> = { v:'select', w:'wall', d:'door', f:'window', m:'measure', e:'eraser', n:'note' }
+          const map: Record<string, Tool> = { v:'select', w:'wall', k:'curve', d:'door', f:'window', m:'measure', e:'eraser', n:'note' }
           if (map[ev.key.toLowerCase()]) switchToolRef.current(map[ev.key.toLowerCase()] as Tool)
         }
         if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z' && !ev.shiftKey) { ev.preventDefault(); undo() }
@@ -1337,7 +1719,9 @@ export default function RaumplanerEditor({
     const canvas = fabricRef.current; if (!canvas) return
     if (wallPreviewRef.current)    { canvas.remove(wallPreviewRef.current);    wallPreviewRef.current = null }
     if (measurePreviewRef.current) { canvas.remove(measurePreviewRef.current); measurePreviewRef.current = null }
+    if (curvePreviewRef.current)   { canvas.remove(curvePreviewRef.current);   curvePreviewRef.current = null }
     wallStartRef.current = null; measureStartRef.current = null
+    curvePhaseRef.current = 'idle'; curveStartRef.current = null; curveEndRef.current = null
     canvas.selection = tool === 'select'
     canvas.setCursor(tool === 'select' ? 'default' : 'crosshair')
     if (tool !== 'select') canvas.discardActiveObject()
@@ -2183,6 +2567,136 @@ export default function RaumplanerEditor({
     pushHistory(); triggerAutoSave(); updateObjCount()
   }
 
+  // ── Stückliste ────────────────────────────────────────────────
+
+  function getStueckliste(): StuecklisteItem[] {
+    const canvas = fabricRef.current; if (!canvas) return []
+    const SKIP = new Set(['outline','preview','floor','dimension','collision','alignment'])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const objs = canvas.getObjects().filter((o: any) => !SKIP.has(o.data?.type ?? ''))
+    const map = new Map<string, StuecklisteItem>()
+    const produktMap = new Map(allProdukteRef.current.map(p => [p.id, p]))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    objs.forEach((o: any) => {
+      const nm = o.name ?? 'Unbekannt'
+      const w = Math.round((o.getScaledWidth?.() ?? 0) / SCALE * 100)
+      const h = Math.round((o.getScaledHeight?.() ?? 0) / SCALE * 100)
+      const pid = o.data?.produkt_id
+      const prod = pid ? produktMap.get(pid) : null
+      const preis = prod?.verkaufspreis_netto ?? null
+      const key = `${nm}_${w}_${h}`
+      const existing = map.get(key)
+      if (existing) { existing.menge++; if (existing.einzelpreis !== null && preis !== null) existing.gesamt = existing.einzelpreis * (existing.menge) }
+      else map.set(key, { nr: map.size + 1, name: nm, breite: w, laenge: h, menge: 1, einzelpreis: preis, gesamt: preis })
+    })
+    return Array.from(map.values()).map((item, i) => ({ ...item, nr: i + 1, gesamt: item.einzelpreis !== null ? item.einzelpreis * item.menge : null }))
+  }
+
+  function exportStuecklisteCsv() {
+    const items = getStueckliste(); if (!items.length) return
+    const rows = [
+      ['Nr', 'Bezeichnung', 'Breite (cm)', 'Länge (cm)', 'Menge', 'Einzelpreis Netto', 'Gesamt Netto'],
+      ...items.map(i => [
+        String(i.nr), i.name, String(i.breite), String(i.laenge), String(i.menge),
+        i.einzelpreis !== null ? i.einzelpreis.toFixed(2) : '',
+        i.gesamt !== null ? i.gesamt.toFixed(2) : '',
+      ]),
+    ]
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }))
+    a.download = `Stueckliste_${raumName}.csv`; a.click()
+  }
+
+  async function exportStuecklisteXlsx() {
+    const items = getStueckliste(); if (!items.length) return
+    const XLSX = await import('xlsx')
+    const wsData = [
+      ['Nr', 'Bezeichnung', 'Breite (cm)', 'Länge (cm)', 'Menge', 'Einzelpreis Netto', 'Gesamt Netto'],
+      ...items.map(i => [
+        i.nr, i.name, i.breite, i.laenge, i.menge,
+        i.einzelpreis ?? '', i.gesamt ?? '',
+      ]),
+    ]
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet(wsData)
+    // Spaltenbreiten
+    ws['!cols'] = [{ wch: 4 }, { wch: 28 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 16 }]
+    XLSX.utils.book_append_sheet(wb, ws, 'Stückliste')
+    XLSX.writeFile(wb, `Stueckliste_${raumName}.xlsx`)
+  }
+
+  // ── Etagen-Verwaltung ─────────────────────────────────────────
+
+  async function ladeEtage(etage: EtageType) {
+    if (aktiveEtageId === etage.id) return
+    // 1. Aktuelle Etage speichern
+    const json = getCanvasJson()
+    if (aktiveEtageIdRef.current) await etageSpeichern(aktiveEtageIdRef.current, json)
+    // 2. Neue Etage laden
+    const canvas = fabricRef.current, imp = fabricImports.current
+    if (!canvas || !imp) return
+    canvas.clear()
+    if (etage.grundriss_json) {
+      try {
+        const parsed = JSON.parse(etage.grundriss_json)
+        if (parsed.objects) {
+          const SKIP = new Set(['outline','preview','floor','dimension','collision'])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          parsed.objects = parsed.objects.filter((o: any) => !SKIP.has(o.data?.type))
+        }
+        await canvas.loadFromJSON(parsed)
+      } catch { /* ignore */ }
+    }
+    if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
+    canvas.requestRenderAll(); updateObjCount()
+    fitToViewRef.current()
+    setAktiveEtageId(etage.id)
+    aktiveEtageIdRef.current = etage.id
+    setSaveStatus('saved')
+  }
+
+  async function erstelleEtage() {
+    if (etagenLoading) return
+    setEtagenLoading(true)
+    // Aktuelle Etage speichern zuerst
+    const json = getCanvasJson()
+    if (aktiveEtageIdRef.current) await etageSpeichern(aktiveEtageIdRef.current, json)
+    const newNum = etagen.length > 0 ? Math.max(...etagen.map(e => e.etage_nummer)) + 1 : 0
+    const names: Record<number, string> = { 0: 'Erdgeschoss', 1: '1. OG', 2: '2. OG', 3: '3. OG', '-1': 'Untergeschoss' }
+    const name = names[newNum] ?? `${newNum}. OG`
+    try {
+      const res = await etageErstellen(raumId, name, newNum, etagen.length)
+      if ('id' in res) {
+        const neueEtage: EtageType = { id: res.id, name, etage_nummer: newNum, sortierung: etagen.length, grundriss_json: null }
+        setEtagen(prev => [...prev, neueEtage])
+        // Leere neue Etage laden
+        const canvas = fabricRef.current, imp = fabricImports.current
+        if (canvas && imp) {
+          canvas.clear()
+          if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
+          canvas.requestRenderAll()
+          updateObjCount()
+        }
+        setAktiveEtageId(res.id); aktiveEtageIdRef.current = res.id
+        pushHistory(); setSaveStatus('saved')
+      }
+    } finally { setEtagenLoading(false) }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async function loescheEtage(etage: EtageType) {
+    if (etagen.length <= 1) { alert('Mindestens eine Etage muss vorhanden sein.'); return }
+    if (!confirm(`Etage "${etage.name}" löschen?`)) return
+    await etageLoeschen(etage.id)
+    const updated = etagen.filter(e => e.id !== etage.id)
+    setEtagen(updated)
+    if (aktiveEtageId === etage.id) {
+      const next = updated[0]
+      if (next) await ladeEtage(next)
+    }
+  }
+
   // ── Bild-Export ─────────────────────────────────────────────
   function exportAsImage() {
     const canvas = fabricRef.current; if (!canvas) return
@@ -2364,17 +2878,18 @@ export default function RaumplanerEditor({
 
   const toolGroups = [
     [
-      { key: 'select'  as Tool, Icon: MousePointer2, label: 'Auswahl',   shortcut: 'V' },
-      { key: 'wall'    as Tool, Icon: Pencil,        label: 'Wand',      shortcut: 'W' },
+      { key: 'select'  as Tool, Icon: MousePointer2, label: 'Auswahl',       shortcut: 'V' },
+      { key: 'wall'    as Tool, Icon: Pencil,        label: 'Wand',          shortcut: 'W' },
+      { key: 'curve'   as Tool, Icon: PenLine,       label: 'Gebogene Wand', shortcut: 'K' },
     ],
     [
-      { key: 'door'    as Tool, Icon: DoorOpen,      label: 'Tür',       shortcut: 'D' },
-      { key: 'window'  as Tool, Icon: AppWindow,     label: 'Fenster',   shortcut: 'F' },
+      { key: 'door'    as Tool, Icon: DoorOpen,      label: 'Tür',           shortcut: 'D' },
+      { key: 'window'  as Tool, Icon: AppWindow,     label: 'Fenster',       shortcut: 'F' },
     ],
     [
-      { key: 'measure' as Tool, Icon: Ruler,         label: 'Bemaßung',  shortcut: 'M' },
-      { key: 'eraser'  as Tool, Icon: Eraser,        label: 'Radierer',  shortcut: 'E' },
-      { key: 'note'    as Tool, Icon: StickyNote,    label: 'Notiz',     shortcut: 'N' },
+      { key: 'measure' as Tool, Icon: Ruler,         label: 'Bemaßung',      shortcut: 'M' },
+      { key: 'eraser'  as Tool, Icon: Eraser,        label: 'Radierer',      shortcut: 'E' },
+      { key: 'note'    as Tool, Icon: StickyNote,    label: 'Notiz',         shortcut: 'N' },
     ],
   ]
   const allTools = toolGroups.flat()
@@ -2603,6 +3118,50 @@ export default function RaumplanerEditor({
           <List className="w-4 h-4" />
         </button>
 
+        {/* Stückliste */}
+        <button type="button" title="Stückliste" onClick={() => setShowStuecklisteModal(true)}
+          className={tbBtn} style={{ color: C.textLt }}
+          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          <Sheet className="w-4 h-4" />
+        </button>
+
+        <div className={tbSep} style={{ background: C.border }} />
+
+        {/* Etagen-Tabs */}
+        {etagen.length > 0 && (
+          <div className="flex items-center gap-0.5 rounded-lg px-0.5 py-0.5" style={{ background: 'rgba(0,0,0,0.2)' }}>
+            {etagen.map(etage => (
+              <button key={etage.id} type="button"
+                title={`Etage: ${etage.name}`}
+                onClick={() => ladeEtage(etage)}
+                className="flex items-center gap-1 px-2 py-1 text-[10px] rounded-md font-medium transition-all truncate max-w-[80px]"
+                style={{
+                  background: aktiveEtageId === etage.id ? '#445c49' : 'transparent',
+                  color: aktiveEtageId === etage.id ? '#fff' : C.textLt,
+                }}>
+                <Layers className="w-3 h-3 shrink-0" />
+                <span className="truncate">{etage.name}</span>
+              </button>
+            ))}
+            <button type="button" title="Neue Etage" onClick={erstelleEtage} disabled={etagenLoading}
+              className="w-7 h-7 flex items-center justify-center rounded-md transition-colors disabled:opacity-40"
+              style={{ color: C.textLt }}
+              onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+              <PlusIcon className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+        {etagen.length === 0 && (
+          <button type="button" title="Etagen aktivieren" onClick={erstelleEtage} disabled={etagenLoading}
+            className={`${tbBtn} gap-1 px-2 text-[10px]`} style={{ color: C.textLt }}
+            onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+            <Layers className="w-3.5 h-3.5" />
+          </button>
+        )}
+
         <div className={tbSep} style={{ background: C.border }} />
 
         {/* Angebot aus Raumplan */}
@@ -2823,6 +3382,73 @@ export default function RaumplanerEditor({
                     )}
                   </div>
                 )}
+
+                {/* ── TÜREN & FENSTER ── */}
+                <div>
+                  <button type="button"
+                    onClick={() => setOpenTuerFenster(v => !v)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-[10px] transition-colors"
+                    style={{ color: C.textLt, borderBottom: `1px solid ${C.border}20` }}
+                    onMouseEnter={e => (e.currentTarget.style.background = `${C.hover}80`)}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <span className="uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                      <DoorOpen className="w-3 h-3" /> Türen & Fenster
+                    </span>
+                    {openTuerFenster ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  </button>
+                  {openTuerFenster && (
+                    <div className="px-2 py-2" style={{ borderBottom: `1px solid ${C.border}15` }}>
+                      <p className="text-[9px] uppercase tracking-wider font-semibold mb-1.5 px-1" style={{ color: `${C.textLt}50` }}>Türen</p>
+                      <div className="grid grid-cols-2 gap-1 mb-2">
+                        {TUER_VARIANTEN.filter(v => v.kategorie === 'tuer').map(variant => (
+                          <button key={variant.id} type="button"
+                            title={`${variant.label} – ${variant.beschreibung}`}
+                            onClick={() => {
+                              const canvas = fabricRef.current; if (!canvas) return
+                              const vpt = canvas.viewportTransform ?? [1,0,0,1,0,0]
+                              const Z = canvas.getZoom()
+                              const cx = (canvas.getWidth() / 2 - vpt[4]) / Z
+                              const cy = (canvas.getHeight() / 2 - vpt[5]) / Z
+                              placeTuerVariante(variant.id, cx, cy)
+                            }}
+                            draggable
+                            onDragStart={e => e.dataTransfer.setData('application/tuer-variante', variant.id)}
+                            className="flex flex-col items-center gap-1 rounded-lg p-1.5 transition-all cursor-grab active:cursor-grabbing"
+                            style={{ background: 'rgba(0,0,0,0.15)', border: `1px solid ${C.border}20` }}
+                            onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.15)')}>
+                            <TuerFensterPreviewSvg variant={variant} />
+                            <span className="text-[9px] text-center leading-tight" style={{ color: C.textLt }}>{variant.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[9px] uppercase tracking-wider font-semibold mb-1.5 px-1" style={{ color: `${C.textLt}50` }}>Fenster</p>
+                      <div className="grid grid-cols-2 gap-1">
+                        {TUER_VARIANTEN.filter(v => v.kategorie === 'fenster').map(variant => (
+                          <button key={variant.id} type="button"
+                            title={`${variant.label} – ${variant.beschreibung}`}
+                            onClick={() => {
+                              const canvas = fabricRef.current; if (!canvas) return
+                              const vpt = canvas.viewportTransform ?? [1,0,0,1,0,0]
+                              const Z = canvas.getZoom()
+                              const cx = (canvas.getWidth() / 2 - vpt[4]) / Z
+                              const cy = (canvas.getHeight() / 2 - vpt[5]) / Z
+                              placeFensterVariante(variant.id, cx, cy)
+                            }}
+                            draggable
+                            onDragStart={e => e.dataTransfer.setData('application/fenster-variante', variant.id)}
+                            className="flex flex-col items-center gap-1 rounded-lg p-1.5 transition-all cursor-grab active:cursor-grabbing"
+                            style={{ background: 'rgba(0,0,0,0.15)', border: `1px solid ${C.border}20` }}
+                            onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.15)')}>
+                            <TuerFensterPreviewSvg variant={variant} />
+                            <span className="text-[9px] text-center leading-tight" style={{ color: C.textLt }}>{variant.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Eigene Möbel */}
                 {customMoebel.length > 0 && (
@@ -3318,6 +3944,93 @@ export default function RaumplanerEditor({
           </div>
         </div>
       </div>
+
+      {/* ── Stückliste Modal ── */}
+      {showStuecklisteModal && (() => {
+        const items = getStueckliste()
+        const gesamt = items.reduce((s, i) => s + (i.gesamt ?? 0), 0)
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowStuecklisteModal(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-[680px] max-w-[95vw] max-h-[80vh] flex flex-col"
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-900">Stückliste – {raumName}</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">{items.length} Positionen</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={exportStuecklisteCsv} disabled={!items.length}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 text-gray-600">
+                    <Download className="w-3.5 h-3.5" /> CSV
+                  </button>
+                  <button onClick={exportStuecklisteXlsx} disabled={!items.length}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-colors disabled:opacity-40"
+                    style={{ background: '#445c49' }}>
+                    <Sheet className="w-3.5 h-3.5" /> Excel
+                  </button>
+                  <button onClick={() => setShowStuecklisteModal(false)} className="text-gray-400 hover:text-gray-600 ml-1">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {items.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                    <Sheet className="w-10 h-10 mb-3 opacity-30" />
+                    <p className="text-sm">Keine Objekte im Grundriss</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0">
+                      <tr style={{ background: '#445c49' }}>
+                        {['Nr', 'Bezeichnung', 'B (cm)', 'L (cm)', 'Menge', 'EP Netto', 'Gesamt Netto'].map(h => (
+                          <th key={h} className="px-3 py-2.5 text-left text-white font-semibold first:w-8">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item, i) => (
+                        <tr key={i} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                          <td className="px-3 py-2 text-gray-400 font-mono">{item.nr}</td>
+                          <td className="px-3 py-2 text-gray-900 font-medium max-w-[200px] truncate">{item.name}</td>
+                          <td className="px-3 py-2 text-gray-600 font-mono">{item.breite || '–'}</td>
+                          <td className="px-3 py-2 text-gray-600 font-mono">{item.laenge || '–'}</td>
+                          <td className="px-3 py-2 text-gray-900 font-semibold text-center">{item.menge}</td>
+                          <td className="px-3 py-2 text-gray-600 font-mono text-right">
+                            {item.einzelpreis !== null ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(item.einzelpreis) : '–'}
+                          </td>
+                          <td className="px-3 py-2 font-semibold font-mono text-right" style={{ color: item.gesamt !== null ? '#445c49' : '#9ca3af' }}>
+                            {item.gesamt !== null ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(item.gesamt) : '–'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    {gesamt > 0 && (
+                      <tfoot>
+                        <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
+                          <td colSpan={5} className="px-3 py-2.5 text-right text-sm font-semibold text-gray-700">Gesamt Netto</td>
+                          <td />
+                          <td className="px-3 py-2.5 text-right text-sm font-bold" style={{ color: '#445c49' }}>
+                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(gesamt)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                )}
+              </div>
+              {etagen.length > 1 && (
+                <div className="px-6 py-3 border-t border-gray-100 shrink-0">
+                  <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                    <Layers className="w-3 h-3" /> Aktive Etage: <span className="font-medium">{etagen.find(e => e.id === aktiveEtageId)?.name ?? '–'}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Custom-Möbel Modal ── */}
       {showCustomModal && (

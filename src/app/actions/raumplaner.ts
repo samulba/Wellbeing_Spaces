@@ -258,6 +258,76 @@ export async function raumplanAngebotErstellen(
   return { id: data.id }
 }
 
+/** Alle Etagen eines Raums laden. */
+export async function getRaumEtagen(raumId: string): Promise<Array<{
+  id: string; name: string; etage_nummer: number; sortierung: number; grundriss_json: string | null
+}>> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('raumplan_etagen')
+    .select('id, name, etage_nummer, sortierung, grundriss_json')
+    .eq('raum_id', raumId)
+    .order('sortierung', { ascending: true })
+  return (data ?? []).map(e => ({
+    id: e.id,
+    name: e.name,
+    etage_nummer: e.etage_nummer,
+    sortierung: e.sortierung,
+    grundriss_json: e.grundriss_json ? JSON.stringify(e.grundriss_json) : null,
+  }))
+}
+
+/** Neue Etage erstellen. */
+export async function etageErstellen(
+  raumId: string,
+  name: string,
+  etagenNummer: number,
+  sortierung: number,
+  initJson?: string
+): Promise<{ id: string } | { fehler: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationIdOrNull()
+  const { data, error } = await supabase
+    .from('raumplan_etagen')
+    .insert({
+      raum_id: raumId,
+      organisation_id: orgId,
+      name: name.trim(),
+      etage_nummer: etagenNummer,
+      sortierung,
+      grundriss_json: initJson ? JSON.parse(initJson) : {},
+    })
+    .select('id')
+    .single()
+  if (error || !data) return { fehler: 'Fehler beim Erstellen der Etage.' }
+  return { id: data.id }
+}
+
+/** Etagen-Canvas speichern. */
+export async function etageSpeichern(
+  etageId: string,
+  grundrissJson: string
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('raumplan_etagen')
+    .update({ grundriss_json: JSON.parse(grundrissJson) })
+    .eq('id', etageId)
+  if (error) return { fehler: 'Fehler beim Speichern.' }
+  return {}
+}
+
+/** Etage löschen. */
+export async function etageLoeschen(etageId: string): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('raumplan_etagen')
+    .delete()
+    .eq('id', etageId)
+  if (error) return { fehler: 'Fehler beim Löschen.' }
+  return {}
+}
+
 /** Neues Custom-Möbel speichern. */
 export async function customMoebelErstellen(input: {
   name: string; kategorie: string; breite_cm: number; laenge_cm: number; farbe: string
