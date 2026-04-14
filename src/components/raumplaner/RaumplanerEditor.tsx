@@ -17,7 +17,7 @@ import {
   AlignLeft, AlignCenterHorizontal, AlignRight,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   AlignHorizontalSpaceBetween, AlignVerticalSpaceBetween,
-  Group, Ungroup, List, PenLine, Sheet, Layers, Plus as PlusIcon,
+  Group, Ungroup, List, PenLine, Sheet, Layers,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -880,7 +880,11 @@ export default function RaumplanerEditor({
   const saveNow = useCallback(async () => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     setSaveStatus('saving')
-    const res = await grundrissSpeichern(raumId, getCanvasJson())
+    const json = getCanvasJson()
+    const etageId = aktiveEtageIdRef.current
+    const res = etageId
+      ? await etageSpeichern(etageId, json)
+      : await grundrissSpeichern(raumId, json)
     setSaveStatus(res.fehler ? 'error' : 'saved')
   }, [raumId, getCanvasJson])
 
@@ -1619,6 +1623,7 @@ export default function RaumplanerEditor({
         const t = activeToolRef.current
         if (t === 'wall')    { stopWallTool();    return }
         if (t === 'measure') { stopMeasureTool(); return }
+        if (t === 'curve')   { stopCurveTool();   return }
       }
       cont.addEventListener('contextmenu', onContextMenu)
 
@@ -2684,7 +2689,6 @@ export default function RaumplanerEditor({
     } finally { setEtagenLoading(false) }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function loescheEtage(etage: EtageType) {
     if (etagen.length <= 1) { alert('Mindestens eine Etage muss vorhanden sein.'); return }
     if (!confirm(`Etage "${etage.name}" löschen?`)) return
@@ -3132,24 +3136,32 @@ export default function RaumplanerEditor({
         {etagen.length > 0 && (
           <div className="flex items-center gap-0.5 rounded-lg px-0.5 py-0.5" style={{ background: 'rgba(0,0,0,0.2)' }}>
             {etagen.map(etage => (
-              <button key={etage.id} type="button"
-                title={`Etage: ${etage.name}`}
-                onClick={() => ladeEtage(etage)}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] rounded-md font-medium transition-all truncate max-w-[80px]"
-                style={{
-                  background: aktiveEtageId === etage.id ? '#445c49' : 'transparent',
-                  color: aktiveEtageId === etage.id ? '#fff' : C.textLt,
-                }}>
-                <Layers className="w-3 h-3 shrink-0" />
-                <span className="truncate">{etage.name}</span>
-              </button>
+              <div key={etage.id} className="flex items-center rounded-md overflow-hidden"
+                style={{ background: aktiveEtageId === etage.id ? '#445c49' : 'transparent' }}>
+                <button type="button"
+                  title={`Etage: ${etage.name}`}
+                  onClick={() => ladeEtage(etage)}
+                  className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium transition-all truncate max-w-[72px]"
+                  style={{ color: aktiveEtageId === etage.id ? '#fff' : C.textLt }}>
+                  <Layers className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{etage.name}</span>
+                </button>
+                {etagen.length > 1 && (
+                  <button type="button" title="Etage löschen"
+                    onClick={e => { e.stopPropagation(); loescheEtage(etage) }}
+                    className="w-4 h-4 flex items-center justify-center mr-1 rounded opacity-60 hover:opacity-100 transition-opacity"
+                    style={{ color: aktiveEtageId === etage.id ? '#fff' : C.textLt }}>
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
             ))}
             <button type="button" title="Neue Etage" onClick={erstelleEtage} disabled={etagenLoading}
               className="w-7 h-7 flex items-center justify-center rounded-md transition-colors disabled:opacity-40"
               style={{ color: C.textLt }}
               onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-              <PlusIcon className="w-3 h-3" />
+              <Plus className="w-3 h-3" />
             </button>
           </div>
         )}
