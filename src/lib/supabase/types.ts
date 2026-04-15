@@ -467,6 +467,102 @@ export interface OnboardingPrioritaet {
   created_at: string
 }
 
+// ── Onboarding-Sektionen relational (Migration 055) ──────────
+export interface OnboardingSektion055 {
+  id: string
+  organisation_id?: string | null
+  vorlage_id: string
+  name: string
+  beschreibung?: string | null
+  icon?: string | null
+  reihenfolge: number
+  ist_optional: boolean
+  bedingung?: OnboardingBedingtVon | null
+  erstellt_am: string
+}
+
+// ── Onboarding-Budget-Verteilung (Migration 055) ─────────────
+export interface OnboardingBudgetVerteilung {
+  id: string
+  organisation_id?: string | null
+  anfrage_id: string
+  frage_id?: string | null
+  kategorie: string
+  prozent?: number | null
+  betrag?: number | null
+  erstellt_am: string
+  aktualisiert_am: string
+}
+
+// ── Onboarding-Entscheider (Migration 055) ───────────────────
+export type EntscheiderRolle = 'person_a' | 'person_b' | 'beide' | 'offen'
+
+export interface OnboardingEntscheider {
+  id: string
+  organisation_id?: string | null
+  anfrage_id: string
+  frage_id?: string | null
+  bereich: string
+  entscheider?: EntscheiderRolle | null
+  person_name?: string | null
+  erstellt_am: string
+}
+
+// ── Onboarding-Branding pro Org (Migration 055) ──────────────
+export interface OnboardingBranding {
+  id: string
+  organisation_id?: string | null
+  logo_url?: string | null
+  favicon_url?: string | null
+  primaerfarbe: string
+  sekundaerfarbe: string
+  akzentfarbe: string
+  hintergrundfarbe: string
+  schriftart: string
+  custom_css?: string | null
+  willkommens_text?: string | null
+  abschluss_text?: string | null
+  footer_text?: string | null
+  custom_domain?: string | null
+  erstellt_am: string
+  aktualisiert_am: string
+}
+
+// ── Onboarding-Checkliste (Migration 055) ────────────────────
+export interface OnboardingChecklistePunkt {
+  id: string
+  organisation_id?: string | null
+  anfrage_id: string
+  titel: string
+  beschreibung?: string | null
+  ist_erledigt: boolean
+  ist_automatisch: boolean
+  erledigt_am?: string | null
+  erledigt_von?: string | null
+  reihenfolge: number
+  erstellt_am: string
+}
+
+// ── Zugangsinformationen (JSONB auf onboarding_anfragen) ──────
+export interface ZugangsInfos {
+  schluessel_typ?: string           // 'physisch' | 'code' | 'app' | 'pfoertner'
+  schluessel_anzahl?: number
+  parkplatz?: string                // Freitext oder 'vorhanden' | 'nicht_vorhanden'
+  aufzug?: boolean
+  etage?: string
+  lieferzeiten_einschraenkung?: string
+  sonstige_zugangsinfos?: string
+}
+
+// ── Vertrags-Basis (JSONB auf onboarding_anfragen) ────────────
+export interface VertragsBasis {
+  preismodell?: 'festpreis' | 'aufwand' | 'hybrid'
+  anzahlung_prozent?: number
+  anzahlung_betrag?: number
+  elektr_unterschrift_gewuenscht?: boolean
+  sonstige_vertragsinfos?: string
+}
+
 // ── Kunden-Konfigurator ───────────────────────────────────────
 export type KonfiguratorStatus = 'aktiv' | 'abgeschlossen' | 'abgelaufen'
 export type AuswahlStatus = 'ausgewaehlt' | 'abgelehnt' | 'alternative_gewuenscht' | 'unentschieden'
@@ -778,6 +874,9 @@ export interface OnboardingAnfrage {
   stil_praeferenzen: string | null
   zeitrahmen: string | null
   notizen: string | null
+  // Strukturierte Sonderfelder (Migration 055)
+  zugangs_infos?: ZugangsInfos | null
+  vertrags_basis?: VertragsBasis | null
   // Timestamps
   abgeschlossen_am?: string | null
   gueltig_bis?: string | null
