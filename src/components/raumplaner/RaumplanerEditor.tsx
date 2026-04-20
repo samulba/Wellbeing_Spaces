@@ -28,7 +28,6 @@ import {
   getRaumEtagen, etageErstellen, etageSpeichern, etageLoeschen,
 } from '@/app/actions/raumplaner'
 import type { MoebelSymbol } from '@/lib/supabase/types'
-import GrundrissVorschau from './GrundrissVorschau'
 import { ConfirmModal } from '@/components/ConfirmModal'
 
 // ── Konstanten ────────────────────────────────────────────────
