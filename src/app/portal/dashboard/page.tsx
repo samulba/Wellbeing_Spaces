@@ -3,7 +3,7 @@ import { portalDashboardDaten } from '@/app/actions/portal'
 import { brandingFuerToken }    from '@/app/actions/branding'
 import { getPortalSession }     from '@/lib/portal-auth'
 import Link from 'next/link'
-import { FolderOpen, Clock, MessageSquare, CheckCircle2, ChevronRight } from 'lucide-react'
+import { FolderOpen, Clock, MessageSquare, CheckCircle2, ChevronRight, ArrowRight, Users, Settings } from 'lucide-react'
 import PortalShell from '@/components/portal/PortalShell'
 
 export default async function PortalDashboardPage() {
@@ -27,9 +27,12 @@ export default async function PortalDashboardPage() {
 
   const offeneFreigaben = projekte.reduce((s, p) => s + p.stats.ausstehend, 0)
 
+  // Projekt mit den meisten offenen Freigaben für CTA-Button
+  const topProjekt = [...projekte].sort((a, b) => b.stats.ausstehend - a.stats.ausstehend)[0]
+
   return (
     <PortalShell active="dashboard" session={session} branding={branding}>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 md:py-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 md:py-10">
 
         {/* Hero */}
         <section
@@ -82,17 +85,40 @@ export default async function PortalDashboardPage() {
           />
         </section>
 
-        {/* Hinweis offene Freigaben */}
-        {offeneFreigaben > 0 && (
-          <div
-            className="mb-8 p-4 rounded-2xl border flex items-center gap-3"
-            style={{ background: `rgba(var(--brand-primary-rgb), 0.06)`, borderColor: `rgba(var(--brand-primary-rgb), 0.25)` }}
+        {/* Priority-CTA: offene Freigaben */}
+        {offeneFreigaben > 0 && topProjekt && (
+          <Link
+            href={`/portal/projekte/${topProjekt.id}`}
+            className="group mb-8 p-5 sm:p-6 brand-radius flex items-center justify-between gap-4 border transition-all hover:-translate-y-0.5 hover:shadow-lg"
+            style={{
+              background: `rgba(var(--brand-primary-rgb), 0.06)`,
+              borderColor: `rgba(var(--brand-primary-rgb), 0.22)`,
+            }}
           >
-            <Clock className="w-5 h-5 shrink-0" style={{ color: prim }} />
-            <p className="text-sm" style={{ color: prim }}>
-              <strong>{offeneFreigaben} Produkt{offeneFreigaben !== 1 ? 'e' : ''}</strong> warten auf deine Freigabe.
-            </p>
-          </div>
+            <div className="flex items-center gap-4 min-w-0">
+              <div
+                className="w-11 h-11 brand-radius-sm flex items-center justify-center shrink-0"
+                style={{ background: prim, color: 'var(--brand-button-text, #fff)' }}
+              >
+                <Clock className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[15px] font-semibold" style={{ color: prim }}>
+                  {offeneFreigaben} Produkt{offeneFreigaben !== 1 ? 'e' : ''} warten auf dich
+                </p>
+                <p className="text-xs opacity-70 mt-0.5 truncate">
+                  Starte bei &bdquo;{topProjekt.name}&ldquo;
+                </p>
+              </div>
+            </div>
+            <div
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 brand-radius-sm text-sm font-semibold shrink-0 group-hover:brightness-95 transition"
+              style={{ background: prim, color: 'var(--brand-button-text, #fff)' }}
+            >
+              Jetzt freigeben <ArrowRight className="w-4 h-4" />
+            </div>
+            <ArrowRight className="sm:hidden w-5 h-5 shrink-0" style={{ color: prim }} />
+          </Link>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -179,6 +205,28 @@ export default async function PortalDashboardPage() {
             )}
           </aside>
         </div>
+
+        {/* Quick-Actions */}
+        <section className="mt-10 grid grid-cols-2 gap-3">
+          {session.rolle === 'inhaber' && (
+            <Link
+              href="/portal/team"
+              className="p-4 bg-white border border-black/[0.06] brand-radius hover:border-black/[0.15] hover:shadow-sm transition-all group"
+            >
+              <Users className="w-5 h-5 mb-2 opacity-60 group-hover:opacity-100 transition-opacity" style={{ color: prim }} />
+              <p className="text-sm font-semibold text-gray-900">Team verwalten</p>
+              <p className="text-xs opacity-60 mt-0.5">Mitarbeiter einladen & Rollen setzen</p>
+            </Link>
+          )}
+          <Link
+            href="/portal/einstellungen"
+            className={`p-4 bg-white border border-black/[0.06] brand-radius hover:border-black/[0.15] hover:shadow-sm transition-all group ${session.rolle !== 'inhaber' ? 'col-span-2' : ''}`}
+          >
+            <Settings className="w-5 h-5 mb-2 opacity-60 group-hover:opacity-100 transition-opacity" style={{ color: prim }} />
+            <p className="text-sm font-semibold text-gray-900">Einstellungen</p>
+            <p className="text-xs opacity-60 mt-0.5">Profil, Passwort & Zugangsdaten</p>
+          </Link>
+        </section>
 
         {/* Footer */}
         <footer className="mt-14 pt-8 border-t border-black/[0.06] text-center space-y-2">
