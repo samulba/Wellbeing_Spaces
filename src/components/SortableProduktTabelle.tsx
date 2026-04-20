@@ -22,6 +22,7 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, ChevronDown, ChevronRight, Clock, Package, CheckCircle2,
   Receipt, Trash2, X, CalendarDays, Truck, PackageCheck, Pencil,
+  Tag, ArrowRight, Calendar,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -345,73 +346,116 @@ function SortableProduktZeile({
               />
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_200px] gap-4">
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Preis-Anpassung</p>
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="text-gray-500">Basis-VP: <span className="font-mono text-gray-800">{eur(basisVP)}</span></span>
+            {/* Preis-Anpassung als eigenständige Karte mit Kalkulations-Flow */}
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50/60">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
+                  <Tag className="w-3 h-3" /> Preis-Anpassung
+                </span>
+                {eintrag.rabatt_prozent != null && eintrag.rabatt_prozent > 0 && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 font-semibold">
+                    −{fmtProzent(eintrag.rabatt_prozent)} aktiv
+                  </span>
+                )}
+              </div>
+              <div className="px-4 py-4 flex flex-wrap items-center gap-x-5 gap-y-3">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wider">Basis-VP</span>
+                  <span className="font-mono text-sm text-gray-800">{eur(basisVP)}</span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wider">Rabatt</span>
                   <RabattField
                     raumProduktId={eintrag.id}
                     initial={eintrag.rabatt_prozent}
                     onChange={(v) => onRabattChange(eintrag.id, v)}
                   />
-                  <span className="text-gray-500">→ effektiv: <span className="font-mono font-semibold text-wellbeing-green">{eur(effektivVP)}</span></span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-wellbeing-green uppercase tracking-wider font-semibold">Effektiver VP</span>
+                  <span className="font-mono text-sm font-bold text-wellbeing-green">{eur(effektivVP)}</span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 2-Spalten: Bestell-Timeline links, Interne Kalkulation rechts */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
 
-              {/* Bestell- & Liefer-Tracking */}
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                  <Truck className="w-3 h-3" /> Bestellung & Lieferung
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <DateField
-                    label="Bestellt am"
-                    Icon={CalendarDays}
-                    value={p.bestellt_am ?? ''}
-                    onChange={(v) => onDatumChange(eintrag.id, 'bestellt_am', v || null)}
-                  />
-                  <DateField
-                    label="Geplante Lieferung"
-                    Icon={Truck}
-                    value={p.liefertermin ?? ''}
-                    onChange={(v) => onDatumChange(eintrag.id, 'liefertermin', v || null)}
-                  />
-                  <DateField
-                    label="Geliefert am"
-                    Icon={PackageCheck}
-                    value={p.lieferung_erhalten_am ?? ''}
-                    onChange={(v) => onDatumChange(eintrag.id, 'lieferung_erhalten_am', v || null)}
+              {/* Bestellung & Lieferung — als horizontale Timeline */}
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50/60">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
+                    <Truck className="w-3 h-3" /> Bestellung & Lieferung
+                  </span>
+                  <span className="text-[10px] text-gray-400">
+                    {bestellstatusLabel(bestellstatus)}
+                  </span>
+                </div>
+                <div className="px-4 py-4">
+                  <TimelineDatumPicker
+                    steps={[
+                      {
+                        label: 'Bestellt',
+                        Icon: CalendarDays,
+                        value: p.bestellt_am ?? '',
+                        onChange: (v) => onDatumChange(eintrag.id, 'bestellt_am', v || null),
+                        aktiv: !!p.bestellt_am,
+                      },
+                      {
+                        label: 'Geplante Lieferung',
+                        Icon: Truck,
+                        value: p.liefertermin ?? '',
+                        onChange: (v) => onDatumChange(eintrag.id, 'liefertermin', v || null),
+                        aktiv: !!p.liefertermin,
+                      },
+                      {
+                        label: 'Geliefert',
+                        Icon: PackageCheck,
+                        value: p.lieferung_erhalten_am ?? '',
+                        onChange: (v) => onDatumChange(eintrag.id, 'lieferung_erhalten_am', v || null),
+                        aktiv: !!p.lieferung_erhalten_am,
+                      },
+                    ]}
                   />
                 </div>
               </div>
 
-              {/* Interne Kalkulation */}
-              <div>
-                <p className="text-[10px] font-bold text-red-400/70 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                  <span className="inline-block w-2 h-2 rounded-full bg-red-300/60" />
-                  Interne Kalkulation
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <KpiZelle label="EP netto"  wert={p.einkaufspreis != null ? eur(p.einkaufspreis) : '–'} intern />
+              {/* Interne Kalkulation — als KPI-Karten */}
+              <div className="bg-white border border-red-100 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-red-50 bg-red-50/40">
+                  <span className="text-[10px] font-bold text-red-500/80 uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400" />
+                    Interne Kalkulation
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 font-semibold border border-red-100">
+                    nur intern
+                  </span>
+                </div>
+                <div className="px-4 py-4 grid grid-cols-2 gap-3">
+                  <KpiZelle label="EP netto" wert={p.einkaufspreis != null ? eur(p.einkaufspreis) : '–'} intern />
                   <KpiZelle label="Marge"     wert={p.marge_prozent != null ? fmtProzent(p.marge_prozent) : '–'} intern />
                   <KpiZelle label="VP netto"  wert={hasEffektivVP ? eur(effektivVP) : '–'} />
                   <KpiZelle label="Provision" wert={p.provision_prozent != null && hasEffektivVP ? `${fmtProzent(p.provision_prozent)} · ${eur(provisionEur)}` : '–'} intern />
-                  <KpiZelle label="Gesamt netto" wert={hasEffektivVP ? eur(gesamtNetto) : '–'} span />
+                  <div className="col-span-2 pt-2 border-t border-gray-100 flex items-center justify-between">
+                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Gesamt netto</span>
+                    <span className="font-mono text-base font-bold text-wellbeing-green">
+                      {hasEffektivVP ? eur(gesamtNetto) : '–'}
+                    </span>
+                  </div>
                 </div>
-
                 {p.produkt_url && (
-                  <a
-                    href={p.produkt_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 inline-flex items-center text-xs text-gray-500 hover:text-wellbeing-green underline underline-offset-2"
-                  >
-                    Produktlink öffnen →
-                  </a>
+                  <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/40">
+                    <a
+                      href={p.produkt_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-wellbeing-green transition-colors"
+                    >
+                      Produktlink öffnen <ArrowRight className="w-3 h-3" />
+                    </a>
+                  </div>
                 )}
               </div>
             </div>
@@ -424,33 +468,84 @@ function SortableProduktZeile({
 
 // ── Sub-Zellen ──────────────────────────────────────────────────
 
-function DateField({
-  label,
-  Icon,
-  value,
-  onChange,
-}: {
+type TimelineStep = {
   label: string
   Icon: React.ComponentType<{ className?: string }>
   value: string
   onChange: (v: string) => void
-}) {
-  const [local, setLocal] = useState(value)
-  useEffect(() => setLocal(value), [value])
+  aktiv: boolean
+}
+
+/**
+ * Horizontale Timeline mit drei Date-Pickern (Bestellt → Geplante Lieferung → Geliefert).
+ * Verbundene Punkte via Line, Aktiv-Step bekommt wellbeing-green, inaktive grau.
+ * Date-Input ist visuell an den Schritt gebunden.
+ */
+function TimelineDatumPicker({ steps }: { steps: TimelineStep[] }) {
+  return (
+    <div className="relative">
+      {/* Verbindungslinie hinter den Bubbles */}
+      <div className="hidden sm:block absolute top-[18px] left-[12%] right-[12%] h-[2px] bg-gray-100 rounded-full" aria-hidden />
+      <div className="hidden sm:block absolute top-[18px] left-[12%] h-[2px] rounded-full bg-wellbeing-green/70 transition-all"
+        style={{
+          width: `${(steps.filter((s) => s.aktiv).length / 3) * 76}%`,
+        }}
+        aria-hidden
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        {steps.map((step, i) => (
+          <TimelineStepItem key={i} step={step} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TimelineStepItem({ step }: { step: TimelineStep }) {
+  const [local, setLocal] = useState(step.value)
+  const [focused, setFocused] = useState(false)
+  useEffect(() => setLocal(step.value), [step.value])
+  const { Icon } = step
 
   return (
-    <label className="block">
-      <span className="flex items-center gap-1 text-[10px] text-gray-500 mb-1 font-medium uppercase tracking-wider">
-        <Icon className="w-2.5 h-2.5" /> {label}
+    <div className="flex flex-col items-center sm:items-start">
+      {/* Bubble mit Icon (für Timeline-Visual) */}
+      <div className="relative mb-2">
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-colors ${
+          step.aktiv
+            ? 'bg-wellbeing-green border-wellbeing-green text-white shadow-md shadow-wellbeing-green-light/40'
+            : 'bg-white border-gray-200 text-gray-400'
+        }`}>
+          <Icon className="w-4 h-4" />
+        </div>
+      </div>
+
+      <span className={`text-[10px] font-semibold uppercase tracking-wider mb-1 ${step.aktiv ? 'text-wellbeing-green' : 'text-gray-400'}`}>
+        {step.label}
       </span>
-      <input
-        type="date"
-        value={local}
-        onChange={(e) => setLocal(e.target.value)}
-        onBlur={() => { if (local !== value) onChange(local) }}
-        className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition"
-      />
-    </label>
+
+      <div className={`relative w-full group transition-all ${focused ? 'ring-2 ring-wellbeing-green/20 rounded-lg' : ''}`}>
+        <Calendar className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none transition-colors ${
+          step.aktiv ? 'text-wellbeing-green' : 'text-gray-300 group-hover:text-gray-500'
+        }`} />
+        <input
+          type="date"
+          value={local}
+          onChange={(e) => setLocal(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false)
+            if (local !== step.value) step.onChange(local)
+          }}
+          className={`w-full pl-8 pr-2 py-2 text-xs rounded-lg border focus:outline-none transition-colors ${
+            step.aktiv
+              ? 'bg-wellbeing-cream/40 border-wellbeing-green/30 text-wellbeing-green-dark font-medium'
+              : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+          }`}
+        />
+      </div>
+    </div>
   )
 }
 
@@ -479,40 +574,51 @@ function RabattField({
     if (parsed !== initial) onChange(parsed)
   }
 
+  const hasValue = local.trim() !== '' && parseFloat(local.replace(',', '.')) > 0
+
   return (
-    <label className="inline-flex items-center gap-1.5 text-xs text-gray-600">
-      Rabatt
-      <div className="relative">
-        <input
-          type="number"
-          min={0}
-          max={100}
-          step="0.01"
-          value={local}
-          onChange={(e) => setLocal(e.target.value)}
-          onBlur={commit}
-          placeholder="0"
-          className="w-16 px-1.5 pr-5 py-1 text-right text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light"
-        />
-        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">%</span>
-      </div>
-    </label>
+    <div className="relative">
+      <input
+        type="number"
+        min={0}
+        max={100}
+        step="0.01"
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={commit}
+        placeholder="0"
+        className={`w-20 px-2 pr-7 py-1.5 text-right text-sm font-mono rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-rose-200 ${
+          hasValue
+            ? 'bg-rose-50 border-rose-200 text-rose-700 font-semibold focus:border-rose-400'
+            : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300 focus:border-wellbeing-green-light'
+        }`}
+      />
+      <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-medium pointer-events-none ${
+        hasValue ? 'text-rose-500' : 'text-gray-400'
+      }`}>
+        %
+      </span>
+    </div>
   )
 }
 
-function KpiZelle({ label, wert, intern, span }: { label: string; wert: string; intern?: boolean; span?: boolean }) {
+function KpiZelle({ label, wert, intern }: { label: string; wert: string; intern?: boolean; span?: boolean }) {
   return (
-    <div className={span ? 'col-span-2 sm:col-span-1' : ''}>
-      <p className={`text-[10px] uppercase tracking-wider ${intern ? 'text-red-400/70' : 'text-gray-400'} mb-0.5`}>
+    <div className={`rounded-lg px-3 py-2 border ${intern ? 'bg-red-50/40 border-red-100' : 'bg-gray-50/60 border-gray-100'}`}>
+      <p className={`text-[10px] uppercase tracking-wider mb-0.5 ${intern ? 'text-red-500/80' : 'text-gray-500'}`}>
         {label}
       </p>
-      <p className={`font-mono text-sm ${intern ? 'text-red-500/80' : 'text-gray-800'}`}>{wert}</p>
+      <p className={`font-mono text-sm font-semibold ${intern ? 'text-red-600/90' : 'text-gray-800'}`}>{wert}</p>
     </div>
   )
 }
 
 function fmtProzent(n: number) {
   return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }).format(n)} %`
+}
+
+function bestellstatusLabel(s: BestellStatus): string {
+  return BESTELL_CONFIG[s]?.label ?? 'Offen'
 }
 
 function verfuegbarkeitLabel(v: string): string {
