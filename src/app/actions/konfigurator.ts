@@ -282,6 +282,94 @@ export async function konfiguratorErgebnisAbrufen(sessionId: string): Promise<{
   return { session: session as KonfiguratorSession, eintraege }
 }
 
+// ── Auswahl zu Angebot (Admin) ───────────────────────────────
+/**
+ * Übernimmt alle als "ausgewählt" markierten Produkte einer abgeschlossenen
+ * Konfigurator-Session in ein neues Angebot (Status: entwurf).
+ * Voraussetzungen: Projekt hat einen Kunden; Session-Status darf beliebig sein
+ * (in der UI nur bei "abgeschlossen" angeboten).
+ */
+export async function konfiguratorAuswahlZuAngebot(
+  sessionId: string,
+  mwstSatz = 19,
+): Promise<{ angebotId?: string; fehler?: string }> {
+  const supabase = await createClient()
+
+  // Session + Projekt-/Kunden-Kontext laden
+  const { data: session } = await supabase
+    .from('konfigurator_sessions')
+    .select('id, projekt_id')
+    .eq('id', sessionId)
+    .maybeSingle()
+
+  if (!session) return { fehler: 'Konfigurator-Session nicht gefunden.' }
+
+  const { data: projekt } = await supabase
+    .from('projekte')
+    .select('name, kunde_id')
+    .eq('id', session.projekt_id)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (!projekt?.kunde_id) return { fehler: 'Projekt hat keinen Kunden zugewiesen.' }
+
+  // Ausgewählte Auswahl-Einträge laden
+  const { data: auswahl } = await supabase
+    .from('konfigurator_auswahl')
+    .select('produkt_id')
+    .eq('session_id', sessionId)
+    .eq('status', 'ausgewaehlt')
+
+  if (!auswahl || auswahl.length === 0) {
+    return { fehler: 'Keine ausgewählten Produkte in dieser Session.' }
+  }
+
+  // Produkt-Details laden
+  const produktIds = auswahl.map((a) => a.produkt_id)
+  const { data: produkte } = await supabase
+    .from('produkte')
+    .select('id, name, einheit, menge, verkaufspreis')
+    .in('id', produktIds)
+    .is('deleted_at', null)
+
+  const positionen = (produkte ?? []).map((p, i) => {
+    const menge = p.menge ?? 1
+    const ep    = p.verkaufspreis ?? 0
+    return {
+      id:           `pos-${i + 1}`,
+      name:         p.name,
+      beschreibung: null,
+      menge,
+      einheit:      p.einheit ?? 'Stk',
+      einzelpreis:  ep,
+      gesamtpreis:  Math.round(ep * menge * 100) / 100,
+    }
+  })
+
+  if (positionen.length === 0) return { fehler: 'Keine gültigen Produkte gefunden.' }
+
+  // Angebot erstellen (delegiert an angebote.ts)
+  const { angebotErstellen } = await import('./angebote')
+  const result = await angebotErstellen({
+    projekt_id:     session.projekt_id,
+    kunde_id:       projekt.kunde_id,
+    titel:          `Angebot – Konfigurator ${projekt.name}`,
+    einleitung:     'Dieses Angebot basiert auf der Auswahl aus dem Kunden-Konfigurator.',
+    positionen,
+    mwst_satz:      mwstSatz,
+    rabatt_prozent: null,
+    gueltig_bis:    null,
+    anmerkungen:    null,
+    agb_text:       null,
+  })
+
+  if (result.fehler) return { fehler: result.fehler }
+
+  revalidatePath(`/dashboard/projekte/${session.projekt_id}/angebote`)
+  return { angebotId: result.id }
+}
+
+
 // ── Auswahl als Freigabe-Status übernehmen (Admin) ────────────
 export async function auswahlAlsFreigabeUebernehmen(sessionId: string): Promise<{ fehler?: string }> {
   const supabase = await createClient()

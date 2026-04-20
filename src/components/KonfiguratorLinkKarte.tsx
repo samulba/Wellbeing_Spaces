@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Settings2, Copy, Check, ExternalLink, X, ChevronDown, ChevronUp, CheckCircle2, Clock } from 'lucide-react'
-import { konfiguratorErstellen } from '@/app/actions/konfigurator'
+import { useRouter } from 'next/navigation'
+import { Settings2, Copy, Check, ExternalLink, X, ChevronDown, ChevronUp, CheckCircle2, Clock, ReceiptText } from 'lucide-react'
+import { konfiguratorErstellen, konfiguratorAuswahlZuAngebot } from '@/app/actions/konfigurator'
 import type { KonfiguratorSession } from '@/lib/supabase/types'
 
 const eur = (n: number) =>
@@ -177,13 +178,27 @@ function LinkKopieren({ token }: { token: string }) {
 // ── Session-Zeile ─────────────────────────────────────────────
 function SessionZeile({
   session,
+  projektId,
   onErgebnisAnzeigen,
 }: {
   session: KonfiguratorSession
+  projektId: string
   onErgebnisAnzeigen: (id: string) => void
 }) {
+  const router = useRouter()
   const [offen, setOffen] = useState(false)
+  const [fehler, setFehler] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
   const datum = new Date(session.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+  function handleZuAngebot() {
+    setFehler(null)
+    startTransition(async () => {
+      const res = await konfiguratorAuswahlZuAngebot(session.id)
+      if (res.fehler) { setFehler(res.fehler); return }
+      router.push(`/dashboard/projekte/${projektId}/angebote`)
+    })
+  }
 
   return (
     <div className="border border-gray-100 rounded-xl overflow-hidden">
@@ -206,14 +221,25 @@ function SessionZeile({
         <div className="px-3.5 pb-3.5 space-y-2.5 border-t border-gray-100 pt-3">
           <LinkKopieren token={session.token} />
           {session.status === 'abgeschlossen' && (
-            <button
-              onClick={() => onErgebnisAnzeigen(session.id)}
-              className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Ergebnis ansehen
-            </button>
+            <>
+              <button
+                onClick={() => onErgebnisAnzeigen(session.id)}
+                className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Ergebnis ansehen
+              </button>
+              <button
+                onClick={handleZuAngebot}
+                disabled={isPending}
+                className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-wellbeing-green border border-wellbeing-green/30 rounded-lg hover:bg-wellbeing-green/5 transition disabled:opacity-50"
+              >
+                <ReceiptText className="w-3.5 h-3.5" />
+                {isPending ? 'Angebot wird erstellt…' : 'Angebot aus Auswahl erstellen'}
+              </button>
+            </>
           )}
+          {fehler && <p className="text-xs text-red-500">{fehler}</p>}
           {session.kunde_notizen && (
             <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
               <p className="text-[10px] font-medium text-amber-600 mb-0.5">Notizen vom Kunden</p>
@@ -284,6 +310,7 @@ export default function KonfiguratorLinkKarte({
               <SessionZeile
                 key={s.id}
                 session={s}
+                projektId={projektId}
                 onErgebnisAnzeigen={onErgebnisAnzeigen ?? (() => {})}
               />
             ))}
