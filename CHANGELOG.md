@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-21
 
+### Produktanlegen: Bibliothek zuerst
+- „Neues Produkt"-Popup zeigt jetzt **„Zur Produktbibliothek"** an erster Stelle (grün hervorgehoben)
+- „Zu einem Projekt hinzufügen" rutscht auf Platz 2
+
 ### Kunde löschen jetzt sicher
 - Beim Löschen siehst du auf einen Blick **was alles dranhängt** (Projekte, Räume, Produkte, Angebote, Verträge, Notizen, Nachrichten, Portal-Zugänge)
 - Warnung wenn aktive Angebote/Verträge existieren

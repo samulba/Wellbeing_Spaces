@@ -50,12 +50,32 @@ export default function NeuesProduktModal() {
         </div>
 
         <div className="p-4 space-y-2">
+          {/* Option 1 — Bibliothek (primär) */}
+          <button
+            onClick={() => navigate('/dashboard/produkte/bibliothek/neu')}
+            className="w-full flex items-center gap-4 px-4 py-4 rounded-xl border-2 border-wellbeing-green bg-wellbeing-green/5 hover:bg-wellbeing-green/10 transition-all text-left group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-wellbeing-green flex items-center justify-center shrink-0">
+              <Package className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900">
+                Zur Produktbibliothek
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Ohne Projekt – später zuweisen
+              </p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-wellbeing-green shrink-0" />
+          </button>
+
+          {/* Option 2 — Projekt */}
           <button
             onClick={() => navigate('/dashboard/produkte/neu')}
-            className="w-full flex items-center gap-4 px-4 py-4 rounded-xl border border-gray-200 hover:border-wellbeing-green-light hover:bg-wellbeing-cream/50 transition-all text-left group"
+            className="w-full flex items-center gap-4 px-4 py-4 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-left group"
           >
-            <div className="w-10 h-10 rounded-xl bg-wellbeing-cream flex items-center justify-center shrink-0 group-hover:bg-wellbeing-green-light transition-colors">
-              <FolderOpen className="w-5 h-5 text-wellbeing-green" />
+            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 group-hover:bg-wellbeing-cream transition-colors">
+              <FolderOpen className="w-5 h-5 text-gray-500 group-hover:text-wellbeing-green transition-colors" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 group-hover:text-wellbeing-green-dark transition-colors">
@@ -63,24 +83,6 @@ export default function NeuesProduktModal() {
               </p>
               <p className="text-xs text-gray-500 mt-0.5">
                 Projekt → Raum auswählen, dann anlegen
-              </p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-wellbeing-green-light transition-colors shrink-0" />
-          </button>
-
-          <button
-            onClick={() => navigate('/dashboard/produkte/bibliothek/neu')}
-            className="w-full flex items-center gap-4 px-4 py-4 rounded-xl border border-gray-200 hover:border-wellbeing-green-light hover:bg-wellbeing-cream/50 transition-all text-left group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 group-hover:bg-wellbeing-cream transition-colors">
-              <Package className="w-5 h-5 text-gray-500 group-hover:text-wellbeing-green transition-colors" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 group-hover:text-wellbeing-green-dark transition-colors">
-                Zur Produktbibliothek
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Ohne Projekt – später zuweisen
               </p>
             </div>
             <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-wellbeing-green-light transition-colors shrink-0" />
