@@ -40,7 +40,7 @@ const MIN_ZOOM       = 0.1
 const MAX_ZOOM       = 5
 const AUTOSAVE_DELAY = 3000
 
-type Tool = 'select' | 'wall' | 'curve' | 'door' | 'window' | 'measure' | 'eraser' | 'note' | 'shape'
+type Tool = 'select' | 'wall' | 'door' | 'window' | 'measure' | 'eraser' | 'note' | 'shape'
 type ShapeSubtype = 'rectangle' | 'circle' | 'line' | 'arrow'
 type GridSize = 10 | 25 | 50 | 100
 
@@ -415,7 +415,6 @@ function ShortcutOverlay({ onClose }: { onClose: () => void }) {
   const shortcuts = [
     { keys: ['V'],         desc: 'Auswahl' },
     { keys: ['W'],         desc: 'Wand zeichnen' },
-    { keys: ['K'],         desc: 'Gebogene Wand (3 Klicks)' },
     { keys: ['D'],         desc: 'Tür platzieren' },
     { keys: ['F'],         desc: 'Fenster platzieren' },
     { keys: ['M'],         desc: 'Bemaßung' },
@@ -812,13 +811,6 @@ export default function RaumplanerEditor({
   const aktiveEtageIdRef     = useRef<string | null>(null)
   const wandfarbeRef         = useRef(initialWandfarbe)
   const createGridLinesRef   = useRef<() => void>(() => {})
-  // Kurven-Tool Refs
-  const curvePhaseRef        = useRef<'idle' | 'start_set' | 'end_set'>('idle')
-  const curveStartRef        = useRef<{ x: number; y: number } | null>(null)
-  const curveEndRef          = useRef<{ x: number; y: number } | null>(null)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const curvePreviewRef      = useRef<any>(null)
-
   // ── Ref-Sync ──────────────────────────────────────────────
 
   useEffect(() => { activeToolRef.current = activeTool }, [activeTool])
@@ -1078,13 +1070,6 @@ export default function RaumplanerEditor({
     measureStartRef.current = null; canvas.requestRenderAll(); switchToolRef.current('select')
   }, [])
 
-  const stopCurveTool = useCallback(() => {
-    const canvas = fabricRef.current; if (!canvas) return
-    if (curvePreviewRef.current) { canvas.remove(curvePreviewRef.current); curvePreviewRef.current = null }
-    curvePhaseRef.current = 'idle'; curveStartRef.current = null; curveEndRef.current = null
-    canvas.requestRenderAll(); switchToolRef.current('select')
-  }, [])
-
   // ── Möbel platzieren ─────────────────────────────────────
 
   const placeMoebel = useCallback((symbol: MoebelSymbol, canvasX: number, canvasY: number) => {
@@ -1306,25 +1291,6 @@ export default function RaumplanerEditor({
     }
   }, [pushHistory, triggerAutoSave, updateObjCount])
 
-  // ── Gebogene Wand (Kurven-Tool) ───────────────────────────────
-
-  const placeCurvedWall = useCallback((cx: number, cy: number) => {
-    const canvas = fabricRef.current, imp = fabricImports.current
-    if (!canvas || !imp || !curveStartRef.current || !curveEndRef.current) return
-    if (curvePreviewRef.current) { canvas.remove(curvePreviewRef.current); curvePreviewRef.current = null }
-    const { x: x1, y: y1 } = curveStartRef.current
-    const { x: x2, y: y2 } = curveEndRef.current
-    const pathStr = `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`
-    canvas.add(new imp.Path(pathStr, {
-      fill: 'transparent', stroke: '#1e293b', strokeWidth: WALL_THICKNESS,
-      strokeLineCap: 'round', strokeLineJoin: 'round',
-      selectable: true, data: { type: 'wall', wallType: 'curved' }, name: 'Gebogene Wand',
-    }))
-    curvePhaseRef.current = 'idle'; curveStartRef.current = null; curveEndRef.current = null
-    pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
-    switchToolRef.current('select')
-  }, [pushHistory, triggerAutoSave, updateObjCount])
-
   // ── Bemaßung ─────────────────────────────────────────────
 
   const finishMeasure = useCallback((x2: number, y2: number) => {
@@ -1468,14 +1434,6 @@ export default function RaumplanerEditor({
         if (tool === 'measure' && measureStartRef.current && measurePreviewRef.current) {
           measurePreviewRef.current.set({ x2: snapped.x, y2: snapped.y }); canvas.requestRenderAll()
         }
-        // Kurven-Preview: wenn Phase 'end_set' → live Bézier aktualisieren
-        if (tool === 'curve' && curvePhaseRef.current === 'end_set' && curvePreviewRef.current
-            && curveStartRef.current && curveEndRef.current) {
-          const { x: x1, y: y1 } = curveStartRef.current
-          const { x: x2, y: y2 } = curveEndRef.current
-          curvePreviewRef.current.set('path', [['M', x1, y1], ['Q', snapped.x, snapped.y, x2, y2]])
-          canvas.requestRenderAll()
-        }
         // Formen-Preview
         if (tool === 'shape' && isDrawingShapeRef.current && shapeStartRef2.current && tempShapeRef.current) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1513,7 +1471,6 @@ export default function RaumplanerEditor({
           const tool = activeToolRef.current
           if (tool === 'wall')    { stopWallTool();    return }
           if (tool === 'measure') { stopMeasureTool(); return }
-          if (tool === 'curve')   { stopCurveTool();   return }
           if (opt.target && opt.target.data?.type !== 'outline') {
             canvas.setActiveObject(opt.target)
             setContextMenu({ x: e.clientX, y: e.clientY, target: opt.target })
@@ -1558,31 +1515,6 @@ export default function RaumplanerEditor({
             })
             measurePreviewRef.current = prev; canvas.add(prev); canvas.requestRenderAll()
           } else { finishMeasure(snapped.x, snapped.y); switchToolRef.current('select') }
-          return
-        }
-        if (tool === 'curve') {
-          if (curvePhaseRef.current === 'idle') {
-            // Klick 1: Startpunkt
-            curveStartRef.current = snapped; curvePhaseRef.current = 'start_set'; return
-          }
-          if (curvePhaseRef.current === 'start_set') {
-            // Klick 2: Endpunkt – Preview starten
-            curveEndRef.current = snapped; curvePhaseRef.current = 'end_set'
-            const { x: x1, y: y1 } = curveStartRef.current!
-            const { x: x2, y: y2 } = curveEndRef.current
-            // Preview-Pfad hinzufügen (gerade Linie zunächst)
-            const prev = new (fabricImports.current!.Path)(`M ${x1} ${y1} Q ${x1} ${y1} ${x2} ${y2}`, {
-              fill: 'transparent', stroke: '#445c49', strokeWidth: WALL_THICKNESS,
-              strokeLineCap: 'round', strokeDashArray: [6, 4],
-              selectable: false, evented: false, opacity: 0.55, data: { type: 'preview' },
-            })
-            curvePreviewRef.current = prev; canvas.add(prev); canvas.requestRenderAll()
-            return
-          }
-          if (curvePhaseRef.current === 'end_set') {
-            // Klick 3: Kontrollpunkt bestätigen
-            placeCurvedWall(snapped.x, snapped.y); return
-          }
           return
         }
         if (tool === 'eraser') {
@@ -1853,7 +1785,6 @@ export default function RaumplanerEditor({
         const t = activeToolRef.current
         if (t === 'wall')    { stopWallTool();    return }
         if (t === 'measure') { stopMeasureTool(); return }
-        if (t === 'curve')   { stopCurveTool();   return }
       }
       cont.addEventListener('contextmenu', onContextMenu)
 
@@ -1896,7 +1827,6 @@ export default function RaumplanerEditor({
           const t = activeToolRef.current
           if (t === 'wall')    { stopWallTool();    return }
           if (t === 'measure') { stopMeasureTool(); return }
-          if (t === 'curve')   { stopCurveTool();   return }
           switchToolRef.current('select'); return
         }
         if (ev.code === 'Space') { isSpaceRef.current = true; canvas.setCursor('grab'); ev.preventDefault(); return }
@@ -1912,7 +1842,7 @@ export default function RaumplanerEditor({
         if (ev.key === 'F11') { ev.preventDefault(); toggleFullscreenRef.current(); return }
         if (!ev.ctrlKey && !ev.metaKey) {
           if (ev.key.toLowerCase() === 'l') { toggleLockRef.current(); return }
-          const map: Record<string, Tool> = { v:'select', w:'wall', k:'curve', d:'door', f:'window', m:'measure', e:'eraser', n:'note' }
+          const map: Record<string, Tool> = { v:'select', w:'wall', d:'door', f:'window', m:'measure', e:'eraser', n:'note' }
           if (map[ev.key.toLowerCase()]) switchToolRef.current(map[ev.key.toLowerCase()] as Tool)
           if (ev.key.toLowerCase() === 's') { setShowShapesDropdown(v => !v) }
         }
@@ -1957,9 +1887,7 @@ export default function RaumplanerEditor({
     const canvas = fabricRef.current; if (!canvas) return
     if (wallPreviewRef.current)    { canvas.remove(wallPreviewRef.current);    wallPreviewRef.current = null }
     if (measurePreviewRef.current) { canvas.remove(measurePreviewRef.current); measurePreviewRef.current = null }
-    if (curvePreviewRef.current)   { canvas.remove(curvePreviewRef.current);   curvePreviewRef.current = null }
     wallStartRef.current = null; measureStartRef.current = null
-    curvePhaseRef.current = 'idle'; curveStartRef.current = null; curveEndRef.current = null
     canvas.selection = tool === 'select'
     canvas.setCursor(tool === 'select' ? 'default' : 'crosshair')
     if (tool !== 'select') canvas.discardActiveObject()
@@ -3219,7 +3147,6 @@ export default function RaumplanerEditor({
     [
       { key: 'select'  as Tool, Icon: MousePointer2, label: 'Auswahl',       shortcut: 'V' },
       { key: 'wall'    as Tool, Icon: Pencil,        label: 'Wand',          shortcut: 'W' },
-      { key: 'curve'   as Tool, Icon: PenLine,       label: 'Gebogene Wand', shortcut: 'K' },
     ],
     [
       { key: 'door'    as Tool, Icon: DoorOpen,      label: 'Tür',           shortcut: 'D' },
@@ -3382,7 +3309,6 @@ export default function RaumplanerEditor({
             <div className={tbSep} style={{ background: C.border }} />
             {/* Compact: Zeichnen dropdown */}
             <ToolbarDropdown label="Zeichnen" icon={<PenLine className="w-3.5 h-3.5" />} tbStyle={{ color: C.textLt, hover: C.hover, border: C.border, textLt: C.textLt }} items={[
-              { icon: <PenLine className="w-3.5 h-3.5" />, label: 'Kurve (K)', onClick: () => switchTool('curve'), active: activeTool === 'curve' },
               { icon: <DoorOpen className="w-3.5 h-3.5" />, label: 'Tür (D)', onClick: () => switchTool('door'), active: activeTool === 'door' },
               { icon: <AppWindow className="w-3.5 h-3.5" />, label: 'Fenster (F)', onClick: () => switchTool('window'), active: activeTool === 'window' },
               { icon: <Shapes className="w-3.5 h-3.5" />, label: 'Formen (S)', onClick: () => switchTool('shape'), active: activeTool === 'shape' },
