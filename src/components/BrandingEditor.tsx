@@ -15,29 +15,33 @@ const GOOGLE_FONTS = [
 ]
 
 const FARBEN_FELDER: { key: keyof BrandingDaten; label: string; beschreibung: string }[] = [
-  { key: 'primary_color',    label: 'Primärfarbe',    beschreibung: 'Buttons, Badges, Akzente' },
-  { key: 'secondary_color',  label: 'Sekundärfarbe',  beschreibung: 'Hover-Zustände, sekundäre Elemente' },
-  { key: 'accent_color',     label: 'Akzentfarbe',    beschreibung: 'Hintergründe, Hervorhebungen' },
-  { key: 'background_color', label: 'Hintergrundfarbe', beschreibung: 'Seitenhintergrund (Freigabe/Onboarding)' },
-  { key: 'text_color',       label: 'Textfarbe',      beschreibung: 'Firmenname, Überschriften' },
+  { key: 'primary_color',     label: 'Primärfarbe',      beschreibung: 'Buttons, Badges, Akzente im Portal' },
+  { key: 'button_text_color', label: 'Button-Textfarbe', beschreibung: 'Schriftfarbe auf Primary-Buttons (bei hellen Farben auf dunkel setzen)' },
+  { key: 'secondary_color',   label: 'Sekundärfarbe',    beschreibung: 'Hover-Zustände, sekundäre Elemente' },
+  { key: 'accent_color',      label: 'Akzentfarbe',      beschreibung: 'Hintergründe, Hervorhebungen' },
+  { key: 'background_color',  label: 'Hintergrundfarbe', beschreibung: 'Seitenhintergrund im Kunden-Portal' },
+  { key: 'text_color',        label: 'Textfarbe',        beschreibung: 'Firmenname, Überschriften' },
 ]
 
 const DEFAULTS: Omit<Branding, 'id' | 'logo_url' | 'favicon_url' | 'created_at' | 'updated_at'> = {
-  firmenname:      'Wellbeing Spaces',
-  primary_color:   '#445c49',
-  secondary_color: '#94c1a4',
-  accent_color:    '#f6ede2',
-  background_color:'#f6ede2',
-  text_color:      '#1a2e1e',
-  font_family:     'Inter',
-  email:           null,
-  telefon:         null,
-  website:         null,
-  adresse:         null,
-  impressum_text:  null,
-  datenschutz_url: null,
-  show_powered_by: true,
-  custom_css:      null,
+  firmenname:        'Wellbeing Spaces',
+  primary_color:     '#445c49',
+  secondary_color:   '#94c1a4',
+  accent_color:      '#f6ede2',
+  background_color:  '#f6ede2',
+  text_color:        '#1a2e1e',
+  button_text_color: '#ffffff',
+  font_family:       'Inter',
+  welcome_text:      null,
+  slogan:            null,
+  email:             null,
+  telefon:           null,
+  website:           null,
+  adresse:           null,
+  impressum_text:    null,
+  datenschutz_url:   null,
+  show_powered_by:   true,
+  custom_css:        null,
 }
 
 // ── Farbfeld ─────────────────────────────────────────────────
@@ -209,7 +213,10 @@ function LogoUpload({ currentUrl, onChange }: { currentUrl: string | null; onCha
 export default function BrandingEditor({ branding: initial }: { branding: Branding | null }) {
   const def = DEFAULTS
   const [form, setForm] = useState<Partial<Branding>>({
-    firmenname:      initial?.firmenname      ?? def.firmenname,
+    firmenname:        initial?.firmenname        ?? def.firmenname,
+    button_text_color: initial?.button_text_color ?? def.button_text_color,
+    welcome_text:      initial?.welcome_text      ?? def.welcome_text,
+    slogan:            initial?.slogan            ?? def.slogan,
     primary_color:   initial?.primary_color   ?? def.primary_color,
     secondary_color: initial?.secondary_color ?? def.secondary_color,
     accent_color:    initial?.accent_color    ?? def.accent_color,
@@ -241,7 +248,10 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
     startTransition(async () => {
       setFehler(null)
       const daten: BrandingDaten = {
-        firmenname:      form.firmenname      ?? def.firmenname,
+        firmenname:        form.firmenname        ?? def.firmenname,
+        button_text_color: form.button_text_color ?? def.button_text_color,
+        welcome_text:      form.welcome_text      ?? def.welcome_text,
+        slogan:            form.slogan            ?? def.slogan,
         primary_color:   form.primary_color   ?? def.primary_color,
         secondary_color: form.secondary_color ?? def.secondary_color,
         accent_color:    form.accent_color    ?? def.accent_color,
@@ -306,6 +316,40 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
                 className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition"
                 placeholder="Ihr Firmenname"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Slogan <span className="text-gray-400 font-normal">optional</span>
+              </label>
+              <input
+                type="text"
+                value={form.slogan ?? ''}
+                onChange={(e) => set('slogan', e.target.value || null)}
+                maxLength={80}
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition"
+                placeholder="z.B. „Interior Design für Wellbeing Spaces"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">
+                Erscheint im Kunden-Portal unterhalb des Firmennamens (Login + Header).
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Begrüßungstext <span className="text-gray-400 font-normal">optional</span>
+              </label>
+              <textarea
+                value={form.welcome_text ?? ''}
+                onChange={(e) => set('welcome_text', e.target.value || null)}
+                maxLength={240}
+                rows={3}
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition resize-none"
+                placeholder="Schön, dass Sie hier sind — wir halten Sie auf dem Laufenden…"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">
+                Persönliche Nachricht an Ihre Kunden auf dem Portal-Dashboard.
+              </p>
             </div>
 
             <LogoUpload currentUrl={logoUrl} onChange={setLogoUrl} />

@@ -230,11 +230,15 @@ function RaumBlock({
 
 // ── Nachrichten-Tab ───────────────────────────────────────────
 
-function SendBtn() {
+function SendBtn({ prim }: { prim: string }) {
   const { pending } = useFormStatus()
   return (
-    <button type="submit" disabled={pending}
-      className="p-2.5 bg-wellbeing-green text-white rounded-xl hover:bg-wellbeing-green-dark disabled:opacity-50 transition">
+    <button
+      type="submit"
+      disabled={pending}
+      className="p-2.5 rounded-xl disabled:opacity-50 transition-all hover:brightness-95 shadow-sm"
+      style={{ background: prim, color: 'var(--brand-button-text, #fff)' }}
+    >
       <Send className="w-4 h-4" />
     </button>
   )
@@ -306,7 +310,7 @@ function NachrichtenTab({
           className="flex-1 px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:border-transparent"
           style={{ '--tw-ring-color': prim + '40' } as React.CSSProperties}
         />
-        <SendBtn />
+        <SendBtn prim={prim} />
       </form>
       {state?.fehler && <p className="text-xs text-red-500 mt-1">{state.fehler}</p>}
     </div>

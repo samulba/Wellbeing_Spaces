@@ -659,6 +659,10 @@ export interface Branding {
   datenschutz_url: string | null
   show_powered_by: boolean
   custom_css: string | null
+  // Migration 064 — erweiterte Portal-Branding-Felder
+  welcome_text: string | null
+  slogan: string | null
+  button_text_color: string
   created_at: string
   updated_at: string
 }
