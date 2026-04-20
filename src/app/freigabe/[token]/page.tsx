@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getMwstSatz } from '@/app/actions/einstellungen'
 import { brandingFuerToken } from '@/app/actions/branding'
+import { effektiverVpNetto } from '@/lib/preise'
 import FreigabeClient from './FreigabeClient'
 import type { FreigabeRaum, FreigabeProdukt, ProduktStatus } from '@/lib/supabase/types'
 
@@ -60,10 +61,12 @@ export default async function FreigabePage({ params }: Props) {
       raum_id,
       menge,
       verkaufspreis_override,
+      rabatt_prozent,
       reihenfolge,
       produkte!inner(
         id, name, beschreibung, kategorie, einheit, verkaufspreis,
         bild_url, produkt_url, deleted_at,
+        hinweis_extern, hinweis_extern_sichtbar,
         produktstatus ( status, kommentar )
       )
     `)
@@ -86,12 +89,21 @@ export default async function FreigabePage({ params }: Props) {
             id: string; name: string; beschreibung: string | null; kategorie: string | null
             einheit: string; verkaufspreis: number | null; bild_url: string | null
             produkt_url: string | null
+            hinweis_extern: string | null; hinweis_extern_sichtbar: boolean
             produktstatus: { status: string; kommentar: string | null } | { status: string; kommentar: string | null }[] | null
           }
           type PS = { status: string; kommentar: string | null } | null
           const p = rp.produkte as unknown as ProdRaw
           const psRaw = p.produktstatus as PS | PS[]
           const ps = Array.isArray(psRaw) ? psRaw[0] : psRaw
+          // Endpreis über zentralen Helper: Override → Rabatt → gerundet
+          const vp = effektiverVpNetto(
+            {
+              verkaufspreis_override: (rp.verkaufspreis_override as number | null) ?? null,
+              rabatt_prozent: (rp.rabatt_prozent as number | null) ?? null,
+            },
+            p.verkaufspreis,
+          )
           return {
             id: p.id,
             name: p.name,
@@ -99,12 +111,14 @@ export default async function FreigabePage({ params }: Props) {
             kategorie: p.kategorie,
             menge: rp.menge,
             einheit: p.einheit,
-            // Preis-Override aus raum_produkte hat Vorrang
-            verkaufspreis: (rp.verkaufspreis_override as number | null) ?? p.verkaufspreis,
+            verkaufspreis: vp,
             bild_url: p.bild_url,
             produkt_url: p.produkt_url,
             status: (ps?.status as ProduktStatus) ?? 'ausstehend',
             kommentar: ps?.kommentar ?? null,
+            // Hinweis NUR an Kunden durchreichen wenn sichtbar=true
+            hinweis: p.hinweis_extern_sichtbar ? p.hinweis_extern : null,
+            rabatt_prozent: (rp.rabatt_prozent as number | null) ?? null,
           }
         })
       return { id: raum.id, name: raum.name, produkte: raumpProdukte }

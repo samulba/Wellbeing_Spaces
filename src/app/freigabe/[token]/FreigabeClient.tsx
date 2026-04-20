@@ -6,6 +6,7 @@ import { Check, X, RefreshCw, ExternalLink, ChevronDown, Lock, Package } from 'l
 import { freigabeStatusAendern } from '@/app/actions/freigabe'
 import { pinPruefen } from '@/app/actions/projekte'
 import type { FreigabeRaum, FreigabeProdukt, ProduktStatus, Branding } from '@/lib/supabase/types'
+import HinweisBanner from '@/components/HinweisBanner'
 
 // ── Konstante (Fallback) ──────────────────────────────────────
 const MWST_DEFAULT = 0.19
@@ -457,6 +458,13 @@ function ProduktKarte({
             {cfg.label}
           </span>
         </div>
+
+        {/* ── Vermerk/Hinweis (nur wenn vom Designer freigegeben) ── */}
+        {produkt.hinweis && (
+          <div className="mb-3">
+            <HinweisBanner text={produkt.hinweis} />
+          </div>
+        )}
 
         {/* ── Beschreibung (einklappbar) ────────────────── */}
         {produkt.beschreibung && (

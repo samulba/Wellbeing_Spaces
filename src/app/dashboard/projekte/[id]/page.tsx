@@ -17,9 +17,9 @@ import {
 } from 'lucide-react'
 import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
 import SortableRaumListe, { type RaumStat } from '@/components/SortableRaumListe'
-import PdfExportButton, { type PdfProdukt } from '@/components/PdfExportButton'
+import PdfExportButton from '@/components/PdfExportButton'
 import ZeiterfassungBlock from '@/components/ZeiterfassungBlock'
-import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
+import { getKategorien } from '@/app/actions/einstellungen'
 import { getZeiterfassung, getZeitSumme } from '@/app/actions/zeiterfassung'
 import { getRaumBudgetDetails } from '@/app/actions/raeume'
 import { effektiverVpNetto } from '@/lib/preise'
@@ -134,62 +134,18 @@ async function getDateien(projektId: string): Promise<DateiItem[]> {
   return (data ?? []) as DateiItem[]
 }
 
-async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
-  const supabase = await createClient()
-  const { data: raeume } = await supabase.from('raeume').select('id, name').eq('projekt_id', projektId).is('deleted_at', null).order('reihenfolge')
-  const raumMap: Record<string, string> = {}
-  for (const r of raeume ?? []) raumMap[r.id] = r.name
-  const raumIds = (raeume ?? []).map((r) => r.id)
-  if (raumIds.length === 0) return []
-
-  const { data: eintraege } = await supabase
-    .from('raum_produkte')
-    .select('raum_id, menge, reihenfolge, verkaufspreis_override, produkte(name, kategorie, einheit, verkaufspreis, deleted_at, produktstatus(status))')
-    .in('raum_id', raumIds)
-    .order('reihenfolge')
-
-  return (eintraege ?? [])
-    .filter((e) => {
-      const prod = (e.produkte as unknown) as { deleted_at: string | null } | null
-      return prod?.deleted_at == null
-    })
-    .map((e) => {
-      const prod = (e.produkte as unknown) as {
-        name: string; kategorie: string | null; einheit: string
-        verkaufspreis: number | null
-        produktstatus: { status: string } | { status: string }[] | null
-      }
-      const psRaw = prod?.produktstatus
-      const ps = Array.isArray(psRaw) ? psRaw[0] : psRaw
-      const vp = e.verkaufspreis_override ?? prod?.verkaufspreis ?? 0
-      return {
-        name:      prod?.name ?? '–',
-        raumName:  raumMap[e.raum_id] ?? '–',
-        kategorie: prod?.kategorie ?? null,
-        menge:     e.menge,
-        einheit:   prod?.einheit ?? 'Stk',
-        vpNetto:   vp,
-        status:    ps?.status ?? 'ausstehend',
-      }
-    })
-}
-
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const supabaseForBranding = await (await import('@/lib/supabase/server')).createClient()
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, zeitEintraege, zeitSumme, { data: branding }, alleEvents, raumBudgetDetails] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
     getDateien(params.id),
     getProjektStats(params.id),
     getNotizen(params.id),
-    getProdukteForPdf(params.id),
-    getMwstSatz(),
     getKategorien('raumtyp'),
     getKunden(),
     getZeiterfassung(params.id),
     getZeitSumme(params.id),
-    supabaseForBranding.from('branding').select('firmenname, logo_url, adresse, email, telefon').maybeSingle(),
     projektEventsAbrufen(params.id),
     getRaumBudgetDetails(params.id),
   ])
@@ -319,17 +275,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
                 <Download className="w-3.5 h-3.5" />
                 CSV
               </a>
-              <PdfExportButton
-                projektName={projekt.name}
-                kundeName={projekt.kunden?.name ?? null}
-                produkte={pdfProdukte}
-                mwst={mwst}
-                firmenname={branding?.firmenname ?? undefined}
-                logoUrl={branding?.logo_url ?? null}
-                firmenAdresse={branding?.adresse ?? null}
-                firmenEmail={branding?.email ?? null}
-                firmenTelefon={branding?.telefon ?? null}
-              />
+              <PdfExportButton projektId={projekt.id} />
               <Link
                 href={`/dashboard/projekte/${projekt.id}/bearbeiten`}
                 className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-lg transition-all"
