@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { useFormState } from 'react-dom'
+import { useRef, useState, useTransition } from 'react'
 import Image from 'next/image'
-import { Save, Upload, Eye, EyeOff, RotateCcw } from 'lucide-react'
+import { Save, Upload, Eye, EyeOff, RotateCcw, Loader2, Check } from 'lucide-react'
 import { brandingAktualisieren, brandingLogoHochladen, type BrandingDaten } from '@/app/actions/branding'
 import type { Branding } from '@/lib/supabase/types'
 import { ConfirmModal } from '@/components/ConfirmModal'
@@ -161,51 +160,105 @@ function Vorschau({ branding, logoUrl }: { branding: Partial<Branding>; logoUrl:
 
 // ── Logo-Upload ───────────────────────────────────────────────
 function LogoUpload({ currentUrl, onChange }: { currentUrl: string | null; onChange: (url: string) => void }) {
-  const [state, formAction] = useFormState(brandingLogoHochladen, null)
   const [isPending, startTransition] = useTransition()
+  const [fehler, setFehler] = useState<string | null>(null)
+  const [erfolg, setErfolg] = useState(false)
+  const [preview, setPreview] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  if (state?.url && state.url !== currentUrl) {
-    onChange(state.url)
+  const anzeigeUrl = preview ?? currentUrl
+
+  function handleFile(file: File) {
+    setFehler(null)
+    setErfolg(false)
+    if (!file.type.startsWith('image/')) { setFehler('Nur Bilddateien sind erlaubt.'); return }
+    if (file.size > 50 * 1024 * 1024)    { setFehler('Datei ist zu groß (max. 50 MB).'); return }
+
+    // Live-Vorschau
+    const reader = new FileReader()
+    reader.onload = (ev) => setPreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+
+    const formData = new FormData()
+    formData.append('logo', file)
+
+    startTransition(async () => {
+      const res = await brandingLogoHochladen(null, formData)
+      if (res?.fehler) {
+        setFehler(res.fehler)
+        setPreview(null)
+      } else if (res?.url) {
+        onChange(res.url)
+        setPreview(null)  // echte URL übernimmt
+        setErfolg(true)
+        setTimeout(() => setErfolg(false), 2200)
+      }
+    })
   }
 
   return (
-    <form
-      action={(formData) => startTransition(() => formAction(formData))}
-      className="flex items-center gap-3"
-    >
-      {currentUrl ? (
-        <div className="w-14 h-14 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden">
-          <Image src={currentUrl} alt="Logo" width={56} height={56} className="object-contain" />
-        </div>
-      ) : (
-        <div className="w-14 h-14 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center">
-          <Upload className="w-5 h-5 text-gray-300" />
-        </div>
-      )}
-      <div className="flex-1">
-        <label className="block text-xs font-medium text-gray-600 mb-1.5">
-          Logo hochladen
-          <span className="ml-1 font-normal text-gray-400">(PNG/SVG, max. 3 MB)</span>
-        </label>
-        <div className="flex items-center gap-2">
-          <input
-            type="file"
-            name="logo"
-            accept="image/png,image/svg+xml,image/jpeg,image/webp"
-            className="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-wellbeing-green/10 file:text-wellbeing-green hover:file:bg-wellbeing-green/20 transition"
-          />
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1.5">Logo</label>
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => !isPending && inputRef.current?.click()}
+          className="relative group shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-wellbeing-green/40 rounded-xl"
+          title="Logo hochladen"
+        >
+          {anzeigeUrl ? (
+            <div className="w-20 h-20 rounded-xl border border-gray-200 bg-white overflow-hidden flex items-center justify-center shadow-sm">
+              <Image src={anzeigeUrl} alt="Logo" width={80} height={80} className="max-w-full max-h-full object-contain" unoptimized />
+            </div>
+          ) : (
+            <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center gap-1 hover:border-wellbeing-green hover:bg-wellbeing-cream/30 transition-colors">
+              <Upload className="w-5 h-5 text-gray-400" />
+              <span className="text-[10px] text-gray-500 font-medium">Hochladen</span>
+            </div>
+          )}
+          {anzeigeUrl && (
+            <span className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+              {isPending
+                ? <Loader2 className="w-5 h-5 animate-spin" />
+                : <Upload className="w-5 h-5" />}
+            </span>
+          )}
+          {erfolg && (
+            <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center border-2 border-white shadow">
+              <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+            </span>
+          )}
+        </button>
+
+        <div className="min-w-0 flex-1">
           <button
-            type="submit"
+            type="button"
+            onClick={() => !isPending && inputRef.current?.click()}
             disabled={isPending}
-            className="shrink-0 px-3 py-1.5 text-xs font-medium bg-wellbeing-green text-white rounded-lg hover:bg-wellbeing-green-dark disabled:opacity-50 transition"
+            className="text-sm font-medium text-wellbeing-green hover:text-wellbeing-green-dark transition-colors"
           >
-            {isPending ? '…' : 'Upload'}
+            {isPending ? 'Wird hochgeladen…' : anzeigeUrl ? 'Logo ändern' : 'Logo hochladen'}
           </button>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            PNG, JPG, SVG, WebP · max. 50 MB · wird bei Auswahl automatisch gespeichert
+          </p>
+          {fehler && <p className="text-[11px] text-red-500 mt-1">{fehler}</p>}
         </div>
-        {state?.fehler && <p className="text-xs text-red-500 mt-1">{state.fehler}</p>}
-        {state?.url    && <p className="text-xs text-emerald-600 mt-1">Logo gespeichert.</p>}
       </div>
-    </form>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/x-icon"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) handleFile(f)
+          // Input zurücksetzen — damit dieselbe Datei nochmal gewählt werden kann
+          e.target.value = ''
+        }}
+      />
+    </div>
   )
 }
 

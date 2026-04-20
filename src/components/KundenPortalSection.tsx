@@ -252,10 +252,15 @@ export default function KundenPortalSection({
                 <RefreshCw className="w-3 h-3" />
                 Neue Einladung
               </button>
-              <a href="/portal/dashboard" target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition">
+              <a
+                href={`/api/portal-preview/${kundeId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Als dieser Kunde ins Portal einloggen"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition"
+              >
                 <ExternalLink className="w-3 h-3" />
-                Portal öffnen
+                Portal-Vorschau
               </a>
               <button onClick={() => setConfirmDeaktiv(true)} disabled={isPending}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 hover:bg-red-50 rounded-lg transition disabled:opacity-50">
