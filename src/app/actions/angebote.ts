@@ -4,6 +4,8 @@ import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Angebot, AngebotStatus, AngebotPosition } from '@/lib/supabase/types'
 import { berechneAngebotSummen } from '@/lib/angebot-utils'
+import { sendMail } from '@/lib/mail'
+import { angebotVersandMail } from '@/lib/mail-templates'
 
 // ── Daten-Interface ───────────────────────────────────────────
 
@@ -179,13 +181,51 @@ export async function angebotStatusAendern(
   id: string,
   status: AngebotStatus,
   projektId?: string | null
-): Promise<{ fehler?: string }> {
+): Promise<{ fehler?: string; mailGesendet?: boolean }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
-  const { error } = await supabase.from('angebote').update({ status }).eq('id', id).eq('organisation_id', orgId)
+
+  // Zusatzfeld gesendet_am bei status='gesendet'
+  const update: Record<string, unknown> = { status }
+  if (status === 'gesendet') update.gesendet_am = new Date().toISOString()
+
+  const { error } = await supabase.from('angebote').update(update).eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
   if (projektId) revalidatePath(`/dashboard/projekte/${projektId}/angebote`)
-  return {}
+
+  // Mail an Kunde, wenn Status auf 'gesendet' wechselt
+  let mailGesendet = false
+  if (status === 'gesendet') {
+    const { data: angebot } = await supabase
+      .from('angebote')
+      .select('nummer, titel, projekt_id, kunden(name, email), projekte(name)')
+      .eq('id', id)
+      .eq('organisation_id', orgId)
+      .maybeSingle()
+
+    const kundeRaw = angebot?.kunden as unknown as { name: string; email: string | null } | null
+    const projektRaw = angebot?.projekte as unknown as { name: string } | null
+
+    if (kundeRaw?.email) {
+      const { data: branding } = await supabase
+        .from('branding')
+        .select('firmenname, primary_color')
+        .maybeSingle()
+
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+      const tpl = angebotVersandMail({
+        empfaengerName: kundeRaw.name,
+        angebotsNummer: angebot?.nummer ?? '—',
+        projektName:    projektRaw?.name ?? null,
+        linkUrl:        `${baseUrl}/api/angebote/${id}/pdf`,
+        branding:       branding ?? undefined,
+      })
+      const res = await sendMail({ to: kundeRaw.email, subject: tpl.subject, html: tpl.html })
+      mailGesendet = res.sent
+    }
+  }
+
+  return { mailGesendet }
 }
 
 export async function angebotLoeschen(

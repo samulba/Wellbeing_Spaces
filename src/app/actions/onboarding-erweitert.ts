@@ -67,6 +67,50 @@ export async function onboardingLinkErstellenV2(
   return { token: data.token, pfad: `/onboarding/${data.token}` }
 }
 
+
+/**
+ * Sendet einen bestehenden Onboarding-Link per Mail an eine Adresse.
+ * Wird manuell von der UI ausgelöst — Designer gibt Empfänger-Email ein.
+ */
+export async function onboardingLinkVersenden(
+  anfrageId: string,
+  empfaengerEmail: string,
+  empfaengerName?: string,
+): Promise<{ mailGesendet: boolean; fehler?: string }> {
+  const { sendMail } = await import('@/lib/mail')
+  const { onboardingLinkMail } = await import('@/lib/mail-templates')
+
+  const supabase = await createClient()
+  const orgId    = await getOrganisationId()
+
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('token, vorlage_id, onboarding_vorlagen(einleitung_text)')
+    .eq('id', anfrageId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+
+  if (!anfrage?.token) return { mailGesendet: false, fehler: 'Anfrage nicht gefunden.' }
+
+  const vorlageRaw = anfrage.onboarding_vorlagen as unknown as { einleitung_text: string | null } | null
+
+  const { data: branding } = await supabase
+    .from('branding')
+    .select('firmenname, primary_color')
+    .maybeSingle()
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const tpl = onboardingLinkMail({
+    empfaengerName: empfaengerName?.trim() || empfaengerEmail,
+    linkUrl:        `${baseUrl}/onboarding/${anfrage.token}`,
+    einleitung:     vorlageRaw?.einleitung_text ?? null,
+    branding:       branding ?? undefined,
+  })
+
+  const res = await sendMail({ to: empfaengerEmail, subject: tpl.subject, html: tpl.html })
+  return { mailGesendet: res.sent }
+}
+
 // ─────────────────────────────────────────────────────────────
 // ONBOARDING-ANFRAGEN LESEN (Admin-Dashboard)
 // ─────────────────────────────────────────────────────────────

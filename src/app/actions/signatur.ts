@@ -5,6 +5,8 @@ import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Vertrag } from '@/lib/supabase/types'
 import { randomBytes } from 'crypto'
+import { sendMail } from '@/lib/mail'
+import { vertragSignaturMail } from '@/lib/mail-templates'
 
 // ── Öffentlich: Vertrag über Signatur-Token laden ─────────────
 
@@ -131,7 +133,7 @@ export async function firmaUnterschreiben(
 
 export async function signaturTokenErstellen(
   vertragId: string
-): Promise<{ token?: string; fehler?: string }> {
+): Promise<{ token?: string; fehler?: string; mailGesendet?: boolean }> {
   const supabase = await createClient()
 
   const token = randomBytes(32).toString('hex')
@@ -142,7 +144,7 @@ export async function signaturTokenErstellen(
 
   const { data: vertrag, error: ladeErr } = await supabase
     .from('vertraege')
-    .select('id, projekt_id')
+    .select('id, projekt_id, titel, kunden(name, email)')
     .eq('id', vertragId)
     .eq('organisation_id', orgId)
     .single()
@@ -155,6 +157,7 @@ export async function signaturTokenErstellen(
       signatur_token: token,
       signatur_token_gueltig: gueltigBis.toISOString(),
       status: 'gesendet',
+      gesendet_am: new Date().toISOString(),
     })
     .eq('id', vertragId)
     .eq('organisation_id', orgId)
@@ -164,5 +167,27 @@ export async function signaturTokenErstellen(
   if (vertrag.projekt_id) {
     revalidatePath(`/dashboard/projekte/${vertrag.projekt_id}/vertraege`)
   }
-  return { token }
+
+  // Mail an Kunde mit Signatur-Link
+  let mailGesendet = false
+  const kundeRaw = vertrag.kunden as unknown as { name: string; email: string | null } | null
+  if (kundeRaw?.email) {
+    const { data: branding } = await supabase
+      .from('branding')
+      .select('firmenname, primary_color')
+      .maybeSingle()
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+    const tpl = vertragSignaturMail({
+      empfaengerName: kundeRaw.name,
+      vertragTitel:   vertrag.titel,
+      linkUrl:        `${baseUrl}/vertrag/${token}`,
+      gueltigBis:     gueltigBis.toISOString(),
+      branding:       branding ?? undefined,
+    })
+    const res = await sendMail({ to: kundeRaw.email, subject: tpl.subject, html: tpl.html })
+    mailGesendet = res.sent
+  }
+
+  return { token, mailGesendet }
 }
