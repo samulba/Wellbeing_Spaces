@@ -1,24 +1,24 @@
 import { redirect } from 'next/navigation'
 import { portalDashboardDaten } from '@/app/actions/portal'
 import { brandingFuerToken }    from '@/app/actions/branding'
-import { portalLogout }         from '@/app/actions/portal'
+import { getPortalSession }     from '@/lib/portal-auth'
 import Link from 'next/link'
-import Image from 'next/image'
-import { FolderOpen, Clock, MessageSquare, CheckCircle2, ChevronRight, LogOut, User } from 'lucide-react'
+import { FolderOpen, Clock, MessageSquare, CheckCircle2, ChevronRight } from 'lucide-react'
+import PortalShell from '@/components/portal/PortalShell'
 
 export default async function PortalDashboardPage() {
-  const [daten, branding] = await Promise.all([
+  const [daten, branding, session] = await Promise.all([
     portalDashboardDaten().catch(() => null),
     brandingFuerToken(),
+    getPortalSession(),
   ])
 
-  if (!daten) redirect('/portal/login')
+  if (!daten || !session) redirect('/portal/login')
 
-  const { session, projekte, aktivitaeten, ungelesenNachrichten } = daten
+  const { projekte, aktivitaeten, ungelesenNachrichten } = daten
   const firma        = branding?.firmenname     ?? 'Wellbeing Spaces'
   const prim         = branding?.primary_color  ?? '#445c49'
   const welcomeText  = branding?.welcome_text ?? null
-  const slogan       = branding?.slogan ?? null
   const heroImage    = branding?.hero_image_url ?? null
   const gradFrom     = branding?.accent_gradient_from ?? null
   const gradTo       = branding?.accent_gradient_to ?? null
@@ -28,45 +28,8 @@ export default async function PortalDashboardPage() {
   const offeneFreigaben = projekte.reduce((s, p) => s + p.stats.ausstehend, 0)
 
   return (
-    <div className="min-h-screen">
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-black/[0.06]">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3 min-w-0">
-            {branding?.logo_url ? (
-              <Image src={branding.logo_url} alt={firma} width={120} height={36} className="h-9 w-auto object-contain" unoptimized />
-            ) : (
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: prim }}>
-                {firma[0]?.toUpperCase()}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate leading-none">{firma}</p>
-              {slogan && <p className="text-[10px] opacity-50 mt-0.5 truncate">{slogan}</p>}
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <Link
-              href="/portal/profil"
-              className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-black/[0.04] transition-colors"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{session.vorname}</span>
-            </Link>
-            <form action={portalLogout}>
-              <button
-                type="submit"
-                className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-red-500 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Abmelden</span>
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+    <PortalShell active="dashboard" session={session} branding={branding}>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 md:py-10">
 
         {/* Hero */}
         <section
@@ -236,8 +199,8 @@ export default async function PortalDashboardPage() {
             </p>
           )}
         </footer>
-      </main>
-    </div>
+      </div>
+    </PortalShell>
   )
 }
 
