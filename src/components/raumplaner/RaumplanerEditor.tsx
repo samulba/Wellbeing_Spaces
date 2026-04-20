@@ -12,7 +12,7 @@ import {
   Copy, ArrowUpToLine, ArrowDownToLine, ArrowUp, ArrowDown,
   Magnet, Lock, LockOpen, Star, Share2, Image as ImageIcon, Check, Link2,
   LayoutTemplate, Upload, TriangleAlert,
-  Package, Tag, ExternalLink, Link2Off, FileText, StickyNote,
+  Package, Tag, ExternalLink, Link2Off, FileText,
   GitBranch, ArrowLeftRight, Download,
   AlignLeft, AlignCenterHorizontal, AlignRight,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
@@ -40,7 +40,7 @@ const MIN_ZOOM       = 0.1
 const MAX_ZOOM       = 5
 const AUTOSAVE_DELAY = 3000
 
-type Tool = 'select' | 'wall' | 'door' | 'window' | 'measure' | 'eraser' | 'note' | 'shape'
+type Tool = 'select' | 'wall' | 'door' | 'window' | 'measure' | 'eraser' | 'shape'
 type ShapeSubtype = 'rectangle' | 'circle' | 'line' | 'arrow'
 type GridSize = 10 | 25 | 50 | 100
 
@@ -64,7 +64,6 @@ const LAYERS: LayerDef[] = [
   { id: 'walls',      name: 'Wände',          types: ['wall'],                color: '#475569' },
   { id: 'doors',      name: 'Türen & Fenster', types: ['door', 'window'],      color: '#3b82f6' },
   { id: 'furniture',  name: 'Möbel',           types: ['moebel'],              color: '#94c1a4' },
-  { id: 'notes',      name: 'Notizen',         types: ['note'],                color: '#fbbf24' },
   { id: 'dimensions', name: 'Maße',            types: ['dimension', 'measure'],color: '#6b7280' },
   { id: 'legend',     name: 'Legende',         types: ['legend'],              color: '#8b5cf6' },
   { id: 'shapes',     name: 'Formen',          types: ['shape'],               color: '#ec4899' },
@@ -419,7 +418,6 @@ function ShortcutOverlay({ onClose }: { onClose: () => void }) {
     { keys: ['F'],         desc: 'Fenster platzieren' },
     { keys: ['M'],         desc: 'Bemaßung' },
     { keys: ['E'],         desc: 'Radierer' },
-    { keys: ['N'],         desc: 'Notiz platzieren' },
     { keys: ['Esc'],       desc: 'Abbrechen / Auswahl' },
     { keys: ['Ctrl','Z'],  desc: 'Rückgängig' },
     { keys: ['Ctrl','Y'],  desc: 'Wiederholen' },
@@ -707,13 +705,6 @@ export default function RaumplanerEditor({
   const [vergleichData,     setVergleichData]     = useState<{ v1: { json: string; name: string } | null; v2: { json: string; name: string } | null }>({ v1: null, v2: null })
   const [vergleichLoading,  setVergleichLoading]  = useState(false)
 
-  // ── Notizen ──────────────────────────────────────────────────
-  const [notizen,           setNotizen]           = useState<{ text: string }[]>([])
-  const [noteModal,         setNoteModal]         = useState<{ mode: 'create'; canvasX: number; canvasY: number } | { mode: 'edit' } | null>(null)
-  const [noteModalText,     setNoteModalText]     = useState('')
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const editingNoteRef = useRef<any>(null)
-
   // ── Angebot ──────────────────────────────────────────────────
   const [angebotCreating,   setAngebotCreating]   = useState(false)
 
@@ -921,8 +912,6 @@ export default function RaumplanerEditor({
     const allObjs = canvas.getObjects()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setObjCount(allObjs.filter((o: any) => !SKIP_COUNT.has(o.data?.type)).length)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setNotizen(allObjs.filter((o: any) => o.data?.type === 'note').map((o: any) => ({ text: o.data?.text ?? '' })))
   }, [])
 
   // ── Auto-Save ─────────────────────────────────────────────
@@ -1524,10 +1513,6 @@ export default function RaumplanerEditor({
             pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
           }
         }
-        if (tool === 'note') {
-          setNoteModalText('')
-          setNoteModal({ mode: 'create', canvasX: snapped.x, canvasY: snapped.y })
-        }
         if (tool === 'shape') {
           const imp = fabricImports.current; if (!imp) return
           const st = shapeSettingsRef.current
@@ -1587,16 +1572,6 @@ export default function RaumplanerEditor({
       })
       canvas.on('object:added', () => { triggerDimUpdateRef.current(); triggerKollUpdateRef.current() })
       canvas.on('object:removed', () => { triggerDimUpdateRef.current(); triggerKollUpdateRef.current() })
-
-      // Notiz doppelklick → Bearbeiten
-      canvas.on('mouse:dblclick', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-        const t = opt.target as any // eslint-disable-line @typescript-eslint/no-explicit-any
-        if (t && t.data?.type === 'note') {
-          editingNoteRef.current = t
-          setNoteModalText(t.data?.text ?? '')
-          setNoteModal({ mode: 'edit' })
-        }
-      })
 
       // ── SNAP-TO-WALL + ALIGNMENT-HILFSLINIEN ──────────────
       canvas.on('object:moving', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -1842,7 +1817,7 @@ export default function RaumplanerEditor({
         if (ev.key === 'F11') { ev.preventDefault(); toggleFullscreenRef.current(); return }
         if (!ev.ctrlKey && !ev.metaKey) {
           if (ev.key.toLowerCase() === 'l') { toggleLockRef.current(); return }
-          const map: Record<string, Tool> = { v:'select', w:'wall', d:'door', f:'window', m:'measure', e:'eraser', n:'note' }
+          const map: Record<string, Tool> = { v:'select', w:'wall', d:'door', f:'window', m:'measure', e:'eraser' }
           if (map[ev.key.toLowerCase()]) switchToolRef.current(map[ev.key.toLowerCase()] as Tool)
           if (ev.key.toLowerCase() === 's') { setShowShapesDropdown(v => !v) }
         }
@@ -2562,47 +2537,6 @@ export default function RaumplanerEditor({
     } finally { setVergleichLoading(false) }
   }
 
-  // ── Notiz platzieren / bearbeiten ────────────────────────────
-
-  function placeNote(canvasX: number, canvasY: number, text: string) {
-    const canvas = fabricRef.current, imp = fabricImports.current
-    if (!canvas || !imp || !text.trim()) return
-    const { Rect, Textbox, Group } = imp
-    const W = 150, H = 90
-    const bg = new Rect({
-      width: W, height: H, fill: '#fef9c3', stroke: '#fbbf24', strokeWidth: 1.5,
-      rx: 6, ry: 6, originX: 'left', originY: 'top',
-    })
-    const tb = new Textbox(text.trim(), {
-      width: W - 16, left: 8, top: 8, fontSize: 10, fill: '#78350f',
-      fontFamily: 'system-ui, sans-serif', originX: 'left', originY: 'top',
-    })
-    canvas.add(new Group([bg, tb], {
-      left: canvasX - W / 2, top: canvasY - H / 2,
-      data: { type: 'note', text: text.trim() }, name: 'Notiz',
-    }))
-    canvas.requestRenderAll(); pushHistory(); triggerAutoSave(); updateObjCount()
-    switchToolRef.current('select')
-  }
-
-  function confirmNote() {
-    if (!noteModal) return
-    if (noteModal.mode === 'create') {
-      placeNote(noteModal.canvasX, noteModal.canvasY, noteModalText)
-    } else if (noteModal.mode === 'edit') {
-      const canvas = fabricRef.current, obj = editingNoteRef.current
-      if (canvas && obj) {
-        obj.set('data', { ...obj.data, text: noteModalText.trim() })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const items = obj.getObjects?.() as any[]
-        if (items && items.length >= 2) items[1].set('text', noteModalText.trim())
-        obj.dirty = true; canvas.requestRenderAll()
-        pushHistory(); triggerAutoSave(); updateObjCount()
-      }
-    }
-    setNoteModal(null); setNoteModalText(''); editingNoteRef.current = null
-  }
-
   // ── Datei-Import ────────────────────────────────────────────
   function importDatei(file: File) {
     const canvas = fabricRef.current, imp = fabricImports.current
@@ -2756,7 +2690,7 @@ export default function RaumplanerEditor({
 
   function insertLegende() {
     const canvas = fabricRef.current, imp = fabricImports.current; if (!canvas || !imp) return
-    const SKIP_LEG = new Set(['outline','preview','floor','dimension','collision','alignment','wall','door','window','measure','note','legend','import_bild'])
+    const SKIP_LEG = new Set(['outline','preview','floor','dimension','collision','alignment','wall','door','window','measure','legend','import_bild'])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const moebelObjs = canvas.getObjects().filter((o: any) => !SKIP_LEG.has(o.data?.type ?? ''))
 
@@ -3155,7 +3089,6 @@ export default function RaumplanerEditor({
     [
       { key: 'measure' as Tool, Icon: Ruler,         label: 'Bemaßung',      shortcut: 'M' },
       { key: 'eraser'  as Tool, Icon: Eraser,        label: 'Radierer',      shortcut: 'E' },
-      { key: 'note'    as Tool, Icon: StickyNote,    label: 'Notiz',         shortcut: 'N' },
     ],
   ]
   const allTools = toolGroups.flat()
@@ -3312,7 +3245,6 @@ export default function RaumplanerEditor({
               { icon: <DoorOpen className="w-3.5 h-3.5" />, label: 'Tür (D)', onClick: () => switchTool('door'), active: activeTool === 'door' },
               { icon: <AppWindow className="w-3.5 h-3.5" />, label: 'Fenster (F)', onClick: () => switchTool('window'), active: activeTool === 'window' },
               { icon: <Shapes className="w-3.5 h-3.5" />, label: 'Formen (S)', onClick: () => switchTool('shape'), active: activeTool === 'shape' },
-              { icon: <StickyNote className="w-3.5 h-3.5" />, label: 'Notiz (N)', onClick: () => switchTool('note'), active: activeTool === 'note' },
             ]} />
             {/* Compact: Bearbeiten dropdown */}
             <ToolbarDropdown label="Bearbeiten" icon={<RotateCcw className="w-3.5 h-3.5" />} tbStyle={{ color: C.textLt, hover: C.hover, border: C.border, textLt: C.textLt }} items={[
@@ -4451,20 +4383,6 @@ export default function RaumplanerEditor({
                   )
                 })()}
 
-                {/* Notizen-Liste */}
-                {notizen.length > 0 && (
-                  <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
-                    <p className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: `${C.textLt}60` }}>Notizen ({notizen.length})</p>
-                    <div className="space-y-1.5 max-h-28 overflow-y-auto">
-                      {notizen.map((n, i) => (
-                        <div key={i} className="rounded-lg px-2 py-1.5 text-[10px] leading-relaxed"
-                          style={{ background: 'rgba(254,243,195,0.08)', border: '1px solid rgba(251,191,36,0.2)', color: '#fef3c7' }}>
-                          {n.text}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* Wandfarbe */}
                 <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
@@ -5036,42 +4954,6 @@ export default function RaumplanerEditor({
           </div>
         )
       })()}
-
-      {/* ── Notiz-Text Modal ── */}
-      {noteModal !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={() => { setNoteModal(null); setNoteModalText(''); editingNoteRef.current = null }}>
-          <div className="bg-white rounded-2xl shadow-2xl p-5 w-80 max-w-full"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-900">
-                {noteModal.mode === 'create' ? 'Notiz hinzufügen' : 'Notiz bearbeiten'}
-              </h2>
-              <button type="button" onClick={() => { setNoteModal(null); setNoteModalText(''); editingNoteRef.current = null }}
-                className="text-gray-400 hover:text-gray-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <textarea
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#445c49]/20 focus:border-[#445c49] resize-none"
-              rows={4} placeholder="Notiz eingeben…" value={noteModalText}
-              onChange={e => setNoteModalText(e.target.value)} autoFocus
-              onKeyDown={e => { if (e.key === 'Enter' && e.ctrlKey) confirmNote() }} />
-            <p className="text-[10px] text-gray-400 mt-1.5">Ctrl+Enter zum Bestätigen</p>
-            <div className="flex gap-2 mt-4">
-              <button type="button" onClick={() => { setNoteModal(null); setNoteModalText(''); editingNoteRef.current = null }}
-                className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                Abbrechen
-              </button>
-              <button type="button" onClick={confirmNote} disabled={!noteModalText.trim()}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-40"
-                style={{ background: '#445c49' }}>
-                {noteModal.mode === 'create' ? 'Platzieren' : 'Speichern'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Version speichern Modal ── */}
       {/* ── Versionen-Übersicht Modal ── */}
