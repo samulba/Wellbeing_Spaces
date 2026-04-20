@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Server Actions haben default 1 MB body-limit — auf 50 MB anheben,
+  // damit Logo-/Profilbild-Uploads nicht am Framework-Limit scheitern.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
+  },
   async headers() {
     return [
       {

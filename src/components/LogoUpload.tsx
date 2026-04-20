@@ -19,7 +19,7 @@ const avatarFarben = [
 function avatarFarbe(s: string) { return avatarFarben[s.charCodeAt(0) % avatarFarben.length] }
 function initials(name: string) { return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) }
 
-const MAX_MB = 10
+const MAX_MB = 50
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/svg+xml'
 
 export default function LogoUpload({ typ, entityId, initialLogoUrl, name }: Props) {
