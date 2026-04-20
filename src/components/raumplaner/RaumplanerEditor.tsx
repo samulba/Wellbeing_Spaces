@@ -13,7 +13,7 @@ import {
   Magnet, Lock, LockOpen, Star, Share2, Image as ImageIcon, Check, Link2,
   LayoutTemplate, Upload, TriangleAlert,
   Package, Tag, ExternalLink, Link2Off, FileText,
-  GitBranch, ArrowLeftRight, Download,
+  Download,
   AlignLeft, AlignCenterHorizontal, AlignRight,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   AlignHorizontalSpaceBetween, AlignVerticalSpaceBetween,
@@ -24,8 +24,7 @@ import QRCode from 'react-qr-code'
 import {
   grundrissSpeichern, raumMasseAktualisieren, getCustomMoebel, customMoebelErstellen,
   getRaumFreigabeInfo, raumFreigabeAktualisieren, raumTexturenSpeichern,
-  getAllProdukteForPlaner, raumplanVersionSpeichern, getRaumplanVersionen,
-  getRaumplanVersion, raumplanVersionLoeschen, raumplanAngebotErstellen,
+  getAllProdukteForPlaner, raumplanAngebotErstellen,
   getRaumEtagen, etageErstellen, etageSpeichern, etageLoeschen,
 } from '@/app/actions/raumplaner'
 import type { MoebelSymbol, CustomMoebel as CustomMoebelType } from '@/lib/supabase/types'
@@ -347,7 +346,6 @@ interface ProduktForPlaner {
   id: string; name: string; kategorie: string | null
   artikelnummer: string | null; verkaufspreis_netto: number | null
 }
-interface RaumplanVersion { id: string; name: string; created_at: string; beschreibung?: string | null; grundriss_json?: string | null }
 interface KostenItem { name: string; count: number; preis: number }
 interface NewMoebelForm {
   name: string; kategorie: string; breite_cm: number; laenge_cm: number; farbe: string
@@ -689,19 +687,7 @@ export default function RaumplanerEditor({
   const [produktKatFilter,  setProduktKatFilter]  = useState('')
   const allProdukteRef = useRef<ProduktForPlaner[]>([])
 
-  // ── Versionen ────────────────────────────────────────────────
-  const [versionen,             setVersionen]             = useState<RaumplanVersion[]>([])
-  const [showVersionenModal,    setShowVersionenModal]    = useState(false)
-  const [showVersionModal,      setShowVersionModal]      = useState(false)
-  const [neueVersionName,       setNeueVersionName]       = useState('')
-  const [neueVersionBeschreibung, setNeueVersionBeschreibung] = useState('')
-  const [versionSaving,         setVersionSaving]         = useState(false)
   const [showZoomDropdown,      setShowZoomDropdown]      = useState(false)
-  const [showVergleichModal, setShowVergleichModal] = useState(false)
-  const [vergleichV1,       setVergleichV1]       = useState('')
-  const [vergleichV2,       setVergleichV2]       = useState('')
-  const [vergleichData,     setVergleichData]     = useState<{ v1: { json: string; name: string } | null; v2: { json: string; name: string } | null }>({ v1: null, v2: null })
-  const [vergleichLoading,  setVergleichLoading]  = useState(false)
 
   // ── Angebot ──────────────────────────────────────────────────
   const [angebotCreating,   setAngebotCreating]   = useState(false)
@@ -806,11 +792,6 @@ export default function RaumplanerEditor({
   useEffect(() => { wandfarbeRef.current = wandfarbe }, [wandfarbe])
   useEffect(() => { triggerDimUpdateRef.current() }, [showDimensions])
   useEffect(() => { triggerKollUpdateRef.current() }, [showKollision])
-
-  // Versionen beim Start laden
-  useEffect(() => {
-    getRaumplanVersionen(raumId).then(setVersionen).catch(() => {})
-  }, [raumId])
 
   // Etagen beim Start laden
   useEffect(() => {
@@ -2302,60 +2283,6 @@ export default function RaumplanerEditor({
     } finally { setAngebotCreating(false) }
   }
 
-  // ── Versionen ────────────────────────────────────────────────
-
-  async function speichereVersion() {
-    if (!neueVersionName.trim()) return
-    setVersionSaving(true)
-    try {
-      const res = await raumplanVersionSpeichern(raumId, neueVersionName, getCanvasJson(), bodenTextur, wandfarbe, neueVersionBeschreibung)
-      if ('id' in res) {
-        const updated = await getRaumplanVersionen(raumId)
-        setVersionen(updated)
-        setShowVersionModal(false)
-        setNeueVersionName('')
-        setNeueVersionBeschreibung('')
-      }
-    } finally { setVersionSaving(false) }
-  }
-
-  async function ladeVersion(versionId: string) {
-    const data = await getRaumplanVersion(versionId)
-    if (!data) return
-    const canvas = fabricRef.current, imp = fabricImports.current
-    if (!canvas || !imp) return
-    canvas.clear()
-    try {
-      const parsed = JSON.parse(data.grundrissJson)
-      if (parsed.objects) {
-        const SKIP = new Set(['outline','preview','floor','dimension','collision'])
-        parsed.objects = parsed.objects.filter((o: any) => !SKIP.has(o.data?.type)) // eslint-disable-line @typescript-eslint/no-explicit-any
-      }
-      await canvas.loadFromJSON(parsed)
-    } catch { /* ignore */ }
-    if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
-    gridCreatedRef.current = false; createGridLinesRef.current()
-    if (data.bodenTextur && data.bodenTextur !== 'none') applyFloorTexture(data.bodenTextur, canvas, breiteM, laengeM)
-    setBodenTextur(data.bodenTextur)
-    setWandfarbe(data.wandfarbe)
-    canvas.requestRenderAll()
-    updateObjCount()
-    fitToViewRef.current()
-    pushHistory(); triggerAutoSave()
-  }
-
-  async function loescheVersion(id: string) {
-    const v = versionen.find(x => x.id === id)
-    setRaumConfirm({ open: true, msg: `Version "${v?.name ?? 'diese Version'}" wirklich löschen?`, onOk: () => doLoescheVersion(id) })
-  }
-  async function doLoescheVersion(id: string) {
-    await raumplanVersionLoeschen(id)
-    const updated = await getRaumplanVersionen(raumId)
-    setVersionen(updated)
-    if (vergleichV1 === id) setVergleichV1('')
-    if (vergleichV2 === id) setVergleichV2('')
-  }
-
   // ── Layer-System ─────────────────────────────────────────────
 
   function countObjectsInLayer(types: string[]): number {
@@ -2430,18 +2357,6 @@ export default function RaumplanerEditor({
     const next = Object.fromEntries(LAYERS.map(l => [l.id, { visible: l.id === 'walls', locked: layerStates[l.id]?.locked ?? false }]))
     setLayerStates(next)
     try { localStorage.setItem(`raumplaner-layers-${raumId}`, JSON.stringify(next)) } catch { /* ignore */ }
-  }
-
-  async function ladeVergleich() {
-    if (!vergleichV1 || !vergleichV2) return
-    setVergleichLoading(true)
-    try {
-      const [d1, d2] = await Promise.all([getRaumplanVersion(vergleichV1), getRaumplanVersion(vergleichV2)])
-      setVergleichData({
-        v1: d1 ? { json: d1.grundrissJson, name: d1.name } : null,
-        v2: d2 ? { json: d2.grundrissJson, name: d2.name } : null,
-      })
-    } finally { setVergleichLoading(false) }
   }
 
   // ── Datei-Import ────────────────────────────────────────────
@@ -3176,17 +3091,6 @@ export default function RaumplanerEditor({
               { icon: <Share2 className="w-3.5 h-3.5" />, label: 'Freigabe-Link', onClick: () => setShowFreigabeModal(true), active: freigabeAktiv },
             ]} />
             <div className={tbSep} style={{ background: C.border }} />
-            {/* Compact: Versionen */}
-            <button type="button" title="Versionen" onClick={() => setShowVersionenModal(true)}
-              className="flex items-center gap-1 h-9 px-2 text-[11px] rounded-lg transition-all relative"
-              style={{ color: C.textLt }}
-              onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-              <GitBranch className="w-4 h-4" />
-              {versionen.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: '#445c49' }}>{versionen.length}</span>
-              )}
-            </button>
             {/* Compact: Etagen */}
             {etagen.length > 0 && (
               <div className="flex items-center gap-0.5 rounded-lg px-0.5 py-0.5" style={{ background: 'rgba(0,0,0,0.2)' }}>
@@ -3423,25 +3327,6 @@ export default function RaumplanerEditor({
           onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           <FileText className="w-4 h-4" />
-        </button>
-
-        <div className={tbSep} style={{ background: C.border }} />
-
-        {/* Versionen */}
-        <button type="button" title="Raumplan-Versionen"
-          onClick={() => setShowVersionenModal(true)}
-          className="flex items-center gap-1.5 h-9 px-2.5 text-xs rounded-lg transition-all relative"
-          style={{ color: C.textLt }}
-          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-          <GitBranch className="w-4 h-4" />
-          <span className="text-[11px] font-medium">Versionen</span>
-          {versionen.length > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full text-[9px] font-bold text-white"
-              style={{ background: '#445c49' }}>
-              {versionen.length}
-            </span>
-          )}
         </button>
 
         <div className="flex-1" />
@@ -4731,250 +4616,6 @@ export default function RaumplanerEditor({
         )
       })()}
 
-      {/* ── Version speichern Modal ── */}
-      {/* ── Versionen-Übersicht Modal ── */}
-      {showVersionenModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowVersionenModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-[680px] max-w-[97vw] max-h-[90vh] flex flex-col"
-            onClick={e => e.stopPropagation()}>
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-2.5">
-                <GitBranch className="w-5 h-5 text-[#445c49]" />
-                <h2 className="text-base font-semibold text-gray-900">Raumplan-Versionen</h2>
-                {versionen.length > 0 && (
-                  <span className="px-2 py-0.5 text-xs font-medium bg-[#445c49]/10 text-[#445c49] rounded-full">
-                    {versionen.length}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {versionen.length >= 2 && (
-                  <button type="button"
-                    onClick={() => { setVergleichV1(versionen[0]?.id ?? ''); setVergleichV2(versionen[1]?.id ?? ''); setVergleichData({ v1: null, v2: null }); setShowVergleichModal(true); setShowVersionenModal(false) }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                    <ArrowLeftRight className="w-3.5 h-3.5" /> Vergleichen
-                  </button>
-                )}
-                <button type="button" onClick={() => setShowVersionenModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Aktuelle Arbeit */}
-            <div className="px-6 pt-4 pb-3">
-              <div className="flex items-center justify-between p-4 border-2 border-[#445c49] rounded-xl bg-[#445c49]/5">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[#445c49]/15 flex items-center justify-center">
-                    <CheckCircle className="w-5 h-5 text-[#445c49]" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-900">Aktuelle Arbeit</span>
-                      <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#445c49] text-white rounded-full">Aktiv</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">Automatisch gespeichert</p>
-                  </div>
-                </div>
-                <span className="text-xs text-gray-400">
-                  {saveStatus === 'saving' ? 'Speichert…' : saveStatus === 'saved' ? 'Gespeichert ✓' : saveStatus === 'error' ? 'Fehler ✗' : 'Ungespeichert'}
-                </span>
-              </div>
-            </div>
-
-            {/* Versions-Liste */}
-            <div className="flex-1 overflow-y-auto px-6 pb-2">
-              {versionen.length === 0 ? (
-                <div className="text-center py-12">
-                  <GitBranch className="w-12 h-12 mx-auto mb-3 text-gray-200" />
-                  <p className="text-sm text-gray-400 font-medium">Noch keine Versionen gespeichert</p>
-                  <p className="text-xs text-gray-300 mt-1">Speichere Varianten deines Grundrisses, um später darauf zurückgreifen zu können.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {versionen.map(v => (
-                    <div key={v.id} className="flex gap-4 p-4 border border-gray-200 rounded-xl hover:border-[#445c49]/40 transition-colors group">
-                      {/* Mini-Vorschau */}
-                      <div className="w-28 h-20 bg-gray-50 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
-                        {v.grundriss_json ? (
-                          <GrundrissVorschau grundrissJson={v.grundriss_json} />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-300">
-                            <GitBranch className="w-6 h-6" />
-                          </div>
-                        )}
-                      </div>
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-gray-900 truncate">{v.name}</h4>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(v.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                        {v.beschreibung && (
-                          <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">{v.beschreibung}</p>
-                        )}
-                      </div>
-                      {/* Aktionen */}
-                      <div className="flex flex-col gap-2 shrink-0">
-                        <button type="button"
-                          onClick={() => { ladeVersion(v.id); setShowVersionenModal(false) }}
-                          className="px-4 py-1.5 text-xs font-medium text-white rounded-lg transition-colors"
-                          style={{ background: '#445c49' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = '#3a5040')}
-                          onMouseLeave={e => (e.currentTarget.style.background = '#445c49')}>
-                          Laden
-                        </button>
-                        <button type="button"
-                          onClick={() => loescheVersion(v.id)}
-                          className="px-4 py-1.5 text-xs text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                          Löschen
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-100">
-              <button type="button"
-                onClick={() => { setNeueVersionName(`Variante ${versionen.length + 1}`); setNeueVersionBeschreibung(''); setShowVersionModal(true) }}
-                className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-[#445c49] hover:text-[#445c49] transition-colors font-medium">
-                + Neue Version speichern
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Neue Version speichern Modal ── */}
-      {showVersionModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowVersionModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-[420px] max-w-full"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-sm font-semibold text-gray-900">Version speichern</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Aktuellen Grundriss als Variante archivieren</p>
-              </div>
-              <button type="button" onClick={() => setShowVersionModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            {/* Vorschau */}
-            <div className="mb-4 rounded-xl overflow-hidden border border-gray-200 bg-gray-50" style={{ height: 120 }}>
-              <GrundrissVorschau grundrissJson={getCanvasJson()} />
-            </div>
-            <div className="mb-3">
-              <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Name <span className="text-red-400">*</span></label>
-              <input type="text" value={neueVersionName}
-                onChange={e => setNeueVersionName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') speichereVersion() }}
-                placeholder="z.B. Variante A – Sofa links"
-                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#445c49]/20 focus:border-[#445c49]"
-                autoFocus />
-            </div>
-            <div className="mb-5">
-              <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Beschreibung (optional)</label>
-              <textarea value={neueVersionBeschreibung}
-                onChange={e => setNeueVersionBeschreibung(e.target.value)}
-                placeholder="Kurze Notiz zu dieser Variante…"
-                rows={2}
-                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#445c49]/20 focus:border-[#445c49] resize-none" />
-            </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setShowVersionModal(false)}
-                className="flex-1 px-4 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                Abbrechen
-              </button>
-              <button type="button" onClick={speichereVersion}
-                disabled={!neueVersionName.trim() || versionSaving}
-                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white rounded-xl transition-colors disabled:opacity-40"
-                style={{ background: '#445c49' }}>
-                {versionSaving ? 'Speichern…' : 'Speichern'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Vergleichs-Modal ── */}
-      {showVergleichModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowVergleichModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-5 w-[900px] max-w-[97vw] max-h-[90vh] flex flex-col"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4 shrink-0">
-              <div>
-                <h2 className="text-sm font-semibold text-gray-900">Versionen vergleichen</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Zwei Planungsvarianten nebeneinander vergleichen</p>
-              </div>
-              <button type="button" onClick={() => setShowVergleichModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            {/* Auswahl */}
-            <div className="flex items-center gap-4 mb-4 shrink-0">
-              <div className="flex-1">
-                <label className="text-[11px] font-medium text-gray-500 block mb-1">Version 1</label>
-                <select value={vergleichV1} onChange={e => setVergleichV1(e.target.value)}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#445c49]/20 focus:border-[#445c49]">
-                  <option value="" disabled>Wählen…</option>
-                  {versionen.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                </select>
-              </div>
-              <div className="shrink-0 flex items-end pb-1">
-                <ArrowLeftRight className="w-4 h-4 text-gray-300" />
-              </div>
-              <div className="flex-1">
-                <label className="text-[11px] font-medium text-gray-500 block mb-1">Version 2</label>
-                <select value={vergleichV2} onChange={e => setVergleichV2(e.target.value)}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#445c49]/20 focus:border-[#445c49]">
-                  <option value="" disabled>Wählen…</option>
-                  {versionen.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                </select>
-              </div>
-              <div className="shrink-0 flex items-end">
-                <button type="button" onClick={ladeVergleich}
-                  disabled={!vergleichV1 || !vergleichV2 || vergleichV1 === vergleichV2 || vergleichLoading}
-                  className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-40 transition-colors"
-                  style={{ background: '#445c49' }}>
-                  {vergleichLoading ? 'Lädt…' : 'Vergleichen'}
-                </button>
-              </div>
-            </div>
-            {/* Vergleichs-Ansicht */}
-            <div className="flex-1 overflow-hidden flex gap-3 min-h-0">
-              {[
-                { key: 'v1' as const, label: vergleichData.v1?.name ?? 'Version 1', data: vergleichData.v1 },
-                { key: 'v2' as const, label: vergleichData.v2?.name ?? 'Version 2', data: vergleichData.v2 },
-              ].map(({ label, data }) => (
-                <div key={label} className="flex-1 flex flex-col min-w-0">
-                  <p className="text-xs font-semibold text-gray-700 mb-2 truncate px-1">{label}</p>
-                  <div className="flex-1 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 min-h-0">
-                    {data ? (
-                      <GrundrissVorschau
-                        grundrissJson={data.json}
-                        breiteM={breiteM}
-                        laengeM={laengeM}
-                        className="w-full h-full"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-gray-300 text-sm">
-                        {vergleichLoading ? 'Wird geladen…' : 'Version wählen und vergleichen'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Status-Bar ── */}
       <div className="flex items-center justify-between px-4 py-1.5 shrink-0 h-8"
