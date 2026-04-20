@@ -20,11 +20,11 @@ const LIEFERZEIT_VORSCHLAEGE = [
   '6-8 Wochen', '8-12 Wochen', 'Auf Anfrage',
 ]
 const VERFUEGBARKEIT_OPTIONEN = [
-  { wert: '',            label: '— nicht gesetzt —' },
-  { wert: 'verfuegbar',  label: 'Verfügbar' },
-  { wert: 'begrenzt',    label: 'Begrenzt verfügbar' },
-  { wert: 'ausverkauft', label: 'Ausverkauft' },
-  { wert: 'auf_anfrage', label: 'Auf Anfrage' },
+  { wert: '',               label: '— nicht gesetzt —' },
+  { wert: 'standard',       label: 'Standardmäßig lieferbar' },
+  { wert: 'lieferzeit_4_6', label: 'Lieferbar in 4–6 Wochen' },
+  { wert: 'saisonal',       label: 'Saisonal verfügbar' },
+  { wert: 'auf_anfrage',    label: 'Auf Anfrage' },
 ]
 
 // ── Hilfsfunktionen ───────────────────────────────────────────
@@ -44,6 +44,8 @@ type ProduktErweitert = ProduktMitDetails & {
   verfuegbarkeit?: string | null
   tags?:           string[] | null
   bilder_urls?:    string[] | null
+  hinweis_extern?: string | null
+  hinweis_extern_sichtbar?: boolean
 }
 
 interface Props {
@@ -406,6 +408,10 @@ export default function ProduktFormular({
   const [artikelnummer,  setArtikelnummer]  = useState((initialData as ProduktErweitert)?.artikelnummer ?? '')
   const [verfuegbarkeit, setVerfuegbarkeit] = useState((initialData as ProduktErweitert)?.verfuegbarkeit ?? '')
 
+  // Vermerk/Hinweis (Migration 058)
+  const [hinweisExtern, setHinweisExtern] = useState((initialData as ProduktErweitert)?.hinweis_extern ?? '')
+  const [hinweisSichtbar, setHinweisSichtbar] = useState((initialData as ProduktErweitert)?.hinweis_extern_sichtbar ?? false)
+
   // Maße
   const [breiteCm, setBreiteCm] = useState<string>((initialData as ProduktErweitert)?.breite_cm?.toString() ?? '')
   const [tiefeCm,  setTiefeCm]  = useState<string>((initialData as ProduktErweitert)?.tiefe_cm?.toString()  ?? '')
@@ -549,6 +555,8 @@ export default function ProduktFormular({
         <input type="hidden" name="farbe"            value={farbe} />
         <input type="hidden" name="artikelnummer"    value={artikelnummer} />
         <input type="hidden" name="verfuegbarkeit"   value={verfuegbarkeit} />
+        <input type="hidden" name="hinweis_extern"   value={hinweisExtern} />
+        {hinweisSichtbar && <input type="hidden" name="hinweis_extern_sichtbar" value="on" />}
         <input type="hidden" name="breite_cm"        value={breiteCm} />
         <input type="hidden" name="tiefe_cm"         value={tiefeCm} />
         <input type="hidden" name="hoehe_cm"         value={hoeheCm} />
@@ -845,6 +853,39 @@ export default function ProduktFormular({
                 onChange={handleBildUpload}
                 className="hidden"
               />
+            </div>
+
+            {/* Vermerk / Hinweis (Migration 058) */}
+            <div className="border-t border-gray-100 pt-4">
+              <label className={lbl}>
+                Vermerk / Hinweis
+                <span className="ml-2 text-[10px] text-gray-400 font-normal normal-case tracking-normal">
+                  erscheint überall, wo dieses Produkt angezeigt wird
+                </span>
+              </label>
+              <textarea
+                value={hinweisExtern}
+                onChange={(e) => setHinweisExtern(e.target.value)}
+                placeholder={'z.B. "Preis kann sich ändern", "Aktion bis 30.06.", "Vor Bestellung anrufen"…'}
+                rows={2}
+                className={`${inp} resize-none`}
+              />
+              <label className="mt-2 flex items-start gap-2 text-xs text-gray-600 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={hinweisSichtbar}
+                  onChange={(e) => setHinweisSichtbar(e.target.checked)}
+                  className="mt-0.5 accent-wellbeing-green"
+                />
+                <span>
+                  <span className="font-medium">Auch für Kunden sichtbar</span>
+                  <span className="block text-[11px] text-gray-400">
+                    {hinweisSichtbar
+                      ? 'Erscheint in Freigabe-Link, Konfigurator und Portal.'
+                      : 'Bleibt intern (Team-Ansichten, PDF-Export).'}
+                  </span>
+                </span>
+              </label>
             </div>
 
             {/* Notizen */}

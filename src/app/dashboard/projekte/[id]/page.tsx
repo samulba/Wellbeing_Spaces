@@ -21,6 +21,9 @@ import PdfExportButton, { type PdfProdukt } from '@/components/PdfExportButton'
 import ZeiterfassungBlock from '@/components/ZeiterfassungBlock'
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import { getZeiterfassung, getZeitSumme } from '@/app/actions/zeiterfassung'
+import { getRaumBudgetDetails } from '@/app/actions/raeume'
+import { effektiverVpNetto } from '@/lib/preise'
+import RaumBudgetGrid from '@/components/RaumBudgetGrid'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
 import type { DateiItem } from '@/components/DateiUpload'
 
@@ -68,7 +71,7 @@ async function getProjektStats(projektId: string) {
   // Lade über raum_produkte mit JOIN auf produkte + produktstatus
   const { data: eintraege } = await supabase
     .from('raum_produkte')
-    .select('menge, verkaufspreis_override, produkte(id, verkaufspreis, deleted_at, produktstatus(status))')
+    .select('menge, verkaufspreis_override, rabatt_prozent, produkte(id, verkaufspreis, deleted_at, produktstatus(status))')
     .in('raum_id', raumIds)
 
   let gesamtkosten = 0, ausstehend = 0, freigegeben = 0, abgelehnt = 0, ueberarbeitung = 0
@@ -79,7 +82,10 @@ async function getProjektStats(projektId: string) {
 
   for (const e of aktiveEintraege) {
     const prod = (e.produkte as unknown) as { verkaufspreis: number | null; produktstatus: { status: string } | { status: string }[] | null } | null
-    const vp = (e.verkaufspreis_override ?? prod?.verkaufspreis ?? 0)
+    const vp = effektiverVpNetto(
+      { verkaufspreis_override: e.verkaufspreis_override, rabatt_prozent: e.rabatt_prozent ?? null },
+      prod?.verkaufspreis ?? null,
+    )
     gesamtkosten += vp * e.menge
     const statusObj = Array.isArray(prod?.produktstatus) ? prod?.produktstatus[0] : prod?.produktstatus
     const s = statusObj?.status ?? 'ausstehend'
@@ -96,7 +102,7 @@ async function getRaumStats(raumIds: string[]): Promise<Record<string, RaumStat>
   const supabase = await createClient()
   const { data: eintraege } = await supabase
     .from('raum_produkte')
-    .select('raum_id, menge, verkaufspreis_override, produkte(verkaufspreis, deleted_at, produktstatus(status))')
+    .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, produkte(verkaufspreis, deleted_at, produktstatus(status))')
     .in('raum_id', raumIds)
 
   const result: Record<string, RaumStat> = {}
@@ -105,7 +111,10 @@ async function getRaumStats(raumIds: string[]): Promise<Record<string, RaumStat>
     if (prod?.deleted_at != null) continue
     if (!result[e.raum_id]) result[e.raum_id] = { produkteAnzahl: 0, vpSumme: 0, freigegeben: 0 }
     result[e.raum_id].produkteAnzahl++
-    const vp = e.verkaufspreis_override ?? prod?.verkaufspreis ?? 0
+    const vp = effektiverVpNetto(
+      { verkaufspreis_override: e.verkaufspreis_override, rabatt_prozent: e.rabatt_prozent ?? null },
+      prod?.verkaufspreis ?? null,
+    )
     result[e.raum_id].vpSumme += vp * e.menge
     const statusObj = Array.isArray(prod?.produktstatus) ? prod?.produktstatus[0] : prod?.produktstatus
     if (statusObj?.status === 'freigegeben') result[e.raum_id].freigegeben++
@@ -167,7 +176,7 @@ async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
   const supabaseForBranding = await (await import('@/lib/supabase/server')).createClient()
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, zeitEintraege, zeitSumme, { data: branding }, alleEvents] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, zeitEintraege, zeitSumme, { data: branding }, alleEvents, raumBudgetDetails] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
@@ -182,6 +191,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
     getZeitSumme(params.id),
     supabaseForBranding.from('branding').select('firmenname, logo_url, adresse, email, telefon').maybeSingle(),
     projektEventsAbrufen(params.id),
+    getRaumBudgetDetails(params.id),
   ])
 
   if (!projekt) notFound()
@@ -432,6 +442,19 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
               )}
             </div>
           </div>
+
+          {/* ── Budget pro Raum (Aufschlüsselung + Kategorie-Mix) ── */}
+          {raumBudgetDetails.length > 0 && (
+            <div className="px-6 py-4 border-b border-gray-50">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Budget pro Raum</p>
+                <p className="text-[11px] text-gray-400">
+                  Wo wurde wieviel investiert · Top-Kategorien pro Raum
+                </p>
+              </div>
+              <RaumBudgetGrid details={raumBudgetDetails} projektId={projekt.id} />
+            </div>
+          )}
 
           {/* ── Kunden-Freigabe & PIN ────────────────────────── */}
           <div className="px-6 py-4 border-b border-gray-50">

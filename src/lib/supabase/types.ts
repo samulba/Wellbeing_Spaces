@@ -228,6 +228,10 @@ export interface FreigabeProdukt {
   produkt_url: string | null
   status: ProduktStatus
   kommentar: string | null
+  // Vermerk (Migration 058) — NUR gesetzt wenn hinweis_extern_sichtbar=true
+  hinweis?: string | null
+  // Rabatt pro Raum-Produkt (Migration 058) — prozentual, bereits in verkaufspreis berücksichtigt
+  rabatt_prozent?: number | null
 }
 
 export interface FreigabeRaum {
@@ -235,6 +239,14 @@ export interface FreigabeRaum {
   name: string
   produkte: FreigabeProdukt[]
 }
+
+// ── Statische Verfügbarkeit (Migration 058) ──────────────────
+// Bewusst statisch — keine täglich zu pflegenden Status.
+export type ProduktVerfuegbarkeit =
+  | 'auf_anfrage'
+  | 'saisonal'
+  | 'lieferzeit_4_6'
+  | 'standard'
 
 export interface Produkt {
   id: string
@@ -261,6 +273,11 @@ export interface Produkt {
   liefertermin?: string | null
   bestellt_am?: string | null
   lieferung_erhalten_am?: string | null
+  // Statische Eigenschaften (Migration 031 Feld, Wert-Refactor Migration 058)
+  verfuegbarkeit?: ProduktVerfuegbarkeit | null
+  // Vermerk / Hinweis (Migration 058)
+  hinweis_extern?: string | null
+  hinweis_extern_sichtbar?: boolean
   // Varianten (Migration 041)
   ist_variante: boolean
   eltern_produkt_id: string | null
@@ -285,7 +302,7 @@ export type ProduktMitDetails = Produkt & {
   produktstatus: { status: ProduktStatus; kommentar: string | null } | null
 }
 
-// ── Raum-Produkt-Verknüpfung (Migration 038) ─────────────────
+// ── Raum-Produkt-Verknüpfung (Migration 038 + 058 Rabatt) ────
 export interface RaumProdukt {
   id: string
   organisation_id: string
@@ -293,6 +310,7 @@ export interface RaumProdukt {
   produkt_id: string
   menge: number
   verkaufspreis_override: number | null
+  rabatt_prozent: number | null
   reihenfolge: number
   notizen: string | null
   created_at: string

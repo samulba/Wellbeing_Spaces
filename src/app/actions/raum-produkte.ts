@@ -10,7 +10,8 @@ export async function produktZuRaumHinzufuegen(
   raumId: string,
   menge = 1,
   verkaufspreisOverride: number | null = null,
-  projektId?: string
+  projektId?: string,
+  rabattProzent: number | null = null,
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
@@ -21,6 +22,7 @@ export async function produktZuRaumHinzufuegen(
     produkt_id: produktId,
     menge,
     verkaufspreis_override: verkaufspreisOverride,
+    rabatt_prozent: rabattProzent,
     reihenfolge: 0,
   })
 
@@ -46,24 +48,28 @@ export async function produktAusRaumEntfernen(
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
 }
 
-/** Menge, Preis-Override oder Notizen eines Raum-Eintrags aktualisieren. */
+/** Menge, Preis-Override, Rabatt oder Notizen eines Raum-Eintrags aktualisieren. */
 export async function raumProdukteAktualisieren(
   raumProduktId: string,
   daten: {
     menge?: number
     verkaufspreisOverride?: number | null
+    rabattProzent?: number | null
     notizen?: string | null
-  }
+  },
+  pfad?: { projektId: string; raumId: string },
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
   const update: Record<string, unknown> = {}
   if (daten.menge !== undefined) update.menge = daten.menge
   if ('verkaufspreisOverride' in daten) update.verkaufspreis_override = daten.verkaufspreisOverride
+  if ('rabattProzent' in daten) update.rabatt_prozent = daten.rabattProzent
   if ('notizen' in daten) update.notizen = daten.notizen
 
   const { error } = await supabase.from('raum_produkte').update(update).eq('id', raumProduktId).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
+  if (pfad) revalidatePath(`/dashboard/projekte/${pfad.projektId}/raeume/${pfad.raumId}`)
   return {}
 }
 

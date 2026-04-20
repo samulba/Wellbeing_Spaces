@@ -27,9 +27,12 @@ import Link from 'next/link'
 import {
   produktAusRaumEntfernen,
   updateRaumProduktPositionen,
+  raumProdukteAktualisieren,
 } from '@/app/actions/raum-produkte'
 import { bestellstatusAendern, produktDatumAktualisieren, type ProduktDatumFeld } from '@/app/actions/produkte'
 import type { RaumProduktMitDetails, BestellStatus } from '@/lib/supabase/types'
+import { effektiverVpNetto, basisVpNetto } from '@/lib/preise'
+import HinweisBanner from './HinweisBanner'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
@@ -137,6 +140,7 @@ function SortableProduktZeile({
   onBestellstatusChange,
   onDeleteRequest,
   onDatumChange,
+  onRabattChange,
 }: {
   eintrag: RaumProduktMitDetails
   mwst: number
@@ -146,16 +150,22 @@ function SortableProduktZeile({
   onBestellstatusChange: (raumProduktId: string, status: BestellStatus) => void
   onDeleteRequest: (id: string, name: string) => void
   onDatumChange: (raumProduktId: string, feld: ProduktDatumFeld, wert: string | null) => void
+  onRabattChange: (raumProduktId: string, rabatt: number | null) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: eintrag.id })
 
   const p = eintrag.produkte
-  const effektivVP = eintrag.verkaufspreis_override ?? p.verkaufspreis
-  const vpBrutto = r2((effektivVP ?? 0) * (1 + mwst))
+  const effektivVP = effektiverVpNetto(
+    { verkaufspreis_override: eintrag.verkaufspreis_override, rabatt_prozent: eintrag.rabatt_prozent ?? null },
+    p.verkaufspreis,
+  )
+  const basisVP = basisVpNetto({ verkaufspreis_override: eintrag.verkaufspreis_override }, p.verkaufspreis)
+  const hasEffektivVP = (eintrag.verkaufspreis_override != null) || (p.verkaufspreis != null)
+  const vpBrutto = r2(effektivVP * (1 + mwst))
   const gesamtBrutto = r2(vpBrutto * eintrag.menge)
-  const gesamtNetto = r2((effektivVP ?? 0) * eintrag.menge)
-  const provisionEur = r2((effektivVP ?? 0) * ((p.provision_prozent ?? 0) / 100))
+  const gesamtNetto = r2(effektivVP * eintrag.menge)
+  const provisionEur = r2(effektivVP * ((p.provision_prozent ?? 0) / 100))
 
   const status = p.produktstatus?.status ?? 'ausstehend'
   const bestellstatus = (p.bestellstatus ?? 'ausstehend') as BestellStatus
@@ -212,8 +222,18 @@ function SortableProduktZeile({
         </td>
 
         <td className="px-2 py-3.5 align-middle">
-          <div className="font-medium text-gray-900 leading-snug">{p.name}</div>
-          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-400">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-gray-900 leading-snug">{p.name}</span>
+            {p.hinweis_extern && (
+              <span
+                className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold"
+                title={p.hinweis_extern}
+              >
+                !
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap mt-0.5 text-[11px] text-gray-400">
             {p.partner && <span>{p.partner.name}</span>}
             {p.kategorie && (
               <>
@@ -221,9 +241,19 @@ function SortableProduktZeile({
                 <span>{p.kategorie}</span>
               </>
             )}
+            {p.verfuegbarkeit && (
+              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded-full font-medium text-[10px]">
+                {verfuegbarkeitLabel(p.verfuegbarkeit)}
+              </span>
+            )}
             {eintrag.verkaufspreis_override != null && (
               <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded-full font-medium text-[10px]">
                 Preis angepasst
+              </span>
+            )}
+            {eintrag.rabatt_prozent != null && eintrag.rabatt_prozent > 0 && (
+              <span className="px-1.5 py-0.5 bg-rose-50 text-rose-700 rounded-full font-semibold text-[10px]">
+                −{fmtProzent(eintrag.rabatt_prozent)}
               </span>
             )}
           </div>
@@ -237,12 +267,12 @@ function SortableProduktZeile({
 
         {/* VP Brutto (Stück) */}
         <td className={`${td} text-right font-mono whitespace-nowrap`}>
-          {effektivVP != null ? eur(vpBrutto) : <span className="text-gray-300">–</span>}
+          {hasEffektivVP ? eur(vpBrutto) : <span className="text-gray-300">–</span>}
         </td>
 
         {/* Gesamt brutto */}
         <td className={`${td} text-right font-mono font-semibold text-wellbeing-green whitespace-nowrap`}>
-          {effektivVP != null ? eur(gesamtBrutto) : <span className="text-gray-300">–</span>}
+          {hasEffektivVP ? eur(gesamtBrutto) : <span className="text-gray-300">–</span>}
         </td>
 
         {/* Freigabe */}
@@ -305,7 +335,31 @@ function SortableProduktZeile({
 
       {expanded && (
         <tr className={`bg-gray-50/60 ${!isLast ? 'border-b border-gray-100' : ''}`}>
-          <td colSpan={10} className="px-6 py-5">
+          <td colSpan={10} className="px-6 py-5 space-y-4">
+
+            {p.hinweis_extern && (
+              <HinweisBanner
+                text={p.hinweis_extern}
+                fuerKunden={p.hinweis_extern_sichtbar}
+                showSichtbarkeit
+              />
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_200px] gap-4">
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Preis-Anpassung</p>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="text-gray-500">Basis-VP: <span className="font-mono text-gray-800">{eur(basisVP)}</span></span>
+                  <RabattField
+                    raumProduktId={eintrag.id}
+                    initial={eintrag.rabatt_prozent}
+                    onChange={(v) => onRabattChange(eintrag.id, v)}
+                  />
+                  <span className="text-gray-500">→ effektiv: <span className="font-mono font-semibold text-wellbeing-green">{eur(effektivVP)}</span></span>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
               {/* Bestell- & Liefer-Tracking */}
@@ -344,9 +398,9 @@ function SortableProduktZeile({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <KpiZelle label="EP netto"  wert={p.einkaufspreis != null ? eur(p.einkaufspreis) : '–'} intern />
                   <KpiZelle label="Marge"     wert={p.marge_prozent != null ? fmtProzent(p.marge_prozent) : '–'} intern />
-                  <KpiZelle label="VP netto"  wert={effektivVP != null ? eur(effektivVP) : '–'} />
-                  <KpiZelle label="Provision" wert={p.provision_prozent != null && effektivVP != null ? `${fmtProzent(p.provision_prozent)} · ${eur(provisionEur)}` : '–'} intern />
-                  <KpiZelle label="Gesamt netto" wert={effektivVP != null ? eur(gesamtNetto) : '–'} span />
+                  <KpiZelle label="VP netto"  wert={hasEffektivVP ? eur(effektivVP) : '–'} />
+                  <KpiZelle label="Provision" wert={p.provision_prozent != null && hasEffektivVP ? `${fmtProzent(p.provision_prozent)} · ${eur(provisionEur)}` : '–'} intern />
+                  <KpiZelle label="Gesamt netto" wert={hasEffektivVP ? eur(gesamtNetto) : '–'} span />
                 </div>
 
                 {p.produkt_url && (
@@ -400,6 +454,52 @@ function DateField({
   )
 }
 
+function RabattField({
+  raumProduktId,
+  initial,
+  onChange,
+}: {
+  raumProduktId: string
+  initial: number | null | undefined
+  onChange: (v: number | null) => void
+}) {
+  const [local, setLocal] = useState(initial != null ? String(initial) : '')
+  useEffect(() => { setLocal(initial != null ? String(initial) : '') }, [initial, raumProduktId])
+
+  function commit() {
+    if (!local.trim()) {
+      if (initial != null) onChange(null)
+      return
+    }
+    const parsed = parseFloat(local.replace(',', '.'))
+    if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+      setLocal(initial != null ? String(initial) : '')
+      return
+    }
+    if (parsed !== initial) onChange(parsed)
+  }
+
+  return (
+    <label className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+      Rabatt
+      <div className="relative">
+        <input
+          type="number"
+          min={0}
+          max={100}
+          step="0.01"
+          value={local}
+          onChange={(e) => setLocal(e.target.value)}
+          onBlur={commit}
+          placeholder="0"
+          className="w-16 px-1.5 pr-5 py-1 text-right text-xs bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light"
+        />
+        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none">%</span>
+      </div>
+    </label>
+  )
+}
+
 function KpiZelle({ label, wert, intern, span }: { label: string; wert: string; intern?: boolean; span?: boolean }) {
   return (
     <div className={span ? 'col-span-2 sm:col-span-1' : ''}>
@@ -413,6 +513,16 @@ function KpiZelle({ label, wert, intern, span }: { label: string; wert: string; 
 
 function fmtProzent(n: number) {
   return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }).format(n)} %`
+}
+
+function verfuegbarkeitLabel(v: string): string {
+  switch (v) {
+    case 'standard':       return 'Standardmäßig lieferbar'
+    case 'lieferzeit_4_6': return 'Lieferbar in 4–6 Wochen'
+    case 'saisonal':       return 'Saisonal'
+    case 'auf_anfrage':    return 'Auf Anfrage'
+    default:               return v
+  }
 }
 
 function fmtDate(iso: string) {
@@ -515,6 +625,27 @@ export default function SortableProduktTabelle({
     }
   }
 
+  async function handleRabattChange(raumProduktId: string, neuerRabatt: number | null) {
+    const eintrag = eintraege.find((e) => e.id === raumProduktId)
+    if (!eintrag) return
+    const alterRabatt = eintrag.rabatt_prozent ?? null
+    setEintraege((prev) =>
+      prev.map((e) => (e.id === raumProduktId ? { ...e, rabatt_prozent: neuerRabatt } : e))
+    )
+    const res = await raumProdukteAktualisieren(
+      raumProduktId,
+      { rabattProzent: neuerRabatt },
+      { projektId, raumId },
+    )
+    if (res?.fehler) {
+      setEintraege((prev) =>
+        prev.map((e) => (e.id === raumProduktId ? { ...e, rabatt_prozent: alterRabatt } : e))
+      )
+      setFehlerToast('Rabatt konnte nicht gespeichert werden.')
+      setTimeout(() => setFehlerToast(null), 4000)
+    }
+  }
+
   async function handleConfirmDelete() {
     if (!deleteTarget || isDeleting) return
     setIsDeleting(true)
@@ -565,6 +696,7 @@ export default function SortableProduktTabelle({
                     onBestellstatusChange={handleBestellstatusChange}
                     onDeleteRequest={(id, name) => setDeleteTarget({ id, name })}
                     onDatumChange={handleDatumChange}
+                    onRabattChange={handleRabattChange}
                   />
                 ))}
               </tbody>

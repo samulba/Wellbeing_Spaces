@@ -23,6 +23,7 @@ export default function ProduktZuweisenModal({
   const [open, setOpen]                     = useState(false)
   const [selectedProjekt, setSelectedProjekt] = useState('')
   const [selectedRaum, setSelectedRaum]       = useState('')
+  const [rabattInput, setRabattInput]         = useState('')
   const [fehler, setFehler]                   = useState<string | null>(null)
   const [isPending, startTransition]          = useTransition()
 
@@ -34,6 +35,7 @@ export default function ProduktZuweisenModal({
     setOpen(true)
     setSelectedProjekt('')
     setSelectedRaum('')
+    setRabattInput('')
     setFehler(null)
   }
 
@@ -50,9 +52,18 @@ export default function ProduktZuweisenModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedRaum) { setFehler('Bitte Projekt und Raum auswählen.'); return }
+    let rabatt: number | null = null
+    if (rabattInput.trim()) {
+      const parsed = parseFloat(rabattInput.replace(',', '.'))
+      if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+        setFehler('Rabatt muss zwischen 0 und 100 liegen.')
+        return
+      }
+      rabatt = parsed
+    }
     setFehler(null)
     startTransition(async () => {
-      const result = await produktZuRaumHinzufuegen(produktId, selectedRaum)
+      const result = await produktZuRaumHinzufuegen(produktId, selectedRaum, 1, null, undefined, rabatt)
       if (result?.fehler) {
         setFehler(result.fehler)
       } else {
@@ -147,6 +158,29 @@ export default function ProduktZuweisenModal({
                   </select>
                   <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
+              </div>
+
+              {/* Rabatt (optional) */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Rabatt (%) <span className="text-gray-400 font-normal">optional</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={rabattInput}
+                    onChange={(e) => setRabattInput(e.target.value)}
+                    placeholder="z.B. 15"
+                    className="w-full px-3 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light focus:border-wellbeing-green-light"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">%</span>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Nur für dieses Raum-Produkt. Wird auf den VP angewendet.
+                </p>
               </div>
 
               {fehler && (

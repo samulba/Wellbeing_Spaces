@@ -18,7 +18,11 @@ function parseJsonArray(val: FormDataEntryValue | null): string[] {
   try { return JSON.parse(val as string) } catch { return [] }
 }
 
+const ERLAUBTE_VERFUEGBARKEIT = new Set(['auf_anfrage', 'saisonal', 'lieferzeit_4_6', 'standard'])
+
 function neueFelder(formData: FormData) {
+  const verfuegbarkeitRaw = (formData.get('verfuegbarkeit') as string) || ''
+  const verfuegbarkeit = ERLAUBTE_VERFUEGBARKEIT.has(verfuegbarkeitRaw) ? verfuegbarkeitRaw : null
   return {
     lieferzeit:     (formData.get('lieferzeit')     as string) || null,
     breite_cm:      parseOptionalNumber(formData.get('breite_cm')),
@@ -27,9 +31,11 @@ function neueFelder(formData: FormData) {
     material:       (formData.get('material')       as string) || null,
     farbe:          (formData.get('farbe')          as string) || null,
     artikelnummer:  (formData.get('artikelnummer')  as string) || null,
-    verfuegbarkeit: (formData.get('verfuegbarkeit') as string) || null,
+    verfuegbarkeit,
     tags:           parseJsonArray(formData.get('tags_json')),
     bilder_urls:    parseJsonArray(formData.get('bilder_urls_json')),
+    hinweis_extern:          ((formData.get('hinweis_extern') as string) || '').trim() || null,
+    hinweis_extern_sichtbar: formData.get('hinweis_extern_sichtbar') === 'on',
   }
 }
 
