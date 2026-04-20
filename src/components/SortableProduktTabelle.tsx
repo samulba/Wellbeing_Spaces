@@ -726,8 +726,16 @@ export default function SortableProduktTabelle({
       prev.map((e) => (e.id === raumProduktId ? { ...e, produkte: { ...e.produkte, [feld]: wert } } : e))
     )
     const eintrag = eintraege.find((e) => e.id === raumProduktId)
-    if (eintrag) {
-      await produktDatumAktualisieren(eintrag.produkt_id, raumId, projektId, feld, wert)
+    if (!eintrag) return
+    const res = await produktDatumAktualisieren(eintrag.produkt_id, raumId, projektId, feld, wert)
+    // Server-Action kann den Bestellstatus automatisch hochsetzen → State synchronisieren
+    if (res?.bestellstatus) {
+      const neu = res.bestellstatus
+      setEintraege((prev) =>
+        prev.map((e) =>
+          e.id === raumProduktId ? { ...e, produkte: { ...e.produkte, bestellstatus: neu } } : e,
+        ),
+      )
     }
   }
 

@@ -326,25 +326,62 @@ export async function bestellstatusAendern(
 
 export type ProduktDatumFeld = 'bestellt_am' | 'liefertermin' | 'lieferung_erhalten_am'
 
-/** Aktualisiert ein einzelnes Datumsfeld auf produkte. Leerstring = NULL. */
+// Bestellstatus-Ranking: nur "nach vorne" bewegen, nie zurück.
+const STATUS_RANK: Record<BestellStatus, number> = {
+  ausstehend: 0,
+  bestellt: 1,
+  geliefert: 2,
+  rechnung_erhalten: 3,
+}
+
+/**
+ * Aktualisiert ein einzelnes Datumsfeld auf produkte.
+ * Automatischer Status-Upgrade:
+ *   - bestellt_am gesetzt      → bestellstatus mindestens 'bestellt'
+ *   - lieferung_erhalten_am    → bestellstatus mindestens 'geliefert'
+ * Ein bereits höherer Status (z.B. 'rechnung_erhalten') bleibt unberührt.
+ * Beim Löschen eines Datums wird der Status NICHT zurückgesetzt.
+ */
 export async function produktDatumAktualisieren(
   produktId: string,
   raumId: string,
   projektId: string,
   feld: ProduktDatumFeld,
   datum: string | null,
-): Promise<{ fehler?: string }> {
+): Promise<{ fehler?: string; bestellstatus?: BestellStatus }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
   const wert = datum && datum.trim() ? datum : null
+
+  // Update-Objekt zusammenbauen (Datum + ggf. auto-Status-Upgrade)
+  const update: Record<string, unknown> = { [feld]: wert }
+  let neuerStatus: BestellStatus | undefined
+
+  if (wert != null && (feld === 'bestellt_am' || feld === 'lieferung_erhalten_am')) {
+    // Aktuellen Status laden, um kein Downgrade zu machen
+    const { data: aktuell } = await supabase
+      .from('produkte')
+      .select('bestellstatus')
+      .eq('id', produktId)
+      .eq('organisation_id', orgId)
+      .maybeSingle()
+
+    const aktuellStatus = (aktuell?.bestellstatus ?? 'ausstehend') as BestellStatus
+    const ziel: BestellStatus = feld === 'bestellt_am' ? 'bestellt' : 'geliefert'
+    if (STATUS_RANK[aktuellStatus] < STATUS_RANK[ziel]) {
+      update.bestellstatus = ziel
+      neuerStatus = ziel
+    }
+  }
+
   const { error } = await supabase
     .from('produkte')
-    .update({ [feld]: wert })
+    .update(update)
     .eq('id', produktId)
     .eq('organisation_id', orgId)
   if (error) return { fehler: 'Datum konnte nicht gespeichert werden.' }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
-  return {}
+  return { bestellstatus: neuerStatus }
 }
 
 export async function produktStatusAendern(
