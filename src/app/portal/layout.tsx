@@ -7,7 +7,7 @@ export default async function PortalLayout({ children }: { children: React.React
   const branding = await brandingFuerToken()
   const prim     = branding?.primary_color    ?? '#445c49'
   const bg       = branding?.background_color ?? '#f6ede2'
-  const font     = branding?.font_family      ?? 'Inter'
+  const font     = branding?.font_family      ?? 'Montserrat'
 
   return (
     <html lang="de">
