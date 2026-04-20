@@ -36,7 +36,7 @@ const plans = [
     desc: 'Alles Wichtige zum Kennenlernen – dauerhaft kostenlos, keine Kreditkarte.',
     highlight: false,
     cta: 'Kostenlos starten',
-    ctaHref: '/login',
+    ctaHref: 'https://app.wellbeing-spaces.de/login',
   },
   {
     name: 'Pro',
@@ -47,7 +47,7 @@ const plans = [
     desc: 'Für Designer die täglich arbeiten und ihre Projekte professionell verwalten.',
     highlight: true,
     cta: 'Pro starten',
-    ctaHref: '/login',
+    ctaHref: 'https://app.wellbeing-spaces.de/login',
   },
   {
     name: 'Team',
@@ -58,7 +58,7 @@ const plans = [
     desc: 'Für Design Studios mit mehreren Designern und komplexen Projekten.',
     highlight: false,
     cta: 'Team starten',
-    ctaHref: '/login',
+    ctaHref: 'https://app.wellbeing-spaces.de/login',
   },
 ]
 
@@ -329,7 +329,7 @@ export default function PreisePage() {
               Kein Risiko. Keine Kreditkarte. Upgrade jederzeit möglich.
             </p>
             <Link
-              href="/login"
+              href="https://app.wellbeing-spaces.de/login"
               className="inline-flex items-center gap-2 px-8 py-4 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-bold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-wellbeing-green/30 hover:-translate-y-1"
             >
               Jetzt kostenlos starten →

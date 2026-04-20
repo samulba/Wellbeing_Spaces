@@ -40,7 +40,7 @@ export default function NotFound() {
               Zur Startseite →
             </Link>
             <Link
-              href="/login"
+              href="https://app.wellbeing-spaces.de/login"
               className="inline-flex items-center gap-2 px-7 py-3.5 border border-white/10 hover:border-white/20 text-white/50 hover:text-white/80 text-[15px] font-semibold rounded-xl transition-all duration-200"
             >
               Zum Dashboard

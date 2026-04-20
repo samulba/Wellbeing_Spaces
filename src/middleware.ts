@@ -89,13 +89,14 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(appUrl)
     }
 
-    // Login auf Hauptdomain: eingeloggter User → App-Subdomain
-    if (pathname === '/login') {
-      const supabase = createSupabaseMiddleware(request, response)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        return NextResponse.redirect(new URL(`https://${APP_DOMAIN}/dashboard`, request.url))
-      }
+    // Login + Auth-Flows MÜSSEN immer auf der App-Subdomain laufen.
+    // Anmeldung auf der Hauptdomain würde Session-Cookies nur für
+    // wellbeing-spaces.de setzen; app.wellbeing-spaces.de sähe sie nicht und
+    // verlangte eine zweite Anmeldung. Deshalb hier IMMER redirecten.
+    if (pathname === '/login' || pathname.startsWith('/auth/')) {
+      const target = new URL(`https://${APP_DOMAIN}${pathname}`)
+      request.nextUrl.searchParams.forEach((v, k) => target.searchParams.set(k, v))
+      return NextResponse.redirect(target)
     }
 
     return response

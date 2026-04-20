@@ -77,7 +77,7 @@ export default function Nav() {
           {/* Right: Anmelden + CTA */}
           <div className="hidden md:flex items-center gap-2 shrink-0">
             <Link
-              href="/login"
+              href="https://app.wellbeing-spaces.de/login"
               className="px-4 py-2 text-[14px] font-medium text-gray-500 hover:text-[#445c49] hover:bg-gray-50 rounded-lg transition-all duration-150"
             >
               Anmelden
