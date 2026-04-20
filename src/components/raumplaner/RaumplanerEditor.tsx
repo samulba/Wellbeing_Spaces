@@ -11,23 +11,23 @@ import {
   AlertCircle, Trash2, FileDown, PanelLeft,
   Copy, ArrowUpToLine, ArrowDownToLine, ArrowUp, ArrowDown,
   Magnet, Lock, LockOpen, Star, Share2, Image as ImageIcon, Check, Link2,
-  LayoutTemplate, Upload, TriangleAlert,
+  LayoutTemplate,
   Package, Tag, ExternalLink, Link2Off, FileText,
   Download,
   AlignLeft, AlignCenterHorizontal, AlignRight,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   AlignHorizontalSpaceBetween, AlignVerticalSpaceBetween,
-  Group, Ungroup, List, PenLine, Sheet, Layers,
+  Group, Ungroup, PenLine, Sheet, Layers,
   Eye, EyeOff, Monitor,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
-  grundrissSpeichern, raumMasseAktualisieren, getCustomMoebel, customMoebelErstellen,
+  grundrissSpeichern, raumMasseAktualisieren,
   getRaumFreigabeInfo, raumFreigabeAktualisieren, raumTexturenSpeichern,
   getAllProdukteForPlaner, raumplanAngebotErstellen,
   getRaumEtagen, etageErstellen, etageSpeichern, etageLoeschen,
 } from '@/app/actions/raumplaner'
-import type { MoebelSymbol, CustomMoebel as CustomMoebelType } from '@/lib/supabase/types'
+import type { MoebelSymbol } from '@/lib/supabase/types'
 import GrundrissVorschau from './GrundrissVorschau'
 import { ConfirmModal } from '@/components/ConfirmModal'
 
@@ -63,7 +63,6 @@ const LAYERS: LayerDef[] = [
   { id: 'doors',      name: 'Türen & Fenster', types: ['door', 'window'],      color: '#3b82f6' },
   { id: 'furniture',  name: 'Möbel',           types: ['moebel'],              color: '#94c1a4' },
   { id: 'dimensions', name: 'Maße',            types: ['dimension', 'measure'],color: '#6b7280' },
-  { id: 'legend',     name: 'Legende',         types: ['legend'],              color: '#8b5cf6' },
   { id: 'elektro',   name: 'Elektro',         types: ['elektro'],             color: '#f59e0b' },
 ]
 type LayerState = Record<string, { visible: boolean; locked: boolean }>
@@ -347,9 +346,6 @@ interface ProduktForPlaner {
   artikelnummer: string | null; verkaufspreis_netto: number | null
 }
 interface KostenItem { name: string; count: number; preis: number }
-interface NewMoebelForm {
-  name: string; kategorie: string; breite_cm: number; laenge_cm: number; farbe: string
-}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface ContextMenuState { x: number; y: number; target: any }
 
@@ -647,13 +643,6 @@ export default function RaumplanerEditor({
   const [isFullscreen,  setIsFullscreen]  = useState(false)
   const [snapToGrid,    setSnapToGrid]    = useState(false)
   const [favoriten,     setFavoriten]     = useState<Set<string>>(new Set())
-  const [customMoebel,  setCustomMoebel]  = useState<CustomMoebelType[]>([])
-  const [showCustomModal, setShowCustomModal] = useState(false)
-  const [customSaving,  setCustomSaving]  = useState(false)
-  const [newMoebel,     setNewMoebel]     = useState<NewMoebelForm>({
-    name: '', kategorie: 'Wohnzimmer', breite_cm: 80, laenge_cm: 80, farbe: '#94c1a4',
-  })
-
   // Freigabe-Modal
   const [showFreigabeModal, setShowFreigabeModal] = useState(false)
   const [freigabeAktiv,     setFreigabeAktiv]     = useState(initialFreigabeAktiv)
@@ -674,10 +663,7 @@ export default function RaumplanerEditor({
 
   // Maßketten + Kollision + Modals
   const [showDimensions,    setShowDimensions]    = useState(false)
-  const [showKollision,     setShowKollision]      = useState(false)
-  const [kollisionAnzahl,   setKollisionAnzahl]   = useState(0)
   const [showTemplatesModal, setShowTemplatesModal] = useState(false)
-  const [showImportModal,   setShowImportModal]   = useState(false)
 
   // ── Produkt-Verknüpfung ───────────────────────────────────────
   const [showProduktModal,  setShowProduktModal]  = useState(false)
@@ -726,11 +712,8 @@ export default function RaumplanerEditor({
   const [openTuerFenster,   setOpenTuerFenster]   = useState(true)
 
   const showDimensionsRef   = useRef(false)
-  const showKollisionRef    = useRef(false)
   const dimTimerRef         = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const kollTimerRef        = useRef<ReturnType<typeof setTimeout> | null>(null)
   const triggerDimUpdateRef = useRef(() => {})
-  const triggerKollUpdateRef = useRef(() => {})
 
   const [raumBreite, setRaumBreite] = useState(breiteM?.toString() ?? '')
   const [raumLaenge, setRaumLaenge] = useState(laengeM?.toString() ?? '')
@@ -791,7 +774,6 @@ export default function RaumplanerEditor({
   useEffect(() => { snapToGridRef.current = snapToGrid }, [snapToGrid])
   useEffect(() => { wandfarbeRef.current = wandfarbe }, [wandfarbe])
   useEffect(() => { triggerDimUpdateRef.current() }, [showDimensions])
-  useEffect(() => { triggerKollUpdateRef.current() }, [showKollision])
 
   // Etagen beim Start laden
   useEffect(() => {
@@ -846,11 +828,6 @@ export default function RaumplanerEditor({
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [raumId])
-
-  // Custom-Möbel aus DB laden
-  useEffect(() => {
-    getCustomMoebel().then(data => setCustomMoebel(data)).catch(() => {})
-  }, [])
 
   // Grid: Fabric.js Line-Objekte (createGridLinesRef)
 
@@ -1472,10 +1449,10 @@ export default function RaumplanerEditor({
           if (o.data?.type === 'wall') o.set('stroke', wandfarbeRef.current)
         })
         pushHistory(); triggerAutoSave()
-        triggerDimUpdateRef.current(); triggerKollUpdateRef.current()
+        triggerDimUpdateRef.current()
       })
-      canvas.on('object:added', () => { triggerDimUpdateRef.current(); triggerKollUpdateRef.current() })
-      canvas.on('object:removed', () => { triggerDimUpdateRef.current(); triggerKollUpdateRef.current() })
+      canvas.on('object:added', () => { triggerDimUpdateRef.current() })
+      canvas.on('object:removed', () => { triggerDimUpdateRef.current() })
 
       // ── SNAP-TO-WALL + ALIGNMENT-HILFSLINIEN ──────────────
       canvas.on('object:moving', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -1908,46 +1885,6 @@ export default function RaumplanerEditor({
     })
   }
 
-  // ── Custom-Möbel platzieren ───────────────────────────────
-  function placeCustomMoebel(cm: CustomMoebelType, x: number, y: number) {
-    const canvas = fabricRef.current, imp = fabricImports.current
-    if (!canvas || !imp) return
-    const { Group, Rect, Text } = imp
-    const w = cm.breite_cm, h = cm.laenge_cm
-    const bg = new Rect({
-      width: w, height: h, fill: cm.farbe, stroke: '#1e293b', strokeWidth: 1.5,
-      rx: 3, ry: 3, originX: 'left', originY: 'top',
-    })
-    const label = new Text(cm.name, {
-      fontSize: Math.max(7, Math.min(11, w / Math.max(cm.name.length, 4) * 1.4)),
-      fill: '#1e293b', textAlign: 'center', originX: 'center', originY: 'center',
-      left: w / 2, top: h / 2, fontFamily: 'system-ui, sans-serif',
-    })
-    const group = new Group([bg, label], {
-      left: x - w / 2, top: y - h / 2,
-      data: { type: 'moebel', customId: cm.id, name: cm.name }, name: cm.name,
-    })
-    canvas.add(group); canvas.setActiveObject(group); canvas.requestRenderAll()
-    pushHistory(); triggerAutoSave(); updateObjCount()
-  }
-
-  // ── Custom-Möbel in DB speichern ─────────────────────────
-  async function saveCustomMoebel() {
-    if (!newMoebel.name.trim()) return
-    setCustomSaving(true)
-    try {
-      const res = await customMoebelErstellen(newMoebel)
-      if ('id' in res) {
-        const created: CustomMoebelType = {
-          ...newMoebel, id: res.id, ist_favorit: false, created_by: null, created_at: new Date().toISOString(), organisation_id: null,
-        }
-        setCustomMoebel(prev => [created, ...prev])
-        setShowCustomModal(false)
-        setNewMoebel({ name: '', kategorie: 'Wohnzimmer', breite_cm: 80, laenge_cm: 80, farbe: '#94c1a4' })
-      }
-    } finally { setCustomSaving(false) }
-  }
-
   // ── Freigabe-Toggle ─────────────────────────────────────────
   async function toggleFreigabe() {
     setFreigabeSaving(true)
@@ -2129,54 +2066,8 @@ export default function RaumplanerEditor({
   }
   triggerDimUpdateRef.current = triggerDimUpdate
 
-  // ── Kollisionserkennung ─────────────────────────────────────
-  function checkKollisionen() {
-    const canvas = fabricRef.current, imp = fabricImports.current
-    if (!canvas || !imp) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    canvas.getObjects().filter((o: any) => o.data?.type === 'collision').forEach((o: any) => canvas.remove(o))
-    if (!showKollisionRef.current) { setKollisionAnzahl(0); canvas.requestRenderAll(); return }
-
-    const SKIP = new Set(['outline','preview','alignment','floor','dimension','collision','wall','door','window','measure'])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const objs = canvas.getObjects().filter((o: any) => o.data?.type && !SKIP.has(o.data.type))
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const overlapping = new Set<any>()
-    for (let i = 0; i < objs.length; i++) {
-      for (let j = i + 1; j < objs.length; j++) {
-        const a = objs[i], b = objs[j]
-        const ba = a.getBoundingRect(true), bb = b.getBoundingRect(true)
-        const hit = !(ba.left + ba.width < bb.left || bb.left + bb.width < ba.left ||
-                      ba.top + ba.height < bb.top  || bb.top  + bb.height < ba.top)
-        if (hit) { overlapping.add(a); overlapping.add(b) }
-      }
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    overlapping.forEach((obj: any) => {
-      const b = obj.getBoundingRect(true)
-      canvas.add(new imp.Rect({
-        left: b.left, top: b.top, width: b.width, height: b.height,
-        fill: 'rgba(239,68,68,0.15)', stroke: '#ef4444', strokeWidth: 1.5,
-        selectable: false, evented: false, strokeDashArray: [4, 3],
-        data: { type: 'collision' },
-      }))
-    })
-
-    setKollisionAnzahl(overlapping.size)
-    canvas.requestRenderAll()
-  }
-
-  function triggerKollUpdate() {
-    if (kollTimerRef.current) clearTimeout(kollTimerRef.current)
-    kollTimerRef.current = setTimeout(checkKollisionen, 300)
-  }
-  triggerKollUpdateRef.current = triggerKollUpdate
-
   // Sync refs
   showDimensionsRef.current  = showDimensions
-  showKollisionRef.current   = showKollision
   allProdukteRef.current     = allProdukte
 
   // ── Templates laden ─────────────────────────────────────────
@@ -2359,42 +2250,6 @@ export default function RaumplanerEditor({
     try { localStorage.setItem(`raumplaner-layers-${raumId}`, JSON.stringify(next)) } catch { /* ignore */ }
   }
 
-  // ── Datei-Import ────────────────────────────────────────────
-  function importDatei(file: File) {
-    const canvas = fabricRef.current, imp = fabricImports.current
-    if (!canvas || !imp) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string
-      const imgEl = document.createElement('img')
-      imgEl.onload = () => {
-        const Z = canvas.getZoom()
-        const scale = Math.min(
-          (canvas.getWidth() / Z * 0.7) / imgEl.naturalWidth,
-          (canvas.getHeight() / Z * 0.7) / imgEl.naturalHeight,
-          1,
-        )
-        const vpt = canvas.viewportTransform ?? [1,0,0,1,0,0]
-        const cx = (canvas.getWidth() / 2 - vpt[4]) / Z
-        const cy = (canvas.getHeight() / 2 - vpt[5]) / Z
-        const fabricImg = new imp.Image(imgEl, {
-          left: cx, top: cy, scaleX: scale, scaleY: scale,
-          originX: 'center', originY: 'center', opacity: 0.5,
-          data: { type: 'import_bild', name: file.name }, name: file.name,
-        })
-        canvas.add(fabricImg)
-        // Hinter echte Objekte aber über Floor schieben
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const floorIdx = canvas.getObjects().findIndex((o: any) => o.data?.type === 'floor')
-        if (floorIdx >= 0) canvas.sendObjectTo(fabricImg, floorIdx + 1)
-        pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
-      }
-      imgEl.src = dataUrl
-    }
-    reader.readAsDataURL(file)
-    setShowImportModal(false)
-  }
-
   // ── Ausrichten ───────────────────────────────────────────────
 
   function alignSelected(direction: 'left' | 'centerH' | 'right' | 'top' | 'centerV' | 'bottom') {
@@ -2507,85 +2362,6 @@ export default function RaumplanerEditor({
 
   groupSelectedRef.current   = groupSelected
   ungroupSelectedRef.current = ungroupSelected
-
-  // ── Legende einfügen ─────────────────────────────────────────
-
-  function insertLegende() {
-    const canvas = fabricRef.current, imp = fabricImports.current; if (!canvas || !imp) return
-    const SKIP_LEG = new Set(['outline','preview','floor','dimension','collision','alignment','wall','door','window','measure','legend','import_bild'])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const moebelObjs = canvas.getObjects().filter((o: any) => !SKIP_LEG.has(o.data?.type ?? ''))
-
-    // Zähle nach Name
-    const counts = new Map<string, { count: number; w: number; h: number }>()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    moebelObjs.forEach((o: any) => {
-      const nm = o.name ?? 'Unbekannt'
-      const existing = counts.get(nm)
-      if (existing) existing.count++
-      else counts.set(nm, {
-        count: 1,
-        w: Math.round((o.getScaledWidth?.() ?? 0) / SCALE * 100),
-        h: Math.round((o.getScaledHeight?.() ?? 0) / SCALE * 100),
-      })
-    })
-
-    if (counts.size === 0) { setRaumAlert('Keine Möbel im Grundriss vorhanden.'); return }
-
-    const { Rect, Text, Group } = imp
-    const W = 210, PAD = 10, LINE_H = 18, HEADER_H = 28
-    const totalH = HEADER_H + counts.size * LINE_H + PAD * 1.5
-    const items: object[] = []
-
-    // Hintergrund
-    items.push(new Rect({ left: 0, top: 0, width: W, height: totalH,
-      fill: '#ffffff', stroke: '#1e293b', strokeWidth: 1.5, rx: 4, ry: 4, originX: 'left', originY: 'top' }))
-
-    // Header-Hintergrund
-    items.push(new Rect({ left: 0, top: 0, width: W, height: HEADER_H,
-      fill: '#445c49', rx: 4, ry: 4, originX: 'left', originY: 'top' }))
-
-    // Header-Text
-    items.push(new Text('Möbel-Legende', {
-      left: W / 2, top: HEADER_H / 2,
-      fontSize: 11, fill: '#ffffff', fontWeight: 'bold',
-      fontFamily: 'system-ui, sans-serif', originX: 'center', originY: 'center',
-    }))
-
-    // Einträge
-    let row = 0
-    counts.forEach(({ count, w, h }, name) => {
-      const y = HEADER_H + PAD + row * LINE_H + LINE_H / 2
-      items.push(new Text(`${count}×`, {
-        left: PAD, top: y, fontSize: 9, fill: '#445c49', fontWeight: 'bold',
-        fontFamily: 'system-ui, sans-serif', originX: 'left', originY: 'center',
-      }))
-      items.push(new Text(name, {
-        left: PAD + 26, top: y, fontSize: 9, fill: '#1e293b',
-        fontFamily: 'system-ui, sans-serif', originX: 'left', originY: 'center',
-      }))
-      if (w > 0 && h > 0) {
-        items.push(new Text(`${w}×${h}cm`, {
-          left: W - PAD, top: y, fontSize: 8, fill: '#94a3b8',
-          fontFamily: 'monospace', originX: 'right', originY: 'center',
-        }))
-      }
-      row++
-    })
-
-    // Legende in sichtbaren Bereich platzieren
-    const vpt = canvas.viewportTransform ?? [1,0,0,1,0,0]
-    const Z = canvas.getZoom()
-    const cx = (canvas.getWidth() * 0.75 - vpt[4]) / Z
-    const cy = (50 - vpt[5]) / Z
-
-    const grp = new Group(items, {
-      left: cx, top: cy,
-      data: { type: 'legend' }, name: 'Möbel-Legende',
-    })
-    canvas.add(grp); canvas.setActiveObject(grp); canvas.requestRenderAll()
-    pushHistory(); triggerAutoSave(); updateObjCount()
-  }
 
   // ── Stückliste ────────────────────────────────────────────────
 
@@ -3079,7 +2855,6 @@ export default function RaumplanerEditor({
               { icon: <Grid3x3 className="w-3.5 h-3.5" />, label: `Raster ${showGrid ? 'aus' : 'an'}`, onClick: () => setShowGrid(v => !v), active: showGrid },
               { icon: <Magnet className="w-3.5 h-3.5" />, label: `Einrasten ${snapToGrid ? 'aus' : 'an'}`, onClick: () => setSnapToGrid(v => !v), active: snapToGrid },
               { icon: <Ruler className="w-3.5 h-3.5" />, label: `Maßketten ${showDimensions ? 'aus' : 'an'}`, onClick: () => setShowDimensions(v => !v), active: showDimensions },
-              { icon: <TriangleAlert className="w-3.5 h-3.5" />, label: `Kollision ${showKollision ? 'aus' : 'an'}`, onClick: () => setShowKollision(v => !v), active: showKollision },
               { icon: isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />, label: isFullscreen ? 'Vollbild beenden' : 'Vollbild (F11)', onClick: toggleFullscreen },
             ]} />
             {/* Compact: Export dropdown */}
@@ -3230,40 +3005,12 @@ export default function RaumplanerEditor({
           <Ruler className="w-4 h-4" />
         </button>
 
-        {/* Kollisionserkennung */}
-        <button type="button" title="Kollisionserkennung ein/aus" onClick={() => setShowKollision(v => !v)}
-          className={tbBtn}
-          style={{
-            color: showKollision ? (kollisionAnzahl > 0 ? '#f87171' : '#fff') : C.textLt,
-            background: showKollision ? (kollisionAnzahl > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(68,92,73,0.5)') : 'transparent',
-          }}
-          onMouseEnter={e => { if (!showKollision) e.currentTarget.style.background = C.hover }}
-          onMouseLeave={e => { if (!showKollision) e.currentTarget.style.background = 'transparent' }}>
-          <TriangleAlert className="w-4 h-4" />
-        </button>
-
         {/* Templates */}
         <button type="button" title="Raum-Templates" onClick={() => setShowTemplatesModal(true)}
           className={tbBtn} style={{ color: C.textLt }}
           onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           <LayoutTemplate className="w-4 h-4" />
-        </button>
-
-        {/* Bild importieren */}
-        <button type="button" title="Bild importieren" onClick={() => setShowImportModal(true)}
-          className={tbBtn} style={{ color: C.textLt }}
-          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-          <Upload className="w-4 h-4" />
-        </button>
-
-        {/* Legende einfügen */}
-        <button type="button" title="Möbel-Legende einfügen" onClick={insertLegende}
-          className={tbBtn} style={{ color: C.textLt }}
-          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-          <List className="w-4 h-4" />
         </button>
 
         {/* Stückliste */}
@@ -3451,13 +3198,6 @@ export default function RaumplanerEditor({
                 className="w-full text-[11px] rounded-lg pl-7 pr-2 py-1.5 focus:outline-none"
                 style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textMd }} />
             </div>
-            <button type="button" onClick={() => setShowCustomModal(true)}
-              className="w-full mt-2 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] rounded-lg transition-colors"
-              style={{ border: `1px dashed ${C.border}`, color: C.textLt }}
-              onMouseEnter={e => { e.currentTarget.style.background = C.hover; e.currentTarget.style.borderColor = '#445c49' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = C.border }}>
-              <Plus className="w-3 h-3" /> Eigenes Möbel
-            </button>
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -3471,8 +3211,7 @@ export default function RaumplanerEditor({
                 {/* ⭐ Favoriten */}
                 {favoriten.size > 0 && (() => {
                   const favSym = moebelSymbole.filter(s => favoriten.has(s.id))
-                  const favCustom = customMoebel.filter(cm => favoriten.has(cm.id))
-                  if (favSym.length === 0 && favCustom.length === 0) return null
+                  if (favSym.length === 0) return null
                   return (
                     <div>
                       <button type="button"
@@ -3487,7 +3226,6 @@ export default function RaumplanerEditor({
                       {openGroups.has('⭐ Favoriten') && (
                         <div className="px-2 py-2" style={{ borderBottom: `1px solid ${C.border}15` }}>
                           {favSym.length > 0 && <MoebelGrid symbols={favSym} fabricRef={fabricRef} placeMoebel={placeMoebel} colors={C} starredIds={favoriten} onStar={toggleFavorit} />}
-                          {favCustom.length > 0 && <CustomMoebelGrid items={favCustom} colors={C} onPlace={placeCustomMoebel} starredIds={favoriten} onStar={toggleFavorit} />}
                         </div>
                       )}
                     </div>
@@ -3599,25 +3337,6 @@ export default function RaumplanerEditor({
                   )}
                 </div>
 
-                {/* Eigene Möbel */}
-                {customMoebel.length > 0 && (
-                  <div>
-                    <button type="button"
-                      onClick={() => setOpenGroups(prev => { const n = new Set(prev); if (n.has('Eigene Möbel')) n.delete('Eigene Möbel'); else n.add('Eigene Möbel'); return n })}
-                      className="w-full flex items-center justify-between px-3 py-2 text-[10px] transition-colors"
-                      style={{ color: C.textLt, borderBottom: `1px solid ${C.border}20` }}
-                      onMouseEnter={e => (e.currentTarget.style.background = `${C.hover}80`)}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <span className="uppercase tracking-wider font-semibold">Eigene Möbel</span>
-                      {openGroups.has('Eigene Möbel') ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                    </button>
-                    {openGroups.has('Eigene Möbel') && (
-                      <div className="px-2 py-2">
-                        <CustomMoebelGrid items={customMoebel} colors={C} onPlace={placeCustomMoebel} starredIds={favoriten} onStar={toggleFavorit} />
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -3752,7 +3471,7 @@ export default function RaumplanerEditor({
                       {selectedProps.objType === 'wall' ? 'Wand' : selectedProps.objType === 'door' ? 'Tür' :
                        selectedProps.objType === 'window' ? 'Fenster' : selectedProps.objType === 'measure' ? 'Bemaßung' :
                        selectedProps.objType === 'moebel' ? 'Möbel' : selectedProps.objType === 'group' ? 'Gruppe' :
-                       selectedProps.objType === 'legend' ? 'Legende' : 'Objekt'}
+                       'Objekt'}
                     </p>
                     <p className="text-xs font-medium truncate max-w-[140px]" style={{ color: '#fff' }}>
                       {selectedProps.name || '–'}
@@ -4237,85 +3956,6 @@ export default function RaumplanerEditor({
         )
       })()}
 
-      {/* ── Custom-Möbel Modal ── */}
-      {showCustomModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowCustomModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-80 max-w-full"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-semibold text-gray-900">Eigenes Möbel erstellen</h2>
-              <button onClick={() => setShowCustomModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] font-medium text-gray-500 block mb-1">Name *</label>
-                <input type="text" value={newMoebel.name} onChange={e => setNewMoebel(p => ({ ...p, name: e.target.value }))}
-                  placeholder="z.B. Mein Schrank" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49]" />
-              </div>
-              <div>
-                <label className="text-[11px] font-medium text-gray-500 block mb-1">Kategorie</label>
-                <select value={newMoebel.kategorie} onChange={e => setNewMoebel(p => ({ ...p, kategorie: e.target.value }))}
-                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49]">
-                  {['Wohnzimmer','Schlafzimmer','Büro','Küche','Bad','Sonstiges'].map(k => <option key={k} value={k}>{k}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-medium text-gray-500 block mb-1">Breite (cm)</label>
-                  <input type="number" min={10} max={500} value={newMoebel.breite_cm} onChange={e => setNewMoebel(p => ({ ...p, breite_cm: parseInt(e.target.value) || 80 }))}
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49]" />
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-500 block mb-1">Länge (cm)</label>
-                  <input type="number" min={10} max={500} value={newMoebel.laenge_cm} onChange={e => setNewMoebel(p => ({ ...p, laenge_cm: parseInt(e.target.value) || 80 }))}
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49]" />
-                </div>
-              </div>
-              <div>
-                <label className="text-[11px] font-medium text-gray-500 block mb-1">Farbe</label>
-                <div className="flex items-center gap-2">
-                  <input type="color" value={newMoebel.farbe} onChange={e => setNewMoebel(p => ({ ...p, farbe: e.target.value }))}
-                    className="w-10 h-9 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
-                  <span className="text-sm text-gray-500 font-mono">{newMoebel.farbe}</span>
-                  {/* Farbvorschläge */}
-                  <div className="flex gap-1.5 ml-auto">
-                    {['#94c1a4','#93c5fd','#fca5a5','#fde68a','#c4b5fd','#6ee7b7'].map(c => (
-                      <button key={c} type="button" onClick={() => setNewMoebel(p => ({ ...p, farbe: c }))}
-                        className="w-5 h-5 rounded-full border-2 transition-all"
-                        style={{ background: c, borderColor: newMoebel.farbe === c ? '#1f2937' : 'transparent' }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {/* Vorschau */}
-              <div className="rounded-lg p-3 flex items-center justify-center" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', minHeight: 64 }}>
-                <div style={{
-                  width: Math.min(200, newMoebel.breite_cm * 1.5), height: Math.min(80, newMoebel.laenge_cm * 1.5),
-                  background: newMoebel.farbe, border: '1.5px solid #1e293b', borderRadius: 3,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, color: '#1e293b', fontWeight: 500,
-                }}>
-                  {newMoebel.name || '…'}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowCustomModal(false)} className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                Abbrechen
-              </button>
-              <button onClick={saveCustomMoebel} disabled={!newMoebel.name.trim() || customSaving}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50"
-                style={{ background: '#445c49' }}>
-                {customSaving ? 'Speichern…' : 'Erstellen'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Freigabe-Modal ── */}
       {showFreigabeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -4516,34 +4156,6 @@ export default function RaumplanerEditor({
         </div>
       )}
 
-      {/* ── Import Modal ── */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowImportModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-80 max-w-full"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-sm font-semibold text-gray-900">Bild importieren</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Als Referenz-Hintergrund einfügen (50% transparent)</p>
-              </div>
-              <button type="button" onClick={() => setShowImportModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
-            </div>
-            <label className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-[#445c49] hover:bg-[#f6faf7] transition-all cursor-pointer">
-              <Upload className="w-8 h-8 text-gray-300" />
-              <div className="text-center">
-                <p className="text-sm font-medium text-gray-700">Bild auswählen</p>
-                <p className="text-xs text-gray-400 mt-0.5">PNG, JPG, SVG – als transparente Referenzebene</p>
-              </div>
-              <input type="file" accept="image/*,.svg" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) importDatei(f) }} />
-            </label>
-            <p className="text-[10px] text-gray-400 mt-3 text-center">
-              Das Bild wird mit 50% Transparenz eingefügt und kann danach wie jedes andere Objekt verschoben werden.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* ── Produkt-Suche Modal ── */}
       {showProduktModal && (() => {
@@ -4644,11 +4256,6 @@ export default function RaumplanerEditor({
               <Magnet className="w-3 h-3" />Snap
             </span>
           )}
-          {showKollision && kollisionAnzahl > 0 && (
-            <span className="flex items-center gap-1" style={{ color: '#f87171' }}>
-              <TriangleAlert className="w-3 h-3" />{kollisionAnzahl} Überschn.
-            </span>
-          )}
           <span style={{
             color: activeTool === 'wall' || activeTool === 'measure' ? '#fbbf24' :
                    activeTool === 'eraser' ? '#f87171' :
@@ -4707,51 +4314,6 @@ function MoebelGrid({ symbols, fabricRef, placeMoebel, colors, starredIds, onSta
           </div>
           <p className="text-[10px] font-medium leading-tight truncate transition-colors" style={{ color: colors.textLt }}>{symbol.name}</p>
           <p className="text-[9px] leading-tight" style={{ color: `${colors.textLt}50` }}>{symbol.breite_cm}×{symbol.tiefe_cm}cm</p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ── CustomMoebelGrid ──────────────────────────────────────────
-
-function CustomMoebelGrid({ items, colors, onPlace, starredIds, onStar }: {
-  items: CustomMoebelType[]
-  colors: { hover: string; textLt: string; border: string; input: string }
-  onPlace: (cm: CustomMoebelType, x: number, y: number) => void
-  starredIds?: Set<string>
-  onStar?: (id: string) => void
-}) {
-  if (items.length === 0) return (
-    <p className="text-[10px] text-center py-3" style={{ color: `${colors.textLt}40` }}>Noch keine eigenen Möbel</p>
-  )
-  return (
-    <div className="grid grid-cols-2 gap-1.5">
-      {items.map(cm => (
-        <div key={cm.id}
-          onClick={() => onPlace(cm, 0, 0)}
-          className="relative rounded-lg p-1.5 cursor-pointer transition-all select-none"
-          style={{ background: 'rgba(0,0,0,0.15)', border: `1px solid rgba(74,99,80,0.2)` }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = colors.hover; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(68,92,73,0.5)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,0,0,0.15)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,99,80,0.2)' }}
-          title={`${cm.name} – ${cm.breite_cm}×${cm.laenge_cm}cm`}>
-          {onStar && (
-            <button type="button"
-              onClick={e => { e.stopPropagation(); onStar(cm.id) }}
-              className="absolute top-1 right-1 z-10 transition-opacity"
-              style={{ color: starredIds?.has(cm.id) ? '#fbbf24' : `${colors.textLt}40` }}
-              title={starredIds?.has(cm.id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}>
-              <Star className="w-3 h-3" fill={starredIds?.has(cm.id) ? '#fbbf24' : 'none'} />
-            </button>
-          )}
-          <div className="w-full rounded-md mb-1.5 flex items-center justify-center" style={{ minHeight: 36 }}>
-            <div style={{
-              width: Math.min(48, cm.breite_cm * 0.3), height: Math.min(32, cm.laenge_cm * 0.3),
-              background: cm.farbe, border: '1.5px solid rgba(255,255,255,0.2)', borderRadius: 3,
-            }} />
-          </div>
-          <p className="text-[10px] font-medium leading-tight truncate" style={{ color: colors.textLt }}>{cm.name}</p>
-          <p className="text-[9px] leading-tight" style={{ color: `${colors.textLt}50` }}>{cm.breite_cm}×{cm.laenge_cm}cm</p>
         </div>
       ))}
     </div>

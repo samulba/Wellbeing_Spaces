@@ -144,20 +144,6 @@ export interface MoebelSymbol {
   created_at: string
 }
 
-// ── Custom Möbel (Migration 046) ──────────────────────────────
-export interface CustomMoebel {
-  id: string
-  organisation_id: string | null
-  name: string
-  kategorie: string
-  breite_cm: number
-  laenge_cm: number
-  farbe: string
-  ist_favorit: boolean
-  created_by: string | null
-  created_at: string
-}
-
 export type ProvisionsModell = 'Prozent' | 'Fix' | 'Individuell'
 export type PartnerTyp = 'lieferant' | 'hersteller' | 'handwerker' | 'planer' | 'sonstiges'
 
