@@ -297,7 +297,12 @@ export async function updateProduktPositionen(
   const orgId = await getOrganisationId()
   await Promise.all(
     positionen.map(({ id, reihenfolge }) =>
-      supabase.from('produkte').update({ reihenfolge }).eq('id', id).eq('organisation_id', orgId)
+      supabase
+        .from('produkte')
+        .update({ reihenfolge })
+        .eq('id', id)
+        .eq('organisation_id', orgId)
+        .is('deleted_at', null)
     )
   )
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
@@ -316,6 +321,7 @@ export async function bestellstatusAendern(
     .update({ bestellstatus: neuerStatus })
     .eq('id', produktId)
     .eq('organisation_id', orgId)
+    .is('deleted_at', null)
   if (error) {
     console.error('bestellstatusAendern failed:', error)
     return { fehler: error.message }
@@ -364,6 +370,7 @@ export async function produktDatumAktualisieren(
       .select('bestellstatus')
       .eq('id', produktId)
       .eq('organisation_id', orgId)
+      .is('deleted_at', null)
       .maybeSingle()
 
     const aktuellStatus = (aktuell?.bestellstatus ?? 'ausstehend') as BestellStatus
@@ -379,6 +386,7 @@ export async function produktDatumAktualisieren(
     .update(update)
     .eq('id', produktId)
     .eq('organisation_id', orgId)
+    .is('deleted_at', null)
   if (error) return { fehler: 'Datum konnte nicht gespeichert werden.' }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   return { bestellstatus: neuerStatus }
