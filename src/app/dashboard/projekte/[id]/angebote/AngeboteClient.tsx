@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Plus, Trash2, ChevronDown, Eye, ReceiptText,
   ArrowLeft, PenLine, Send, CheckCircle, XCircle, Clock, Layers, Download, RefreshCw,
+  FileSignature,
 } from 'lucide-react'
 import type { Angebot, AngebotStatus, AngebotPosition } from '@/lib/supabase/types'
 import {
@@ -12,6 +14,7 @@ import {
   angebotStatusAendern,
   angebotLoeschen,
 } from '@/app/actions/angebote'
+import { vertragAusAngebot } from '@/app/actions/vertraege'
 import { berechneAngebotSummen } from '@/lib/angebot-utils'
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -425,10 +428,20 @@ interface Props {
 }
 
 export default function AngeboteClient({ projektId, kundeId, kundeName, initialAngebote, defaultMwst }: Props) {
+  const router = useRouter()
   const [angebote, setAngebote] = useState(initialAngebote)
   const [ansicht, setAnsicht] = useState<Ansicht>('liste')
   const [fehler, setFehler] = useState<string | null>(null)
   const [, startTransition] = useTransition()
+
+  function handleVertragErstellen(angebotId: string) {
+    setFehler(null)
+    startTransition(async () => {
+      const res = await vertragAusAngebot(angebotId)
+      if (res.fehler) { setFehler(res.fehler); return }
+      router.push(`/dashboard/projekte/${projektId}/vertraege`)
+    })
+  }
 
   function handleNeu(angebot: Angebot) {
     setAngebote((prev) => [angebot, ...prev])
@@ -584,6 +597,14 @@ export default function AngeboteClient({ projektId, kundeId, kundeName, initialA
                   >
                     <Download className="w-3.5 h-3.5" />
                   </a>
+                  <button
+                    type="button"
+                    onClick={() => handleVertragErstellen(a.id)}
+                    title="Vertrag aus Angebot erstellen"
+                    className="p-1.5 text-gray-400 hover:text-wellbeing-green hover:bg-gray-50 rounded-lg transition-all"
+                  >
+                    <FileSignature className="w-3.5 h-3.5" />
+                  </button>
                   <button type="button" onClick={() => handleLoeschen(a.id)} title="Löschen" className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-gray-50 rounded-lg transition-all">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

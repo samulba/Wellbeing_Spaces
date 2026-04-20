@@ -193,3 +193,81 @@ export async function vertragLoeschen(id: string, projektId?: string | null): Pr
   if (projektId) revalidatePath(`/dashboard/projekte/${projektId}/vertraege`)
   return {}
 }
+
+
+/**
+ * Erstellt einen Vertragsentwurf aus einem bestehenden Angebot.
+ * Wenn eine Vorlage angegeben ist, werden Platzhalter ersetzt — sonst
+ * wird ein minimaler Platzhalter-HTML mit den Angebotspositionen erzeugt.
+ * Setzt angebot_id-FK (Mig. 053) für Nachvollziehbarkeit.
+ */
+export async function vertragAusAngebot(
+  angebotId: string,
+  vorlageId?: string | null,
+): Promise<{ id?: string; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  // Angebot laden
+  const { data: angebot } = await supabase
+    .from('angebote')
+    .select('id, projekt_id, kunde_id, nummer, titel, positionen, brutto_summe, gueltig_bis')
+    .eq('id', angebotId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+
+  if (!angebot) return { fehler: 'Angebot nicht gefunden.' }
+
+  // Inhalt entweder aus Vorlage (mit Platzhaltern) oder minimaler Default
+  let inhaltHtml: string
+  let titel: string
+
+  if (vorlageId) {
+    const { data: vorlage } = await supabase
+      .from('vertrags_vorlagen')
+      .select('name, inhalt_html')
+      .eq('id', vorlageId)
+      .eq('organisation_id', orgId)
+      .maybeSingle()
+
+    if (!vorlage) return { fehler: 'Vorlage nicht gefunden.' }
+    inhaltHtml = await platzhalterErsetzen(vorlage.inhalt_html, angebot.projekt_id, angebot.kunde_id)
+    titel      = `${vorlage.name} – ${angebot.nummer}`
+  } else {
+    // Minimaler Default-Inhalt: Titel + Angebots-Zusammenfassung
+    const positionen = (angebot.positionen ?? []) as { name: string; menge: number; einheit: string; gesamtpreis: number }[]
+    const positionenHtml = positionen
+      .map((p) => `<li>${p.name} – ${p.menge} ${p.einheit} – ${formatEur(p.gesamtpreis)}</li>`)
+      .join('\n')
+    inhaltHtml = `
+      <h1>Vertrag zu Angebot ${angebot.nummer}</h1>
+      <p>Dieser Vertrag basiert auf dem Angebot <strong>${angebot.nummer}</strong>.</p>
+      <h2>Leistungsumfang</h2>
+      <ul>${positionenHtml}</ul>
+      <p><strong>Gesamtwert:</strong> ${formatEur(angebot.brutto_summe ?? 0)} brutto</p>
+    `.trim()
+    titel = `Vertrag zu ${angebot.nummer}`
+  }
+
+  const { data, error } = await supabase
+    .from('vertraege')
+    .insert({
+      organisation_id: orgId,
+      vorlage_id:  vorlageId ?? null,
+      angebot_id:  angebotId,
+      projekt_id:  angebot.projekt_id,
+      kunde_id:    angebot.kunde_id,
+      titel,
+      inhalt_html: inhaltHtml,
+      status:      'entwurf',
+      gesamtwert:  angebot.brutto_summe,
+      gueltig_bis: angebot.gueltig_bis,
+    })
+    .select('id')
+    .single()
+
+  if (error || !data) return { fehler: 'Fehler beim Erstellen des Vertrags.' }
+
+  if (angebot.projekt_id) revalidatePath(`/dashboard/projekte/${angebot.projekt_id}/vertraege`)
+  return { id: data.id }
+}
