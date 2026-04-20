@@ -190,18 +190,21 @@ export async function kundeEinladen(
 
   const supabase = createAdminClient()
 
-  // Bestehenden Eintrag prüfen
+  // "kundeEinladen" legt den INHABER-Portal-Account an oder lädt ihn neu ein.
+  // Weitere Mitarbeiter/Gäste werden später vom Inhaber selbst via
+  // mitarbeiterEinladen() eingeladen — dort mit flexibler Rolle.
   const { data: existing } = await supabase
     .from('client_users')
     .select('id, aktiv, password_hash')
     .eq('kunde_id', kundeId)
+    .eq('rolle', 'inhaber')
     .maybeSingle()
 
   const einladungsToken = crypto.randomUUID()
   const tokenGueltigBis = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
   if (existing) {
-    // Bestehenden Eintrag aktualisieren (neue Einladung)
+    // Bestehenden Inhaber aktualisieren (neue Einladung)
     await supabase
       .from('client_users')
       .update({
@@ -212,6 +215,7 @@ export async function kundeEinladen(
         einladungs_token: einladungsToken,
         token_gueltig_bis: tokenGueltigBis,
         aktiv:            true,
+        rolle:            'inhaber',
         updated_at:       new Date().toISOString(),
       })
       .eq('id', existing.id)
@@ -224,6 +228,7 @@ export async function kundeEinladen(
         vorname:          vorname.trim(),
         nachname:         nachname.trim(),
         preise_anzeigen:  preiseAnzeigen,
+        rolle:            'inhaber',
         einladungs_token: einladungsToken,
         token_gueltig_bis: tokenGueltigBis,
       })
@@ -665,4 +670,208 @@ export async function portalPasswortAendern(
     .eq('id', session.id)
 
   return { erfolg: 'Passwort geändert.' }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TEAM: Portal-Mitarbeiter verwalten (nur durch Inhaber)
+// ═══════════════════════════════════════════════════════════════
+
+export type PortalRolle = 'inhaber' | 'mitarbeiter' | 'gast'
+
+export type TeamMitgliedRow = {
+  id: string
+  email: string
+  vorname: string
+  nachname: string
+  rolle: PortalRolle
+  aktiv: boolean
+  letzter_login: string | null
+  einladung_offen: boolean
+  erstellt_am: string
+}
+
+export async function teamAbrufen(): Promise<TeamMitgliedRow[]> {
+  const session = await getPortalSession()
+  if (!session) return []
+
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('client_users')
+    .select('id, email, vorname, nachname, rolle, aktiv, letzter_login, einladungs_token, token_gueltig_bis, password_hash, created_at')
+    .eq('kunde_id', session.kundeId)
+    .order('rolle')
+    .order('created_at')
+
+  return ((data ?? []) as Array<{
+    id: string; email: string; vorname: string; nachname: string
+    rolle: PortalRolle; aktiv: boolean; letzter_login: string | null
+    einladungs_token: string | null; token_gueltig_bis: string | null
+    password_hash: string | null; created_at: string
+  }>).map((r) => ({
+    id:              r.id,
+    email:           r.email,
+    vorname:         r.vorname,
+    nachname:        r.nachname,
+    rolle:           r.rolle,
+    aktiv:           r.aktiv,
+    letzter_login:   r.letzter_login,
+    einladung_offen: !!r.einladungs_token && !r.password_hash,
+    erstellt_am:     r.created_at,
+  }))
+}
+
+export async function mitarbeiterEinladen(daten: {
+  email: string
+  vorname: string
+  nachname: string
+  rolle: Exclude<PortalRolle, 'inhaber'>
+}): Promise<{ erfolg: boolean; einladungsLink?: string; mailGesendet?: boolean; fehler?: string }> {
+  const session = await getPortalSession()
+  if (!session) return { erfolg: false, fehler: 'Nicht angemeldet.' }
+  if (session.rolle !== 'inhaber') {
+    return { erfolg: false, fehler: 'Nur der Inhaber kann Mitglieder einladen.' }
+  }
+
+  const email = daten.email.toLowerCase().trim()
+  if (!email) return { erfolg: false, fehler: 'E-Mail erforderlich.' }
+
+  const admin = createAdminClient()
+
+  // Existiert die E-Mail schon (global)?
+  const { data: existing } = await admin
+    .from('client_users')
+    .select('id, kunde_id, aktiv')
+    .eq('email', email)
+    .maybeSingle()
+
+  if (existing && existing.kunde_id !== session.kundeId) {
+    return { erfolg: false, fehler: 'Diese E-Mail ist bereits in einem anderen Kunden-Portal registriert.' }
+  }
+
+  const einladungsToken = crypto.randomUUID()
+  const tokenGueltigBis = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  if (existing) {
+    const { error } = await admin
+      .from('client_users')
+      .update({
+        vorname:          daten.vorname.trim(),
+        nachname:         daten.nachname.trim(),
+        rolle:            daten.rolle,
+        einladungs_token: einladungsToken,
+        token_gueltig_bis: tokenGueltigBis,
+        aktiv:            true,
+        eingeladen_von:   session.id,
+        updated_at:       new Date().toISOString(),
+      })
+      .eq('id', existing.id as string)
+    if (error) return { erfolg: false, fehler: error.message }
+  } else {
+    const { error } = await admin
+      .from('client_users')
+      .insert({
+        kunde_id:         session.kundeId,
+        email,
+        vorname:          daten.vorname.trim(),
+        nachname:         daten.nachname.trim(),
+        rolle:            daten.rolle,
+        einladungs_token: einladungsToken,
+        token_gueltig_bis: tokenGueltigBis,
+        eingeladen_von:   session.id,
+        preise_anzeigen:  session.preiseAnzeigen,
+      })
+    if (error) return { erfolg: false, fehler: error.message }
+  }
+
+  // Link bauen
+  const baseUrl = await appBaseUrl()
+  const einladungsLink = `${baseUrl}/portal/einladung/${einladungsToken}`
+
+  // Einladungs-Mail
+  const firmenname = 'Kunden-Portal'
+  const inhaberName = [session.vorname, session.nachname].filter(Boolean).join(' ') || session.email
+  const html = `
+    <!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#f6ede2;margin:0;padding:32px;">
+      <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 2px 10px rgba(0,0,0,0.04);">
+        <h1 style="font-size:20px;color:#2d3e31;margin:0 0 16px;">Hallo ${escapeHtml(daten.vorname || email)},</h1>
+        <p style="font-size:15px;color:#4b5563;line-height:1.55;margin:0 0 18px;">
+          ${escapeHtml(inhaberName)} hat dich als <strong>${daten.rolle === 'gast' ? 'Gast' : 'Mitarbeiter'}</strong> zum Kunden-Portal eingeladen.
+        </p>
+        <p style="font-size:15px;color:#4b5563;line-height:1.55;margin:0 0 24px;">
+          Klicke auf den Button, um dein Passwort zu setzen und loszulegen:
+        </p>
+        <p style="text-align:center;margin:0 0 24px;">
+          <a href="${einladungsLink}" style="display:inline-block;background:#445c49;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px;font-weight:600;font-size:15px;">
+            Zugang aktivieren →
+          </a>
+        </p>
+        <p style="font-size:12px;color:#9ca3af;line-height:1.5;margin:0 0 8px;">Dieser Link ist 7 Tage gültig.</p>
+        <p style="font-size:12px;color:#9ca3af;word-break:break-all;margin:0;">${einladungsLink}</p>
+      </div>
+    </body></html>`
+
+  const mail = await sendMail({
+    to:      email,
+    subject: `Einladung zum ${firmenname}`,
+    html,
+  })
+
+  revalidatePath('/portal/team')
+  return { erfolg: true, einladungsLink, mailGesendet: mail.sent }
+}
+
+export async function mitarbeiterRolleAendern(
+  mitgliedId: string,
+  neueRolle: PortalRolle,
+): Promise<{ fehler?: string }> {
+  const session = await getPortalSession()
+  if (!session) return { fehler: 'Nicht angemeldet.' }
+  if (session.rolle !== 'inhaber') return { fehler: 'Keine Berechtigung.' }
+
+  if (mitgliedId === session.id && neueRolle !== 'inhaber') {
+    return { fehler: 'Du kannst deine eigene Inhaber-Rolle nicht downgraden.' }
+  }
+
+  const admin = createAdminClient()
+  // Ownership-Check: Mitglied muss zum selben Kunden gehören
+  const { data: m } = await admin
+    .from('client_users')
+    .select('id, kunde_id')
+    .eq('id', mitgliedId)
+    .maybeSingle()
+  if (!m || m.kunde_id !== session.kundeId) return { fehler: 'Mitglied nicht gefunden.' }
+
+  const { error } = await admin
+    .from('client_users')
+    .update({ rolle: neueRolle, updated_at: new Date().toISOString() })
+    .eq('id', mitgliedId)
+  if (error) return { fehler: error.message }
+
+  revalidatePath('/portal/team')
+  return {}
+}
+
+export async function mitarbeiterEntfernen(mitgliedId: string): Promise<{ fehler?: string }> {
+  const session = await getPortalSession()
+  if (!session) return { fehler: 'Nicht angemeldet.' }
+  if (session.rolle !== 'inhaber') return { fehler: 'Keine Berechtigung.' }
+  if (mitgliedId === session.id) return { fehler: 'Du kannst dich nicht selbst entfernen.' }
+
+  const admin = createAdminClient()
+  const { data: m } = await admin
+    .from('client_users')
+    .select('id, kunde_id, rolle')
+    .eq('id', mitgliedId)
+    .maybeSingle()
+  if (!m || m.kunde_id !== session.kundeId) return { fehler: 'Mitglied nicht gefunden.' }
+  if (m.rolle === 'inhaber') return { fehler: 'Inhaber kann nicht entfernt werden.' }
+
+  const { error } = await admin
+    .from('client_users')
+    .update({ aktiv: false, session_token: null, einladungs_token: null, updated_at: new Date().toISOString() })
+    .eq('id', mitgliedId)
+  if (error) return { fehler: error.message }
+
+  revalidatePath('/portal/team')
+  return {}
 }

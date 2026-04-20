@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+export type PortalRolle = 'inhaber' | 'mitarbeiter' | 'gast'
+
 export interface ClientUser {
   id: string
   kundeId: string
@@ -8,6 +10,8 @@ export interface ClientUser {
   vorname: string
   nachname: string
   preiseAnzeigen: boolean
+  rolle: PortalRolle
+  avatarUrl: string | null
 }
 
 /**
@@ -23,7 +27,7 @@ export async function getPortalSession(): Promise<ClientUser | null> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('client_users')
-    .select('id, kunde_id, email, vorname, nachname, aktiv, session_expires_at, preise_anzeigen')
+    .select('id, kunde_id, email, vorname, nachname, aktiv, session_expires_at, preise_anzeigen, rolle, avatar_url')
     .eq('session_token', token)
     .eq('aktiv', true)
     .maybeSingle()
@@ -42,5 +46,7 @@ export async function getPortalSession(): Promise<ClientUser | null> {
     vorname:        data.vorname,
     nachname:       data.nachname,
     preiseAnzeigen: data.preise_anzeigen ?? true,
+    rolle:          (data.rolle as PortalRolle | null) ?? 'inhaber',
+    avatarUrl:      data.avatar_url ?? null,
   }
 }
