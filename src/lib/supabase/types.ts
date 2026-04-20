@@ -624,6 +624,7 @@ export interface TimelineEvent {
   id: string
   organisation_id?: string | null
   projekt_id: string
+  raum_id?: string | null
   titel: string
   beschreibung: string | null
   typ: TimelineEventTyp
@@ -871,6 +872,7 @@ export interface Kommunikation {
   organisation_id: string
   kunde_id: string
   projekt_id: string | null
+  raum_id?: string | null
   typ: KommunikationTyp
   richtung: KommunikationRichtung | null
   betreff: string | null
