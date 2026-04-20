@@ -1,6 +1,8 @@
 'use client'
 
+import { useId } from 'react'
 import { X, AlertTriangle, Trash2, Info } from 'lucide-react'
+import { useModal } from '@/lib/hooks/useModal'
 
 interface ConfirmModalProps {
   isOpen: boolean
@@ -25,6 +27,10 @@ export function ConfirmModal({
   variant = 'danger',
   isLoading = false,
 }: ConfirmModalProps) {
+  const ref = useModal(isOpen, onClose)
+  const titleId = useId()
+  const msgId   = useId()
+
   if (!isOpen) return null
 
   const icons = {
@@ -51,6 +57,11 @@ export function ConfirmModal({
       onClick={onClose}
     >
       <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={msgId}
         className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
         onClick={(e) => e.stopPropagation()}
       >
@@ -61,14 +72,15 @@ export function ConfirmModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Schließen"
             className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <h3 className="text-sm font-semibold text-gray-900 mb-1.5">{title}</h3>
-        <p className="text-xs text-gray-500 mb-5 leading-relaxed">{message}</p>
+        <h3 id={titleId} className="text-sm font-semibold text-gray-900 mb-1.5">{title}</h3>
+        <p id={msgId} className="text-xs text-gray-500 mb-5 leading-relaxed">{message}</p>
 
         <div className="flex gap-2.5">
           <button

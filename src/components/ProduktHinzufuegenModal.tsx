@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useId, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus, X, ChevronRight, BookOpen, PlusCircle,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { bibliothekProdukteAbrufen, type BibliothekProdukt } from '@/app/actions/produkte'
 import { produktZuRaumHinzufuegen } from '@/app/actions/raum-produkte'
+import { useModal } from '@/lib/hooks/useModal'
 
 interface Props {
   raumId: string
@@ -26,6 +27,11 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
   const [toast, setToast]             = useState<{ msg: string; err?: boolean } | null>(null)
   const [selected, setSelected]       = useState<Set<string>>(new Set())
   const [adding, setAdding]           = useState(false)
+
+  const choiceTitleId  = useId()
+  const libraryTitleId = useId()
+  const choiceRef  = useModal(view === 'choice',  () => setView('idle'))
+  const libraryRef = useModal(view === 'library', () => setView('idle'))
 
   function showToast(msg: string, err = false) {
     setToast({ msg, err })
@@ -163,13 +169,17 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
           onClick={close}
         >
           <div
+            ref={choiceRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={choiceTitleId}
             className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
-              <h3 className="text-base font-semibold text-gray-900">Produkt hinzufügen</h3>
-              <button onClick={close} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <h3 id={choiceTitleId} className="text-base font-semibold text-gray-900">Produkt hinzufügen</h3>
+              <button onClick={close} aria-label="Schließen" className="text-gray-400 hover:text-gray-600 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -219,13 +229,17 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
           onClick={close}
         >
           <div
+            ref={libraryRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={libraryTitleId}
             className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[82vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="text-base font-semibold text-gray-900">Aus Bibliothek wählen</h3>
-              <button onClick={close} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <h3 id={libraryTitleId} className="text-base font-semibold text-gray-900">Aus Bibliothek wählen</h3>
+              <button onClick={close} aria-label="Schließen" className="text-gray-400 hover:text-gray-600 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>

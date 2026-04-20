@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { FolderInput, X, ChevronDown } from 'lucide-react'
 import { produktZuRaumHinzufuegen } from '@/app/actions/raum-produkte'
+import { useModal } from '@/lib/hooks/useModal'
 
 export type ProjektOption = { id: string; name: string }
 export type RaumOption    = { id: string; name: string; projekt_id: string }
@@ -26,6 +27,8 @@ export default function ProduktZuweisenModal({
   const [rabattInput, setRabattInput]         = useState('')
   const [fehler, setFehler]                   = useState<string | null>(null)
   const [isPending, startTransition]          = useTransition()
+  const titleId = useId()
+  const modalRef = useModal(open, () => { if (!isPending) setOpen(false) })
 
   const filteredRaeume = raeume.filter((r) => r.projekt_id === selectedProjekt)
 
@@ -93,16 +96,23 @@ export default function ProduktZuweisenModal({
             className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
             onClick={handleClose}
           />
-          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden animate-fadeIn">
+          <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden animate-fadeIn"
+          >
             {/* Header */}
             <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900">Zu Projekt zuweisen</h2>
+                <h2 id={titleId} className="text-sm font-semibold text-gray-900">Zu Projekt zuweisen</h2>
                 <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[240px]">{produktName}</p>
               </div>
               <button
                 type="button"
                 onClick={handleClose}
+                aria-label="Schließen"
                 className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
               >
                 <X className="w-4 h-4" />
