@@ -8,8 +8,6 @@ import LogoUpload from '@/components/LogoUpload'
 import PartnerProduktHinzufuegen from '@/components/PartnerProduktHinzufuegen'
 import PartnerKonditionenBlock from '@/components/PartnerKonditionenBlock'
 import { ExternalLink, Mail, Phone, Globe, Star } from 'lucide-react'
-import type { KategorieOption } from '@/components/KategorieDropdown'
-import { getKategorien } from '@/app/actions/einstellungen'
 
 type ProduktMitRaum = {
   id: string; name: string; menge: number; einheit: string
@@ -59,7 +57,7 @@ async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
 
 export default async function PartnerDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
-  const [{ data: partner }, { data: produkte }, notizen, kategorienRoh, konditionen] = await Promise.all([
+  const [{ data: partner }, { data: produkte }, notizen, konditionen] = await Promise.all([
     supabase.from('partner').select('*').eq('id', params.id).is('deleted_at', null).single(),
     supabase
       .from('produkte')
@@ -67,10 +65,8 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
       .eq('partner_id', params.id).is('deleted_at', null)
       .order('created_at', { ascending: false }),
     getPartnerNotizen(params.id),
-    getKategorien('produktkategorie'),
     getPartnerKonditionen(params.id),
   ])
-  const kategorienListe: KategorieOption[] = kategorienRoh.map((k) => ({ name: k.name, icon: k.icon }))
 
   if (!partner) notFound()
 
@@ -259,7 +255,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                 {gesamtUmsatz > 0 && (
                   <span className="text-xs text-gray-500 font-mono">Gesamt: <span className="text-wellbeing-green font-semibold">{eur(gesamtUmsatz)}</span></span>
                 )}
-                <PartnerProduktHinzufuegen partnerId={partner.id} kategorienListe={kategorienListe} />
+                <PartnerProduktHinzufuegen partnerId={partner.id} />
               </div>
             </div>
 
