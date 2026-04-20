@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import {
-  Mail, Phone, Users, FileText, MessageSquare, Circle,
+  Mail, Phone, Users, FileText, MessageSquare, MapPin, Circle,
   Plus, Trash2, CheckCircle, Clock, ChevronDown,
 } from 'lucide-react'
 import type { Kommunikation, KommunikationTyp, KommunikationRichtung } from '@/lib/supabase/types'
@@ -19,11 +19,12 @@ const typConfig: Record<KommunikationTyp, { label: string; Icon: React.FC<{ clas
   anruf:     { label: 'Anruf',    Icon: Phone,         farbe: 'text-green-600  bg-green-50' },
   meeting:   { label: 'Meeting',  Icon: Users,         farbe: 'text-purple-600 bg-purple-50' },
   notiz:     { label: 'Notiz',    Icon: FileText,      farbe: 'text-amber-600  bg-amber-50' },
-  sms:       { label: 'SMS',      Icon: MessageSquare, farbe: 'text-teal-600   bg-teal-50' },
+  chat:      { label: 'Chat',     Icon: MessageSquare, farbe: 'text-teal-600   bg-teal-50' },
+  vor_ort:   { label: 'Vor Ort',  Icon: MapPin,        farbe: 'text-rose-600   bg-rose-50' },
   sonstiges: { label: 'Sonstiges',Icon: Circle,        farbe: 'text-gray-500   bg-gray-100' },
 }
 
-const TYPEN: KommunikationTyp[] = ['email', 'anruf', 'meeting', 'notiz', 'sms', 'sonstiges']
+const TYPEN: KommunikationTyp[] = ['email', 'anruf', 'meeting', 'notiz', 'chat', 'vor_ort', 'sonstiges']
 
 function formatDatum(iso: string) {
   const d = new Date(iso)

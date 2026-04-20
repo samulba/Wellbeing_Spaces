@@ -827,8 +827,8 @@ export interface DokumentAktivitaet {
   created_at: string
 }
 
-// ── Kommunikationslog (Migration 042) ────────────────────────
-export type KommunikationTyp = 'email' | 'anruf' | 'meeting' | 'notiz' | 'sms' | 'sonstiges'
+// ── Kommunikationslog (Migration 042 + 056) ──────────────────
+export type KommunikationTyp = 'email' | 'anruf' | 'meeting' | 'notiz' | 'chat' | 'vor_ort' | 'sonstiges'
 export type KommunikationRichtung = 'eingehend' | 'ausgehend'
 
 export interface Kommunikation {

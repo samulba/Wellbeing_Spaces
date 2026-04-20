@@ -12,7 +12,7 @@ export async function kundeLogoHochladen(
 ): Promise<LogoUploadState> {
   const file = formData.get('logo') as File | null
   if (!file || file.size === 0) return { fehler: 'Keine Datei ausgewählt.' }
-  if (file.size > 2 * 1024 * 1024) return { fehler: 'Datei ist zu groß (max. 2 MB).' }
+  if (file.size > 10 * 1024 * 1024) return { fehler: 'Datei ist zu groß (max. 10 MB).' }
 
   const supabase = await createClient()
   const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
@@ -48,7 +48,7 @@ export async function partnerLogoHochladen(
 ): Promise<LogoUploadState> {
   const file = formData.get('logo') as File | null
   if (!file || file.size === 0) return { fehler: 'Keine Datei ausgewählt.' }
-  if (file.size > 2 * 1024 * 1024) return { fehler: 'Datei ist zu groß (max. 2 MB).' }
+  if (file.size > 10 * 1024 * 1024) return { fehler: 'Datei ist zu groß (max. 10 MB).' }
 
   const supabase = await createClient()
   const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
