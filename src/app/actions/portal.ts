@@ -1,11 +1,29 @@
 'use server'
 
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPortalSession } from '@/lib/portal-auth'
+import { sendMail } from '@/lib/mail'
+
+/**
+ * Ermittelt die Base-URL der App zuverlässig — zuerst aus NEXT_PUBLIC_APP_URL,
+ * dann aus den Request-Headern (host + x-forwarded-proto), sonst fester
+ * Production-Fallback. Verhindert den `localhost:3000`-Bug in Vercel.
+ */
+async function appBaseUrl(): Promise<string> {
+  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (fromEnv) return fromEnv.replace(/\/$/, '')
+  try {
+    const h = await headers()
+    const host  = h.get('x-forwarded-host') ?? h.get('host')
+    const proto = h.get('x-forwarded-proto') ?? 'https'
+    if (host && !host.includes('localhost')) return `${proto}://${host}`
+  } catch { /* außerhalb Request-Kontext */ }
+  return 'https://app.wellbeing-spaces.de'
+}
 
 // ── Typen ─────────────────────────────────────────────────────
 
@@ -167,7 +185,7 @@ export async function kundeEinladen(
   vorname: string,
   nachname: string,
   preiseAnzeigen: boolean
-): Promise<{ erfolg: boolean; einladungsLink?: string; fehler?: string }> {
+): Promise<{ erfolg: boolean; einladungsLink?: string; mailGesendet?: boolean; fehler?: string }> {
   if (!email) return { erfolg: false, fehler: 'E-Mail erforderlich.' }
 
   const supabase = createAdminClient()
@@ -213,9 +231,70 @@ export async function kundeEinladen(
     if (error) return { erfolg: false, fehler: 'E-Mail bereits vergeben.' }
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const baseUrl       = await appBaseUrl()
+  const einladungsLink = `${baseUrl}/portal/einladung/${einladungsToken}`
+
+  // Firmenname aus branding holen (für Mail-Text)
+  let firmenname = 'Wellbeing Spaces'
+  try {
+    const { data } = await supabase.from('branding').select('firmenname').maybeSingle()
+    if (data?.firmenname) firmenname = data.firmenname
+  } catch { /* branding evtl. nicht konfiguriert */ }
+
+  // E-Mail verschicken (Resend); bei fehlendem RESEND_API_KEY wird still übersprungen
+  const empfaenger = [vorname, nachname].filter(Boolean).join(' ') || email
+  const html = `
+    <!DOCTYPE html>
+    <html><head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f6ede2; margin: 0; padding: 32px;">
+      <div style="max-width: 520px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 2px 10px rgba(0,0,0,0.04);">
+        <h1 style="font-size: 20px; color: #2d3e31; margin: 0 0 16px;">Hallo ${escapeHtml(empfaenger)},</h1>
+        <p style="font-size: 15px; color: #4b5563; line-height: 1.55; margin: 0 0 18px;">
+          ${escapeHtml(firmenname)} hat einen eigenen Zugang im Kunden-Portal für dich eingerichtet.
+          Dort kannst du dein Projekt verfolgen, Produkte freigeben und Nachrichten austauschen.
+        </p>
+        <p style="font-size: 15px; color: #4b5563; line-height: 1.55; margin: 0 0 24px;">
+          Klicke auf den Button, um dein Passwort zu setzen und loszulegen:
+        </p>
+        <p style="text-align: center; margin: 0 0 24px;">
+          <a href="${einladungsLink}" style="display: inline-block; background: #445c49; color: #fff; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 600; font-size: 15px;">
+            Zugang aktivieren →
+          </a>
+        </p>
+        <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; margin: 0 0 8px;">
+          Dieser Link ist 7 Tage gültig. Falls der Button nicht funktioniert, kopiere diese Adresse in deinen Browser:
+        </p>
+        <p style="font-size: 12px; color: #9ca3af; line-height: 1.5; word-break: break-all; margin: 0;">
+          ${einladungsLink}
+        </p>
+      </div>
+      <p style="text-align: center; font-size: 11px; color: #9ca3af; margin-top: 20px;">
+        ${escapeHtml(firmenname)} · Kunden-Portal
+      </p>
+    </body></html>
+  `
+
+  const mailResult = await sendMail({
+    to:      email.toLowerCase().trim(),
+    subject: `Dein Zugang zum Kunden-Portal bei ${firmenname}`,
+    html,
+  })
+
   revalidatePath(`/dashboard/kunden/${kundeId}`)
-  return { erfolg: true, einladungsLink: `${baseUrl}/portal/einladung/${einladungsToken}` }
+  return {
+    erfolg: true,
+    einladungsLink,
+    mailGesendet: mailResult.sent,
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => (
+    c === '&' ? '&amp;' :
+    c === '<' ? '&lt;'  :
+    c === '>' ? '&gt;'  :
+    c === '"' ? '&quot;': '&#39;'
+  ))
 }
 
 export async function portalZuganDeaktivieren(kundeId: string): Promise<void> {

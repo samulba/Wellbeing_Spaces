@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { UserCircle2, CheckCircle2, X, Copy, Check, RefreshCw, PowerOff, ExternalLink } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { UserCircle2, CheckCircle2, X, Copy, Check, RefreshCw, PowerOff, ExternalLink, Mail, MailX } from 'lucide-react'
 import { kundeEinladen, portalZuganDeaktivieren } from '@/app/actions/portal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 
@@ -26,10 +27,12 @@ export default function KundenPortalSection({
   kundeName: string
   initialPortalUser: PortalUser | null
 }) {
+  const router = useRouter()
   const [portalUser, setPortalUser]     = useState(initialPortalUser)
   const [modalOffen, setModalOffen]     = useState(false)
   const [confirmDeaktiv, setConfirmDeaktiv] = useState(false)
   const [einladungsLink, setLink]       = useState('')
+  const [mailGesendet, setMailGesendet] = useState<boolean | null>(null)
   const [kopiert, setKopiert]           = useState(false)
   const [fehler, setFehler]             = useState('')
   const [isPending, startTransition]    = useTransition()
@@ -49,10 +52,26 @@ export default function KundenPortalSection({
 
   function handleEinladen() {
     setFehler('')
+    setMailGesendet(null)
     startTransition(async () => {
       const result = await kundeEinladen(kundeId, email, vorname, nachname, preise)
       if (result.fehler) { setFehler(result.fehler); return }
       setLink(result.einladungsLink ?? '')
+      setMailGesendet(result.mailGesendet ?? false)
+      // Optimistic Update: Karte zeigt sofort "aktiv" + gespeicherte Daten
+      setPortalUser({
+        id:                portalUser?.id ?? 'pending',
+        email:             email.toLowerCase().trim(),
+        vorname:           vorname.trim(),
+        nachname:          nachname.trim(),
+        aktiv:             true,
+        letzter_login:     null,
+        preise_anzeigen:   preise,
+        einladungs_token:  'pending',
+        token_gueltig_bis: new Date(Date.now() + 7 * 864e5).toISOString(),
+      })
+      // Server-Daten refreshen (neue IDs, revalidatePath)
+      router.refresh()
     })
   }
 
@@ -96,9 +115,22 @@ export default function KundenPortalSection({
 
             {einladungsLink ? (
               <div>
-                <p className="text-sm text-gray-600 mb-4">
-                  Einladungslink generiert! Senden Sie diesen Link an <strong>{vorname} {nachname}</strong>. Er ist 7 Tage gültig.
-                </p>
+                {mailGesendet ? (
+                  <div className="flex items-start gap-2 px-3 py-2.5 bg-emerald-50 border border-emerald-100 rounded-xl mb-4">
+                    <Mail className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <p className="text-xs text-emerald-700 leading-relaxed">
+                      E-Mail wurde an <strong>{email}</strong> verschickt. Der Link ist 7 Tage gültig.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl mb-4">
+                    <MailX className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      <strong>Keine E-Mail verschickt</strong> — RESEND_API_KEY ist nicht konfiguriert.
+                      Kopiere den Link unten und sende ihn manuell. (7 Tage gültig.)
+                    </p>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-xl mb-4">
                   <code className="flex-1 text-xs text-gray-600 truncate">{einladungsLink}</code>
                   <button onClick={() => kopieren(einladungsLink)}
