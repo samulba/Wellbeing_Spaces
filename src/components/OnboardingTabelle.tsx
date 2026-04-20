@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   ChevronDown, ChevronUp, Check, Plus, User, Mail, Phone, MapPin,
   Home, Euro, Clock, Palette, MessageSquare, ExternalLink, Trash2,
-  X, ChevronRight, Settings2,
+  X, ChevronRight, Settings2, Briefcase,
 } from 'lucide-react'
 import {
   onboardingLinkErstellen,
@@ -13,6 +14,7 @@ import {
   onboardingLinkLoeschen,
   kundeAusOnboardingAnlegen,
 } from '@/app/actions/onboarding'
+import { kundeUndProjektAusOnboarding } from '@/app/actions/onboarding-erweitert'
 import type { OnboardingAnfrage, OnboardingStatus, OnboardingVorlage } from '@/lib/supabase/types'
 
 // ── Badge-Konfiguration ───────────────────────────────────────
@@ -184,10 +186,13 @@ function AnfrageDetail({
   anfrage: OnboardingAnfrage
   onLoeschenStart: () => void
 }) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [kopiert, setKopiert]        = useState(false)
+  const [fehler, setFehler]          = useState<string | null>(null)
   const offen = anfrage.status === 'offen'
   const hatDaten = !!anfrage.kunde_name
+  const hatProjektName = !!anfrage.projekt_name
 
   function handleStatus(status: OnboardingStatus) {
     startTransition(async () => {
@@ -196,8 +201,25 @@ function AnfrageDetail({
   }
 
   function handleKundeAnlegen() {
+    setFehler(null)
     startTransition(async () => {
       await kundeAusOnboardingAnlegen(anfrage.id)
+    })
+  }
+
+  function handleKundeUndProjektAnlegen() {
+    setFehler(null)
+    startTransition(async () => {
+      try {
+        const res = await kundeUndProjektAusOnboarding(anfrage.id, { raeume_erstellen: true })
+        if (res.projekt_id) {
+          router.push(`/dashboard/projekte/${res.projekt_id}`)
+        } else {
+          router.push(`/dashboard/kunden/${res.kunde_id}`)
+        }
+      } catch (e) {
+        setFehler(e instanceof Error ? e.message : 'Fehler beim Anlegen.')
+      }
     })
   }
 
@@ -284,9 +306,23 @@ function AnfrageDetail({
         </p>
       )}
 
+      {fehler && (
+        <p className="text-xs text-red-500 mt-3">{fehler}</p>
+      )}
+
       {/* Aktionen */}
       <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-200">
-        {hatDaten && offen && (
+        {hatDaten && offen && hatProjektName && (
+          <button
+            onClick={handleKundeUndProjektAnlegen}
+            disabled={isPending}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 rounded-lg transition-colors"
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            {isPending ? 'Wird angelegt…' : 'Kunde + Projekt anlegen'}
+          </button>
+        )}
+        {hatDaten && offen && !hatProjektName && (
           <button
             onClick={handleKundeAnlegen}
             disabled={isPending}
