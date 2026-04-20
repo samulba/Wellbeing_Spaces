@@ -12,6 +12,8 @@ import FAQ               from '@/components/landing/FAQ'
 import FinalCTA          from '@/components/landing/FinalCTA'
 import Footer            from '@/components/landing/Footer'
 import CookieBanner      from '@/components/landing/CookieBanner'
+import MotionProvider    from '@/components/landing/MotionProvider'
+import ScrollProgress    from '@/components/landing/ScrollProgress'
 
 export const metadata: Metadata = {
   title: 'Wellbeing Spaces | Interior Design Projektmanagement Software',
@@ -97,19 +99,22 @@ export default function LandingPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdOrg) }}
       />
-      <Nav />
-      <Hero />
-      <CompetitorBadge />
-      <ProblemSolution />
-      <Features />
-      <HowItWorks />
-      <WhyWBC />
-      <PricingCalculator />
-      <Pricing />
-      <FAQ />
-      <FinalCTA />
-      <Footer />
-      <CookieBanner />
+      <MotionProvider>
+        <ScrollProgress />
+        <Nav />
+        <Hero />
+        <CompetitorBadge />
+        <ProblemSolution />
+        <Features />
+        <HowItWorks />
+        <WhyWBC />
+        <PricingCalculator />
+        <Pricing />
+        <FAQ />
+        <FinalCTA />
+        <Footer />
+        <CookieBanner />
+      </MotionProvider>
     </div>
   )
 }

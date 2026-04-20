@@ -1,16 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check, Clock, AlertCircle, Zap } from 'lucide-react'
+import { m, useScroll, useTransform, useReducedMotion, type MotionValue } from 'framer-motion'
 import DemoModal from './DemoModal'
 
 // ── Animated Background ──────────────────────────────────────────
-function AnimatedBG() {
+function AnimatedBG({ y, opacity, scale }: { y: MotionValue<number>; opacity: MotionValue<number>; scale: MotionValue<number> }) {
   const orbs = [
     { w: 520, h: 520, top: '-10%', right: '-6%',  color: 'bg-wellbeing-green-light', blur: 'blur-[90px]',  delay: '0s',  dur: '12s', op: 0.38 },
-    { w: 360, h: 360, top: '45%',  right: '8%',   color: 'bg-wellbeing-cream', blur: 'blur-[70px]',  delay: '-4s', dur: '16s', op: 0.28 },
-    { w: 260, h: 260, top: '15%',  left:  '15%',  color: 'bg-[#c8dbc9]', blur: 'blur-[60px]',  delay: '-8s', dur: '10s', op: 0.18 },
-    { w: 200, h: 200, top: '65%',  left:  '5%',   color: 'bg-wellbeing-cream', blur: 'blur-[50px]',  delay: '-6s', dur: '14s', op: 0.14 },
+    { w: 360, h: 360, top: '45%',  right: '8%',   color: 'bg-wellbeing-cream',       blur: 'blur-[70px]',  delay: '-4s', dur: '16s', op: 0.28 },
+    { w: 260, h: 260, top: '15%',  left:  '15%',  color: 'bg-[#c8dbc9]',             blur: 'blur-[60px]',  delay: '-8s', dur: '10s', op: 0.18 },
+    { w: 200, h: 200, top: '65%',  left:  '5%',   color: 'bg-wellbeing-cream',       blur: 'blur-[50px]',  delay: '-6s', dur: '14s', op: 0.14 },
   ]
 
   const squares = [
@@ -23,7 +24,11 @@ function AnimatedBG() {
   ]
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none select-none" aria-hidden>
+    <m.div
+      style={{ y, opacity, scale }}
+      className="absolute inset-0 overflow-hidden pointer-events-none select-none"
+      aria-hidden
+    >
       {orbs.map((o, i) => (
         <div
           key={i}
@@ -60,7 +65,7 @@ function AnimatedBG() {
           backgroundSize: '36px 36px',
         }}
       />
-    </div>
+    </m.div>
   )
 }
 
@@ -82,8 +87,6 @@ function DashboardMockup() {
 
   return (
     <div className="relative w-full max-w-[460px] mx-auto lg:mx-0 select-none">
-
-      {/* Floating chip – auto calculation (top right) */}
       <div
         className="absolute -top-5 -right-3 z-20 flex items-center gap-2 bg-[#445c49] rounded-xl shadow-xl shadow-wellbeing-green-light/60 px-3.5 py-2.5"
         style={{ animation: 'floatA 18s ease-in-out infinite', animationDelay: '-4s' }}
@@ -97,7 +100,6 @@ function DashboardMockup() {
         </div>
       </div>
 
-      {/* Floating chip – freigabe notification (bottom left, appears when approved) */}
       <div
         className="absolute -bottom-5 -left-3 z-20 flex items-center gap-2.5 bg-white rounded-xl border border-emerald-100 shadow-xl px-3.5 py-2.5 transition-all duration-500 ease-out"
         style={{
@@ -115,10 +117,7 @@ function DashboardMockup() {
         </div>
       </div>
 
-      {/* Main app frame */}
       <div className="rounded-2xl overflow-hidden shadow-2xl shadow-wellbeing-cream/60 border border-gray-200 bg-white">
-
-        {/* URL bar */}
         <div className="bg-gray-50 border-b border-gray-100 px-4 py-2.5 flex items-center gap-2.5">
           <div className="flex gap-1.5 shrink-0">
             <div className="w-2.5 h-2.5 rounded-full bg-red-300" />
@@ -130,7 +129,6 @@ function DashboardMockup() {
           </div>
         </div>
 
-        {/* App nav */}
         <div className="border-b border-gray-100 px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-md bg-[#445c49] flex items-center justify-center">
@@ -143,7 +141,6 @@ function DashboardMockup() {
           </span>
         </div>
 
-        {/* Project header */}
         <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
           <div>
             <p className="text-[12px] font-bold text-gray-800">Villa Müller · Wohnzimmer</p>
@@ -155,10 +152,7 @@ function DashboardMockup() {
           </div>
         </div>
 
-        {/* Product rows */}
         <div className="divide-y divide-gray-50/80">
-
-          {/* Row 1 – Freigegeben */}
           <div className="flex items-center gap-2.5 px-4 py-3">
             <div className="flex-1 min-w-0">
               <p className="text-[9px] font-bold text-[#445c49] uppercase tracking-wide mb-0.5">Polstermöbel</p>
@@ -171,7 +165,6 @@ function DashboardMockup() {
             </div>
           </div>
 
-          {/* Row 2 – Ausstehend → Freigegeben (animated) */}
           <div
             className="flex items-center gap-2.5 px-4 py-3 transition-colors duration-500"
             style={{ background: approved ? 'rgb(240 253 244 / 0.5)' : 'rgb(255 251 235 / 0.4)' }}
@@ -202,7 +195,6 @@ function DashboardMockup() {
             </div>
           </div>
 
-          {/* Row 3 – Alternative */}
           <div className="flex items-center gap-2.5 px-4 py-3">
             <div className="flex-1 min-w-0">
               <p className="text-[9px] font-bold text-[#94c1a4] uppercase tracking-wide mb-0.5">Textilien</p>
@@ -216,7 +208,6 @@ function DashboardMockup() {
           </div>
         </div>
 
-        {/* Pricing breakdown footer */}
         <div className="px-4 py-3 border-t border-gray-100 bg-wellbeing-cream/40">
           <div className="flex items-center justify-between text-[11px] mb-1.5">
             <span className="text-gray-400">EP gesamt</span>
@@ -237,49 +228,86 @@ function DashboardMockup() {
 }
 
 // ── Hero ──────────────────────────────────────────────────────────
+const container = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
+}
+const item = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+}
+
 export default function Hero() {
   const [demoOpen, setDemoOpen] = useState(false)
+  const sectionRef = useRef<HTMLElement>(null)
+  const prefersReduced = useReducedMotion()
+
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start start', 'end start'],
+  })
+
+  const bgY      = useTransform(scrollYProgress, [0, 1], [0, -180])
+  const bgScale  = useTransform(scrollYProgress, [0, 1], [1, 1.25])
+  const bgOpac   = useTransform(scrollYProgress, [0, 0.8], [1, 0])
+
+  const textY    = useTransform(scrollYProgress, [0, 1], [0, -60])
+  const textOpac = useTransform(scrollYProgress, [0, 0.85], [1, 0.25])
+  const textBlur = useTransform(scrollYProgress, [0, 1], ['0px', '6px'])
+  const textFilter = useTransform(textBlur, (b) => `blur(${b})`)
+
+  const mockY     = useTransform(scrollYProgress, [0, 1], [0, -40])
+  const mockScale = useTransform(scrollYProgress, [0, 1], [1, 0.96])
+  const mockRot   = useTransform(scrollYProgress, [0, 1], [0, -2])
 
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-white pt-16">
-      <AnimatedBG />
+    <section ref={sectionRef} className="relative min-h-screen flex items-center overflow-hidden bg-white pt-16">
+      <AnimatedBG y={bgY} opacity={bgOpac} scale={bgScale} />
 
       <div className="relative z-10 w-full max-w-[1300px] mx-auto px-8">
-        <div className="flex flex-col lg:flex-row items-center gap-14 lg:gap-16 py-16 lg:min-h-[calc(100vh-64px)]">
+        <m.div
+          className="flex flex-col lg:flex-row items-center gap-14 lg:gap-16 py-16 lg:min-h-[calc(100vh-64px)]"
+          variants={container}
+          initial="hidden"
+          animate="visible"
+        >
 
           {/* ── Left: Text ───────────────────────────── */}
-          <div className="flex-1 text-center lg:text-left">
-
-            <div
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-wellbeing-cream border border-wellbeing-cream text-wellbeing-green text-[13px] font-semibold mb-7 animate-fade-up"
-              style={{ animationDelay: '0ms' }}
+          <m.div
+            className="flex-1 text-center lg:text-left"
+            style={prefersReduced ? undefined : { y: textY, opacity: textOpac, filter: textFilter }}
+          >
+            <m.div
+              variants={item}
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-wellbeing-cream border border-wellbeing-cream text-wellbeing-green text-[13px] font-semibold mb-7"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-wellbeing-green animate-pulse" />
               Für Interior Designer & Design Studios
-            </div>
+            </m.div>
 
-            <h1
-              className="font-syne font-bold text-[#445c49] leading-[1.06] tracking-tight mb-6 animate-fade-up"
-              style={{ animationDelay: '100ms', fontSize: 'clamp(38px, 5.5vw, 72px)' }}
+            <m.h1
+              variants={item}
+              className="font-syne font-bold text-[#445c49] leading-[1.06] tracking-tight mb-6"
+              style={{ fontSize: 'clamp(38px, 5.5vw, 72px)' }}
             >
               Deine Projekte.<br />
               Deine Preise.<br />
               <span className="gradient-text">Deine Kunden</span>{' '}
               begeistert.
-            </h1>
+            </m.h1>
 
-            <p
-              className="text-[16px] md:text-[18px] text-gray-500 max-w-xl mb-10 leading-relaxed animate-fade-up lg:mx-0 mx-auto"
-              style={{ animationDelay: '200ms' }}
+            <m.p
+              variants={item}
+              className="text-[16px] md:text-[18px] text-gray-500 max-w-xl mb-10 leading-relaxed lg:mx-0 mx-auto"
             >
               Produktlisten erstellen, Preise automatisch kalkulieren und
               Kunden mit einem Link zur Freigabe einladen.
               Für Interior Designer die mehr wollen als Excel.
-            </p>
+            </m.p>
 
-            <div
-              className="flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3 mb-8 animate-fade-up"
-              style={{ animationDelay: '300ms' }}
+            <m.div
+              variants={item}
+              className="flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3 mb-8"
             >
               <button
                 onClick={() => setDemoOpen(true)}
@@ -297,11 +325,11 @@ export default function Hero() {
               >
                 Wie es funktioniert
               </a>
-            </div>
+            </m.div>
 
-            <div
-              className="flex flex-wrap items-center lg:justify-start justify-center gap-x-6 gap-y-2 animate-fade-up"
-              style={{ animationDelay: '400ms' }}
+            <m.div
+              variants={item}
+              className="flex flex-wrap items-center lg:justify-start justify-center gap-x-6 gap-y-2"
             >
               {['Unverbindliche Demo', 'Keine Kreditkarte', 'DSGVO-konform'].map((t) => (
                 <span key={t} className="flex items-center gap-1.5 text-[13px] text-gray-400">
@@ -309,17 +337,18 @@ export default function Hero() {
                   {t}
                 </span>
               ))}
-            </div>
-          </div>
+            </m.div>
+          </m.div>
 
           {/* ── Right: Dashboard Mockup ──────────────── */}
-          <div
-            className="flex-shrink-0 w-full lg:w-auto animate-fade-up pt-6 lg:pt-0 mt-2 lg:mt-0"
-            style={{ animationDelay: '180ms' }}
+          <m.div
+            variants={item}
+            className="flex-shrink-0 w-full lg:w-auto pt-6 lg:pt-0 mt-2 lg:mt-0"
+            style={prefersReduced ? undefined : { y: mockY, scale: mockScale, rotate: mockRot }}
           >
             <DashboardMockup />
-          </div>
-        </div>
+          </m.div>
+        </m.div>
       </div>
 
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />

@@ -1,9 +1,12 @@
 'use client'
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import Reveal, { type RevealVariant } from './Reveal'
 
-export type AnimationType = 'fade-up' | 'fade-left' | 'fade-right' | 'scale-in' | 'blur-in'
+export type AnimationType = RevealVariant
 
+/** Thin alias on top of Reveal — kept for backward compatibility with existing call sites.
+ *  `delay` is in milliseconds to match the old API; Reveal expects seconds. */
 export default function AnimateOnScroll({
   children,
   delay = 0,
@@ -15,31 +18,9 @@ export default function AnimateOnScroll({
   className?: string
   type?: AnimationType
 }) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          el.classList.add('visible')
-          observer.disconnect()
-        }
-      },
-      { threshold: 0.07 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-
   return (
-    <div
-      ref={ref}
-      className={`${type} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
+    <Reveal variant={type} delay={delay / 1000} className={className}>
       {children}
-    </div>
+    </Reveal>
   )
 }
