@@ -26,6 +26,8 @@ import BrandingEditor from '@/components/BrandingEditor'
 import VertragsVorlagenVerwaltung from '@/components/VertragsVorlagenVerwaltung'
 import type { VertragsVorlage } from '@/lib/supabase/types'
 import { ConfirmModal } from '@/components/ConfirmModal'
+import ChangelogTab from '@/components/ChangelogTab'
+import type { ChangelogEntry } from '@/lib/changelog'
 
 // ── Konstanten ────────────────────────────────────────────────
 
@@ -40,6 +42,7 @@ const TABS = [
   { key: 'abrechnung',         label: 'Abrechnung' },
   { key: 'rechtliches',        label: 'Rechtliches' },
   { key: 'handbuch',           label: 'Handbuch' },
+  { key: 'changelog',          label: 'Änderungen' },
 ]
 
 const ZEITZONEN = [
@@ -1078,6 +1081,7 @@ export default function EinstellungenTabs({
   lastSignIn,
   branding,
   vorlagen,
+  changelog,
 }: {
   aktuellerTab: string
   einstellungen: Record<string, string>
@@ -1091,6 +1095,7 @@ export default function EinstellungenTabs({
   lastSignIn: string | null
   branding: Branding | null
   vorlagen: VertragsVorlage[]
+  changelog: ChangelogEntry[]
 }) {
   const istAdmin = userRolle === 'admin'
   const adminOnlyKeys = new Set(['branding'])
@@ -1126,6 +1131,7 @@ export default function EinstellungenTabs({
       {aktuellerTab === 'abrechnung'         && <AbrechnungTab />}
       {aktuellerTab === 'rechtliches'        && <RechtlichesTab />}
       {aktuellerTab === 'handbuch'           && <HandbuchTab />}
+      {aktuellerTab === 'changelog'          && <ChangelogTab eintraege={changelog} />}
 
       {/* Fallback: alte Tab-Keys weiterleiten */}
       {(aktuellerTab === 'allgemein' || aktuellerTab === 'sicherheit') && (

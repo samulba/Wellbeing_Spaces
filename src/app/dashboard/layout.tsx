@@ -5,6 +5,7 @@ import MobileGuard from '@/components/MobileGuard'
 import { RolleProvider } from '@/lib/RolleContext'
 import { meineRolleAbrufen } from '@/app/actions/team'
 import type { Rolle } from '@/lib/supabase/types'
+import { getChangelog } from '@/lib/changelog'
 
 export default async function DashboardLayout({
   children,
@@ -62,6 +63,10 @@ export default async function DashboardLayout({
     || (user.user_metadata?.full_name as string | undefined)
     || undefined
 
+  // Neuestes Changelog-Datum für "Neu seit..."-Badge
+  const changelog = getChangelog()
+  const neuestesChangelogDatum = changelog[0]?.datum ?? null
+
   return (
     <MobileGuard>
       <RolleProvider rolle={rolle}>
@@ -73,6 +78,7 @@ export default async function DashboardLayout({
           userRolle={rolle}
           offeneFreigaben={freigabenCount}
           offeneAnfragen={anfragenCount}
+          neuestesChangelogDatum={neuestesChangelogDatum}
         />
         <main className="flex-1 overflow-hidden flex flex-col">
           {children}

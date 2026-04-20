@@ -5,6 +5,7 @@ import { brandingAbrufen } from '@/app/actions/branding'
 import { getVorlagen } from '@/app/actions/vertraege'
 import EinstellungenTabs from '@/components/EinstellungenTabs'
 import StickyPageHeader from '@/components/StickyPageHeader'
+import { getChangelog } from '@/lib/changelog'
 
 export default async function EinstellungenPage({
   searchParams,
@@ -23,6 +24,8 @@ export default async function EinstellungenPage({
     brandingAbrufen(),
     getVorlagen(),
   ])
+
+  const changelog = getChangelog()
 
   // Avatar-URL + Vor-/Nachname aus team_mitglieder laden (Migrations 061 + 062)
   let userAvatarUrl: string | null = null
@@ -57,6 +60,7 @@ export default async function EinstellungenPage({
           lastSignIn={user?.last_sign_in_at ?? null}
           branding={branding}
           vorlagen={vorlagen}
+          changelog={changelog}
         />
       </div>
     </div>

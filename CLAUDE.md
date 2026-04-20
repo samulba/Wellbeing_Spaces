@@ -105,3 +105,5 @@ Farbpalette: wellbeing-green (#445c49), wellbeing-green-light (#94c1a4), wellbei
 
 ## Anweisung
 Am Ende jeder Session den Session-Log mit einem kurzen Eintrag aktualisieren.
+
+**CHANGELOG.md (dauerhafte Regel):** Bei JEDEM Commit der User-sichtbare Änderungen bringt (neue Features, UI-Änderungen, Workflows, Bug-Fixes mit sichtbarem Effekt, Migrationen), muss auch `/CHANGELOG.md` aktualisiert werden — 1-2 Stichpunkte in einfachem Deutsch unter dem heutigen Datum (`## YYYY-MM-DD`). Sektions-Titel optional (`### Bereich`). Technische Refactorings die der User nicht merkt (z.B. Datei-Split, Type-Ergänzungen, Lint-Fixes) NICHT eintragen. Das Datum wird aus `# currentDate` ganz oben in dieser Datei genommen (oder vom User-Prompt-Kontext falls verfügbar). Wenn der heutige Datumsblock noch nicht existiert, neuen `## YYYY-MM-DD` ganz OBEN unter der Einleitung einfügen. Der Tab „Änderungen" in den Einstellungen rendert diese Datei automatisch; Badge in Sidebar zeigt Neues seit letztem Besuch.

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard,
@@ -54,6 +55,7 @@ export default function NavSidebar({
   userRolle = 'admin',
   offeneFreigaben = 0,
   offeneAnfragen = 0,
+  neuestesChangelogDatum = null,
 }: {
   userEmail: string
   userName?: string
@@ -61,9 +63,26 @@ export default function NavSidebar({
   userRolle?: Rolle
   offeneFreigaben?: number
   offeneAnfragen?: number
+  neuestesChangelogDatum?: string | null
 }) {
   const pathname = usePathname()
   const router   = useRouter()
+
+  // "Neu seit..."-Badge: nur rendern wenn lokal gespeichertes Datum älter ist
+  const [changelogNeu, setChangelogNeu] = useState(false)
+  useEffect(() => {
+    if (!neuestesChangelogDatum) { setChangelogNeu(false); return }
+    const pruefe = () => {
+      try {
+        const seen = localStorage.getItem('changelog-last-seen')
+        setChangelogNeu(!seen || new Date(seen) < new Date(neuestesChangelogDatum))
+      } catch { setChangelogNeu(false) }
+    }
+    pruefe()
+    const onSeen = () => pruefe()
+    window.addEventListener('changelog:seen', onSeen)
+    return () => window.removeEventListener('changelog:seen', onSeen)
+  }, [neuestesChangelogDatum])
 
   // Im Raumplaner-Editor Sidebar komplett ausblenden (mehr Platz)
   const isPlanerEditor = /\/dashboard\/projekte\/[^/]+\/raeume\/[^/]+\/planer/.test(pathname)
@@ -139,7 +158,7 @@ export default function NavSidebar({
         {/* Einstellungen */}
         <div className="px-3 pt-2.5 pb-1">
           <Link
-            href="/dashboard/einstellungen"
+            href={changelogNeu ? '/dashboard/einstellungen?tab=changelog' : '/dashboard/einstellungen'}
             className={`flex items-center gap-2.5 px-3 py-[10px] rounded-lg text-[14px] font-medium transition-colors duration-150 ${
               pathname.startsWith('/dashboard/einstellungen')
                 ? 'bg-white/[0.12] text-white'
@@ -147,7 +166,15 @@ export default function NavSidebar({
             }`}
           >
             <Settings className="w-4 h-4 shrink-0" strokeWidth={2} />
-            Einstellungen
+            <span className="flex-1">Einstellungen</span>
+            {changelogNeu && (
+              <span
+                className="px-1.5 py-0.5 bg-wellbeing-green-light text-[#1a2e1e] text-[9px] font-bold rounded-full leading-none uppercase tracking-wider"
+                title="Neue Änderungen seit deinem letzten Besuch"
+              >
+                Neu
+              </span>
+            )}
           </Link>
         </div>
 
