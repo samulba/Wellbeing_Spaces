@@ -6,6 +6,7 @@ import { de } from 'date-fns/locale'
 import {
   Calendar, Flag, Truck, Clock, Layers, AlertTriangle, History,
   List, Package, CalendarDays, ChevronLeft, ChevronRight,
+  X, Sparkles, MapPin, Eye, EyeOff, FileText,
 } from 'lucide-react'
 import Link from 'next/link'
 import type { TimelineEvent, TimelineEventTyp, TimelineEventStatus } from '@/lib/supabase/types'
@@ -77,6 +78,7 @@ export function Timeline({
 }: TimelineProps) {
   const [vergangenVerstecken, setVergangenVerstecken] = useState(vergangenAusgeblendetDefault)
   const [modus, setModus] = useState<AnsichtModus>('liste')
+  const [detailEvent, setDetailEvent] = useState<(TimelineEvent & { raum?: { id: string; name: string } | null }) | null>(null)
 
   if (events.length === 0) {
     return (
@@ -120,9 +122,9 @@ export function Timeline({
       </div>
 
       {/* View-Inhalt */}
-      {modus === 'liste'     && <ListenView     events={angezeigt} showRaumBadge={showRaumBadge} maxHoehe={maxHoehe} />}
-      {modus === 'gruppiert' && <GruppiertView  events={sichtbar}  showRaumBadge={showRaumBadge} maxHoehe={maxHoehe} />}
-      {modus === 'kalender'  && <KalenderView   events={events} />}
+      {modus === 'liste'     && <ListenView     events={angezeigt} showRaumBadge={showRaumBadge} maxHoehe={maxHoehe} onSelect={setDetailEvent} />}
+      {modus === 'gruppiert' && <GruppiertView  events={sichtbar}  showRaumBadge={showRaumBadge} maxHoehe={maxHoehe} onSelect={setDetailEvent} />}
+      {modus === 'kalender'  && <KalenderView   events={events} onSelect={setDetailEvent} />}
 
       {alleLink && (
         <div className="mt-2">
@@ -130,6 +132,11 @@ export function Timeline({
             Alle Ereignisse anzeigen →
           </Link>
         </div>
+      )}
+
+      {/* Detail-Popup */}
+      {detailEvent && (
+        <EventDetailModal event={detailEvent} onClose={() => setDetailEvent(null)} />
       )}
     </div>
   )
@@ -161,12 +168,15 @@ function ViewTab({
 }
 
 // ── Liste (Einzeiler, scrollbar) ──────────────────────────────
+type EvTyp = TimelineEvent & { raum?: { id: string; name: string } | null }
+
 function ListenView({
-  events, showRaumBadge, maxHoehe,
+  events, showRaumBadge, maxHoehe, onSelect,
 }: {
-  events: (TimelineEvent & { raum?: { id: string; name: string } | null })[]
+  events: EvTyp[]
   showRaumBadge: boolean
   maxHoehe: string
+  onSelect: (ev: EvTyp) => void
 }) {
   if (events.length === 0) {
     return <div className="py-4 text-center"><p className="text-xs text-gray-400">Keine anstehenden Ereignisse</p></div>
@@ -174,25 +184,28 @@ function ListenView({
   return (
     <div className="overflow-y-auto pr-1" style={{ maxHeight: maxHoehe }}>
       <div className="space-y-0.5">
-        {events.map((ev) => <EventZeile key={ev.id} ev={ev} showRaumBadge={showRaumBadge} />)}
+        {events.map((ev) => <EventZeile key={ev.id} ev={ev} showRaumBadge={showRaumBadge} onSelect={onSelect} />)}
       </div>
     </div>
   )
 }
 
 function EventZeile({
-  ev, showRaumBadge,
+  ev, showRaumBadge, onSelect,
 }: {
-  ev: TimelineEvent & { raum?: { id: string; name: string } | null }
+  ev: EvTyp
   showRaumBadge: boolean
+  onSelect: (ev: EvTyp) => void
 }) {
   const cfg   = TYP_CONFIG[ev.typ] ?? TYP_CONFIG.termin
   const stCfg = STATUS_CONFIG[ev.status] ?? STATUS_CONFIG.geplant
   const Icon  = cfg.Icon
   const ueberfaellig = istUeberfaellig(ev)
   return (
-    <div
-      className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-colors ${
+    <button
+      type="button"
+      onClick={() => onSelect(ev)}
+      className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-colors text-left ${
         ueberfaellig ? 'bg-red-50/30 hover:bg-red-50/50' : 'hover:bg-gray-50'
       }`}
     >
@@ -219,17 +232,18 @@ function EventZeile({
           {datumKurz(ev.start_datum)}
         </span>
       </div>
-    </div>
+    </button>
   )
 }
 
 // ── Gruppiert nach Produkt ────────────────────────────────────
 function GruppiertView({
-  events, showRaumBadge, maxHoehe,
+  events, showRaumBadge, maxHoehe, onSelect,
 }: {
-  events: (TimelineEvent & { raum?: { id: string; name: string } | null })[]
+  events: EvTyp[]
   showRaumBadge: boolean
   maxHoehe: string
+  onSelect: (ev: EvTyp) => void
 }) {
   if (events.length === 0) {
     return <div className="py-4 text-center"><p className="text-xs text-gray-400">Keine Ereignisse</p></div>
@@ -271,7 +285,12 @@ function GruppiertView({
                 const titelKurz = ev.titel.match(/^(Lieferung|Bestellt|Geliefert):/)?.[1] ?? ev.titel
                 const ueberfaellig = istUeberfaellig(ev)
                 return (
-                  <div key={ev.id} className="flex items-center gap-3 px-3 py-1.5">
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => onSelect(ev)}
+                    className="w-full flex items-center gap-3 px-3 py-1.5 text-left hover:bg-gray-50 transition-colors"
+                  >
                     <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${cfg.bgFarbe}`}>
                       <Icon className={`w-3 h-3 ${cfg.farbe}`} />
                     </div>
@@ -283,7 +302,7 @@ function GruppiertView({
                     <span className="text-[11px] text-gray-400 tabular-nums min-w-[48px] text-right shrink-0">
                       {datumKurz(ev.start_datum)}
                     </span>
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -296,9 +315,10 @@ function GruppiertView({
 
 // ── Kalender (Monatsraster) ───────────────────────────────────
 function KalenderView({
-  events,
+  events, onSelect,
 }: {
-  events: (TimelineEvent & { raum?: { id: string; name: string } | null })[]
+  events: EvTyp[]
+  onSelect: (ev: EvTyp) => void
 }) {
   const heute = new Date()
   const [monat, setMonat] = useState(startOfMonth(heute))
@@ -365,16 +385,18 @@ function KalenderView({
                   const cfg = TYP_CONFIG[ev.typ] ?? TYP_CONFIG.termin
                   const ueberfaellig = istUeberfaellig(ev)
                   return (
-                    <div
+                    <button
                       key={ev.id}
-                      className={`flex items-center gap-1 px-1 py-0.5 rounded truncate ${cfg.bgFarbe} ${
+                      type="button"
+                      onClick={() => onSelect(ev)}
+                      className={`w-full flex items-center gap-1 px-1 py-0.5 rounded truncate hover:brightness-95 transition-all ${cfg.bgFarbe} ${
                         ueberfaellig ? 'ring-1 ring-red-300' : ''
                       }`}
                       title={ev.titel}
                     >
                       <span className={`w-1 h-1 rounded-full shrink-0 ${cfg.punktFarbe}`} />
                       <span className={`truncate ${cfg.farbe}`}>{ev.titel}</span>
-                    </div>
+                    </button>
                   )
                 })}
                 {tagEvents.length > 3 && (
@@ -384,6 +406,149 @@ function KalenderView({
             </div>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+// ── Event-Detail-Popup ────────────────────────────────────────
+const QUELLE_LABEL: Record<string, string> = {
+  manuell:       'Manuell erstellt',
+  produkt:       'Produkt-Liefertermin',
+  bestellstatus: 'Produkt-Bestellstatus',
+  deadline:      'Projekt-Deadline',
+  angebot:       'Angebot',
+  vertrag:       'Vertrag',
+}
+
+function EventDetailModal({
+  event,
+  onClose,
+}: {
+  event: EvTyp
+  onClose: () => void
+}) {
+  const cfg   = TYP_CONFIG[event.typ] ?? TYP_CONFIG.termin
+  const stCfg = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.geplant
+  const Icon  = cfg.Icon
+  const ueberfaellig  = istUeberfaellig(event)
+  const autoEvent     = event.quelle && event.quelle !== 'manuell'
+  const kundeSichtbar = event.kunde_sichtbar ?? false
+
+  const startFmt = format(new Date(event.start_datum + 'T00:00:00'), "EEEE, d. MMMM yyyy", { locale: de })
+  const endFmt   = event.end_datum
+    ? format(new Date(event.end_datum + 'T00:00:00'), "EEEE, d. MMMM yyyy", { locale: de })
+    : null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="event-detail-titel"
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Kopfzeile: Typ-Avatar + Titel + Close */}
+        <div className="flex items-start gap-3 px-5 pt-5 pb-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${cfg.bgFarbe}`}>
+            <Icon className={`w-5 h-5 ${cfg.farbe}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{cfg.label}</p>
+            <h3 id="event-detail-titel" className="text-base font-semibold text-gray-900 leading-snug break-words">
+              {event.titel}
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+            aria-label="Schließen"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Status-Row */}
+        <div className="px-5 pb-4 flex flex-wrap items-center gap-2">
+          <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${stCfg.klasse}`}>
+            {stCfg.label}
+          </span>
+          {ueberfaellig && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+              <AlertTriangle className="w-3 h-3" /> Überfällig
+            </span>
+          )}
+          {autoEvent && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+              <Sparkles className="w-3 h-3" /> Auto-Event
+            </span>
+          )}
+        </div>
+
+        {/* Details */}
+        <div className="border-t border-gray-100 divide-y divide-gray-50">
+          <DetailRow Icon={CalendarDays} label="Start">
+            {startFmt}
+          </DetailRow>
+          {endFmt && endFmt !== startFmt && (
+            <DetailRow Icon={CalendarDays} label="Ende">
+              {endFmt}
+            </DetailRow>
+          )}
+          {event.beschreibung && (
+            <DetailRow Icon={FileText} label="Beschreibung">
+              <span className="whitespace-pre-wrap">{event.beschreibung}</span>
+            </DetailRow>
+          )}
+          {event.raum && (
+            <DetailRow Icon={MapPin} label="Raum">
+              {event.raum.name}
+            </DetailRow>
+          )}
+          {autoEvent && (
+            <DetailRow Icon={Sparkles} label="Quelle">
+              <span>{QUELLE_LABEL[event.quelle ?? ''] ?? event.quelle}</span>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Wird automatisch synchronisiert — manuelle Änderungen werden beim nächsten Sync überschrieben.
+              </p>
+            </DetailRow>
+          )}
+          <DetailRow
+            Icon={kundeSichtbar ? Eye : EyeOff}
+            label="Portal-Sichtbarkeit"
+          >
+            {kundeSichtbar
+              ? 'Für den Kunden im Portal sichtbar'
+              : 'Nur intern, nicht im Kundenportal'}
+          </DetailRow>
+          {event.erinnerung_tage != null && (
+            <DetailRow Icon={Clock} label="Erinnerung">
+              {event.erinnerung_tage} Tage vorher
+            </DetailRow>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DetailRow({
+  Icon, label, children,
+}: {
+  Icon: React.ComponentType<{ className?: string }>
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex items-start gap-3 px-5 py-3">
+      <Icon className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">{label}</p>
+        <div className="text-sm text-gray-700">{children}</div>
       </div>
     </div>
   )
