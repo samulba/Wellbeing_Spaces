@@ -288,7 +288,7 @@ export type ProduktMitDetails = Produkt & {
   produktstatus: { status: ProduktStatus; kommentar: string | null } | null
 }
 
-// ── Raum-Produkt-Verknüpfung (Migration 038 + 058 Rabatt) ────
+// ── Raum-Produkt-Verknüpfung (Migration 038 + 058 Rabatt + 076 Status) ────
 export interface RaumProdukt {
   id: string
   organisation_id: string
@@ -299,6 +299,16 @@ export interface RaumProdukt {
   rabatt_prozent: number | null
   reihenfolge: number
   notizen: string | null
+  // Per-Raum Bestell-/Liefer-/Freigabe-Tracking (Migration 076).
+  // Ersetzt die globalen Felder auf produkte/produktstatus, damit derselbe
+  // Artikel in unterschiedlichen Räumen unterschiedliche Status haben kann.
+  bestellstatus: BestellStatus
+  bestellt_am: string | null
+  liefertermin: string | null
+  liefertermin_bestaetigt: boolean
+  lieferung_erhalten_am: string | null
+  freigabe_status: ProduktStatus
+  freigabe_kommentar: string | null
   created_at: string
 }
 
