@@ -63,6 +63,9 @@ function PinEingabe({ token, projektName, onErfolg, brandingBg, brandingPrim, fi
   const inputRef = useRef<HTMLInputElement>(null)
   const gesperrt = versuche >= MAX_VERSUCHE
   const MAX_LAENGE = 6
+  const MIN_LAENGE = 4
+  // Dynamische Boxenzahl: mindestens 4, wächst bis zur Länge der Eingabe (max 6)
+  const anzahlBoxen = Math.min(MAX_LAENGE, Math.max(MIN_LAENGE, pin.length))
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -93,14 +96,18 @@ function PinEingabe({ token, projektName, onErfolg, brandingBg, brandingPrim, fi
     })
   }
 
-  // Auto-Submit bei 6 Ziffern; 4-Ziffern-PINs brauchen Enter/Button
+  // Auto-Submit mit Debounce: wenn nach der Eingabe 600ms nichts passiert
+  // und der PIN mind. 4-stellig ist, wird automatisch geprüft. Damit
+  // funktionieren 4-, 5- UND 6-stellige PINs ohne „Bestätigen"-Klick.
+  const autoSubmitRef = useRef<number | null>(null)
   function handleChange(neu: string) {
     const digits = neu.replace(/\D/g, '').slice(0, MAX_LAENGE)
     setPin(digits)
     setFehler(null)
-    if (digits.length === MAX_LAENGE) {
-      // Leicht verzögern, damit der State sichtbar wird
-      setTimeout(() => pruefe(), 120)
+    if (autoSubmitRef.current) window.clearTimeout(autoSubmitRef.current)
+    if (digits.length >= MIN_LAENGE) {
+      const delay = digits.length === MAX_LAENGE ? 150 : 700
+      autoSubmitRef.current = window.setTimeout(() => pruefe(), delay)
     }
   }
 
@@ -109,14 +116,21 @@ function PinEingabe({ token, projektName, onErfolg, brandingBg, brandingPrim, fi
       className="min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden"
       style={{ backgroundColor: bg }}
     >
-      {/* Deko-Hintergrund */}
+      {/* Accent-Strip oben in Branding-Primärfarbe */}
       <div
-        className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full blur-3xl opacity-40 pointer-events-none"
+        className="absolute top-0 left-0 right-0 h-1 pointer-events-none"
         style={{ backgroundColor: prim }}
       />
+
+      {/* Dezenter Dot-Grid-Hintergrund */}
       <div
-        className="absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full blur-3xl opacity-20 pointer-events-none"
-        style={{ backgroundColor: prim }}
+        className="absolute inset-0 pointer-events-none opacity-[0.18]"
+        style={{
+          backgroundImage: `radial-gradient(${prim} 1px, transparent 1px)`,
+          backgroundSize: '24px 24px',
+          maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)',
+          WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)',
+        }}
       />
 
       {/* Logo */}
@@ -162,19 +176,22 @@ function PinEingabe({ token, projektName, onErfolg, brandingBg, brandingPrim, fi
           {/* Ziffern-Boxen (Visual) + echtes Input (versteckt darüber) */}
           <div className="relative mb-5">
             <div className="flex items-center justify-center gap-2">
-              {Array.from({ length: MAX_LAENGE }).map((_, i) => {
+              {Array.from({ length: anzahlBoxen }).map((_, i) => {
                 const zeichen = pin[i]
                 const aktiv   = pin.length === i && !gesperrt
+                const istNeuGewachsen = i >= MIN_LAENGE
                 return (
                   <div
                     key={i}
                     className={`w-11 h-12 rounded-xl border-2 flex items-center justify-center text-xl font-bold font-mono transition-all ${
+                      istNeuGewachsen ? 'animate-[fadeInScale_0.2s_ease-out]' : ''
+                    } ${
                       fehler
                         ? 'border-red-300 bg-red-50/40 text-red-700'
                         : zeichen
                           ? 'bg-gray-900 border-gray-900 text-white'
                           : aktiv
-                            ? 'border-2 bg-white'
+                            ? 'bg-white'
                             : 'border-gray-200 bg-gray-50'
                     }`}
                     style={aktiv && !fehler ? { borderColor: prim } : undefined}
@@ -202,7 +219,7 @@ function PinEingabe({ token, projektName, onErfolg, brandingBg, brandingPrim, fi
           </div>
 
           <p className="text-[11px] text-gray-400 text-center mb-6">
-            PIN hat 4–6 Ziffern. Eingabe wird automatisch geprüft.
+            PIN hat 4 – 6 Ziffern. Eingabe wird automatisch geprüft.
           </p>
 
           <button
@@ -235,6 +252,10 @@ function PinEingabe({ token, projektName, onErfolg, brandingBg, brandingPrim, fi
           40% { transform: translateX(8px); }
           60% { transform: translateX(-6px); }
           80% { transform: translateX(6px); }
+        }
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(0.7); }
+          to   { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>
