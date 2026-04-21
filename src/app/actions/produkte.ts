@@ -385,9 +385,34 @@ export async function bestellstatusAendern(
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+
+  // Aktuelle Datums-Werte laden, damit wir fehlende Daten auto-füllen können.
+  // Ohne ein Datum kann syncProduktTimeline keinen Event erzeugen – also setzen
+  // wir bei erstem Übergang auf 'bestellt' / 'geliefert' das jeweilige Datum
+  // automatisch auf heute. User kann es hinterher manuell korrigieren.
+  const { data: aktuell } = await supabase
+    .from('produkte')
+    .select('bestellt_am, lieferung_erhalten_am')
+    .eq('id', produktId)
+    .eq('organisation_id', orgId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  const heute = new Date().toISOString().split('T')[0]
+  const update: Record<string, unknown> = { bestellstatus: neuerStatus }
+
+  if ((neuerStatus === 'bestellt' || neuerStatus === 'rechnung_erhalten') && !aktuell?.bestellt_am) {
+    update.bestellt_am = heute
+  }
+  if (neuerStatus === 'geliefert' && !aktuell?.lieferung_erhalten_am) {
+    update.lieferung_erhalten_am = heute
+    // Wenn geliefert ohne bestellt_am (ungewöhnlich aber möglich), auch das füllen
+    if (!aktuell?.bestellt_am) update.bestellt_am = heute
+  }
+
   const { error } = await supabase
     .from('produkte')
-    .update({ bestellstatus: neuerStatus })
+    .update(update)
     .eq('id', produktId)
     .eq('organisation_id', orgId)
     .is('deleted_at', null)
