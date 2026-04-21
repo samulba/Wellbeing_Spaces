@@ -472,33 +472,43 @@ function AnfrageDetail({
   )
 }
 
+type StatTone = 'gray' | 'amber' | 'emerald' | 'blue'
+
+const STAT_TONE: Record<StatTone, { iconBg: string; iconText: string }> = {
+  gray:    { iconBg: 'bg-gray-100',    iconText: 'text-gray-500' },
+  amber:   { iconBg: 'bg-amber-50',    iconText: 'text-amber-600' },
+  emerald: { iconBg: 'bg-emerald-50',  iconText: 'text-emerald-600' },
+  blue:    { iconBg: 'bg-blue-50',     iconText: 'text-blue-600' },
+}
+
 function StatCard({
   icon,
   label,
   value,
+  tone = 'gray',
   highlight,
 }: {
   icon: React.ReactNode
   label: string
   value: number
+  tone?: StatTone
   highlight?: boolean
 }) {
+  const toneCls = STAT_TONE[tone]
   return (
     <div
-      className={`rounded-xl px-4 py-3 flex items-center gap-3 border backdrop-blur-sm transition-colors ${
-        highlight
-          ? 'bg-white/20 border-white/30'
-          : 'bg-white/10 border-white/15'
+      className={`rounded-xl px-4 py-3 flex items-center gap-3 border bg-white transition-colors ${
+        highlight ? 'border-emerald-200 shadow-sm' : 'border-gray-100'
       }`}
     >
-      <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center text-white shrink-0">
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${toneCls.iconBg} ${toneCls.iconText}`}>
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold text-white/60 uppercase tracking-wider leading-none">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider leading-none">
           {label}
         </p>
-        <p className="text-2xl font-semibold text-white leading-tight mt-1 tabular-nums">
+        <p className="text-2xl font-semibold text-gray-900 leading-tight mt-1 tabular-nums">
           {value}
         </p>
       </div>
@@ -607,28 +617,26 @@ export default function OnboardingTabelle({
 
       <div className="h-full flex flex-col">
 
-        {/* ── Hero-Band (Gradient + Stats) ─────────────────────── */}
-        <div className="relative bg-gradient-to-br from-wellbeing-green via-wellbeing-green to-wellbeing-green-dark px-6 pt-6 pb-5 shrink-0 overflow-hidden">
-          {/* Deko-Blob */}
-          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-wellbeing-green-light/20 blur-3xl pointer-events-none" />
-          <div className="relative flex items-start justify-between gap-4 mb-5">
+        {/* ── Header + Stats ──────────────────────────────────── */}
+        <div className="bg-white border-b border-gray-100 px-6 py-4 shrink-0">
+          <div className="flex items-start justify-between gap-4 mb-4">
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold text-white tracking-tight">Onboarding</h1>
-              <p className="text-sm text-white/70 mt-1">
+              <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Onboarding</h1>
+              <p className="text-xs text-gray-500 mt-0.5">
                 Personalisierte Links für neue Anfragen und Projekte
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <Link
                 href="/dashboard/onboarding/vorlagen"
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-white/10 hover:bg-white/20 border border-white/15 rounded-lg transition-colors backdrop-blur-sm"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-500 border border-gray-200 hover:border-gray-300 rounded-lg transition-colors"
               >
                 <Settings2 className="w-4 h-4" />
                 Vorlagen
               </Link>
               <button
                 onClick={() => setModalOffen(true)}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-wellbeing-green bg-white hover:bg-wellbeing-cream rounded-lg transition-colors shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-wellbeing-green hover:bg-wellbeing-green-dark rounded-lg transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Neuer Link
@@ -637,11 +645,11 @@ export default function OnboardingTabelle({
           </div>
 
           {/* Stat-Cards */}
-          <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard icon={<Inbox className="w-4 h-4" />}         label="Gesamt"        value={gesamt} />
-            <StatCard icon={<Clock className="w-4 h-4" />}         label="Offen"         value={offenCount} />
-            <StatCard icon={<User className="w-4 h-4" />}          label="Ausgefüllt"    value={ausgefuelltCount} highlight={ausgefuelltCount > 0} />
-            <StatCard icon={<CheckCircle2 className="w-4 h-4" />}  label="Abgeschlossen" value={abgeschlossenCount} />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard icon={<Inbox className="w-4 h-4" />}         label="Gesamt"        value={gesamt}           tone="gray" />
+            <StatCard icon={<Clock className="w-4 h-4" />}         label="Offen"         value={offenCount}       tone="amber" />
+            <StatCard icon={<User className="w-4 h-4" />}          label="Ausgefüllt"    value={ausgefuelltCount} tone="emerald" highlight={ausgefuelltCount > 0} />
+            <StatCard icon={<CheckCircle2 className="w-4 h-4" />}  label="Abgeschlossen" value={abgeschlossenCount} tone="blue" />
           </div>
         </div>
 
