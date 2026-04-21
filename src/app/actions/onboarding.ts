@@ -21,15 +21,46 @@ export interface OnboardingDaten {
   antworten?: Record<string, unknown> | null
 }
 
-/** Erstellt einen neuen Onboarding-Link (optional mit Vorlage). */
+/**
+ * Erstellt einen neuen Onboarding-Link (optional mit Vorlage + Kunden-Verknüpfung).
+ * Bei Projekt-Vorlagen ist kunde_id empfohlen — dann sind Kontaktfragen
+ * überflüssig, da der Kunde bereits verknüpft ist.
+ */
 export async function onboardingLinkErstellen(
-  vorlage_id?: string | null
+  vorlage_id?: string | null,
+  kunde_id?: string | null
 ): Promise<{ token: string; pfad: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+
+  // Wenn Kunde verknüpft: Kontaktdaten vorausfüllen, damit der Kunde
+  // sie nicht noch einmal eintippen muss.
+  let kundePrefill: Record<string, string | null> = {}
+  if (kunde_id) {
+    const { data: kunde } = await supabase
+      .from('kunden')
+      .select('name, email, telefon')
+      .eq('id', kunde_id)
+      .eq('organisation_id', orgId)
+      .maybeSingle()
+    if (kunde) {
+      kundePrefill = {
+        kunde_name:    kunde.name,
+        kunde_email:   kunde.email,
+        kunde_telefon: kunde.telefon,
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from('onboarding_anfragen')
-    .insert({ status: 'offen', vorlage_id: vorlage_id ?? null, organisation_id: orgId })
+    .insert({
+      status: 'offen',
+      vorlage_id: vorlage_id ?? null,
+      kunde_id:   kunde_id   ?? null,
+      organisation_id: orgId,
+      ...kundePrefill,
+    })
     .select('token')
     .single()
 

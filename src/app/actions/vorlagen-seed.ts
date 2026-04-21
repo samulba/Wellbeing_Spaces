@@ -227,222 +227,152 @@ export async function erstelleStandardVorlagen(orgId: string): Promise<{ erstell
 }
 
 // ── Onboarding-Vorlagen Seed ──────────────────────────────────
+// Feldnamen müssen exakt zum OnboardingFrage-Interface passen:
+//   titel (nicht "bezeichnung"), pflichtfeld (nicht "pflicht"),
+//   placeholder (nicht "platzhalter"), sektion_id (nicht "sektion"),
+//   typ: 'mehrfachauswahl' (nicht "mehrfach").
 
-const ONBOARDING_NEUKUNDE_FRAGEN = [
-  // Sektion 1: Kontakt
-  {
-    id: 'nk_name', typ: 'text', bezeichnung: 'Ihr vollständiger Name', pflicht: true,
-    sektion: 'Persönliche Daten', reihenfolge: 1,
-  },
-  {
-    id: 'nk_email', typ: 'email', bezeichnung: 'E-Mail-Adresse', pflicht: true,
-    sektion: 'Persönliche Daten', reihenfolge: 2,
-  },
-  {
-    id: 'nk_telefon', typ: 'telefon', bezeichnung: 'Telefonnummer', pflicht: false,
-    sektion: 'Persönliche Daten', reihenfolge: 3,
-  },
-  // Sektion 2: Projekt
-  {
-    id: 'nk_projektart', typ: 'auswahl', bezeichnung: 'Was planen Sie?', pflicht: true,
-    optionen: ['Kompletteinrichtung', 'Teilrenovierung', 'Einzelraum gestalten', 'Beratung / Konzept'],
-    sektion: 'Ihr Projekt', reihenfolge: 4,
-  },
-  {
-    id: 'nk_flaeche', typ: 'zahl', bezeichnung: 'Wohnfläche (m²)', pflicht: false,
-    sektion: 'Ihr Projekt', reihenfolge: 5,
-  },
-  {
-    id: 'nk_raumtypen', typ: 'mehrfach', bezeichnung: 'Welche Räume sollen gestaltet werden?', pflicht: false,
-    optionen: ['Wohnzimmer', 'Schlafzimmer', 'Küche', 'Esszimmer', 'Bad', 'Arbeitszimmer', 'Kinderzimmer', 'Flur'],
-    sektion: 'Ihr Projekt', reihenfolge: 6,
-  },
-  // Sektion 3: Budget & Stil
-  {
-    id: 'nk_budget', typ: 'skala', bezeichnung: 'Geplantes Budget (€)', pflicht: false,
-    min: 5000, max: 100000, schritt: 5000, einheit: '€',
-    sektion: 'Budget & Stil', reihenfolge: 7,
-  },
-  {
-    id: 'nk_stil', typ: 'mehrfach', bezeichnung: 'Welche Einrichtungsstile gefallen Ihnen?', pflicht: false,
-    optionen: ['Modern', 'Skandinavisch', 'Industrial', 'Klassisch', 'Mediterran', 'Japanisch / Zen', 'Boho', 'Minimalistisch'],
-    sektion: 'Budget & Stil', reihenfolge: 8,
-  },
-  {
-    id: 'nk_farben', typ: 'text', bezeichnung: 'Bevorzugte Farben oder Farbwelten', pflicht: false,
-    platzhalter: 'z.B. Erdtöne, Blau-Grün, Schwarz-Weiß …',
-    sektion: 'Budget & Stil', reihenfolge: 9,
-  },
-  // Sektion 4: Sonstiges
-  {
-    id: 'nk_einzugsdatum', typ: 'datum', bezeichnung: 'Gewünschter Fertigstellungstermin', pflicht: false,
-    sektion: 'Zeitplan & Sonstiges', reihenfolge: 10,
-  },
-  {
-    id: 'nk_wie_gefunden', typ: 'auswahl', bezeichnung: 'Wie sind Sie auf uns aufmerksam geworden?', pflicht: false,
-    optionen: ['Empfehlung', 'Instagram', 'Google', 'Messe', 'Website', 'Sonstiges'],
-    sektion: 'Zeitplan & Sonstiges', reihenfolge: 11,
-  },
-  {
-    id: 'nk_notizen', typ: 'textarea', bezeichnung: 'Weitere Anmerkungen oder Wünsche', pflicht: false,
-    platzhalter: 'Gibt es etwas Besonderes, das wir wissen sollten?',
-    sektion: 'Zeitplan & Sonstiges', reihenfolge: 12,
-  },
+type SeedFrage = {
+  id: string
+  titel: string
+  typ: string
+  pflichtfeld: boolean
+  beschreibung?: string
+  placeholder?: string
+  optionen?: string[]
+  sektion_id?: string
+}
+
+// ── 1) Kontakt-Anfrage (Kunden-Onboarding, kurz) ──────────────
+const ONBOARDING_KONTAKT_FRAGEN: SeedFrage[] = [
+  { id: 'kontakt_name',    titel: 'Ihr vollständiger Name',               typ: 'text',      pflichtfeld: true,  placeholder: 'Vor- und Nachname' },
+  { id: 'kontakt_email',   titel: 'E-Mail-Adresse',                        typ: 'email',     pflichtfeld: true,  placeholder: 'sie@beispiel.de' },
+  { id: 'kontakt_telefon', titel: 'Telefonnummer',                         typ: 'telefon',   pflichtfeld: false, placeholder: '+49 …' },
+  { id: 'kontakt_firma',   titel: 'Firma (optional)',                      typ: 'text',      pflichtfeld: false },
+  { id: 'kontakt_adresse', titel: 'Adresse / Wohnort',                     typ: 'textarea',  pflichtfeld: false, placeholder: 'Straße, PLZ, Ort' },
+  { id: 'kontakt_kanal',   titel: 'Wie sind Sie auf uns aufmerksam geworden?', typ: 'auswahl', pflichtfeld: false,
+    optionen: ['Empfehlung', 'Instagram', 'Google', 'Website', 'Messe / Event', 'Presse', 'Sonstiges'] },
+  { id: 'kontakt_interesse', titel: 'Womit können wir Ihnen helfen?',      typ: 'mehrfachauswahl', pflichtfeld: true,
+    optionen: ['Erstberatung', 'Kompletteinrichtung', 'Einzelraum gestalten', 'Konzept / Moodboard', 'Produktauswahl', 'Begleitung bei Umbau'] },
+  { id: 'kontakt_zeitpunkt', titel: 'Wann möchten Sie starten?',            typ: 'auswahl',   pflichtfeld: false,
+    optionen: ['Sofort', 'In 1–3 Monaten', 'In 3–6 Monaten', 'Später', 'Flexibel'] },
+  { id: 'kontakt_notiz',   titel: 'Ihre Nachricht an uns',                 typ: 'textarea',  pflichtfeld: false,
+    beschreibung: 'Erzählen Sie uns kurz, worum es geht.',
+    placeholder: 'Ich interessiere mich für …' },
+  { id: 'kontakt_einwilligung', titel: 'Ich bin mit der Kontaktaufnahme per E-Mail oder Telefon einverstanden', typ: 'ja_nein', pflichtfeld: true },
 ]
 
-const ONBOARDING_PRIVAT_FRAGEN = [
-  {
-    id: 'pv_name', typ: 'text', bezeichnung: 'Name des Auftraggebers', pflicht: true,
-    sektion: 'Kontaktdaten', reihenfolge: 1,
-  },
-  {
-    id: 'pv_email', typ: 'email', bezeichnung: 'E-Mail-Adresse', pflicht: true,
-    sektion: 'Kontaktdaten', reihenfolge: 2,
-  },
-  {
-    id: 'pv_telefon', typ: 'telefon', bezeichnung: 'Telefon', pflicht: false,
-    sektion: 'Kontaktdaten', reihenfolge: 3,
-  },
-  {
-    id: 'pv_adresse', typ: 'textarea', bezeichnung: 'Projektadresse', pflicht: true,
-    platzhalter: 'Straße, PLZ, Ort',
-    sektion: 'Kontaktdaten', reihenfolge: 4,
-  },
-  {
-    id: 'pv_eigentuemer', typ: 'ja_nein', bezeichnung: 'Sind Sie Eigentümer der Immobilie?', pflicht: true,
-    sektion: 'Projektdetails', reihenfolge: 5,
-  },
-  {
-    id: 'pv_objekttyp', typ: 'auswahl', bezeichnung: 'Objekttyp', pflicht: true,
-    optionen: ['Einfamilienhaus', 'Doppelhaushälfte', 'Reihenhaus', 'Wohnung (Eigentum)', 'Mietwohnung', 'Ferienhaus'],
-    sektion: 'Projektdetails', reihenfolge: 6,
-  },
-  {
-    id: 'pv_flaeche', typ: 'zahl', bezeichnung: 'Wohnfläche (m²)', pflicht: true,
-    sektion: 'Projektdetails', reihenfolge: 7,
-  },
-  {
-    id: 'pv_raeume', typ: 'mehrfach', bezeichnung: 'Zu gestaltende Räume', pflicht: true,
-    optionen: ['Wohnzimmer', 'Schlafzimmer', 'Kinderzimmer', 'Küche', 'Esszimmer', 'Bad', 'Gäste-WC', 'Arbeitszimmer', 'Flur', 'Terrasse/Balkon'],
-    sektion: 'Projektdetails', reihenfolge: 8,
-  },
-  {
-    id: 'pv_zustand', typ: 'auswahl', bezeichnung: 'Aktueller Zustand der Immobilie', pflicht: false,
-    optionen: ['Neubau / Rohbau', 'Renovierungsbedürftig', 'Gepflegt, teilweise erneuert', 'Vollständig renoviert'],
-    sektion: 'Projektdetails', reihenfolge: 9,
-  },
-  {
-    id: 'pv_budget_slider', typ: 'skala', bezeichnung: 'Gesamtbudget Einrichtung (€)', pflicht: false,
-    min: 10000, max: 200000, schritt: 10000, einheit: '€',
-    sektion: 'Budget & Prioritäten', reihenfolge: 10,
-  },
-  {
-    id: 'pv_prioritaeten', typ: 'prioritaeten', bezeichnung: 'Was ist Ihnen am wichtigsten? (Reihenfolge durch Ziehen)', pflicht: false,
-    optionen: ['Gemütlichkeit', 'Funktionalität', 'Optik / Design', 'Nachhaltigkeit', 'Langlebigkeit', 'Preis-Leistung'],
-    sektion: 'Budget & Prioritäten', reihenfolge: 11,
-  },
-  {
-    id: 'pv_fotos', typ: 'upload', bezeichnung: 'Fotos des aktuellen Zustands (optional)', pflicht: false,
-    upload_typen: ['image/jpeg', 'image/png', 'image/webp'], max_mb: 10,
-    sektion: 'Unterlagen', reihenfolge: 12,
-  },
-  {
-    id: 'pv_grundriss', typ: 'upload', bezeichnung: 'Grundriss (PDF oder Bild)', pflicht: false,
-    upload_typen: ['application/pdf', 'image/jpeg', 'image/png'], max_mb: 20,
-    sektion: 'Unterlagen', reihenfolge: 13,
-  },
-  {
-    id: 'pv_wunschtermin', typ: 'datum', bezeichnung: 'Gewünschter Fertigstellungstermin', pflicht: false,
-    sektion: 'Zeitplan', reihenfolge: 14,
-  },
-  {
-    id: 'pv_anmerkungen', typ: 'textarea', bezeichnung: 'Besondere Anforderungen oder Anmerkungen', pflicht: false,
-    sektion: 'Zeitplan', reihenfolge: 15,
-  },
+// ── 2) Neukunden-Onboarding (ausführlich, mit Projekt-Ansatz) ──
+const ONBOARDING_NEUKUNDE_FRAGEN: SeedFrage[] = [
+  { id: 'nk_name',         titel: 'Ihr vollständiger Name',                typ: 'text',      pflichtfeld: true },
+  { id: 'nk_email',        titel: 'E-Mail-Adresse',                        typ: 'email',     pflichtfeld: true },
+  { id: 'nk_telefon',      titel: 'Telefonnummer',                         typ: 'telefon',   pflichtfeld: false },
+  { id: 'nk_projektart',   titel: 'Was planen Sie?',                       typ: 'auswahl',   pflichtfeld: true,
+    optionen: ['Kompletteinrichtung', 'Teilrenovierung', 'Einzelraum gestalten', 'Beratung / Konzept'] },
+  { id: 'nk_flaeche',      titel: 'Wohnfläche (m²)',                        typ: 'zahl',      pflichtfeld: false },
+  { id: 'nk_raumtypen',    titel: 'Welche Räume sollen gestaltet werden?', typ: 'mehrfachauswahl', pflichtfeld: false,
+    optionen: ['Wohnzimmer', 'Schlafzimmer', 'Küche', 'Esszimmer', 'Bad', 'Arbeitszimmer', 'Kinderzimmer', 'Flur'] },
+  { id: 'nk_budget',       titel: 'Geplantes Budget (€)',                   typ: 'auswahl',   pflichtfeld: false,
+    optionen: ['bis 10.000 €', '10.000 – 25.000 €', '25.000 – 50.000 €', '50.000 – 100.000 €', 'über 100.000 €', 'noch unklar'] },
+  { id: 'nk_stil',         titel: 'Welche Einrichtungsstile gefallen Ihnen?', typ: 'mehrfachauswahl', pflichtfeld: false,
+    optionen: ['Modern', 'Skandinavisch', 'Industrial', 'Klassisch', 'Mediterran', 'Japandi', 'Boho', 'Minimalistisch'] },
+  { id: 'nk_farben',       titel: 'Bevorzugte Farben oder Farbwelten',      typ: 'text',      pflichtfeld: false,
+    placeholder: 'z.B. Erdtöne, Blau-Grün, Schwarz-Weiß …' },
+  { id: 'nk_einzugsdatum', titel: 'Gewünschter Fertigstellungstermin',       typ: 'datum',    pflichtfeld: false },
+  { id: 'nk_wie_gefunden', titel: 'Wie sind Sie auf uns aufmerksam geworden?', typ: 'auswahl', pflichtfeld: false,
+    optionen: ['Empfehlung', 'Instagram', 'Google', 'Messe', 'Website', 'Sonstiges'] },
+  { id: 'nk_notizen',      titel: 'Weitere Anmerkungen oder Wünsche',        typ: 'textarea', pflichtfeld: false,
+    placeholder: 'Gibt es etwas Besonderes, das wir wissen sollten?' },
 ]
 
-const ONBOARDING_GEWERBE_FRAGEN = [
-  {
-    id: 'gw_firma', typ: 'text', bezeichnung: 'Firmenname', pflicht: true,
-    sektion: 'Unternehmensdaten', reihenfolge: 1,
-  },
-  {
-    id: 'gw_ansprechpartner', typ: 'text', bezeichnung: 'Ansprechpartner (Name, Funktion)', pflicht: true,
-    sektion: 'Unternehmensdaten', reihenfolge: 2,
-  },
-  {
-    id: 'gw_email', typ: 'email', bezeichnung: 'Geschäftliche E-Mail', pflicht: true,
-    sektion: 'Unternehmensdaten', reihenfolge: 3,
-  },
-  {
-    id: 'gw_telefon', typ: 'telefon', bezeichnung: 'Telefon / Durchwahl', pflicht: false,
-    sektion: 'Unternehmensdaten', reihenfolge: 4,
-  },
-  {
-    id: 'gw_website', typ: 'url', bezeichnung: 'Website', pflicht: false,
-    sektion: 'Unternehmensdaten', reihenfolge: 5,
-  },
-  {
-    id: 'gw_branche', typ: 'auswahl', bezeichnung: 'Branche / Nutzungsart', pflicht: true,
-    optionen: ['Büro / Coworking', 'Hotel / Hospitality', 'Restaurant / Café', 'Einzelhandel / Showroom', 'Praxis / Klinik', 'Bildung / Soziales', 'Industrie / Produktion', 'Sonstiges'],
-    sektion: 'Projektdetails', reihenfolge: 6,
-  },
-  {
-    id: 'gw_flaeche', typ: 'zahl', bezeichnung: 'Nutzfläche gesamt (m²)', pflicht: true,
-    sektion: 'Projektdetails', reihenfolge: 7,
-  },
-  {
-    id: 'gw_standort', typ: 'textarea', bezeichnung: 'Projektadresse', pflicht: true,
-    platzhalter: 'Straße, PLZ, Ort',
-    sektion: 'Projektdetails', reihenfolge: 8,
-  },
-  {
-    id: 'gw_mitarbeiter', typ: 'auswahl', bezeichnung: 'Anzahl Mitarbeiter / Nutzer am Standort', pflicht: false,
-    optionen: ['1–5', '6–20', '21–50', '51–100', 'über 100'],
-    sektion: 'Projektdetails', reihenfolge: 9,
-  },
-  {
-    id: 'gw_projektumfang', typ: 'mehrfach', bezeichnung: 'Was ist Teil des Projekts?', pflicht: true,
-    optionen: ['Gesamtkonzept & Planung', 'Möblierung', 'Beleuchtungsplanung', 'Akustiklösungen', 'Boden- & Wandgestaltung', 'Empfangsbereich', 'Konferenzräume', 'Open Space / Arbeitsbereiche', 'Sozialräume / Küche'],
-    sektion: 'Projektdetails', reihenfolge: 10,
-  },
-  {
-    id: 'gw_ci', typ: 'ja_nein', bezeichnung: 'Gibt es Corporate Identity / Branding-Vorgaben?', pflicht: false,
-    sektion: 'Branding & Stil', reihenfolge: 11,
-  },
-  {
-    id: 'gw_ci_dokumente', typ: 'upload', bezeichnung: 'CI-Dokumente / Logofiles hochladen', pflicht: false,
-    upload_typen: ['application/pdf', 'image/png', 'image/svg+xml', 'application/zip'], max_mb: 50,
-    sektion: 'Branding & Stil', reihenfolge: 12,
-  },
-  {
-    id: 'gw_budget_verteilung', typ: 'budget_verteilung', bezeichnung: 'Wie soll das Budget aufgeteilt werden?', pflicht: false,
-    budget_kategorien: ['Möbel & Einrichtung', 'Beleuchtung', 'Bodenbelag', 'Wandgestaltung', 'Akustik', 'Technische Ausstattung', 'Sonstiges'],
-    sektion: 'Budget & Zeitplan', reihenfolge: 13,
-  },
-  {
-    id: 'gw_gesamtbudget', typ: 'skala', bezeichnung: 'Gesamtbudget (€)', pflicht: false,
-    min: 20000, max: 500000, schritt: 20000, einheit: '€',
-    sektion: 'Budget & Zeitplan', reihenfolge: 14,
-  },
-  {
-    id: 'gw_deadline', typ: 'datum', bezeichnung: 'Gewünschte Fertigstellung / Eröffnung', pflicht: false,
-    sektion: 'Budget & Zeitplan', reihenfolge: 15,
-  },
-  {
-    id: 'gw_betrieb_weiter', typ: 'ja_nein', bezeichnung: 'Muss während der Umbauphase der Betrieb weiterlaufen?', pflicht: false,
-    sektion: 'Rahmenbedingungen', reihenfolge: 16,
-  },
-  {
-    id: 'gw_grundriss', typ: 'upload', bezeichnung: 'Grundrisse / Bestandspläne', pflicht: false,
-    upload_typen: ['application/pdf', 'image/jpeg', 'image/png', '.dwg'], max_mb: 50,
-    sektion: 'Rahmenbedingungen', reihenfolge: 17,
-  },
-  {
-    id: 'gw_anmerkungen', typ: 'textarea', bezeichnung: 'Besondere Anforderungen, Normen oder Anmerkungen', pflicht: false,
-    platzhalter: 'z.B. Brandschutz, Barrierefreiheit, behördliche Auflagen …',
-    sektion: 'Rahmenbedingungen', reihenfolge: 18,
-  },
+// ── 3) Projekt-Briefing bestehender Kunde (keine Kontaktfragen) ──
+const ONBOARDING_PROJEKT_BESTEHEND_FRAGEN: SeedFrage[] = [
+  { id: 'projekt_name',      titel: 'Projekt-Bezeichnung',            typ: 'text',     pflichtfeld: true,  placeholder: 'z.B. Umbau Wohnzimmer 2026' },
+  { id: 'projekt_adresse',   titel: 'Projektadresse',                 typ: 'textarea', pflichtfeld: true,  placeholder: 'Straße, PLZ, Ort' },
+  { id: 'projekt_objekttyp', titel: 'Objekttyp',                      typ: 'auswahl',  pflichtfeld: true,
+    optionen: ['Einfamilienhaus', 'Doppelhaushälfte', 'Reihenhaus', 'Wohnung (Eigentum)', 'Mietwohnung', 'Ferienhaus', 'Gewerbe-Objekt'] },
+  { id: 'projekt_flaeche',   titel: 'Wohn-/Nutzfläche (m²)',           typ: 'zahl',     pflichtfeld: true },
+  { id: 'projekt_raeume',    titel: 'Zu gestaltende Räume',           typ: 'mehrfachauswahl', pflichtfeld: true,
+    optionen: ['Wohnzimmer', 'Schlafzimmer', 'Kinderzimmer', 'Küche', 'Esszimmer', 'Bad', 'Gäste-WC', 'Arbeitszimmer', 'Flur', 'Terrasse/Balkon'] },
+  { id: 'projekt_zustand',   titel: 'Aktueller Zustand',               typ: 'auswahl',  pflichtfeld: false,
+    optionen: ['Neubau / Rohbau', 'Renovierungsbedürftig', 'Gepflegt, teilweise erneuert', 'Vollständig renoviert'] },
+  { id: 'projekt_bewohnt',   titel: 'Ist die Immobilie während der Arbeiten bewohnt?', typ: 'ja_nein', pflichtfeld: false },
+  { id: 'projekt_budget',    titel: 'Gesamtbudget (€)',                typ: 'auswahl',  pflichtfeld: false,
+    optionen: ['bis 25.000 €', '25.000 – 50.000 €', '50.000 – 100.000 €', '100.000 – 250.000 €', 'über 250.000 €'] },
+  { id: 'projekt_prioritaet', titel: 'Was ist Ihnen am wichtigsten?', typ: 'mehrfachauswahl', pflichtfeld: false,
+    optionen: ['Gemütlichkeit', 'Funktionalität', 'Optik / Design', 'Nachhaltigkeit', 'Langlebigkeit', 'Preis-Leistung'] },
+  { id: 'projekt_stilgefuehl', titel: 'Wie wichtig ist Ihnen ein bestimmter Stil? (1 = gar nicht, 10 = sehr wichtig)',
+    typ: 'skala', pflichtfeld: false },
+  { id: 'projekt_deadline',  titel: 'Gewünschter Fertigstellungstermin', typ: 'datum',  pflichtfeld: false },
+  { id: 'projekt_anmerk',    titel: 'Besondere Anforderungen oder Anmerkungen', typ: 'textarea', pflichtfeld: false,
+    placeholder: 'z.B. Allergien, Barrierefreiheit, Haustiere …' },
+]
+
+// ── 4) Projekt-Privat (ausführlich) ───────────────────────────
+const ONBOARDING_PRIVAT_FRAGEN: SeedFrage[] = [
+  { id: 'pv_name',         titel: 'Name des Auftraggebers',              typ: 'text',     pflichtfeld: true },
+  { id: 'pv_email',        titel: 'E-Mail-Adresse',                      typ: 'email',    pflichtfeld: true },
+  { id: 'pv_telefon',      titel: 'Telefon',                             typ: 'telefon',  pflichtfeld: false },
+  { id: 'pv_adresse',      titel: 'Projektadresse',                      typ: 'textarea', pflichtfeld: true,  placeholder: 'Straße, PLZ, Ort' },
+  { id: 'pv_eigentuemer',  titel: 'Sind Sie Eigentümer der Immobilie?',  typ: 'ja_nein',  pflichtfeld: true },
+  { id: 'pv_objekttyp',    titel: 'Objekttyp',                           typ: 'auswahl',  pflichtfeld: true,
+    optionen: ['Einfamilienhaus', 'Doppelhaushälfte', 'Reihenhaus', 'Wohnung (Eigentum)', 'Mietwohnung', 'Ferienhaus'] },
+  { id: 'pv_flaeche',      titel: 'Wohnfläche (m²)',                      typ: 'zahl',     pflichtfeld: true },
+  { id: 'pv_raeume',       titel: 'Zu gestaltende Räume',                typ: 'mehrfachauswahl', pflichtfeld: true,
+    optionen: ['Wohnzimmer', 'Schlafzimmer', 'Kinderzimmer', 'Küche', 'Esszimmer', 'Bad', 'Gäste-WC', 'Arbeitszimmer', 'Flur', 'Terrasse/Balkon'] },
+  { id: 'pv_zustand',      titel: 'Aktueller Zustand der Immobilie',      typ: 'auswahl',  pflichtfeld: false,
+    optionen: ['Neubau / Rohbau', 'Renovierungsbedürftig', 'Gepflegt, teilweise erneuert', 'Vollständig renoviert'] },
+  { id: 'pv_budget',       titel: 'Gesamtbudget Einrichtung',            typ: 'auswahl',  pflichtfeld: false,
+    optionen: ['bis 25.000 €', '25.000 – 50.000 €', '50.000 – 100.000 €', '100.000 – 200.000 €', 'über 200.000 €'] },
+  { id: 'pv_fotos',        titel: 'Fotos des aktuellen Zustands (optional)', typ: 'upload', pflichtfeld: false,
+    beschreibung: 'Sie können uns Fotos per Mail nachreichen — bitte hier kurz beschreiben, welche Räume Sie fotografiert haben.' },
+  { id: 'pv_grundriss',    titel: 'Haben Sie einen Grundriss?',           typ: 'ja_nein',  pflichtfeld: false,
+    beschreibung: 'Falls ja, senden Sie uns den Plan gern separat zu.' },
+  { id: 'pv_wunschtermin', titel: 'Gewünschter Fertigstellungstermin',     typ: 'datum',   pflichtfeld: false },
+  { id: 'pv_anmerkungen',  titel: 'Besondere Anforderungen oder Anmerkungen', typ: 'textarea', pflichtfeld: false },
+]
+
+// ── 5) Projekt-Gewerbe (ausführlich) ──────────────────────────
+const ONBOARDING_GEWERBE_FRAGEN: SeedFrage[] = [
+  { id: 'gw_firma',          titel: 'Firmenname',                          typ: 'text',     pflichtfeld: true },
+  { id: 'gw_ansprechpartner', titel: 'Ansprechpartner (Name, Funktion)',   typ: 'text',     pflichtfeld: true },
+  { id: 'gw_email',          titel: 'Geschäftliche E-Mail',                 typ: 'email',    pflichtfeld: true },
+  { id: 'gw_telefon',        titel: 'Telefon / Durchwahl',                  typ: 'telefon',  pflichtfeld: false },
+  { id: 'gw_website',        titel: 'Website',                              typ: 'url',      pflichtfeld: false },
+  { id: 'gw_branche',        titel: 'Branche / Nutzungsart',                typ: 'auswahl',  pflichtfeld: true,
+    optionen: ['Büro / Coworking', 'Hotel / Hospitality', 'Restaurant / Café', 'Einzelhandel / Showroom', 'Praxis / Klinik', 'Bildung / Soziales', 'Industrie / Produktion', 'Sonstiges'] },
+  { id: 'gw_flaeche',        titel: 'Nutzfläche gesamt (m²)',               typ: 'zahl',     pflichtfeld: true },
+  { id: 'gw_standort',       titel: 'Projektadresse',                      typ: 'textarea', pflichtfeld: true,  placeholder: 'Straße, PLZ, Ort' },
+  { id: 'gw_mitarbeiter',    titel: 'Anzahl Mitarbeiter / Nutzer am Standort', typ: 'auswahl', pflichtfeld: false,
+    optionen: ['1–5', '6–20', '21–50', '51–100', 'über 100'] },
+  { id: 'gw_projektumfang',  titel: 'Was ist Teil des Projekts?',           typ: 'mehrfachauswahl', pflichtfeld: true,
+    optionen: ['Gesamtkonzept & Planung', 'Möblierung', 'Beleuchtungsplanung', 'Akustiklösungen', 'Boden- & Wandgestaltung', 'Empfangsbereich', 'Konferenzräume', 'Open Space', 'Sozialräume / Küche'] },
+  { id: 'gw_ci',             titel: 'Gibt es Corporate Identity / Branding-Vorgaben?', typ: 'ja_nein', pflichtfeld: false },
+  { id: 'gw_gesamtbudget',   titel: 'Gesamtbudget',                        typ: 'auswahl',  pflichtfeld: false,
+    optionen: ['bis 50.000 €', '50.000 – 150.000 €', '150.000 – 300.000 €', '300.000 – 750.000 €', 'über 750.000 €'] },
+  { id: 'gw_deadline',       titel: 'Gewünschte Fertigstellung / Eröffnung', typ: 'datum', pflichtfeld: false },
+  { id: 'gw_betrieb_weiter', titel: 'Muss während der Umbauphase der Betrieb weiterlaufen?', typ: 'ja_nein', pflichtfeld: false },
+  { id: 'gw_anmerkungen',    titel: 'Besondere Anforderungen, Normen oder Anmerkungen', typ: 'textarea', pflichtfeld: false,
+    placeholder: 'z.B. Brandschutz, Barrierefreiheit, behördliche Auflagen …' },
+]
+
+// ── 6) Raum-Bestandsaufnahme (knapp, für Vor-Ort-Termine) ──────
+const ONBOARDING_BESTAND_FRAGEN: SeedFrage[] = [
+  { id: 'ba_raum',       titel: 'Um welchen Raum geht es?',            typ: 'auswahl',  pflichtfeld: true,
+    optionen: ['Wohnzimmer', 'Schlafzimmer', 'Kinderzimmer', 'Küche', 'Esszimmer', 'Bad', 'Arbeitszimmer', 'Flur', 'Sonstiges'] },
+  { id: 'ba_masse',      titel: 'Raum-Maße (optional)',                typ: 'text',     pflichtfeld: false,
+    placeholder: 'z.B. 4,20 × 3,80 m, Höhe 2,60 m' },
+  { id: 'ba_gefaellt',   titel: 'Was gefällt Ihnen aktuell gut im Raum?',  typ: 'textarea', pflichtfeld: false },
+  { id: 'ba_stoert',     titel: 'Was stört Sie am aktuellen Zustand?',     typ: 'textarea', pflichtfeld: true },
+  { id: 'ba_behalten',   titel: 'Welche Möbel sollen auf jeden Fall bleiben?', typ: 'textarea', pflichtfeld: false },
+  { id: 'ba_ersetzen',   titel: 'Welche Möbel sollten ersetzt werden?',    typ: 'textarea', pflichtfeld: false },
+  { id: 'ba_funktion',   titel: 'Wofür wird der Raum genutzt?',             typ: 'mehrfachauswahl', pflichtfeld: false,
+    optionen: ['Wohnen / Aufenthalt', 'Schlafen', 'Arbeiten / Home-Office', 'Essen', 'Spielen / Kinder', 'Gäste-Empfang', 'Hobby', 'Sonstiges'] },
+  { id: 'ba_nutzer',     titel: 'Wer nutzt den Raum?',                      typ: 'text',     pflichtfeld: false,
+    placeholder: 'z.B. Familie mit 2 Kindern, Paar, Home-Office …' },
+  { id: 'ba_licht',      titel: 'Wie zufrieden sind Sie mit dem Tageslicht?', typ: 'skala', pflichtfeld: false },
+  { id: 'ba_wunsch',     titel: 'Ihre wichtigsten drei Wünsche für diesen Raum', typ: 'textarea', pflichtfeld: true,
+    placeholder: '1. …\n2. …\n3. …' },
 ]
 
 export async function erstelleStandardOnboardingVorlagen(orgId: string): Promise<{ erstellt: number; fehler?: string }> {
@@ -463,18 +393,40 @@ export async function erstelleStandardOnboardingVorlagen(orgId: string): Promise
     const vorlagen = [
       {
         organisation_id: orgId,
+        name: 'Kontaktanfrage',
+        beschreibung: 'Kurzes Formular für Erstkontakte: Kontaktdaten + grobes Interesse. Ideal für Website-Button oder Instagram.',
+        typ: 'neukunde',
+        fragen: ONBOARDING_KONTAKT_FRAGEN,
+        einleitung_text: 'Hallo! Freut uns, dass Sie Kontakt aufnehmen. Mit wenigen Angaben können wir Ihre Anfrage optimal vorbereiten — das Formular dauert unter 2 Minuten.',
+        abschluss_text: 'Vielen Dank! Wir melden uns in den nächsten 1–2 Werktagen bei Ihnen.',
+        email_betreff: 'Ihre Anfrage ist bei uns eingegangen',
+      },
+      {
+        organisation_id: orgId,
         name: 'Neukunden-Onboarding – Standard',
         beschreibung: 'Allgemeines Erstgespräch-Formular für neue Interessenten: Kontakt, Projektart, Stil & Budget.',
         typ: 'neukunde',
         fragen: ONBOARDING_NEUKUNDE_FRAGEN,
+        ist_standard: true,
         einleitung_text: 'Herzlich willkommen! Damit wir Ihr Projekt optimal begleiten können, bitten wir Sie, die folgenden Fragen zu beantworten. Die Angaben helfen uns, ein passgenaues Konzept für Sie zu entwickeln.',
         abschluss_text: 'Vielen Dank für Ihre Angaben! Wir melden uns in Kürze bei Ihnen, um einen ersten Beratungstermin zu vereinbaren.',
         email_betreff: 'Ihr Onboarding-Fragebogen wurde erfolgreich eingereicht',
       },
       {
         organisation_id: orgId,
+        name: 'Projekt-Briefing – bestehender Kunde',
+        beschreibung: 'Für bereits bekannte Kunden: nur Projekt-Details, Adresse, Räume, Budget. Keine Kontaktfragen, da der Kunde schon verknüpft ist.',
+        typ: 'projekt',
+        fragen: ONBOARDING_PROJEKT_BESTEHEND_FRAGEN,
+        einleitung_text: 'Schön, dass Sie uns mit einem weiteren Projekt beauftragen! Bitte füllen Sie den folgenden Fragebogen aus, damit wir mit der Planung starten können.',
+        abschluss_text: 'Alle Angaben sind gespeichert. Wir starten direkt mit der Konzeption und melden uns bei Ihnen.',
+        email_betreff: 'Ihre Projekt-Angaben sind eingegangen',
+        deadline_tage: 14,
+      },
+      {
+        organisation_id: orgId,
         name: 'Projekt-Onboarding – Privat',
-        beschreibung: 'Detaillierter Aufnahmebogen für private Wohnprojekte (Haus/Wohnung): Bestand, Räume, Budget, Prioritäten.',
+        beschreibung: 'Detaillierter Aufnahmebogen für private Wohnprojekte (Haus/Wohnung): Bestand, Räume, Budget.',
         typ: 'projekt',
         fragen: ONBOARDING_PRIVAT_FRAGEN,
         einleitung_text: 'Um Ihr Wohnprojekt so persönlich und präzise wie möglich planen zu können, benötigen wir einige Informationen von Ihnen. Der Fragebogen dauert ca. 5–10 Minuten.',
@@ -485,13 +437,24 @@ export async function erstelleStandardOnboardingVorlagen(orgId: string): Promise
       {
         organisation_id: orgId,
         name: 'Projekt-Onboarding – Gewerbe',
-        beschreibung: 'Umfassender Aufnahmebogen für gewerbliche Projekte: Branche, Nutzfläche, CI-Vorgaben, Budget-Verteilung.',
+        beschreibung: 'Umfassender Aufnahmebogen für gewerbliche Projekte: Branche, Nutzfläche, CI-Vorgaben, Budget.',
         typ: 'projekt',
         fragen: ONBOARDING_GEWERBE_FRAGEN,
-        einleitung_text: 'Vielen Dank für Ihr Interesse an unseren Leistungen. Mit diesem Fragebogen erfassen wir alle wesentlichen Eckdaten Ihres Gewerbeprojekts. Die Angaben ermöglichen uns eine gezielte Vorbereitung auf Ihr Erstgespräch.',
-        abschluss_text: 'Ihre Projektdaten wurden erfolgreich übermittelt. Wir erstellen auf Basis Ihrer Angaben ein maßgeschneidertes Konzeptangebot und melden uns schnellstmöglich bei Ihnen.',
+        einleitung_text: 'Vielen Dank für Ihr Interesse an unseren Leistungen. Mit diesem Fragebogen erfassen wir alle wesentlichen Eckdaten Ihres Gewerbeprojekts.',
+        abschluss_text: 'Ihre Projektdaten wurden erfolgreich übermittelt. Wir erstellen auf Basis Ihrer Angaben ein maßgeschneidertes Konzeptangebot.',
         email_betreff: 'Ihre Projektdaten für das Gewerbeprojekt wurden erfasst',
         deadline_tage: 21,
+      },
+      {
+        organisation_id: orgId,
+        name: 'Raum-Bestandsaufnahme',
+        beschreibung: 'Pro Raum: Maße, was bleibt / was stört, Funktionen, Wünsche. Gut vor einem Vor-Ort-Termin.',
+        typ: 'projekt',
+        fragen: ONBOARDING_BESTAND_FRAGEN,
+        einleitung_text: 'Damit wir Ihren Raum so gut wie möglich kennenlernen, bitten wir Sie, diese kurze Bestandsaufnahme auszufüllen — so können wir unseren Vor-Ort-Termin gezielt vorbereiten.',
+        abschluss_text: 'Vielen Dank! Ihre Antworten sind bei uns angekommen.',
+        email_betreff: 'Ihre Raum-Bestandsaufnahme ist eingegangen',
+        deadline_tage: 7,
       },
     ]
 
