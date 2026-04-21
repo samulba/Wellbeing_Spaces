@@ -677,6 +677,7 @@ export default function SortableProduktTabelle({
   const [isDeleting, setIsDeleting] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [fehlerToast, setFehlerToast] = useState<string | null>(null)
+  const [erfolgToast, setErfolgToast] = useState<string | null>(null)
 
   // Sync mit Server-Daten NUR wenn sich die ID-Liste oder Reihenfolge ändert
   // (z.B. nach Filter-Wechsel oder Add/Remove). Wir resetten NICHT bei jedem
@@ -739,6 +740,9 @@ export default function SortableProduktTabelle({
     if (res?.sync_fehler) {
       setFehlerToast(`Timeline-Sync fehlgeschlagen: ${res.sync_fehler}`)
       setTimeout(() => setFehlerToast(null), 10000)
+    } else {
+      setErfolgToast('Timeline aktualisiert ✓')
+      setTimeout(() => setErfolgToast(null), 2500)
     }
     router.refresh()
   }
@@ -766,6 +770,9 @@ export default function SortableProduktTabelle({
     if (res?.sync_fehler) {
       setFehlerToast(`Timeline-Sync fehlgeschlagen: ${res.sync_fehler}`)
       setTimeout(() => setFehlerToast(null), 10000)
+    } else if (!res?.fehler) {
+      setErfolgToast('Timeline aktualisiert ✓')
+      setTimeout(() => setErfolgToast(null), 2500)
     }
     router.refresh()
   }
@@ -852,9 +859,17 @@ export default function SortableProduktTabelle({
 
       {/* Fehler-Toast */}
       {fehlerToast && (
-        <div className="fixed bottom-6 right-6 z-[100] bg-red-600 text-white text-sm px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-fadeIn">
-          <X className="w-4 h-4" />
-          {fehlerToast}
+        <div className="fixed bottom-6 right-6 z-[100] max-w-md bg-red-600 text-white text-sm px-4 py-3 rounded-xl shadow-2xl flex items-start gap-2 animate-fadeIn">
+          <X className="w-4 h-4 shrink-0 mt-0.5" />
+          <span className="break-words">{fehlerToast}</span>
+        </div>
+      )}
+
+      {/* Erfolgs-Toast */}
+      {erfolgToast && (
+        <div className="fixed bottom-6 right-6 z-[100] bg-emerald-600 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-fadeIn">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          {erfolgToast}
         </div>
       )}
 
