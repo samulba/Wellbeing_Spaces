@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import {
   ChevronDown, ChevronUp, Check, Plus, User, Mail, Phone, MapPin,
   Home, Euro, Clock, Palette, MessageSquare, ExternalLink, Trash2,
-  X, ChevronRight, Settings2, Briefcase,
+  X, ChevronRight, Settings2, Briefcase, Inbox, CheckCircle2,
 } from 'lucide-react'
 import {
   onboardingLinkErstellen,
@@ -375,6 +375,40 @@ function AnfrageDetail({
   )
 }
 
+function StatCard({
+  icon,
+  label,
+  value,
+  highlight,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: number
+  highlight?: boolean
+}) {
+  return (
+    <div
+      className={`rounded-xl px-4 py-3 flex items-center gap-3 border backdrop-blur-sm transition-colors ${
+        highlight
+          ? 'bg-white/20 border-white/30'
+          : 'bg-white/10 border-white/15'
+      }`}
+    >
+      <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center text-white shrink-0">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold text-white/60 uppercase tracking-wider leading-none">
+          {label}
+        </p>
+        <p className="text-2xl font-semibold text-white leading-tight mt-1 tabular-nums">
+          {value}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function DetailZeile({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <div className="flex items-start gap-2 text-sm text-gray-700">
@@ -388,16 +422,23 @@ function DetailZeile({ icon, text }: { icon: React.ReactNode; text: string }) {
 export default function OnboardingTabelle({
   anfragen,
   vorlagen,
+  kunden = [],
 }: {
   anfragen: OnboardingAnfrage[]
   vorlagen: OnboardingVorlage[]
+  kunden?: { id: string; name: string }[]
 }) {
+  // `kunden` wird in einem späteren Step im LinkErstellenModal verwendet
+  void kunden
   const [offeneId, setOffeneId]         = useState<string | null>(null)
   const [modalOffen, setModalOffen]     = useState(false)
   const [loeschenId, setLoeschenId]     = useState<string | null>(null)
   const [isPendingDel, startDeleteTransition] = useTransition()
 
-  const ausgefuelltCount = anfragen.filter((a) => a.status === 'offen' && a.kunde_name).length
+  const gesamt        = anfragen.length
+  const offenCount    = anfragen.filter((a) => a.status === 'offen' && !a.kunde_name).length
+  const ausgefuelltCount = anfragen.filter((a) => a.status === 'offen' && !!a.kunde_name).length
+  const abgeschlossenCount = anfragen.filter((a) => a.status === 'abgeschlossen').length
 
   function handleLoeschen(id: string) {
     startDeleteTransition(async () => {
@@ -415,34 +456,41 @@ export default function OnboardingTabelle({
 
       <div className="h-full flex flex-col">
 
-        {/* ── Header (sticky, bleibt beim Scrollen stehen) ───── */}
-        <div className="bg-white/85 backdrop-blur-md border-b border-gray-100 px-6 py-4 flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Onboarding</h1>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {anfragen.length} Links
-              {ausgefuelltCount > 0 && (
-                <span className="ml-1.5 bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-1.5 py-0.5 rounded-full">
-                  {ausgefuelltCount} ausgefüllt
-                </span>
-              )}
-            </p>
+        {/* ── Hero-Band (Gradient + Stats) ─────────────────────── */}
+        <div className="relative bg-gradient-to-br from-wellbeing-green via-wellbeing-green to-wellbeing-green-dark px-6 pt-6 pb-5 shrink-0 overflow-hidden">
+          {/* Deko-Blob */}
+          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-wellbeing-green-light/20 blur-3xl pointer-events-none" />
+          <div className="relative flex items-start justify-between gap-4 mb-5">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold text-white tracking-tight">Onboarding</h1>
+              <p className="text-sm text-white/70 mt-1">
+                Personalisierte Links für neue Anfragen und Projekte
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href="/dashboard/onboarding/vorlagen"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-white/10 hover:bg-white/20 border border-white/15 rounded-lg transition-colors backdrop-blur-sm"
+              >
+                <Settings2 className="w-4 h-4" />
+                Vorlagen
+              </Link>
+              <button
+                onClick={() => setModalOffen(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-wellbeing-green bg-white hover:bg-wellbeing-cream rounded-lg transition-colors shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Neuer Link
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard/onboarding/vorlagen"
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-500 border border-gray-200 hover:border-gray-300 rounded-lg transition-colors"
-            >
-              <Settings2 className="w-4 h-4" />
-              Vorlagen
-            </Link>
-            <button
-              onClick={() => setModalOffen(true)}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-wellbeing-green hover:bg-wellbeing-green-dark rounded-lg transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Neuen Link erstellen
-            </button>
+
+          {/* Stat-Cards */}
+          <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard icon={<Inbox className="w-4 h-4" />}         label="Gesamt"        value={gesamt} />
+            <StatCard icon={<Clock className="w-4 h-4" />}         label="Offen"         value={offenCount} />
+            <StatCard icon={<User className="w-4 h-4" />}          label="Ausgefüllt"    value={ausgefuelltCount} highlight={ausgefuelltCount > 0} />
+            <StatCard icon={<CheckCircle2 className="w-4 h-4" />}  label="Abgeschlossen" value={abgeschlossenCount} />
           </div>
         </div>
 
@@ -574,20 +622,6 @@ export default function OnboardingTabelle({
         </div>
       </div>
 
-      {/* Weiterleitung zur Vorlagenverwaltung – kleine Hinweiskarte */}
-      <div className="px-6 pb-4">
-        <div className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
-          <p className="text-xs text-gray-500">
-            Passe Fragen mit <span className="font-medium text-gray-700">Vorlagen</span> an deine Kunden an.
-          </p>
-          <Link
-            href="/dashboard/onboarding/vorlagen"
-            className="flex items-center gap-1 text-xs font-medium text-wellbeing-green hover:text-wellbeing-green-dark transition-colors"
-          >
-            Vorlagen verwalten <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </div>
     </>
   )
 }
