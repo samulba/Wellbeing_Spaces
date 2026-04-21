@@ -13,7 +13,7 @@ import { raumEventsAbrufen } from '@/app/actions/timeline'
 import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
 import { Timeline } from '@/components/Timeline'
-import type { Partner, RaumProduktMitDetails } from '@/lib/supabase/types'
+import type { Partner, RaumProduktMitDetails, TimelineEvent } from '@/lib/supabase/types'
 import { LayoutDashboard } from 'lucide-react'
 import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
 import ProduktHinzufuegenModal from '@/components/ProduktHinzufuegenModal'
@@ -75,21 +75,28 @@ export default async function RaumDetailPage({
   params: { id: string; raumId: string }
   searchParams: SearchParams
 }) {
-  const [raum, alleEintraege, MWST, timelineEvents, kategorienDB, partnerListe] = await Promise.all([
+  const [raum, alleEintraege, MWST, kategorienDB, partnerListe] = await Promise.all([
     getRaum(params.raumId, params.id),
     getRaumProdukte(params.raumId),
     getMwstSatz(),
-    raumEventsAbrufen(params.raumId),
     getKategorien('produktkategorie'),
     getPartner(),
   ])
 
   if (!raum) notFound()
 
-  // ── Debug: DB-Roh-Count vs. was raumEventsAbrufen liefert ──────
-  //    Wenn dbRohCount > timelineEvents.length → raumEventsAbrufen crasht still.
-  //    Wenn beides gleich 0 → Cache-Problem (force-dynamic greift nicht).
+  // Direkt auf der Page — umgeht die raumEventsAbrufen-Funktion, um
+  // zu sehen ob die Events jetzt ankommen. (Inline statt separater Action,
+  // weil die separate Action stille Fehler verschluckt hat.)
   const supabaseDebug = await createClient()
+  const { data: timelineRaw, error: timelineErr } = await supabaseDebug
+    .from('timeline_events')
+    .select('*')
+    .eq('raum_id', params.raumId)
+    .order('start_datum')
+  const timelineEvents = (timelineRaw ?? []) as TimelineEvent[]
+  const timelineFetchFehler = timelineErr?.message ?? null
+
   const { count: dbRohCount, error: dbCountErr } = await supabaseDebug
     .from('timeline_events')
     .select('id', { count: 'exact', head: true })
@@ -293,9 +300,9 @@ export default async function RaumDetailPage({
             <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
               DB roh: <strong>{dbRohCount ?? '?'}</strong>
             </span>
-            {(dbCountFehler || dbListFehler) && (
+            {(dbCountFehler || dbListFehler || timelineFetchFehler) && (
               <span className="text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">
-                Fehler: {dbCountFehler || dbListFehler}
+                Fehler: {timelineFetchFehler || dbCountFehler || dbListFehler}
               </span>
             )}
           </div>

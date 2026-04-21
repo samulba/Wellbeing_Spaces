@@ -121,12 +121,18 @@ export async function raumEventsAbrufen(
   raumId: string
 ): Promise<TimelineEvent[]> {
   const supabase = await createClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('timeline_events')
     .select('*')
     .eq('raum_id', raumId)
     .order('start_datum')
     .order('reihenfolge')
+  if (error) {
+    console.error('[raumEventsAbrufen]', {
+      raumId, code: error.code, message: error.message, hint: error.hint, details: error.details,
+    })
+    return []
+  }
   return (data ?? []) as TimelineEvent[]
 }
 
