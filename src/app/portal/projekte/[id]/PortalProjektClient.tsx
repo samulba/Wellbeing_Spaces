@@ -341,13 +341,15 @@ const TYP_LABEL: Record<string, string> = {
   angebot: 'Angebot', rechnung: 'Rechnung', vertrag: 'Vertrag', sonstiges: 'Dokument',
 }
 
-function DokumenteTab({ dokumente }: { dokumente: Dokument[] }) {
+function DokumenteTab({ dokumente, prim }: { dokumente: Dokument[]; prim: string }) {
   if (dokumente.length === 0) {
     return (
-      <div className="text-center py-12">
-        <FileText className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-        <p className="text-sm text-gray-400">Noch keine Dokumente.</p>
-      </div>
+      <EmptyState
+        Icon={FileText}
+        title="Noch keine Dokumente"
+        text="Sobald dein Designer Angebote, Rechnungen oder Verträge teilt, findest du sie hier zum Download."
+        prim={prim}
+      />
     )
   }
   return (
@@ -379,13 +381,15 @@ function DokumenteTab({ dokumente }: { dokumente: Dokument[] }) {
 
 // ── Timeline-Tab ──────────────────────────────────────────────
 
-function TimelineTab({ events }: { events: Event[] }) {
+function TimelineTab({ events, prim }: { events: Event[]; prim: string }) {
   if (events.length === 0) {
     return (
-      <div className="text-center py-12">
-        <CalendarDays className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-        <p className="text-sm text-gray-400">Keine Timeline-Einträge.</p>
-      </div>
+      <EmptyState
+        Icon={CalendarDays}
+        title="Keine Timeline-Einträge"
+        text="Meilensteine und Liefertermine deines Projekts werden hier sichtbar, sobald dein Designer sie plant."
+        prim={prim}
+      />
     )
   }
   const heute = new Date().toISOString().split('T')[0]
@@ -427,7 +431,7 @@ function TimelineTab({ events }: { events: Event[] }) {
 // ── Haupt-Komponente ──────────────────────────────────────────
 
 export default function PortalProjektClient({
-  projektId, projektName, prim, raeume, dokumente, nachrichten, events, preiseAnzeigen, vorname,
+  projektId, prim, raeume, dokumente, nachrichten, events, preiseAnzeigen, vorname,
 }: Props) {
   const [aktuellerTab, setAktuellerTab] = useState<Tab>('freigaben')
   const [statusMap, setStatusMap]       = useState<Record<string, string>>({})
@@ -435,14 +439,9 @@ export default function PortalProjektClient({
   const [, startTransition] = useTransition()
 
   const alleProdukteFlach = raeume.flatMap((r) => r.produkte)
-  const gesamt     = alleProdukteFlach.length
-  const freigegeben = alleProdukteFlach.filter(
-    (p) => (statusMap[p.id] ?? p.freigabe_status) === 'freigegeben'
-  ).length
   const ausstehend = alleProdukteFlach.filter(
     (p) => { const s = statusMap[p.id] ?? p.freigabe_status; return !s || s === 'ausstehend' }
   ).length
-  const pct = gesamt > 0 ? Math.round((freigegeben / gesamt) * 100) : 0
 
   function updateStatus(id: string, status: string) {
     setStatusMap((prev) => ({ ...prev, [id]: status }))
@@ -472,77 +471,87 @@ export default function PortalProjektClient({
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-4">{projektName}</h1>
-
-      {/* Fortschritt */}
-      {gesamt > 0 && (
-        <div className="mb-6 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="font-medium text-gray-700">Freigabe-Fortschritt</span>
-            <span className="text-gray-500">{freigegeben} / {gesamt} · {pct}%</span>
-          </div>
-          <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: prim }} />
-          </div>
-          {ausstehend > 0 && (
-            <p className="text-xs text-amber-600 mt-2 font-medium">
-              {ausstehend} Produkt{ausstehend !== 1 ? 'e' : ''} warten auf Ihre Entscheidung
-            </p>
-          )}
+      {/* Tabs — moderne Pill-Leiste mit Border-Indicator */}
+      <div className="mb-6 md:mb-8 border-b border-black/[0.06] -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+        <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+          {TABS.map((t) => {
+            const isActive = aktuellerTab === t.id
+            return (
+              <button
+                key={t.id}
+                onClick={() => setAktuellerTab(t.id)}
+                className={`relative flex items-center gap-2 px-4 md:px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                  isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                {t.icon}
+                {t.label}
+                {t.badge != null && (
+                  <span
+                    className="ml-1 min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full flex items-center justify-center text-white tabular-nums"
+                    style={{ background: prim }}
+                  >
+                    {t.badge}
+                  </span>
+                )}
+                {isActive && (
+                  <span
+                    aria-hidden
+                    className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full"
+                    style={{ background: prim }}
+                  />
+                )}
+              </button>
+            )
+          })}
         </div>
-      )}
-
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100/80 p-1 rounded-xl overflow-x-auto">
-        {TABS.map((t) => (
-          <button key={t.id} onClick={() => setAktuellerTab(t.id)}
-            className={`flex-1 min-w-max flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-all ${
-              aktuellerTab === t.id
-                ? 'bg-white shadow-sm text-gray-900'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}>
-            {t.icon}
-            {t.label}
-            {t.badge != null && (
-              <span className="ml-1 bg-amber-400 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                {t.badge}
-              </span>
-            )}
-          </button>
-        ))}
       </div>
 
       {/* Tab-Inhalt */}
       {aktuellerTab === 'freigaben' && (
         <div>
           {raeume.length === 0 ? (
-            <div className="text-center py-12">
-              <Info className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">Noch keine Produkte im Projekt.</p>
-            </div>
+            <EmptyState
+              Icon={Info}
+              title="Noch keine Produkte im Projekt"
+              text="Sobald dein Designer Produkte hinzufügt, erscheinen sie hier zur Freigabe."
+              prim={prim}
+            />
           ) : (
             <>
               {ausstehend > 0 && (
-                <div className="flex justify-end mb-4">
-                  <button onClick={handleAlleFreigeben} disabled={alleFreigeben}
-                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white rounded-xl transition-opacity disabled:opacity-60"
-                    style={{ background: prim }}>
+                <div className="flex items-center justify-between gap-3 mb-5 p-4 rounded-2xl border"
+                  style={{
+                    background: `rgba(var(--brand-primary-rgb),0.04)`,
+                    borderColor: `rgba(var(--brand-primary-rgb),0.15)`,
+                  }}
+                >
+                  <p className="text-sm font-medium" style={{ color: prim }}>
+                    {ausstehend} Produkt{ausstehend !== 1 ? 'e' : ''} wartet auf deine Entscheidung
+                  </p>
+                  <button
+                    onClick={handleAlleFreigeben} disabled={alleFreigeben}
+                    className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white rounded-xl transition-all hover:brightness-95 disabled:opacity-60"
+                    style={{ background: prim }}
+                  >
                     <Check className="w-3.5 h-3.5" />
-                    Alle {ausstehend} freigeben
+                    {alleFreigeben ? 'Wird freigegeben…' : 'Alle freigeben'}
                   </button>
                 </div>
               )}
-              {raeume.map((r) => (
-                <RaumBlock key={r.id} raum={r} preiseAnzeigen={preiseAnzeigen}
-                  statusMap={statusMap} onUpdate={updateStatus} />
-              ))}
+              <div className="space-y-5">
+                {raeume.map((r) => (
+                  <RaumBlock key={r.id} raum={r} preiseAnzeigen={preiseAnzeigen}
+                    statusMap={statusMap} onUpdate={updateStatus} />
+                ))}
+              </div>
             </>
           )}
         </div>
       )}
 
       {aktuellerTab === 'dokumente' && (
-        <DokumenteTab dokumente={dokumente} />
+        <DokumenteTab dokumente={dokumente} prim={prim} />
       )}
 
       {aktuellerTab === 'nachrichten' && (
@@ -555,8 +564,38 @@ export default function PortalProjektClient({
       )}
 
       {aktuellerTab === 'timeline' && (
-        <TimelineTab events={events} />
+        <TimelineTab events={events} prim={prim} />
       )}
+    </div>
+  )
+}
+
+// ── EmptyState ────────────────────────────────────────────────
+function EmptyState({
+  Icon, title, text, prim,
+}: {
+  Icon: React.ComponentType<{ className?: string }>
+  title: string
+  text: string
+  prim: string
+}) {
+  return (
+    <div className="relative rounded-3xl overflow-hidden border border-black/[0.05] bg-white px-6 py-14 md:py-20 text-center">
+      <div
+        aria-hidden
+        className="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full opacity-40 blur-3xl"
+        style={{ background: `radial-gradient(circle, rgba(var(--brand-primary-rgb),0.15) 0%, transparent 70%)` }}
+      />
+      <div className="relative">
+        <div
+          className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+          style={{ background: `rgba(var(--brand-primary-rgb),0.1)`, color: prim }}
+        >
+          <Icon className="w-6 h-6" />
+        </div>
+        <p className="text-base font-semibold" style={{ color: prim }}>{title}</p>
+        <p className="text-sm opacity-60 mt-2 max-w-md mx-auto leading-relaxed">{text}</p>
+      </div>
     </div>
   )
 }

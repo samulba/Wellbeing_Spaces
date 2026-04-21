@@ -5,6 +5,18 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-21
 
+### Portal-Team & Einstellungen im neuen Stil
+- Beide Seiten bekommen den gleichen **Hero-Band-Look** wie Dashboard und Projektdetail
+- Großes Icon-Badge rechts im Hero, konsistente Typografie
+- Breites Desktop-Layout (max-w-1400)
+
+### Portal-Projektseite radikal neu
+- **Hero-Band oben** mit Gradient-Fill in deiner Brand-Farbe — darin Titel, Standort und rechts ein **großer Progress-Ring mit Prozent + Produkt- und Freigabe-Zahlen**
+- **Breadcrumb als Pill-Button** („Zurück zur Übersicht")
+- **Tab-Leiste moderner**: Border-bottom-Linie, aktiver Tab mit farbigem Indicator darunter statt grauer Kasten
+- Freigabe-Banner als eigene Brand-farbene Card mit „Alle freigeben"-Button rechts
+- **Bessere Empty-States** überall (Freigaben/Dokumente/Timeline) — mit Brand-Icon, Titel und Erklär-Text statt grauem Icon-Stub
+
 ### Portal-Dashboard radikal neu
 - Kompletter Neu-Aufbau mit **Bento-Grid-Layout** statt klassischer Vertical-Stack
 - **Großer Farb-Hero** mit Gradient in deiner Brand-Farbe (oder Hero-Bild), darunter kleine Badge mit heutigem Datum
