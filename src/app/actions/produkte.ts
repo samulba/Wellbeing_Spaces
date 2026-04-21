@@ -28,6 +28,8 @@ export async function syncAlleProdukteImRaum(
   events_aktualisiert: number
   events_geloescht: number
   events_uebersprungen: number
+  events_in_diesem_raum: number
+  events_im_projekt: number
   error?: string
   details?: string
 }> {
@@ -41,6 +43,7 @@ export async function syncAlleProdukteImRaum(
   if (readErr) return {
     anzahl: 0, events_erstellt: 0, events_aktualisiert: 0,
     events_geloescht: 0, events_uebersprungen: 0,
+    events_in_diesem_raum: 0, events_im_projekt: 0,
     error: readErr.message,
   }
   const list = (eintraege ?? []) as unknown as Array<{
@@ -71,12 +74,29 @@ export async function syncAlleProdukteImRaum(
   }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
+
+  // Verifikation: nach dem Sync direkt in DB nachzählen — damit wir sehen,
+  // ob die Events auch wirklich mit dem korrekten raum_id landen.
+  const { count: countImRaum } = await supabase
+    .from('timeline_events')
+    .select('id', { count: 'exact', head: true })
+    .eq('raum_id', raumId)
+    .eq('organisation_id', orgId)
+  const { count: countImProjekt } = await supabase
+    .from('timeline_events')
+    .select('id', { count: 'exact', head: true })
+    .eq('projekt_id', projektId)
+    .eq('organisation_id', orgId)
+    .in('quelle', ['produkt', 'bestellstatus'])
+
   return {
     anzahl:               list.length,
     events_erstellt:      erstellt,
     events_aktualisiert:  aktualisiert,
     events_geloescht:     geloescht,
     events_uebersprungen: uebersprungen,
+    events_in_diesem_raum: countImRaum ?? 0,
+    events_im_projekt:     countImProjekt ?? 0,
     error:    errors.length > 0 ? errors.join(' | ') : undefined,
     details:  detailLog.join(' • '),
   }

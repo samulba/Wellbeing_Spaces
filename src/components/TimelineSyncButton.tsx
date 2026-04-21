@@ -11,6 +11,8 @@ type SyncResult = {
   events_aktualisiert: number
   events_geloescht: number
   events_uebersprungen: number
+  events_in_diesem_raum: number
+  events_im_projekt: number
   error?: string
   details?: string
 }
@@ -39,6 +41,10 @@ export default function TimelineSyncButton({
     ? `${result.anzahl} Produkt${result.anzahl === 1 ? '' : 'e'} · ${result.events_erstellt} neu · ${result.events_aktualisiert} geupdated · ${result.events_geloescht} gelöscht`
     : null
 
+  const dbStatus = result
+    ? `In diesem Raum: ${result.events_in_diesem_raum} · Gesamt Projekt: ${result.events_im_projekt}`
+    : null
+
   return (
     <>
       <button
@@ -56,6 +62,7 @@ export default function TimelineSyncButton({
           <Check className="w-4 h-4 shrink-0 mt-0.5" />
           <div className="min-w-0">
             <p className="font-medium">{kurzStatus}</p>
+            <p className="text-[11px] text-white/80 mt-1">{dbStatus}</p>
             {result.details && (
               <details className="mt-1">
                 <summary className="text-[11px] text-white/70 cursor-pointer">Details</summary>
