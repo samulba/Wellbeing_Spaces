@@ -56,7 +56,7 @@ function filtern(
 ): RaumProduktMitDetails[] {
   let result = eintraege
   if (sp.kategorie)  result = result.filter((e) => e.produkte.kategorie === sp.kategorie)
-  if (sp.status)     result = result.filter((e) => (e.produkte.produktstatus?.status ?? 'ausstehend') === sp.status)
+  if (sp.status)     result = result.filter((e) => (e.freigabe_status ?? 'ausstehend') === sp.status)
   if (sp.partner_id) result = result.filter((e) => e.produkte.partner_id === sp.partner_id)
   return result
 }

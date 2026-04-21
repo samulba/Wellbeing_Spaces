@@ -7,9 +7,14 @@ import type { ProduktStatus } from '@/lib/supabase/types'
 
 export type FreigabeResult = { fehler: string } | { erfolg: true }
 
+/**
+ * Freigabe-Status auf raum_produkte setzen (Migration 076).
+ * Nimmt raumProduktId statt produktId, damit jede Raum↔Produkt-
+ * Kombination ihren eigenen Freigabe-Status bekommt.
+ */
 export async function freigabeStatusAendern(
   token: string,
-  produktId: string,
+  raumProduktId: string,
   status: ProduktStatus,
   kommentar: string
 ): Promise<FreigabeResult> {
@@ -29,42 +34,41 @@ export async function freigabeStatusAendern(
     return { fehler: 'Dieser Freigabe-Link ist abgelaufen.' }
   }
 
-  // 2. Produkt gehört zum Projekt des Tokens – Prüfung via raum_produkte,
-  //    damit auch Library-Produkte (raum_id=null auf produkte) korrekt behandelt werden.
-  const { data: rpEintraege } = await supabase
+  // 2. raum_produkte-Eintrag gehört zum Projekt des Tokens
+  const { data: rpEintrag } = await supabase
     .from('raum_produkte')
     .select('id, raeume!inner(projekt_id)')
-    .eq('produkt_id', produktId)
+    .eq('id', raumProduktId)
+    .maybeSingle()
 
-  const gehoertZumProjekt = (rpEintraege ?? []).some(
-    (rp) => (rp.raeume as unknown as { projekt_id: string }).projekt_id === tokenData.projekt_id
-  )
-
-  if (!gehoertZumProjekt) return { fehler: 'Zugriff nicht erlaubt.' }
-
-  // 3. Status aktualisieren
-  const updates: Record<string, unknown> = {
-    produkt_id: produktId,
-    status,
-    kommentar: kommentar.trim() || null,
-  }
-  if (status === 'freigegeben') {
-    updates.freigegeben_am = new Date().toISOString()
+  const projektIdDesEintrags = (rpEintrag?.raeume as unknown as { projekt_id: string } | null)?.projekt_id
+  if (!rpEintrag || projektIdDesEintrags !== tokenData.projekt_id) {
+    return { fehler: 'Zugriff nicht erlaubt.' }
   }
 
+  // 3. Status auf raum_produkte aktualisieren (per-Raum)
   const { error } = await supabase
-    .from('produktstatus')
-    .upsert(updates, { onConflict: 'produkt_id' })
+    .from('raum_produkte')
+    .update({
+      freigabe_status:    status,
+      freigabe_kommentar: kommentar.trim() || null,
+    })
+    .eq('id', raumProduktId)
 
   if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
 
   return { erfolg: true }
 }
 
-export async function freigabeZuruecksetzenAdmin(produktId: string): Promise<void> {
+/**
+ * Admin setzt Freigabe für einen einzelnen raum_produkte-Eintrag zurück.
+ * (Nimmt jetzt raumProduktId statt produktId.)
+ */
+export async function freigabeZuruecksetzenAdmin(raumProduktId: string): Promise<void> {
   const supabase = await createClient()
   await supabase
-    .from('produktstatus')
-    .upsert({ produkt_id: produktId, status: 'ausstehend', kommentar: null }, { onConflict: 'produkt_id' })
+    .from('raum_produkte')
+    .update({ freigabe_status: 'ausstehend', freigabe_kommentar: null })
+    .eq('id', raumProduktId)
   revalidatePath('/dashboard/freigaben')
 }

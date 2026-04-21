@@ -371,15 +371,31 @@ export async function konfiguratorAuswahlZuAngebot(
 
 
 // ── Auswahl als Freigabe-Status übernehmen (Admin) ────────────
+// Seit Migration 076: schreibt auf raum_produkte.freigabe_status pro Raum
+// (nicht mehr global auf produktstatus). Nur raum_produkte im Projekt der Session.
 export async function auswahlAlsFreigabeUebernehmen(sessionId: string): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+
+  const { data: session } = await supabase
+    .from('konfigurator_sessions')
+    .select('projekt_id')
+    .eq('id', sessionId)
+    .maybeSingle()
+  if (!session?.projekt_id) return { fehler: 'Session nicht gefunden.' }
 
   const { data: auswahl } = await supabase
     .from('konfigurator_auswahl')
     .select('produkt_id, status')
     .eq('session_id', sessionId)
-
   if (!auswahl) return { fehler: 'Keine Auswahl gefunden.' }
+
+  // Räume des Projekts laden — brauchen wir für den raum_produkte-Filter
+  const { data: raeume } = await supabase
+    .from('raeume')
+    .select('id')
+    .eq('projekt_id', session.projekt_id)
+  const raumIds = (raeume ?? []).map((r) => r.id)
+  if (raumIds.length === 0) return {}
 
   for (const a of auswahl) {
     const freigabeStatus =
@@ -389,17 +405,11 @@ export async function auswahlAlsFreigabeUebernehmen(sessionId: string): Promise<
       null
     if (!freigabeStatus) continue
 
-    const { data: existing } = await supabase
-      .from('produktstatus')
-      .select('id')
+    await supabase
+      .from('raum_produkte')
+      .update({ freigabe_status: freigabeStatus })
       .eq('produkt_id', a.produkt_id)
-      .maybeSingle()
-
-    if (existing) {
-      await supabase.from('produktstatus').update({ status: freigabeStatus }).eq('id', existing.id)
-    } else {
-      await supabase.from('produktstatus').insert({ produkt_id: a.produkt_id, status: freigabeStatus })
-    }
+      .in('raum_id', raumIds)
   }
 
   return {}

@@ -70,10 +70,10 @@ async function getProjektStats(projektId: string) {
   const raumIds = (raeume ?? []).map((r) => r.id)
   if (raumIds.length === 0) return { gesamtkosten: 0, ausstehend: 0, freigegeben: 0, abgelehnt: 0, ueberarbeitung: 0, produkteGesamt: 0 }
 
-  // Lade über raum_produkte mit JOIN auf produkte + produktstatus
+  // freigabe_status liegt seit Migration 076 auf raum_produkte (pro Raum eigen).
   const { data: eintraege } = await supabase
     .from('raum_produkte')
-    .select('menge, verkaufspreis_override, rabatt_prozent, produkte(id, verkaufspreis, deleted_at, produktstatus(status))')
+    .select('menge, verkaufspreis_override, rabatt_prozent, freigabe_status, produkte(id, verkaufspreis, deleted_at)')
     .in('raum_id', raumIds)
 
   let gesamtkosten = 0, ausstehend = 0, freigegeben = 0, abgelehnt = 0, ueberarbeitung = 0
@@ -83,14 +83,13 @@ async function getProjektStats(projektId: string) {
   })
 
   for (const e of aktiveEintraege) {
-    const prod = (e.produkte as unknown) as { verkaufspreis: number | null; produktstatus: { status: string } | { status: string }[] | null } | null
+    const prod = (e.produkte as unknown) as { verkaufspreis: number | null } | null
     const vp = effektiverVpNetto(
       { verkaufspreis_override: e.verkaufspreis_override, rabatt_prozent: e.rabatt_prozent ?? null },
       prod?.verkaufspreis ?? null,
     )
     gesamtkosten += vp * e.menge
-    const statusObj = Array.isArray(prod?.produktstatus) ? prod?.produktstatus[0] : prod?.produktstatus
-    const s = statusObj?.status ?? 'ausstehend'
+    const s = (e.freigabe_status as string | null) ?? 'ausstehend'
     if (s === 'ausstehend') ausstehend++
     else if (s === 'freigegeben') freigegeben++
     else if (s === 'abgelehnt') abgelehnt++
@@ -104,12 +103,12 @@ async function getRaumStats(raumIds: string[]): Promise<Record<string, RaumStat>
   const supabase = await createClient()
   const { data: eintraege } = await supabase
     .from('raum_produkte')
-    .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, produkte(verkaufspreis, deleted_at, produktstatus(status))')
+    .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, freigabe_status, produkte(verkaufspreis, deleted_at)')
     .in('raum_id', raumIds)
 
   const result: Record<string, RaumStat> = {}
   for (const e of eintraege ?? []) {
-    const prod = (e.produkte as unknown) as { verkaufspreis: number | null; deleted_at: string | null; produktstatus: { status: string } | { status: string }[] | null } | null
+    const prod = (e.produkte as unknown) as { verkaufspreis: number | null; deleted_at: string | null } | null
     if (prod?.deleted_at != null) continue
     if (!result[e.raum_id]) result[e.raum_id] = { produkteAnzahl: 0, vpSumme: 0, freigegeben: 0 }
     result[e.raum_id].produkteAnzahl++
@@ -118,8 +117,7 @@ async function getRaumStats(raumIds: string[]): Promise<Record<string, RaumStat>
       prod?.verkaufspreis ?? null,
     )
     result[e.raum_id].vpSumme += vp * e.menge
-    const statusObj = Array.isArray(prod?.produktstatus) ? prod?.produktstatus[0] : prod?.produktstatus
-    if (statusObj?.status === 'freigegeben') result[e.raum_id].freigegeben++
+    if ((e.freigabe_status as string | null) === 'freigegeben') result[e.raum_id].freigegeben++
   }
   return result
 }

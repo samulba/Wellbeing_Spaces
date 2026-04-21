@@ -30,9 +30,9 @@ export default async function DashboardLayout({
   try {
     const [freigabenRes, anfragenRes, rolleRes, meRes, nachrichtenRes] = await Promise.allSettled([
       supabase
-        .from('produktstatus')
+        .from('raum_produkte')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'ausstehend'),
+        .eq('freigabe_status', 'ausstehend'),
       supabase
         .from('onboarding_anfragen')
         .select('*', { count: 'exact', head: true })

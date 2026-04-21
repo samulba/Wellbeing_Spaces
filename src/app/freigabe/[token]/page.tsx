@@ -55,19 +55,22 @@ export default async function FreigabePage({ params }: Props) {
 
   // 4. Produkte via raum_produkte laden – erfasst sowohl direkt angelegte als auch
   //    aus Bibliothek hinzugefügte Produkte. NUR öffentliche Felder, KEINE internen Preise.
+  //    freigabe_status liegt seit Migration 076 auf raum_produkte (pro Raum eigen).
   const { data: rpDaten } = await supabase
     .from('raum_produkte')
     .select(`
+      id,
       raum_id,
       menge,
       verkaufspreis_override,
       rabatt_prozent,
       reihenfolge,
+      freigabe_status,
+      freigabe_kommentar,
       produkte!inner(
         id, name, beschreibung, kategorie, einheit, verkaufspreis,
         bild_url, produkt_url, deleted_at,
-        hinweis_extern, hinweis_extern_sichtbar,
-        produktstatus ( status, kommentar )
+        hinweis_extern, hinweis_extern_sichtbar
       )
     `)
     .in('raum_id', raeumeDaten.map((r) => r.id))
@@ -90,12 +93,8 @@ export default async function FreigabePage({ params }: Props) {
             einheit: string; verkaufspreis: number | null; bild_url: string | null
             produkt_url: string | null
             hinweis_extern: string | null; hinweis_extern_sichtbar: boolean
-            produktstatus: { status: string; kommentar: string | null } | { status: string; kommentar: string | null }[] | null
           }
-          type PS = { status: string; kommentar: string | null } | null
           const p = rp.produkte as unknown as ProdRaw
-          const psRaw = p.produktstatus as PS | PS[]
-          const ps = Array.isArray(psRaw) ? psRaw[0] : psRaw
           // Endpreis über zentralen Helper: Override → Rabatt → gerundet
           const vp = effektiverVpNetto(
             {
@@ -105,7 +104,8 @@ export default async function FreigabePage({ params }: Props) {
             p.verkaufspreis,
           )
           return {
-            id: p.id,
+            id: rp.id as string,           // raum_produkte.id — Key für Freigabe-Aktionen
+            produkt_id: p.id,              // globale Produkt-ID für Bilder/Links
             name: p.name,
             beschreibung: p.beschreibung,
             kategorie: p.kategorie,
@@ -114,9 +114,8 @@ export default async function FreigabePage({ params }: Props) {
             verkaufspreis: vp,
             bild_url: p.bild_url,
             produkt_url: p.produkt_url,
-            status: (ps?.status as ProduktStatus) ?? 'ausstehend',
-            kommentar: ps?.kommentar ?? null,
-            // Hinweis NUR an Kunden durchreichen wenn sichtbar=true
+            status: ((rp.freigabe_status as ProduktStatus) ?? 'ausstehend'),
+            kommentar: (rp.freigabe_kommentar as string | null) ?? null,
             hinweis: p.hinweis_extern_sichtbar ? p.hinweis_extern : null,
             rabatt_prozent: (rp.rabatt_prozent as number | null) ?? null,
           }

@@ -203,7 +203,13 @@ export interface PartnerKondition {
 
 // Öffentliche Produkt-Felder für Freigabe-Ansicht – KEINE internen Felder
 export interface FreigabeProdukt {
+  /**
+   * Ab Migration 076 enthält `id` die raum_produkte.id (nicht produkte.id),
+   * damit derselbe Artikel in zwei Räumen separate Freigabe haben kann.
+   * `produkt_id` enthält die globale Produkt-ID (für Bilder/Infos).
+   */
   id: string
+  produkt_id: string
   name: string
   beschreibung: string | null
   kategorie: string | null

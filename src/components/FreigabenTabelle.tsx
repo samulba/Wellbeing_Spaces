@@ -12,7 +12,9 @@ import { freigabeZuruecksetzenAdmin } from '@/app/actions/freigabe'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type FreigabeEintrag = {
+  /** raum_produkte.id (nicht produkte.id) — Key für Freigabe-Aktionen seit Migration 076 */
   id: string
+  produkt_id: string
   name: string
   kategorie: string | null
   menge: number
@@ -393,9 +395,9 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
     { key: 'alle',           label: 'Alle' },
   ]
 
-  function handleReset(produktId: string) {
+  function handleReset(raumProduktId: string) {
     startTransition(async () => {
-      await freigabeZuruecksetzenAdmin(produktId)
+      await freigabeZuruecksetzenAdmin(raumProduktId)
       setSelected(null)
       router.refresh()
     })

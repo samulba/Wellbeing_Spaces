@@ -187,9 +187,8 @@ function SortableProduktZeile({
   const gesamtNetto = r2(effektivVP * eintrag.menge)
   const provisionEur = r2(effektivVP * ((p.provision_prozent ?? 0) / 100))
 
-  // Freigabe-Status kommt noch aus produktstatus (wird in Step 5 umgezogen).
-  // Bestellstatus + Datumsfelder kommen seit Migration 076 aus raum_produkte.
-  const status = p.produktstatus?.status ?? 'ausstehend'
+  // Alle Status-Felder liegen seit Migration 076 auf raum_produkte (pro Raum).
+  const status = (eintrag.freigabe_status ?? 'ausstehend') as typeof eintrag.freigabe_status
   const bestellstatus = (eintrag.bestellstatus ?? 'ausstehend') as BestellStatus
   const bestelltAm         = eintrag.bestellt_am
   const lieferterminDatum  = eintrag.liefertermin

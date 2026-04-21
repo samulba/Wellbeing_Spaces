@@ -41,6 +41,7 @@ type RaumProduktRow = {
   reihenfolge: number | null
   verkaufspreis_override: number | null
   rabatt_prozent: number | null
+  freigabe_status: string | null
   produkte: {
     id: string
     name: string
@@ -54,7 +55,6 @@ type RaumProduktRow = {
     hinweis_extern: string | null
     hinweis_extern_sichtbar: boolean
     partner: { name: string } | { name: string }[] | null
-    produktstatus: { status: string } | { status: string }[] | null
   } | null
 }
 
@@ -96,13 +96,13 @@ export async function GET(
         .from('raum_produkte')
         .select(`
           raum_id, menge, reihenfolge, verkaufspreis_override, rabatt_prozent,
+          freigabe_status,
           produkte(
             id, name, kategorie, einheit,
             einkaufspreis, marge_prozent, verkaufspreis,
             produkt_url, deleted_at,
             hinweis_extern, hinweis_extern_sichtbar,
-            partner(name),
-            produktstatus(status)
+            partner(name)
           )
         `)
         .in('raum_id', raumIds)
@@ -145,8 +145,7 @@ export async function GET(
     const vpBrutto     = r2(vp * (1 + MWST))
     const gesamtNetto  = r2(vp * rp.menge)
     const gesamtBrutto = r2(gesamtNetto * (1 + MWST))
-    const statusObj    = Array.isArray(p.produktstatus) ? p.produktstatus[0] : p.produktstatus
-    const status       = statusObj?.status ?? 'ausstehend'
+    const status       = rp.freigabe_status ?? 'ausstehend'
     const partnerName  = p.partner ? (Array.isArray(p.partner) ? p.partner[0]?.name : p.partner.name) : null
     const hinweis      = p.hinweis_extern
 
