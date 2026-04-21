@@ -189,5 +189,21 @@ export async function signaturTokenErstellen(
     mailGesendet = res.sent
   }
 
+  // Timeline-Auto-Sync: Vertrag zur Unterschrift
+  if (vertrag.projekt_id) {
+    try {
+      const { syncAutoEvent } = await import('./timeline')
+      const heute = new Date().toISOString().split('T')[0]
+      await syncAutoEvent('vertrag', vertragId, vertrag.projekt_id, {
+        titel:       `Vertrag zur Unterschrift: ${vertrag.titel}`,
+        typ:         'termin',
+        start_datum: heute,
+        end_datum:   gueltigBis.toISOString().split('T')[0],
+      })
+    } catch (err) {
+      console.error('[signaturTokenErstellen:syncAutoEvent]', err)
+    }
+  }
+
   return { token, mailGesendet }
 }

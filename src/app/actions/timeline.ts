@@ -15,7 +15,11 @@ export type TimelineEventDaten = {
   verantwortlich?: string | null
   erinnerung_tage?: number | null
   raum_id?: string | null
+  abhaengig_von?: string[]
+  kunde_sichtbar?: boolean
 }
+
+export type AutoEventQuelle = 'produkt' | 'bestellstatus' | 'deadline' | 'angebot' | 'vertrag'
 
 // ── Alle Events eines Projekts ────────────────────────────────
 export async function eventsAbrufen(projektId: string): Promise<TimelineEvent[]> {
@@ -125,6 +129,91 @@ export async function raumEventsAbrufen(
     .order('reihenfolge')
   return (data ?? []) as TimelineEvent[]
 }
+
+// ── Auto-Event-Synchronisation ───────────────────────────────
+// Jeder Auto-Event ist durch (organisation_id, quelle, quelle_id)
+// eindeutig. Upsert via UNIQUE-Index aus Migration 075.
+// Aufrufer dürfen Fehler schlucken (await … .catch()) — ein fehl-
+// geschlagener Sync darf die Haupt-Action nicht crashen.
+
+export interface SyncAutoEventDaten {
+  titel:          string
+  typ:            TimelineEventTyp
+  start_datum:    string            // ISO YYYY-MM-DD
+  end_datum?:     string | null
+  status?:        TimelineEventStatus
+  raum_id?:       string | null
+  beschreibung?:  string | null
+  kunde_sichtbar?: boolean          // Default aus Quelle-Map unten
+}
+
+// Default-Kunden-Sichtbarkeit pro Auto-Quelle
+const QUELLE_KUNDE_SICHTBAR_DEFAULT: Record<AutoEventQuelle, boolean> = {
+  produkt:       true,   // Liefertermin interessiert Kunden
+  bestellstatus: false,  // interne Bestellabwicklung
+  deadline:      true,   // Projekt-Ende
+  angebot:       false,  // intern
+  vertrag:       true,   // Signatur-Termin
+}
+
+/**
+ * Legt einen Auto-Event an oder aktualisiert ihn. Bei optionen.loeschen=true
+ * wird er stattdessen entfernt. Idempotent via UPSERT.
+ */
+export async function syncAutoEvent(
+  quelle:   AutoEventQuelle,
+  quelleId: string,
+  projektId: string,
+  daten: SyncAutoEventDaten | null,
+  optionen?: { loeschen?: boolean },
+): Promise<void> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  // Löschung
+  if (optionen?.loeschen) {
+    await supabase
+      .from('timeline_events')
+      .delete()
+      .eq('organisation_id', orgId)
+      .eq('quelle', quelle)
+      .eq('quelle_id', quelleId)
+    revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
+    revalidatePath(`/dashboard/projekte/${projektId}`)
+    return
+  }
+
+  if (!daten) return
+
+  const kundeSichtbar = daten.kunde_sichtbar ?? QUELLE_KUNDE_SICHTBAR_DEFAULT[quelle]
+
+  // UPSERT auf (organisation_id, quelle, quelle_id)
+  await supabase
+    .from('timeline_events')
+    .upsert({
+      organisation_id: orgId,
+      projekt_id:      projektId,
+      quelle,
+      quelle_id:       quelleId,
+      titel:           daten.titel,
+      beschreibung:    daten.beschreibung ?? null,
+      typ:             daten.typ,
+      start_datum:     daten.start_datum,
+      end_datum:       daten.end_datum ?? null,
+      status:          daten.status ?? 'geplant',
+      raum_id:         daten.raum_id ?? null,
+      kunde_sichtbar:  kundeSichtbar,
+    }, {
+      onConflict: 'organisation_id,quelle,quelle_id',
+    })
+
+  revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
+  revalidatePath(`/dashboard/projekte/${projektId}`)
+  if (daten.raum_id) {
+    revalidatePath(`/dashboard/projekte/${projektId}/raeume/${daten.raum_id}`)
+  }
+}
+
 
 // ── Liefertermin auf Produkt setzen ──────────────────────────
 export async function lieferterminSetzen(

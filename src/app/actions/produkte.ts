@@ -4,8 +4,64 @@ import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import type { ProduktStatus, BestellStatus, VariantenDefinition, Json } from '@/lib/supabase/types'
+import { syncAutoEvent } from './timeline'
 
 export type ProduktActionState = { fehler: string } | null
+
+/**
+ * Synchronisiert Timeline-Events eines Produkts nach aktuellem DB-Stand.
+ * Wird von produktDatumAktualisieren + bestellstatusAendern aufgerufen.
+ * Fehler werden geschluckt (ein fehlgeschlagener Sync darf die
+ * Haupt-Action nicht abbrechen).
+ */
+async function syncProduktTimeline(
+  produktId: string, projektId: string, raumId: string,
+): Promise<void> {
+  try {
+    const supabase = await createClient()
+    const { data: p } = await supabase
+      .from('produkte')
+      .select('name, bestellstatus, bestellt_am, lieferung_erhalten_am, liefertermin')
+      .eq('id', produktId)
+      .maybeSingle()
+    if (!p) return
+
+    // Liefertermin-Event (quelle=produkt) — Kunden-sichtbar
+    if (p.liefertermin) {
+      await syncAutoEvent('produkt', produktId, projektId, {
+        titel:       `Lieferung: ${p.name}`,
+        typ:         'lieferung',
+        start_datum: p.liefertermin,
+        raum_id:     raumId,
+      })
+    } else {
+      await syncAutoEvent('produkt', produktId, projektId, null, { loeschen: true })
+    }
+
+    // Bestellstatus-Event (quelle=bestellstatus) — intern, NICHT im Portal
+    if (p.bestellstatus === 'geliefert' && p.lieferung_erhalten_am) {
+      await syncAutoEvent('bestellstatus', produktId, projektId, {
+        titel:       `Geliefert: ${p.name}`,
+        typ:         'lieferung',
+        start_datum: p.lieferung_erhalten_am,
+        status:      'abgeschlossen',
+        raum_id:     raumId,
+      })
+    } else if ((p.bestellstatus === 'bestellt' || p.bestellstatus === 'rechnung_erhalten') && p.bestellt_am) {
+      await syncAutoEvent('bestellstatus', produktId, projektId, {
+        titel:       `Bestellt: ${p.name}`,
+        typ:         'lieferung',
+        start_datum: p.bestellt_am,
+        status:      'abgeschlossen',
+        raum_id:     raumId,
+      })
+    } else {
+      await syncAutoEvent('bestellstatus', produktId, projektId, null, { loeschen: true })
+    }
+  } catch (err) {
+    console.error('[syncProduktTimeline]', err)
+  }
+}
 
 function parseOptionalNumber(val: FormDataEntryValue | null): number | null {
   if (!val || val === '') return null
@@ -326,6 +382,10 @@ export async function bestellstatusAendern(
     console.error('bestellstatusAendern failed:', error)
     return { fehler: error.message }
   }
+
+  // Timeline-Auto-Sync (nicht-blockierend)
+  await syncProduktTimeline(produktId, projektId, raumId)
+
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   return {}
 }
@@ -388,6 +448,10 @@ export async function produktDatumAktualisieren(
     .eq('organisation_id', orgId)
     .is('deleted_at', null)
   if (error) return { fehler: 'Datum konnte nicht gespeichert werden.' }
+
+  // Timeline-Auto-Sync (nicht-blockierend)
+  await syncProduktTimeline(produktId, projektId, raumId)
+
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   return { bestellstatus: neuerStatus }
 }

@@ -49,11 +49,13 @@ export async function projektAktualisieren(
   const orgId = await getOrganisationId()
 
   const serviceModell = (formData.get('service_modell') as string) || null
+  const deadline      = (formData.get('deadline') as string) || null
+  const projektName   = formData.get('name') as string
 
   const { error } = await supabase
     .from('projekte')
     .update({
-      name: formData.get('name') as string,
+      name: projektName,
       kunde_id: formData.get('kunde_id') as string,
       beschreibung: (formData.get('beschreibung') as string) || null,
       standort: (formData.get('standort') as string) || null,
@@ -65,7 +67,7 @@ export async function projektAktualisieren(
         ? Number(formData.get('service_pauschale')) : null,
       service_stundensatz: serviceModell === 'stundensatz' && formData.get('service_stundensatz')
         ? Number(formData.get('service_stundensatz')) : null,
-      deadline: (formData.get('deadline') as string) || null,
+      deadline,
       status: formData.get('status') as ProjektStatus,
     })
     .eq('id', id)
@@ -73,6 +75,22 @@ export async function projektAktualisieren(
     .is('deleted_at', null)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren. Bitte erneut versuchen.' }
+
+  // Timeline-Auto-Sync: Deadline als Meilenstein-Event spiegeln
+  try {
+    const { syncAutoEvent } = await import('./timeline')
+    if (deadline) {
+      await syncAutoEvent('deadline', id, id, {
+        titel:       `Projektdeadline: ${projektName}`,
+        typ:         'meilenstein',
+        start_datum: deadline,
+      })
+    } else {
+      await syncAutoEvent('deadline', id, id, null, { loeschen: true })
+    }
+  } catch (err) {
+    console.error('[projektAktualisieren:syncAutoEvent]', err)
+  }
 
   revalidatePath('/dashboard/projekte')
   revalidatePath(`/dashboard/projekte/${id}`)

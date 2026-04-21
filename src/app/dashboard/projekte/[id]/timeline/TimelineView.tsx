@@ -83,10 +83,15 @@ function EventModal({
       }
       if (isNeu) {
         const { id } = await eventErstellen(projektId, daten)
-        onSave({ id, projekt_id: projektId, abhaengig_von: [], reihenfolge: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...daten } as TimelineEvent)
+        onSave({
+          id, projekt_id: projektId, abhaengig_von: [], reihenfolge: 0,
+          quelle: 'manuell', quelle_id: null, kunde_sichtbar: true,
+          created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+          ...daten,
+        } as unknown as TimelineEvent)
       } else {
         await eventAktualisieren(event!.id!, projektId, daten)
-        onSave({ ...event, ...daten } as TimelineEvent)
+        onSave({ ...event, ...daten } as unknown as TimelineEvent)
       }
       onClose()
     })

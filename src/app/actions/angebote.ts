@@ -195,7 +195,7 @@ export async function angebotStatusAendern(
 
   // Mail an Kunde, wenn Status auf 'gesendet' wechselt
   let mailGesendet = false
-  if (status === 'gesendet') {
+  if (status === 'gesendet' || status === 'angenommen') {
     const { data: angebot } = await supabase
       .from('angebote')
       .select('nummer, titel, projekt_id, kunden(name, email), projekte(name)')
@@ -206,7 +206,8 @@ export async function angebotStatusAendern(
     const kundeRaw = angebot?.kunden as unknown as { name: string; email: string | null } | null
     const projektRaw = angebot?.projekte as unknown as { name: string } | null
 
-    if (kundeRaw?.email) {
+    // Mail nur bei "gesendet"
+    if (status === 'gesendet' && kundeRaw?.email) {
       const { data: branding } = await supabase
         .from('branding')
         .select('firmenname, primary_color')
@@ -222,6 +223,25 @@ export async function angebotStatusAendern(
       })
       const res = await sendMail({ to: kundeRaw.email, subject: tpl.subject, html: tpl.html })
       mailGesendet = res.sent
+    }
+
+    // Timeline-Auto-Sync: Angebots-Event in Projekt-Timeline
+    if (angebot?.projekt_id) {
+      try {
+        const { syncAutoEvent } = await import('./timeline')
+        const heute = new Date().toISOString().split('T')[0]
+        const titel = status === 'angenommen'
+          ? `Angebot angenommen: ${angebot.nummer ?? '—'}`
+          : `Angebot versendet: ${angebot.nummer ?? '—'}`
+        await syncAutoEvent('angebot', id, angebot.projekt_id, {
+          titel,
+          typ:         'termin',
+          start_datum: heute,
+          status:      'abgeschlossen',
+        })
+      } catch (err) {
+        console.error('[angebotStatusAendern:syncAutoEvent]', err)
+      }
     }
   }
 

@@ -606,6 +606,8 @@ export interface KonfiguratorAuswahl {
 export type TimelineEventTyp    = 'meilenstein' | 'lieferung' | 'termin' | 'phase'
 export type TimelineEventStatus = 'geplant' | 'in_arbeit' | 'abgeschlossen' | 'verspaetet'
 
+export type TimelineEventQuelle = 'manuell' | 'produkt' | 'bestellstatus' | 'deadline' | 'angebot' | 'vertrag'
+
 export interface TimelineEvent {
   id: string
   organisation_id?: string | null
@@ -622,6 +624,10 @@ export interface TimelineEvent {
   verantwortlich: string | null
   erinnerung_tage: number | null
   reihenfolge: number
+  // Auto-Sync + Sichtbarkeit (Migration 075)
+  quelle: TimelineEventQuelle
+  quelle_id: string | null
+  kunde_sichtbar: boolean
   created_at: string
   updated_at: string
 }
