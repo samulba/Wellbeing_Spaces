@@ -9,10 +9,11 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import { getRaumProdukte } from '@/app/actions/raum-produkte'
+import { raumEventsAbrufen } from '@/app/actions/timeline'
 import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
 import { Timeline } from '@/components/Timeline'
-import type { Partner, RaumProduktMitDetails, TimelineEvent } from '@/lib/supabase/types'
+import type { Partner, RaumProduktMitDetails } from '@/lib/supabase/types'
 import { LayoutDashboard } from 'lucide-react'
 import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
 import ProduktHinzufuegenModal from '@/components/ProduktHinzufuegenModal'
@@ -74,38 +75,16 @@ export default async function RaumDetailPage({
   params: { id: string; raumId: string }
   searchParams: SearchParams
 }) {
-  const [raum, alleEintraege, MWST, kategorienDB, partnerListe] = await Promise.all([
+  const [raum, alleEintraege, MWST, timelineEvents, kategorienDB, partnerListe] = await Promise.all([
     getRaum(params.raumId, params.id),
     getRaumProdukte(params.raumId),
     getMwstSatz(),
+    raumEventsAbrufen(params.raumId),
     getKategorien('produktkategorie'),
     getPartner(),
   ])
 
   if (!raum) notFound()
-
-  // Direkt auf der Page — umgeht die raumEventsAbrufen-Funktion, um
-  // zu sehen ob die Events jetzt ankommen. (Inline statt separater Action,
-  // weil die separate Action stille Fehler verschluckt hat.)
-  const supabaseDebug = await createClient()
-  const { data: timelineRaw, error: timelineErr } = await supabaseDebug
-    .from('timeline_events')
-    .select('*')
-    .eq('raum_id', params.raumId)
-    .order('start_datum')
-  const timelineEvents = (timelineRaw ?? []) as TimelineEvent[]
-  const timelineFetchFehler = timelineErr?.message ?? null
-
-  const { count: dbRohCount, error: dbCountErr } = await supabaseDebug
-    .from('timeline_events')
-    .select('id', { count: 'exact', head: true })
-    .eq('raum_id', params.raumId)
-  const dbCountFehler = dbCountErr?.message
-  const { data: dbRohEvents, error: dbListErr } = await supabaseDebug
-    .from('timeline_events')
-    .select('id, raum_id, titel, quelle, organisation_id')
-    .eq('raum_id', params.raumId)
-  const dbListFehler = dbListErr?.message
 
   const eintraege = filtern(alleEintraege, searchParams)
   const projekt   = raum.projekte
@@ -291,17 +270,11 @@ export default async function RaumDetailPage({
       {/* Raum-Timeline */}
       <div className="mt-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Raum-Timeline</p>
-            <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
-              Fetch: <strong>{timelineEvents.length}</strong>
-            </span>
-            <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
-              DB roh: <strong>{dbRohCount ?? '?'}</strong>
-            </span>
-            {(dbCountFehler || dbListFehler || timelineFetchFehler) && (
-              <span className="text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">
-                Fehler: {timelineFetchFehler || dbCountFehler || dbListFehler}
+            {timelineEvents.length > 0 && (
+              <span className="text-[10px] text-gray-400 tabular-nums">
+                {timelineEvents.length}
               </span>
             )}
           </div>
@@ -316,18 +289,6 @@ export default async function RaumDetailPage({
             </Link>
           </div>
         </div>
-        {dbRohEvents && dbRohEvents.length > 0 && timelineEvents.length === 0 && (
-          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-[11px]">
-            <p className="font-bold text-red-700 mb-1">⚠ Diskrepanz: DB hat {dbRohEvents.length} Events, aber Fetch-Funktion liefert 0</p>
-            <ul className="text-red-600 space-y-0.5">
-              {dbRohEvents.map((e) => (
-                <li key={e.id}>
-                  <strong>{e.titel}</strong> · quelle={e.quelle} · raum_id={e.raum_id?.slice(0, 8) ?? '(null)'}… · org={(e.organisation_id as string | null)?.slice(0, 8) ?? '(null)'}…
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
         <Timeline events={timelineEvents} />
       </div>
     </div>

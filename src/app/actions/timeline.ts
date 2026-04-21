@@ -29,7 +29,7 @@ export async function eventsAbrufen(projektId: string): Promise<TimelineEvent[]>
     .select('*')
     .eq('projekt_id', projektId)
     .order('start_datum')
-    .order('reihenfolge')
+    .order('created_at')
   return (data ?? []) as TimelineEvent[]
 }
 
@@ -111,7 +111,7 @@ export async function projektEventsAbrufen(
     .select('*, raum:raeume(id, name)')
     .eq('projekt_id', projektId)
     .order('start_datum')
-    .order('reihenfolge')
+    .order('created_at')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []) as any
 }
@@ -126,7 +126,7 @@ export async function raumEventsAbrufen(
     .select('*')
     .eq('raum_id', raumId)
     .order('start_datum')
-    .order('reihenfolge')
+    .order('created_at')
   if (error) {
     console.error('[raumEventsAbrufen]', {
       raumId, code: error.code, message: error.message, hint: error.hint, details: error.details,

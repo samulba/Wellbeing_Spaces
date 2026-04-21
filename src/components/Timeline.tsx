@@ -1,8 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { format, isToday, isTomorrow } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { Calendar, Flag, Truck, Clock, Layers, AlertTriangle } from 'lucide-react'
+import { Calendar, Flag, Truck, Clock, Layers, AlertTriangle, History } from 'lucide-react'
 import Link from 'next/link'
 import type { TimelineEvent, TimelineEventTyp, TimelineEventStatus } from '@/lib/supabase/types'
 
@@ -22,19 +23,25 @@ const TYP_CONFIG: Record<TimelineEventTyp, {
 const STATUS_CONFIG: Record<TimelineEventStatus, { label: string; klasse: string }> = {
   geplant:       { label: 'Geplant',       klasse: 'bg-gray-100 text-gray-600'     },
   in_arbeit:     { label: 'In Arbeit',     klasse: 'bg-blue-50 text-blue-700'      },
-  abgeschlossen: { label: 'Abgeschlossen', klasse: 'bg-emerald-50 text-emerald-700'},
+  abgeschlossen: { label: 'Erledigt',      klasse: 'bg-emerald-50 text-emerald-700'},
   verspaetet:    { label: 'Verspätet',     klasse: 'bg-red-50 text-red-700'        },
 }
 
-function datumLabel(d: string): string {
+function datumKurz(d: string): string {
   const dt = new Date(d + 'T00:00:00')
   if (isToday(dt))    return 'Heute'
   if (isTomorrow(dt)) return 'Morgen'
-  return format(dt, 'EEEE, d. MMMM yyyy', { locale: de })
+  return format(dt, 'd. MMM', { locale: de })
 }
 
 function istUeberfaellig(ev: TimelineEvent): boolean {
   if (ev.status === 'abgeschlossen') return false
+  const ref = ev.end_datum ?? ev.start_datum
+  return ref < new Date().toISOString().split('T')[0]
+}
+
+function istVergangen(ev: TimelineEvent): boolean {
+  if (ev.status !== 'abgeschlossen') return false
   const ref = ev.end_datum ?? ev.start_datum
   return ref < new Date().toISOString().split('T')[0]
 }
@@ -46,12 +53,23 @@ interface TimelineProps {
   alleLink?: string
   /** Max. Einträge anzeigen (ohne Limitierung = alle) */
   limit?: number
+  /** Max-Höhe des Scroll-Containers (default 360px) */
+  maxHoehe?: string
+  /** Ob vergangene abgeschlossene Events default ausgeblendet sind */
+  vergangenAusgeblendetDefault?: boolean
 }
 
-export function Timeline({ events, showRaumBadge = false, alleLink, limit }: TimelineProps) {
-  const angezeigt = limit ? events.slice(0, limit) : events
+export function Timeline({
+  events,
+  showRaumBadge = false,
+  alleLink,
+  limit,
+  maxHoehe = '380px',
+  vergangenAusgeblendetDefault = true,
+}: TimelineProps) {
+  const [vergangenVerstecken, setVergangenVerstecken] = useState(vergangenAusgeblendetDefault)
 
-  if (angezeigt.length === 0) {
+  if (events.length === 0) {
     return (
       <div className="py-6 text-center">
         <Calendar className="w-8 h-8 text-gray-200 mx-auto mb-2" />
@@ -65,40 +83,37 @@ export function Timeline({ events, showRaumBadge = false, alleLink, limit }: Tim
     )
   }
 
-  // Nach start_datum gruppieren
-  const gruppen: Record<string, typeof angezeigt> = {}
-  for (const ev of angezeigt) {
-    const key = ev.start_datum ?? 'undatiert'
-    if (!gruppen[key]) gruppen[key] = []
-    gruppen[key].push(ev)
-  }
-
-  const sortierteDaten = Object.keys(gruppen).sort((a, b) => {
-    if (a === 'undatiert') return 1
-    if (b === 'undatiert') return -1
-    return a.localeCompare(b) // chronologisch aufsteigend
-  })
+  const vergangenCount = events.filter(istVergangen).length
+  const sichtbar = vergangenVerstecken ? events.filter((e) => !istVergangen(e)) : events
+  const angezeigt = limit ? sichtbar.slice(0, limit) : sichtbar
 
   return (
-    <div className="relative">
-      {/* Vertikale Linie */}
-      <div className="absolute left-[15px] top-3 bottom-3 w-px bg-gray-200" />
+    <div>
+      {/* Toggle für vergangene Events */}
+      {vergangenCount > 0 && (
+        <div className="flex items-center justify-end mb-2">
+          <button
+            type="button"
+            onClick={() => setVergangenVerstecken((v) => !v)}
+            className="inline-flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <History className="w-3 h-3" />
+            {vergangenVerstecken
+              ? `+ ${vergangenCount} vergangene anzeigen`
+              : 'Vergangene ausblenden'}
+          </button>
+        </div>
+      )}
 
-      {sortierteDaten.map((datum) => (
-        <div key={datum} className="mb-5 last:mb-0">
-          {/* Datum-Header */}
-          <div className="flex items-center gap-3 mb-2.5">
-            <div className="w-[30px] h-[30px] rounded-full bg-[#445c49] flex items-center justify-center z-10 shrink-0">
-              <Calendar className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-              {datum === 'undatiert' ? 'Ohne Datum' : datumLabel(datum)}
-            </span>
-          </div>
-
-          {/* Events */}
-          <div className="ml-[42px] space-y-2">
-            {gruppen[datum].map((ev) => {
+      {/* Liste (scrollbar) */}
+      {angezeigt.length === 0 ? (
+        <div className="py-4 text-center">
+          <p className="text-xs text-gray-400">Keine anstehenden Ereignisse</p>
+        </div>
+      ) : (
+        <div className="overflow-y-auto pr-1" style={{ maxHeight: maxHoehe }}>
+          <div className="space-y-0.5">
+            {angezeigt.map((ev) => {
               const cfg   = TYP_CONFIG[ev.typ] ?? TYP_CONFIG.termin
               const stCfg = STATUS_CONFIG[ev.status] ?? STATUS_CONFIG.geplant
               const Icon  = cfg.Icon
@@ -107,73 +122,56 @@ export function Timeline({ events, showRaumBadge = false, alleLink, limit }: Tim
               return (
                 <div
                   key={ev.id}
-                  className={`p-3 bg-white rounded-lg border transition-all ${
+                  className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-colors ${
                     ueberfaellig
-                      ? 'border-red-200 bg-red-50/30'
-                      : 'border-gray-200 hover:border-[#445c49]/30 hover:shadow-sm'
+                      ? 'bg-red-50/30 hover:bg-red-50/50'
+                      : 'hover:bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-start gap-2.5">
-                    {/* Typ-Icon */}
-                    <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${cfg.bgFarbe}`}>
-                      <Icon className={`w-3.5 h-3.5 ${cfg.farbe}`} />
-                    </div>
+                  {/* Typ-Icon */}
+                  <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${cfg.bgFarbe}`}>
+                    <Icon className={`w-3.5 h-3.5 ${cfg.farbe}`} />
+                  </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-sm font-medium text-gray-900 truncate">{ev.titel}</span>
-
-                        {/* Status-Badge */}
-                        <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${stCfg.klasse}`}>
-                          {stCfg.label}
+                  {/* Titel + Raum-Badge */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm text-gray-900 truncate">{ev.titel}</span>
+                      {showRaumBadge && ev.raum && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-wellbeing-green/10 text-wellbeing-green rounded shrink-0 font-medium">
+                          {ev.raum.name}
                         </span>
-
-                        {/* Überfällig-Badge */}
-                        {ueberfaellig && (
-                          <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-red-600 shrink-0">
-                            <AlertTriangle className="w-3 h-3" />
-                            Überfällig
-                          </span>
-                        )}
-
-                        {/* Raum-Badge */}
-                        {showRaumBadge && ev.raum && (
-                          <span className="text-[11px] px-1.5 py-0.5 bg-[#445c49]/10 text-[#445c49] rounded-full shrink-0 font-medium">
-                            {ev.raum.name}
-                          </span>
-                        )}
-                      </div>
-
-                      {ev.beschreibung && (
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{ev.beschreibung}</p>
-                      )}
-
-                      {/* Enddatum falls abweichend */}
-                      {ev.end_datum && ev.end_datum !== ev.start_datum && (
-                        <p className="text-[11px] text-gray-400 mt-0.5">
-                          bis {format(new Date(ev.end_datum + 'T00:00:00'), 'd. MMM yyyy', { locale: de })}
-                        </p>
                       )}
                     </div>
-
-                    {/* Farb-Dot */}
-                    {ev.farbe && (
-                      <div
-                        className="w-2 h-2 rounded-full shrink-0 mt-1.5"
-                        style={{ backgroundColor: ev.farbe }}
-                      />
+                    {ev.beschreibung && (
+                      <p className="text-[11px] text-gray-500 truncate">{ev.beschreibung}</p>
                     )}
+                  </div>
+
+                  {/* Rechts: Status + Datum */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {ueberfaellig && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-600">
+                        <AlertTriangle className="w-3 h-3" />
+                      </span>
+                    )}
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${stCfg.klasse}`}>
+                      {stCfg.label}
+                    </span>
+                    <span className="text-[11px] text-gray-400 tabular-nums min-w-[48px] text-right">
+                      {datumKurz(ev.start_datum)}
+                    </span>
                   </div>
                 </div>
               )
             })}
           </div>
         </div>
-      ))}
+      )}
 
       {/* Link zur vollen Timeline */}
       {alleLink && (
-        <div className="ml-[42px] mt-3">
+        <div className="mt-2">
           <Link href={alleLink} className="text-xs text-wellbeing-green hover:underline">
             Alle Ereignisse anzeigen →
           </Link>
