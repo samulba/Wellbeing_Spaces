@@ -2,6 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
+
+// Muss dynamisch sein — sonst werden die Raum-Produkte und Timeline-Events
+// zwischen Sync-Aufrufen gecacht und Änderungen sind erst nach Hard-Refresh sichtbar.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import { getRaumProdukte } from '@/app/actions/raum-produkte'
 import { raumEventsAbrufen } from '@/app/actions/timeline'
@@ -265,7 +270,12 @@ export default async function RaumDetailPage({
       {/* Raum-Timeline */}
       <div className="mt-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Raum-Timeline</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Raum-Timeline</p>
+            <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
+              {timelineEvents.length} Events
+            </span>
+          </div>
           <div className="flex items-center gap-3 flex-wrap">
             <TimelineSyncButton raumId={params.raumId} projektId={params.id} />
             <RaumEventButton projektId={params.id} raumId={params.raumId} />
