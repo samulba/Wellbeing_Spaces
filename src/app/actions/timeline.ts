@@ -168,7 +168,7 @@ export async function syncAutoEvent(
   projektId: string,
   daten: SyncAutoEventDaten | null,
   optionen?: { loeschen?: boolean },
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; action?: 'created' | 'updated' | 'deleted' | 'noop' }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
@@ -191,14 +191,14 @@ export async function syncAutoEvent(
     if (error) {
       const msg = formatErr(`syncAutoEvent:delete:${quelle}`, error)
       console.error(msg, { quelleId, projektId })
-      return { error: msg }
+      return { error: msg, action: 'noop' }
     }
     revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
     revalidatePath(`/dashboard/projekte/${projektId}`)
-    return {}
+    return { action: 'deleted' }
   }
 
-  if (!daten) return {}
+  if (!daten) return { action: 'noop' }
 
   const kundeSichtbar = daten.kunde_sichtbar ?? QUELLE_KUNDE_SICHTBAR_DEFAULT[quelle]
 
@@ -231,7 +231,9 @@ export async function syncAutoEvent(
     kunde_sichtbar:  kundeSichtbar,
   }
 
+  let action: 'created' | 'updated' = 'created'
   if (existing) {
+    action = 'updated'
     const { error } = await supabase
       .from('timeline_events')
       .update(payload)
@@ -240,7 +242,7 @@ export async function syncAutoEvent(
     if (error) {
       const msg = formatErr(`syncAutoEvent:update:${quelle}`, error)
       console.error(msg, { quelleId, projektId })
-      return { error: msg }
+      return { error: msg, action: 'noop' }
     }
   } else {
     const { error } = await supabase
@@ -254,7 +256,7 @@ export async function syncAutoEvent(
     if (error) {
       const msg = formatErr(`syncAutoEvent:insert:${quelle}`, error)
       console.error(msg, { quelleId, projektId })
-      return { error: msg }
+      return { error: msg, action: 'noop' }
     }
   }
 
@@ -263,7 +265,7 @@ export async function syncAutoEvent(
   if (daten.raum_id) {
     revalidatePath(`/dashboard/projekte/${projektId}/raeume/${daten.raum_id}`)
   }
-  return {}
+  return { action }
 }
 
 

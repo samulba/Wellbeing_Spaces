@@ -17,30 +17,139 @@ export type ProduktActionState = { fehler: string } | null
 /**
  * Öffentliche Version: synct alle raum_produkte eines Raums auf einmal.
  * Aufruf vom UI-Button "Timeline neu laden" auf der Raum-Detail-Seite.
+ * Gibt Detail-Counts zurück, damit der User sieht was wirklich passiert ist.
  */
 export async function syncAlleProdukteImRaum(
   raumId: string,
   projektId: string,
-): Promise<{ anzahl: number; error?: string }> {
+): Promise<{
+  anzahl: number
+  events_erstellt: number
+  events_aktualisiert: number
+  events_geloescht: number
+  events_uebersprungen: number
+  error?: string
+  details?: string
+}> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
   const { data: eintraege, error: readErr } = await supabase
     .from('raum_produkte')
-    .select('id')
+    .select('id, produkt_id, bestellstatus, bestellt_am, liefertermin, lieferung_erhalten_am, produkte(name)')
     .eq('raum_id', raumId)
     .eq('organisation_id', orgId)
-  if (readErr) return { anzahl: 0, error: readErr.message }
-  const list = eintraege ?? []
+  if (readErr) return {
+    anzahl: 0, events_erstellt: 0, events_aktualisiert: 0,
+    events_geloescht: 0, events_uebersprungen: 0,
+    error: readErr.message,
+  }
+  const list = (eintraege ?? []) as unknown as Array<{
+    id: string
+    produkt_id: string
+    bestellstatus: string | null
+    bestellt_am: string | null
+    liefertermin: string | null
+    lieferung_erhalten_am: string | null
+    produkte: { name: string } | null
+  }>
+
   const errors: string[] = []
+  let erstellt = 0, aktualisiert = 0, geloescht = 0, uebersprungen = 0
+  const detailLog: string[] = []
+
   for (const e of list) {
-    const res = await syncProduktTimeline(e.id, projektId, raumId)
-    if (res.error) errors.push(res.error)
+    const name = e.produkte?.name ?? 'Produkt'
+    const info = `${name}: status=${e.bestellstatus ?? '?'}, liefertermin=${e.liefertermin ?? 'null'}, bestellt=${e.bestellt_am ?? 'null'}, geliefert=${e.lieferung_erhalten_am ?? 'null'}`
+    detailLog.push(info)
+    console.info('[syncAlleProdukteImRaum]', info)
+    const res = await syncProduktTimelineMitCounter(e.id, projektId, raumId)
+    if (res.error) errors.push(`${name}: ${res.error}`)
+    erstellt      += res.created
+    aktualisiert  += res.updated
+    geloescht     += res.deleted
+    uebersprungen += res.noop
   }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
-  return errors.length > 0
-    ? { anzahl: list.length, error: errors.join(' | ') }
-    : { anzahl: list.length }
+  return {
+    anzahl:               list.length,
+    events_erstellt:      erstellt,
+    events_aktualisiert:  aktualisiert,
+    events_geloescht:     geloescht,
+    events_uebersprungen: uebersprungen,
+    error:    errors.length > 0 ? errors.join(' | ') : undefined,
+    details:  detailLog.join(' • '),
+  }
+}
+
+/**
+ * Wrapper um syncProduktTimeline, der die Actions der zwei syncAutoEvent-Aufrufe
+ * aggregiert. Nötig weil syncProduktTimeline selber nur { error? } zurückgibt.
+ */
+async function syncProduktTimelineMitCounter(
+  raumProduktId: string, projektId: string, raumId: string,
+): Promise<{ created: number; updated: number; deleted: number; noop: number; error?: string }> {
+  const supabase = await createClient()
+  const errors: string[] = []
+  let created = 0, updated = 0, deleted = 0, noop = 0
+  try {
+    const { data: rp, error: readErr } = await supabase
+      .from('raum_produkte')
+      .select('id, bestellstatus, bestellt_am, lieferung_erhalten_am, liefertermin, produkte(name)')
+      .eq('id', raumProduktId)
+      .maybeSingle()
+    if (readErr) return { created, updated, deleted, noop, error: `read: ${readErr.message}` }
+    if (!rp)    return { created, updated, deleted, noop, error: `rp nicht gefunden: ${raumProduktId}` }
+    const rpTyped = rp as unknown as {
+      bestellstatus: string | null
+      bestellt_am: string | null
+      lieferung_erhalten_am: string | null
+      liefertermin: string | null
+      produkte: { name: string } | { name: string }[] | null
+    }
+    const prodRaw = rpTyped.produkte
+    const name = Array.isArray(prodRaw) ? (prodRaw[0]?.name ?? 'Produkt') : (prodRaw?.name ?? 'Produkt')
+
+    // Liefertermin-Event
+    const r1 = rpTyped.liefertermin
+      ? await syncAutoEvent('produkt', raumProduktId, projektId, {
+          titel: `Lieferung: ${name}`, typ: 'lieferung',
+          start_datum: rpTyped.liefertermin, raum_id: raumId,
+        })
+      : await syncAutoEvent('produkt', raumProduktId, projektId, null, { loeschen: true })
+    if (r1.error) errors.push(r1.error)
+    if (r1.action === 'created') created++
+    if (r1.action === 'updated') updated++
+    if (r1.action === 'deleted') deleted++
+    if (r1.action === 'noop')    noop++
+
+    // Bestellstatus-Event
+    const r2 =
+      rpTyped.bestellstatus === 'geliefert' && rpTyped.lieferung_erhalten_am
+        ? await syncAutoEvent('bestellstatus', raumProduktId, projektId, {
+            titel: `Geliefert: ${name}`, typ: 'lieferung',
+            start_datum: rpTyped.lieferung_erhalten_am, status: 'abgeschlossen',
+            raum_id: raumId,
+          })
+        : (rpTyped.bestellstatus === 'bestellt' || rpTyped.bestellstatus === 'rechnung_erhalten') && rpTyped.bestellt_am
+          ? await syncAutoEvent('bestellstatus', raumProduktId, projektId, {
+              titel: `Bestellt: ${name}`, typ: 'lieferung',
+              start_datum: rpTyped.bestellt_am, status: 'abgeschlossen',
+              raum_id: raumId,
+            })
+          : await syncAutoEvent('bestellstatus', raumProduktId, projektId, null, { loeschen: true })
+    if (r2.error) errors.push(r2.error)
+    if (r2.action === 'created') created++
+    if (r2.action === 'updated') updated++
+    if (r2.action === 'deleted') deleted++
+    if (r2.action === 'noop')    noop++
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : String(err))
+  }
+  return {
+    created, updated, deleted, noop,
+    error: errors.length ? errors.join(' | ') : undefined,
+  }
 }
 
 async function syncProduktTimeline(
