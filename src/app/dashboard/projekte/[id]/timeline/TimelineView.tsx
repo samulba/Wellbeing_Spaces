@@ -302,19 +302,19 @@ function EventModal({
             <button
               type="button"
               onClick={() => set('kunde_sichtbar', !form.kunde_sichtbar)}
-              className={`relative shrink-0 w-10 h-6 rounded-full transition-colors mt-0.5 ${
-                form.kunde_sichtbar ? 'bg-wellbeing-green' : 'bg-gray-300'
+              className={`shrink-0 mt-0.5 flex items-center p-0 border-0 rounded-full transition-colors cursor-pointer ${
+                form.kunde_sichtbar ? 'bg-wellbeing-green justify-end pr-[3px]' : 'bg-gray-300 justify-start pl-[3px]'
               }`}
+              style={{ width: 40, height: 22, boxSizing: 'border-box' }}
               role="switch"
               aria-checked={form.kunde_sichtbar}
             >
               <span
-                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
-                  form.kunde_sichtbar ? 'translate-x-[18px]' : 'translate-x-0.5'
-                }`}
+                className="block bg-white rounded-full shadow-sm"
+                style={{ width: 16, height: 16 }}
               />
             </button>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-800">Für Kunde im Portal sichtbar</p>
               <p className="text-xs text-gray-500 mt-0.5">
                 Aus, wenn dieses Event nur intern ist (z.B. Bestellung, internes Meeting).

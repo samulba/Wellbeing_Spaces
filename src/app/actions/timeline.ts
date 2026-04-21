@@ -172,12 +172,15 @@ export async function syncAutoEvent(
 
   // Löschung
   if (optionen?.loeschen) {
-    await supabase
+    const { error } = await supabase
       .from('timeline_events')
       .delete()
       .eq('organisation_id', orgId)
       .eq('quelle', quelle)
       .eq('quelle_id', quelleId)
+    if (error) {
+      console.error('[syncAutoEvent:delete]', { quelle, quelleId, message: error.message, hint: error.hint, details: error.details })
+    }
     revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
     revalidatePath(`/dashboard/projekte/${projektId}`)
     return
@@ -188,7 +191,10 @@ export async function syncAutoEvent(
   const kundeSichtbar = daten.kunde_sichtbar ?? QUELLE_KUNDE_SICHTBAR_DEFAULT[quelle]
 
   // UPSERT auf (organisation_id, quelle, quelle_id)
-  await supabase
+  // WICHTIG: setzt Migration 075 voraus (Spalten quelle/quelle_id/kunde_sichtbar
+  // + Partial-Unique-Index). Fehlt sie, schlägt der Upsert fehl — Fehler wird
+  // hier sichtbar geloggt statt still geschluckt.
+  const { error } = await supabase
     .from('timeline_events')
     .upsert({
       organisation_id: orgId,
@@ -206,6 +212,19 @@ export async function syncAutoEvent(
     }, {
       onConflict: 'organisation_id,quelle,quelle_id',
     })
+
+  if (error) {
+    console.error('[syncAutoEvent:upsert]', {
+      quelle, quelleId, projektId,
+      message: error.message, hint: error.hint, details: error.details, code: error.code,
+    })
+    if (error.message?.includes('quelle') || error.code === '42703') {
+      console.error(
+        '[syncAutoEvent] Migration 075 wurde vermutlich noch nicht ausgeführt. ' +
+        'Bitte supabase/migrations/075_timeline_quelle_sichtbar.sql im Supabase-SQL-Editor laufen lassen.'
+      )
+    }
+  }
 
   revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
   revalidatePath(`/dashboard/projekte/${projektId}`)
