@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import {
   CheckCircle2, MessageSquare, FileText, CalendarDays,
@@ -256,30 +256,48 @@ function NachrichtenTab({
   prim: string
 }) {
   const [nachrichten, setNachrichten] = useState(initialNachrichten)
+  const textRef = useRef<HTMLTextAreaElement>(null)
   const [state, action] = useFormState(
     async (prev: { fehler?: string; erfolg?: string } | null, formData: FormData) => {
+      const text = (formData.get('nachricht') as string ?? '').trim()
       const result = await portalNachrichtSenden(prev, formData)
       if (result?.erfolg) {
         setNachrichten((prev) => [...prev, {
           id:        crypto.randomUUID(),
-          nachricht: formData.get('nachricht') as string,
+          nachricht: text,
           von_kunde: true,
           created_at: new Date().toISOString(),
         }])
+        // Textfeld NACH erfolgreichem Senden leeren
+        if (textRef.current) textRef.current.value = ''
       }
       return result
     },
     null
   )
-  const textRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-Scroll zum Ende bei neuer Nachricht
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [nachrichten.length])
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 space-y-3 mb-4 max-h-96 overflow-y-auto pr-1">
+    <div className="flex flex-col bg-white border border-black/[0.06] brand-radius overflow-hidden">
+      <div ref={scrollRef} className="flex-1 h-[480px] overflow-y-auto px-4 py-5 space-y-3 bg-gray-50/40">
         {nachrichten.length === 0 ? (
-          <div className="text-center py-8">
-            <MessageSquare className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">Noch keine Nachrichten.</p>
+          <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+              style={{ background: `rgba(var(--brand-primary-rgb), 0.08)` }}
+            >
+              <MessageSquare className="w-5 h-5" style={{ color: prim }} />
+            </div>
+            <p className="text-sm font-medium text-gray-700">Noch keine Nachrichten</p>
+            <p className="text-xs text-gray-400 max-w-xs">
+              Schreib dem Team deine erste Nachricht — Antwort kommt meist innerhalb von 24 Stunden.
+            </p>
           </div>
         ) : (
           nachrichten.map((n) => (
@@ -300,19 +318,19 @@ function NachrichtenTab({
         )}
       </div>
 
-      <form action={action} className="flex gap-2 items-end" onSubmit={() => { if (textRef.current) textRef.current.value = '' }}>
+      <form action={action} className="border-t border-black/[0.06] p-3 bg-white flex gap-2 items-end shrink-0">
         <input type="hidden" name="projekt_id" value={projektId} />
         <textarea
           ref={textRef}
           name="nachricht"
-          rows={2}
-          placeholder="Nachricht schreiben…"
-          className="flex-1 px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:border-transparent"
+          rows={1}
+          placeholder="Nachricht an das Team…"
+          className="flex-1 px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl resize-none max-h-32 focus:outline-none focus:ring-2 focus:border-transparent"
           style={{ '--tw-ring-color': prim + '40' } as React.CSSProperties}
         />
         <SendBtn prim={prim} />
       </form>
-      {state?.fehler && <p className="text-xs text-red-500 mt-1">{state.fehler}</p>}
+      {state?.fehler && <p className="text-xs text-red-500 px-3 pb-2">{state.fehler}</p>}
     </div>
   )
 }
