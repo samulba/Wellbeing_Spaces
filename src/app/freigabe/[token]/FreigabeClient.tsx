@@ -96,18 +96,16 @@ function PinEingabe({ token, projektName, onErfolg, brandingBg, brandingPrim, fi
     })
   }
 
-  // Auto-Submit mit Debounce: wenn nach der Eingabe 600ms nichts passiert
-  // und der PIN mind. 4-stellig ist, wird automatisch geprüft. Damit
-  // funktionieren 4-, 5- UND 6-stellige PINs ohne „Bestätigen"-Klick.
-  const autoSubmitRef = useRef<number | null>(null)
+  // Auto-Submit NUR bei 6 Ziffern (da kann der User eh nicht weiter tippen).
+  // Bei 4 oder 5 Ziffern muss Enter oder Button gedrückt werden — sonst würde
+  // eine 4-Ziffer-Eingabe bei einem 5-Ziffern-PIN fälschlich abgeschickt,
+  // bevor der User die 5. Ziffer tippen konnte (führte zu reset → nur 4 Boxen).
   function handleChange(neu: string) {
     const digits = neu.replace(/\D/g, '').slice(0, MAX_LAENGE)
     setPin(digits)
     setFehler(null)
-    if (autoSubmitRef.current) window.clearTimeout(autoSubmitRef.current)
-    if (digits.length >= MIN_LAENGE) {
-      const delay = digits.length === MAX_LAENGE ? 150 : 700
-      autoSubmitRef.current = window.setTimeout(() => pruefe(), delay)
+    if (digits.length === MAX_LAENGE) {
+      setTimeout(() => pruefe(), 120)
     }
   }
 
