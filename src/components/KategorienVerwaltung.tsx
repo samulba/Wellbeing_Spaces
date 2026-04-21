@@ -314,15 +314,15 @@ export default function KategorienVerwaltung({ kategorien, raumtypen, projektart
         mitIcons mitPruefung
       />
       <ListeAbschnitt
-        titel="Raumtypen"
-        beschreibung="Typen für neue Räume in Projekten"
-        typ="raumtyp" items={raumtypen} platzhalter="z.B. Empfang"
+        titel="Projektarten"
+        beschreibung="Kontext des Kunden (z.B. Hotel, Büro, Privat, Praxis)"
+        typ="projektart" items={projektarten} platzhalter="z.B. Hotel"
         mitIcons
       />
       <ListeAbschnitt
-        titel="Projektarten"
-        beschreibung="Klassifizierung von Projekten"
-        typ="projektart" items={projektarten} platzhalter="z.B. Umbau"
+        titel="Raumtypen"
+        beschreibung="Einzelne Räume innerhalb eines Projekts (z.B. Küche, Bad)"
+        typ="raumtyp" items={raumtypen} platzhalter="z.B. Küche"
         mitIcons
       />
     </div>

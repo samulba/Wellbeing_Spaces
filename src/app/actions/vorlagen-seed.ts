@@ -530,3 +530,58 @@ export async function standardVorlagenErstellenAction(): Promise<{ erstellt: num
 
   return erstelleStandardVorlagen(orgId)
 }
+
+
+// ============================================================
+// Standard-Kategorien für neue Organisationen
+// ============================================================
+
+/**
+ * Legt sinnvolle Default-Projektarten und Raumtypen für eine neue Organisation
+ * an. Wird vom auth/callback bei Erst-Login automatisch aufgerufen. Nutzt
+ * ON-CONFLICT via UNIQUE-Index → idempotent, bestehende Werte bleiben.
+ *
+ * Projektart = Kontext des Kunden (Hotel/Büro/Privat/…)
+ * Raumtyp    = einzelner Raum     (Küche/Bad/Wohnzimmer/…)
+ */
+export async function erstelleStandardKategorien(orgId: string): Promise<void> {
+  const admin = createAdminClient()
+
+  const projektarten = [
+    { name: 'Privat',       icon: 'Home',        reihenfolge: 1 },
+    { name: 'Gewerbe',      icon: 'Store',       reihenfolge: 2 },
+    { name: 'Hotel',        icon: 'Hotel',       reihenfolge: 3 },
+    { name: 'Büro',         icon: 'Building',    reihenfolge: 4 },
+    { name: 'Praxis',       icon: 'Heart',       reihenfolge: 5 },
+    { name: 'Gastronomie',  icon: 'Utensils',    reihenfolge: 6 },
+    { name: 'Wellness',     icon: 'Waves',       reihenfolge: 7 },
+    { name: 'Einzelhandel', icon: 'ShoppingBag', reihenfolge: 8 },
+  ]
+
+  const raumtypen = [
+    { name: 'Wohnzimmer',        icon: 'Sofa',      reihenfolge: 1 },
+    { name: 'Esszimmer',         icon: 'Utensils',  reihenfolge: 2 },
+    { name: 'Küche',             icon: 'ChefHat',   reihenfolge: 3 },
+    { name: 'Schlafzimmer',      icon: 'BedDouble', reihenfolge: 4 },
+    { name: 'Kinderzimmer',      icon: 'Bed',       reihenfolge: 5 },
+    { name: 'Bad',               icon: 'Bath',      reihenfolge: 6 },
+    { name: 'WC',                icon: 'Droplet',   reihenfolge: 7 },
+    { name: 'Flur',              icon: 'DoorOpen',  reihenfolge: 8 },
+    { name: 'Büro',              icon: 'Monitor',   reihenfolge: 9 },
+    { name: 'Empfang',           icon: 'Star',      reihenfolge: 10 },
+    { name: 'Besprechungsraum',  icon: 'Grid',      reihenfolge: 11 },
+    { name: 'Lager',             icon: 'Archive',   reihenfolge: 12 },
+    { name: 'Balkon / Terrasse', icon: 'Palmtree',  reihenfolge: 13 },
+  ]
+
+  const rows = [
+    ...projektarten.map((p) => ({ organisation_id: orgId, typ: 'projektart', ...p })),
+    ...raumtypen.map((r)    => ({ organisation_id: orgId, typ: 'raumtyp',    ...r })),
+  ]
+
+  // onConflict auf (organisation_id, typ, name) → idempotent
+  await admin.from('kategorien').upsert(rows, {
+    onConflict: 'organisation_id,typ,name',
+    ignoreDuplicates: true,
+  })
+}
