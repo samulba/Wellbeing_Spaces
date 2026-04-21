@@ -15,66 +15,78 @@ export type ProduktActionState = { fehler: string } | null
  * Haupt-Action nicht abbrechen).
  */
 async function syncProduktTimeline(
-  produktId: string, projektId: string, raumId: string,
+  raumProduktId: string, projektId: string, raumId: string,
 ): Promise<{ error?: string }> {
   const errors: string[] = []
   try {
     const supabase = await createClient()
-    const { data: p, error: readErr } = await supabase
-      .from('produkte')
-      .select('name, bestellstatus, bestellt_am, lieferung_erhalten_am, liefertermin')
-      .eq('id', produktId)
-      .maybeSingle()
+    // Lies aus raum_produkte + produkte (für den Namen).
+    // raum_produkte hält seit Migration 076 die per-Raum Bestell-/Lieferdaten.
+    const { data: rp, error: readErr } = await supabase
+      .from('raum_produkte')
+      .select('id, bestellstatus, bestellt_am, lieferung_erhalten_am, liefertermin, produkte(name)')
+      .eq('id', raumProduktId)
+      .maybeSingle<{
+        id: string
+        bestellstatus: BestellStatus
+        bestellt_am: string | null
+        lieferung_erhalten_am: string | null
+        liefertermin: string | null
+        produkte: { name: string } | null
+      }>()
     if (readErr) {
       const msg = `[syncProduktTimeline:read] ${readErr.message}`
-      console.error(msg, { produktId })
+      console.error(msg, { raumProduktId })
       return { error: msg }
     }
-    if (!p) {
-      const msg = `[syncProduktTimeline] Produkt nicht gefunden (RLS?): ${produktId}`
+    if (!rp) {
+      const msg = `[syncProduktTimeline] Raum-Produkt nicht gefunden (RLS?): ${raumProduktId}`
       console.warn(msg)
       return { error: msg }
     }
+    const name = rp.produkte?.name ?? 'Produkt'
     console.info('[syncProduktTimeline]', {
-      produktId, projektId, raumId,
-      name: p.name, status: p.bestellstatus,
-      bestellt_am: p.bestellt_am, lieferung_erhalten_am: p.lieferung_erhalten_am,
-      liefertermin: p.liefertermin,
+      raumProduktId, projektId, raumId,
+      name, status: rp.bestellstatus,
+      bestellt_am: rp.bestellt_am, lieferung_erhalten_am: rp.lieferung_erhalten_am,
+      liefertermin: rp.liefertermin,
     })
 
     // Liefertermin-Event (quelle=produkt) — Kunden-sichtbar
+    // quelle_id ist ab sofort die raum_produkte.id, nicht mehr produkte.id.
+    // Damit kann derselbe Artikel in zwei Räumen zwei separate Events haben.
     let res: { error?: string } = {}
-    if (p.liefertermin) {
-      res = await syncAutoEvent('produkt', produktId, projektId, {
-        titel:       `Lieferung: ${p.name}`,
+    if (rp.liefertermin) {
+      res = await syncAutoEvent('produkt', raumProduktId, projektId, {
+        titel:       `Lieferung: ${name}`,
         typ:         'lieferung',
-        start_datum: p.liefertermin,
+        start_datum: rp.liefertermin,
         raum_id:     raumId,
       })
     } else {
-      res = await syncAutoEvent('produkt', produktId, projektId, null, { loeschen: true })
+      res = await syncAutoEvent('produkt', raumProduktId, projektId, null, { loeschen: true })
     }
     if (res.error) errors.push(res.error)
 
     // Bestellstatus-Event (quelle=bestellstatus) — intern, NICHT im Portal
-    if (p.bestellstatus === 'geliefert' && p.lieferung_erhalten_am) {
-      res = await syncAutoEvent('bestellstatus', produktId, projektId, {
-        titel:       `Geliefert: ${p.name}`,
+    if (rp.bestellstatus === 'geliefert' && rp.lieferung_erhalten_am) {
+      res = await syncAutoEvent('bestellstatus', raumProduktId, projektId, {
+        titel:       `Geliefert: ${name}`,
         typ:         'lieferung',
-        start_datum: p.lieferung_erhalten_am,
+        start_datum: rp.lieferung_erhalten_am,
         status:      'abgeschlossen',
         raum_id:     raumId,
       })
-    } else if ((p.bestellstatus === 'bestellt' || p.bestellstatus === 'rechnung_erhalten') && p.bestellt_am) {
-      res = await syncAutoEvent('bestellstatus', produktId, projektId, {
-        titel:       `Bestellt: ${p.name}`,
+    } else if ((rp.bestellstatus === 'bestellt' || rp.bestellstatus === 'rechnung_erhalten') && rp.bestellt_am) {
+      res = await syncAutoEvent('bestellstatus', raumProduktId, projektId, {
+        titel:       `Bestellt: ${name}`,
         typ:         'lieferung',
-        start_datum: p.bestellt_am,
+        start_datum: rp.bestellt_am,
         status:      'abgeschlossen',
         raum_id:     raumId,
       })
     } else {
-      res = await syncAutoEvent('bestellstatus', produktId, projektId, null, { loeschen: true })
+      res = await syncAutoEvent('bestellstatus', raumProduktId, projektId, null, { loeschen: true })
     }
     if (res.error) errors.push(res.error)
   } catch (err) {
@@ -386,8 +398,13 @@ export async function updateProduktPositionen(
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
 }
 
+/**
+ * Bestellstatus auf raum_produkte setzen (Migration 076).
+ * Nimmt raum_produkte.id (nicht produkte.id) als ersten Parameter,
+ * damit derselbe Artikel in verschiedenen Räumen eigenen Status hat.
+ */
 export async function bestellstatusAendern(
-  produktId: string,
+  raumProduktId: string,
   raumId: string,
   projektId: string,
   neuerStatus: BestellStatus
@@ -395,16 +412,12 @@ export async function bestellstatusAendern(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
-  // Aktuelle Datums-Werte laden, damit wir fehlende Daten auto-füllen können.
-  // Ohne ein Datum kann syncProduktTimeline keinen Event erzeugen – also setzen
-  // wir bei erstem Übergang auf 'bestellt' / 'geliefert' das jeweilige Datum
-  // automatisch auf heute. User kann es hinterher manuell korrigieren.
+  // Aktuelle Datums-Werte aus raum_produkte laden (Auto-Füll-Logik).
   const { data: aktuell } = await supabase
-    .from('produkte')
+    .from('raum_produkte')
     .select('bestellt_am, lieferung_erhalten_am')
-    .eq('id', produktId)
+    .eq('id', raumProduktId)
     .eq('organisation_id', orgId)
-    .is('deleted_at', null)
     .maybeSingle()
 
   const heute = new Date().toISOString().split('T')[0]
@@ -415,23 +428,20 @@ export async function bestellstatusAendern(
   }
   if (neuerStatus === 'geliefert' && !aktuell?.lieferung_erhalten_am) {
     update.lieferung_erhalten_am = heute
-    // Wenn geliefert ohne bestellt_am (ungewöhnlich aber möglich), auch das füllen
     if (!aktuell?.bestellt_am) update.bestellt_am = heute
   }
 
   const { error } = await supabase
-    .from('produkte')
+    .from('raum_produkte')
     .update(update)
-    .eq('id', produktId)
+    .eq('id', raumProduktId)
     .eq('organisation_id', orgId)
-    .is('deleted_at', null)
   if (error) {
     console.error('bestellstatusAendern failed:', error)
     return { fehler: error.message }
   }
 
-  // Timeline-Auto-Sync (nicht-blockierend, Fehler werden an Client durchgereicht)
-  const syncRes = await syncProduktTimeline(produktId, projektId, raumId)
+  const syncRes = await syncProduktTimeline(raumProduktId, projektId, raumId)
 
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   return syncRes.error ? { sync_fehler: syncRes.error } : {}
@@ -448,15 +458,17 @@ const STATUS_RANK: Record<BestellStatus, number> = {
 }
 
 /**
- * Aktualisiert ein einzelnes Datumsfeld auf produkte.
+ * Aktualisiert ein einzelnes Datumsfeld auf raum_produkte (Migration 076).
+ * Parameter raumProduktId (nicht produktId), damit jeder Raum eigene
+ * Bestell-/Liefer-Daten hat.
  * Automatischer Status-Upgrade:
  *   - bestellt_am gesetzt      → bestellstatus mindestens 'bestellt'
  *   - lieferung_erhalten_am    → bestellstatus mindestens 'geliefert'
- * Ein bereits höherer Status (z.B. 'rechnung_erhalten') bleibt unberührt.
+ * Ein bereits höherer Status bleibt unberührt.
  * Beim Löschen eines Datums wird der Status NICHT zurückgesetzt.
  */
 export async function produktDatumAktualisieren(
-  produktId: string,
+  raumProduktId: string,
   raumId: string,
   projektId: string,
   feld: ProduktDatumFeld,
@@ -466,18 +478,15 @@ export async function produktDatumAktualisieren(
   const orgId = await getOrganisationId()
   const wert = datum && datum.trim() ? datum : null
 
-  // Update-Objekt zusammenbauen (Datum + ggf. auto-Status-Upgrade)
   const update: Record<string, unknown> = { [feld]: wert }
   let neuerStatus: BestellStatus | undefined
 
   if (wert != null && (feld === 'bestellt_am' || feld === 'lieferung_erhalten_am')) {
-    // Aktuellen Status laden, um kein Downgrade zu machen
     const { data: aktuell } = await supabase
-      .from('produkte')
+      .from('raum_produkte')
       .select('bestellstatus')
-      .eq('id', produktId)
+      .eq('id', raumProduktId)
       .eq('organisation_id', orgId)
-      .is('deleted_at', null)
       .maybeSingle()
 
     const aktuellStatus = (aktuell?.bestellstatus ?? 'ausstehend') as BestellStatus
@@ -489,15 +498,13 @@ export async function produktDatumAktualisieren(
   }
 
   const { error } = await supabase
-    .from('produkte')
+    .from('raum_produkte')
     .update(update)
-    .eq('id', produktId)
+    .eq('id', raumProduktId)
     .eq('organisation_id', orgId)
-    .is('deleted_at', null)
   if (error) return { fehler: 'Datum konnte nicht gespeichert werden.' }
 
-  // Timeline-Auto-Sync (Fehler werden an Client durchgereicht)
-  const syncRes = await syncProduktTimeline(produktId, projektId, raumId)
+  const syncRes = await syncProduktTimeline(raumProduktId, projektId, raumId)
 
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   return { bestellstatus: neuerStatus, sync_fehler: syncRes.error }
