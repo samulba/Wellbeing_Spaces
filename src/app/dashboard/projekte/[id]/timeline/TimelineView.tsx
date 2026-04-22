@@ -514,10 +514,66 @@ function GanttChart({
   }
 
   const chartHoehe = achsenHoehe + events.length * rowHoehe + 16
+  const SIDEBAR_BREITE = 260
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm" ref={containerRef}>
-      <div style={{ minWidth: totalBreite + 280, position: 'relative' }}>
+    <div className="flex rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      {/* ── Linke Sidebar: Event-Namen (sticky beim horizontalen Scroll) ── */}
+      <div
+        className="shrink-0 border-r border-gray-200 bg-gray-50/40"
+        style={{ width: SIDEBAR_BREITE }}
+      >
+        {/* Header (gleiche Höhe wie Zeitachse rechts) */}
+        <div
+          className="sticky top-0 z-20 bg-gray-50/90 backdrop-blur-md border-b border-gray-200 px-4 flex items-center"
+          style={{ height: achsenHoehe }}
+        >
+          <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+            Ereignis ({events.length})
+          </span>
+        </div>
+        {/* Namen-Liste */}
+        {events.map((event, idx) => {
+          const cfg = TYP_CONFIG[event.typ]
+          const stCfg = STATUS_CONFIG[event.status]
+          const Icon = cfg.icon
+          const ueberfaellig = istUeberfaellig(event)
+          const istAuto = event.quelle && event.quelle !== 'manuell'
+          return (
+            <button
+              key={event.id}
+              type="button"
+              onClick={() => onEventClick(event)}
+              className={`w-full flex items-center gap-2 px-3 text-left transition-colors ${
+                idx % 2 === 0 ? '' : 'bg-gray-50/60'
+              } ${ueberfaellig ? 'hover:bg-red-50/50' : 'hover:bg-wellbeing-green/5'}`}
+              style={{ height: rowHoehe }}
+            >
+              <div
+                className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 border ${cfg.bgFarbe}`}
+                style={event.farbe ? { backgroundColor: event.farbe + '22', borderColor: event.farbe + '66' } : undefined}
+              >
+                <Icon className={`w-3.5 h-3.5 ${cfg.farbe}`} style={event.farbe ? { color: event.farbe } : undefined} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1 flex-wrap">
+                  <p className={`text-xs font-medium truncate ${ueberfaellig ? 'text-red-700' : 'text-gray-900'}`}>
+                    {event.titel}
+                  </p>
+                  {istAuto && <span className="text-[10px] text-amber-600" title="Auto-Event">⚡</span>}
+                </div>
+                <span className={`inline-block mt-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded ${stCfg.klasse}`}>
+                  {stCfg.label}
+                </span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Rechte Spalte: Scrollbare Zeitleiste ── */}
+      <div className="flex-1 overflow-x-auto" ref={containerRef}>
+        <div style={{ minWidth: totalBreite + 80, position: 'relative' }}>
         {/* Zeitachse: Monats-Zeile + Wochen-Zeile */}
         <div className="sticky top-0 z-20 bg-white border-b border-gray-200" style={{ height: achsenHoehe }}>
           {/* Monats-Blöcke (obere Hälfte) */}
@@ -702,8 +758,9 @@ function GanttChart({
           )
         })}
 
-        {/* Puffer */}
-        <div style={{ height: 16 }} />
+          {/* Puffer */}
+          <div style={{ height: 16 }} />
+        </div>
       </div>
     </div>
   )
