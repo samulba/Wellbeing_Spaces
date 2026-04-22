@@ -10,6 +10,46 @@
 body {
   color: var(--foreground);
   background: var(--background);
+  /* App-Chrome nicht markierbar (Navigation, Buttons, Card-Labels, Badges).
+     Content-Elemente (Headings, Absätze, Definition-Terms, Listen,
+     Textareas usw.) bekommen's explizit zurück. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Echter Content ist markierbar — Überschriften, Absätze, Listen,
+   Definition-Terms, Eingabefelder, Code-Blöcke. */
+h1, h2, h3, h4, h5, h6,
+p, dt, dd, li, blockquote,
+input, textarea, select,
+[contenteditable="true"],
+pre, code,
+.select-text, .select-text * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Ausnahme: Wenn der obige Content innerhalb eines interaktiven
+   Elements liegt (Button, Link, Nav-Item, Tab, Menü-Item), wieder
+   nicht markierbar — das passiert z.B. wenn ein Projekt-Name ein
+   <h2> in einem Button-Wrapper ist. */
+button h1, button h2, button h3, button h4, button h5, button h6,
+button p, button dt, button dd, button li,
+a h1, a h2, a h3, a h4, a h5, a h6,
+a p, a dt, a dd, a li,
+[role="button"] *,
+[role="tab"] *,
+[role="menuitem"] *,
+nav *, aside * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* …und dort mit .select-text wieder freigeben falls nötig (z.B.
+   Kontaktdaten die trotzdem kopierbar sein sollen). */
+.select-text, .select-text * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }
 
 @media (prefers-reduced-motion: no-preference) {

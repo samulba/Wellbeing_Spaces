@@ -268,7 +268,7 @@ export default function KommunikationBlock({ kundeId, initialEintraege }: Props)
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     {e.betreff ? (
-                      <p className="text-xs font-medium text-gray-800 truncate">{e.betreff}</p>
+                      <p className="text-xs font-medium text-gray-800 truncate select-text">{e.betreff}</p>
                     ) : (
                       <p className="text-xs text-gray-400 italic">{typConfig[e.typ].label}</p>
                     )}
@@ -298,7 +298,7 @@ export default function KommunikationBlock({ kundeId, initialEintraege }: Props)
                     )}
                   </div>
                   {e.inhalt && (
-                    <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">{e.inhalt}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2 leading-relaxed select-text">{e.inhalt}</p>
                   )}
                   <div className="flex items-center gap-2 mt-1">
                     <p className="text-[10px] text-gray-400">

@@ -155,8 +155,8 @@ function InfoZeile({ label, wert, link }: { label: string; wert: string | null; 
   return (
     <div>
       <dt className="text-xs text-gray-500 mb-0.5">{label}</dt>
-      <dd className="text-sm text-gray-700">
-        {link ? <a href={link} className="hover:text-wellbeing-green transition-colors">{wert}</a> : wert}
+      <dd className="text-sm text-gray-700 select-text">
+        {link ? <a href={link} className="hover:text-wellbeing-green transition-colors select-text">{wert}</a> : wert}
       </dd>
     </div>
   )

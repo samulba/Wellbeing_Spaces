@@ -88,7 +88,7 @@ function NotizEintrag({ notiz, typ, referenzId }: { notiz: Notiz; typ: NotizTyp;
         </form>
       ) : (
         <>
-          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed pr-16">{notiz.inhalt}</p>
+          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed pr-16 select-text">{notiz.inhalt}</p>
           <div className="flex items-center gap-2 mt-2.5 text-[11px] text-gray-400">
             {notiz.erstellt_von && (
               <span className="font-medium text-gray-500">{notiz.erstellt_von}</span>

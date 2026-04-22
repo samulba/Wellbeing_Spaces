@@ -44,6 +44,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - Timeline Auto-Sync Status-Events werden korrekt erzeugt
 - Bei fehlender SUPABASE-ENV-Var crasht der Build nicht mehr (Fallback auf Platzhalter)
 
+### App-Chrome fühlt sich jetzt wie eine echte App an (statt einer Webseite)
+- Sidebar-Nav, Buttons, Badges, Card-Header und Labels können nicht mehr versehentlich mit der Maus markiert werden
+- Echter Content wie Kunden-Kontaktdaten, Notizen, Kommunikations-Einträge, Beschreibungen, Eingabefelder bleiben markierbar (zum Kopieren)
+
 ## 2026-04-21
 
 ### Bestell-/Liefer-/Freigabe-Status pro Raum
