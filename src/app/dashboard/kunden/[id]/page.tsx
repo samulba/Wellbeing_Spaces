@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { portalBenutzerAbrufen } from '@/app/actions/portal'
 import { getKommunikation } from '@/app/actions/kommunikation'
 import { meineRolleAbrufen } from '@/app/actions/team'
+import { kundeStats } from '@/app/actions/kunden'
 import { istAdmin } from '@/lib/permissions'
 import { Plus } from 'lucide-react'
 import KundeLoeschenModal from '@/components/KundeLoeschenModal'
@@ -11,6 +12,7 @@ import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
 import KundenPortalSection from '@/components/KundenPortalSection'
 import KommunikationBlock from '@/components/KommunikationBlock'
+import KundeStatsBand from '@/components/KundeStatsBand'
 import type { Projekt } from '@/lib/supabase/types'
 
 async function getKunde(id: string) {
@@ -47,12 +49,13 @@ export default async function KundeDetailPage({ params }: { params: { id: string
   if (!kunde) notFound()
 
   const istArchiviert = kunde.deleted_at != null
-  const [projekte, notizen, portalUser, kommunikation, rolle] = await Promise.all([
+  const [projekte, notizen, portalUser, kommunikation, rolle, stats] = await Promise.all([
     getProjekte(params.id, istArchiviert),
     getNotizen(params.id),
     portalBenutzerAbrufen(params.id),
     getKommunikation(params.id),
     meineRolleAbrufen(),
+    kundeStats(params.id),
   ])
 
   const darfLoeschen = istAdmin(rolle)
@@ -76,6 +79,11 @@ export default async function KundeDetailPage({ params }: { params: { id: string
           </div>
         </div>
       )}
+
+      {/* KPI-Band: Projekte / Angebote / Verträge / Letzter Kontakt */}
+      <div className="mb-6">
+        <KundeStatsBand stats={stats} />
+      </div>
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
