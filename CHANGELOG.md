@@ -11,6 +11,39 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - Neue Multi-Projekt-Timeline: zeigt alle Events über alle Projekte des Kunden mit Projekt-Badge, oben rechts ein Filter-Dropdown um auf einzelne Projekte umzuschalten — inklusive der drei Views (Liste · Nach Produkt · Kalender)
 - Archivierte Kunden funktionieren vollständig (kein 404 mehr), mit Hinweis-Banner oben
 
+### Raum-Detailseite neues Layout
+- Grundriss und Raum-Timeline jetzt nebeneinander oben (auf großen Screens 60/40-Split). Produkte-Tabelle rutscht darunter in voller Breite
+- Timeline ist intern scrollbar (max. 460px) — egal wie viele Events, die Seite bleibt kompakt. Man muss nicht mehr ewig scrollen, wenn Produkt-Einträge aufgeklappt sind
+
+### Timeline — deutlich besser und neue Ansichten
+- **Projekt-Timeline**: drei Views jetzt verfügbar: Gantt (wie bisher), Kanban (neu, nach Status: Überfällig · Geplant · In Arbeit · Abgeschlossen), Liste (mit Stats-Header pro Monat und vertikaler Zeitleiste)
+- **Gantt-Ansicht** komplett aufgeräumt: linke Sidebar mit Event-Titel/Status/Icon pro Zeile (Sticky), rechts nur noch die Zeitleiste mit Balken — keine abgeschnittenen „B…"-Namen mehr
+- **Raum-Timeline**: drei Views (Liste · Nach Produkt · Kalender) — „Nach Produkt" gruppiert Bestellt/Geliefert-Events pro Artikel
+- Klick auf ein Event öffnet ein Detail-Popup mit allen wichtigen Infos (Titel, Typ, Status, Datum, Beschreibung, Raum, Quelle bei Auto-Events, Portal-Sichtbarkeit)
+- Phasen werden im Kalender jetzt als durchgezogener Balken von Start bis Ende angezeigt (nicht mehr nur am ersten Tag)
+- Meilenstein hat nur noch ein Datum, kein Enddatum (ergibt Sinn, weil's ein Punkt in der Zeit ist)
+
+### Event anlegen/bearbeiten
+- Event-Modal crasht nicht mehr ins Whitescreen bei Fehlern — zeigt jetzt die echte Fehlermeldung im Formular
+- Beim Raum-Event hinzufügen erscheint jetzt das gleiche umfangreiche Modal wie bei Timeline-Events (Beschreibung, Status, Farbe, Verantwortlich, Erinnerung, Kunde-Sichtbarkeit)
+
+### Kunden-Freigabelink: PIN komplett überarbeitet
+- Bug gefixt: bei „kein PIN" wurde trotzdem nach einem gefragt → weg
+- Bug gefixt: korrekter PIN wurde abgelehnt (Whitespace-Problem in der DB) → weg
+- PIN-Eingabe-Seite komplett neu designt: dynamische Ziffern-Boxen (4-6 Stellen, wachsen beim Tippen), Auto-Submit bei 6 Ziffern, Shake-Animation bei Fehler, Dot-Grid-Hintergrund in Brand-Farbe mit feinem Accent-Strip oben
+
+### Einstellungen — Branding + Navigation
+- Globaler Reset-Button „Auf Wellbeing Spaces Standard zurücksetzen" unter Einstellungen > Branding
+- Tab-Leiste (Profil / Workspace / Branding / Team / …) bleibt beim Scrollen sichtbar
+
+### Dashboard — Info-Tooltips
+- Bei „Anstehende Deadlines" und „Offene Follow-ups" jetzt ein ℹ-Icon — Hover zeigt was das Widget genau macht und wo man Einträge anlegt
+
+### Bugfixes
+- Archivierter Kunde → Breadcrumb-Link führt nicht mehr in 404
+- Timeline Auto-Sync Status-Events werden korrekt erzeugt
+- Bei fehlender SUPABASE-ENV-Var crasht der Build nicht mehr (Fallback auf Platzhalter)
+
 ## 2026-04-21
 
 ### Bestell-/Liefer-/Freigabe-Status pro Raum
