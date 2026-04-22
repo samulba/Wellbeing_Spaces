@@ -44,13 +44,14 @@ function istUeberfaellig(event: TimelineEvent): boolean {
 }
 
 // ── Event-Modal ───────────────────────────────────────────────
-function EventModal({
+export function EventModal({
   projektId,
   event,
   alleEvents,
   onClose,
   onSave,
   onDelete,
+  defaultRaumId,
 }: {
   projektId: string
   event: Partial<TimelineEvent> | null
@@ -58,6 +59,8 @@ function EventModal({
   onClose: () => void
   onSave: (event: TimelineEvent) => void
   onDelete?: (id: string) => void
+  /** Wenn gesetzt: neues Event wird diesem Raum zugeordnet */
+  defaultRaumId?: string
 }) {
   const isNeu = !event?.id
   const istAutoEvent = !!event?.quelle && event.quelle !== 'manuell'
@@ -80,23 +83,38 @@ function EventModal({
 
   function handleSpeichern() {
     if (!form.titel.trim()) { setFehler('Titel ist erforderlich.'); return }
-    if (!form.start_datum)  { setFehler('Startdatum ist erforderlich.'); return }
+    if (!form.start_datum)  { setFehler('Datum ist erforderlich.'); return }
     startTransition(async () => {
-      const daten = {
+      // Meilensteine haben kein Ende — Ende = Start, damit Gantt + List korrekt rendern
+      const istMeilenstein = form.typ === 'meilenstein'
+      const daten: Record<string, unknown> = {
         titel:          form.titel.trim(),
         beschreibung:   form.beschreibung || null,
         typ:            form.typ,
         start_datum:    form.start_datum,
-        end_datum:      form.end_datum || null,
+        end_datum:      istMeilenstein ? null : (form.end_datum || null),
         status:         form.status,
         farbe:          form.farbe || null,
         verantwortlich: form.verantwortlich || null,
         erinnerung_tage:form.erinnerung_tage ? parseInt(form.erinnerung_tage) : null,
-        abhaengig_von:  form.abhaengig_von,
         kunde_sichtbar: form.kunde_sichtbar,
       }
+      // abhaengig_von nur senden wenn wirklich Abhängigkeiten gesetzt sind —
+      // vermeidet Schema-Cache-Fehler wenn die Spalte evtl. nicht existiert,
+      // und reduziert unnötige Payload-Größe.
+      if (form.abhaengig_von.length > 0) {
+        daten.abhaengig_von = form.abhaengig_von
+      }
+      // Bei neuem Event + defaultRaumId (aus RaumEventButton) den Raum mitgeben.
+      // Beim Bearbeiten lassen wir raum_id unberührt.
+      if (isNeu && defaultRaumId) {
+        daten.raum_id = defaultRaumId
+      } else if (!isNeu && event?.raum_id) {
+        daten.raum_id = event.raum_id
+      }
       if (isNeu) {
-        const res = await eventErstellen(projektId, daten)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await eventErstellen(projektId, daten as any)
         if (res.fehler || !res.id) {
           setFehler(res.fehler ?? 'Event konnte nicht erstellt werden.')
           return
@@ -108,7 +126,8 @@ function EventModal({
           ...daten,
         } as unknown as TimelineEvent)
       } else {
-        const res = await eventAktualisieren(event!.id!, projektId, daten)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await eventAktualisieren(event!.id!, projektId, daten as any)
         if (res.fehler) {
           setFehler(res.fehler)
           return
@@ -199,14 +218,14 @@ function EventModal({
           </div>
 
           {/* Datum */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Startdatum *</label>
-              <input type="date" value={form.start_datum} onChange={(e) => set('start_datum', e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition"
-              />
-            </div>
-            {form.typ === 'phase' && (
+          {form.typ === 'phase' ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Startdatum *</label>
+                <input type="date" value={form.start_datum} onChange={(e) => set('start_datum', e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Enddatum</label>
                 <input type="date" value={form.end_datum} onChange={(e) => set('end_datum', e.target.value)}
@@ -214,8 +233,15 @@ function EventModal({
                   className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition"
                 />
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Datum *</label>
+              <input type="date" value={form.start_datum} onChange={(e) => set('start_datum', e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition"
+              />
+            </div>
+          )}
 
           {/* Status */}
           <div>
