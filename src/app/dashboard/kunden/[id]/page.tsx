@@ -4,16 +4,15 @@ import { notFound } from 'next/navigation'
 import { portalBenutzerAbrufen } from '@/app/actions/portal'
 import { getKommunikation } from '@/app/actions/kommunikation'
 import { meineRolleAbrufen } from '@/app/actions/team'
-import { kundeStats } from '@/app/actions/kunden'
+import { kundeStats, kundeProjekteMitStats } from '@/app/actions/kunden'
 import { istAdmin } from '@/lib/permissions'
-import { Plus } from 'lucide-react'
 import KundeLoeschenModal from '@/components/KundeLoeschenModal'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
 import KundenPortalSection from '@/components/KundenPortalSection'
 import KommunikationBlock from '@/components/KommunikationBlock'
 import KundeStatsBand from '@/components/KundeStatsBand'
-import type { Projekt } from '@/lib/supabase/types'
+import KundeProjektliste from '@/components/KundeProjektliste'
 
 async function getKunde(id: string) {
   const supabase = await createClient()
@@ -21,15 +20,6 @@ async function getKunde(id: string) {
   // archivierten Projekt nicht in 404 läuft. Banner oben zeigt den Status.
   const { data } = await supabase.from('kunden').select('*').eq('id', id).single()
   return data
-}
-
-async function getProjekte(kundeId: string, inklArchiviert = false): Promise<Projekt[]> {
-  const supabase = await createClient()
-  let query = supabase
-    .from('projekte').select('*').eq('kunde_id', kundeId)
-  if (!inklArchiviert) query = query.is('deleted_at', null)
-  const { data } = await query.order('created_at', { ascending: false })
-  return data ?? []
 }
 
 async function getNotizen(kundeId: string): Promise<Notiz[]> {
@@ -49,8 +39,8 @@ export default async function KundeDetailPage({ params }: { params: { id: string
   if (!kunde) notFound()
 
   const istArchiviert = kunde.deleted_at != null
-  const [projekte, notizen, portalUser, kommunikation, rolle, stats] = await Promise.all([
-    getProjekte(params.id, istArchiviert),
+  const [projekteMitStats, notizen, portalUser, kommunikation, rolle, stats] = await Promise.all([
+    kundeProjekteMitStats(params.id, istArchiviert),
     getNotizen(params.id),
     portalBenutzerAbrufen(params.id),
     getKommunikation(params.id),
@@ -137,46 +127,11 @@ export default async function KundeDetailPage({ params }: { params: { id: string
 
         {/* Rechte Spalte: Projekte + Kommunikation */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Projekte */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-900">
-                Projekte <span className="text-gray-400 font-normal">({projekte.length})</span>
-              </h2>
-              <Link
-                href={`/dashboard/projekte/neu?kunde=${kunde.id}`}
-                className="inline-flex items-center gap-1 text-xs text-wellbeing-green hover:text-wellbeing-green-dark font-medium transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" /> Neues Projekt
-              </Link>
-            </div>
-            {projekte.length === 0 ? (
-              <div className="text-center py-10">
-                <p className="text-sm text-gray-400">Noch keine Projekte.</p>
-              </div>
-            ) : (
-              <ul className="divide-y divide-gray-100">
-                {projekte.map((p) => (
-                  <li key={p.id}>
-                    <Link
-                      href={`/dashboard/projekte/${p.id}`}
-                      className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-gray-50 cursor-pointer transition-colors group"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors truncate">{p.name}</p>
-                        {p.projektart && <p className="text-xs text-gray-400 mt-0.5 truncate">{p.projektart}</p>}
-                      </div>
-                      {p.archiviert && (
-                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">
-                          Archiv
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          {/* Projekte mit Mini-Stats */}
+          <KundeProjektliste
+            projekte={projekteMitStats}
+            neuesProjektHref={`/dashboard/projekte/neu?kunde=${kunde.id}`}
+          />
 
           {/* Kommunikationslog */}
           <KommunikationBlock kundeId={kunde.id} initialEintraege={kommunikation} />
