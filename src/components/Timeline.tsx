@@ -329,8 +329,16 @@ function KalenderView({
   const rasterEnde  = endOfWeek(monatsEnde,   { weekStartsOn: 1 })
   const tage = eachDayOfInterval({ start: rasterStart, end: rasterEnde })
 
-  const eventsAnTag = (tag: Date) =>
-    events.filter((e) => isSameDay(new Date(e.start_datum + 'T00:00:00'), tag))
+  // Events, die diesen Tag berühren — bei mehrtägigen Events (Phase) wird
+  // der Event an JEDEM Tag von start_datum bis end_datum (inklusiv) gezeigt.
+  const eventsAnTag = (tag: Date) => {
+    const tagIso = format(tag, 'yyyy-MM-dd')
+    return events.filter((e) => {
+      const start = e.start_datum
+      const ende  = e.end_datum ?? e.start_datum
+      return tagIso >= start && tagIso <= ende
+    })
+  }
 
   return (
     <div>
@@ -384,18 +392,37 @@ function KalenderView({
                 {tagEvents.slice(0, 3).map((ev) => {
                   const cfg = TYP_CONFIG[ev.typ] ?? TYP_CONFIG.termin
                   const ueberfaellig = istUeberfaellig(ev)
+                  // Mehrtägiges Event? Start / Mitte / Ende erkennen für visuelle
+                  // Kontinuität (durchgehende Balken über mehrere Tage).
+                  const tagIso     = format(tag, 'yyyy-MM-dd')
+                  const mehrtaegig = !!ev.end_datum && ev.end_datum !== ev.start_datum
+                  const istStart   = tagIso === ev.start_datum
+                  const istEnde    = tagIso === (ev.end_datum ?? ev.start_datum)
+                  const nurStart   = !mehrtaegig
+                  const istMitte   = mehrtaegig && !istStart && !istEnde
+                  // Ränder so anpassen, dass mehrtägige Events wie ein durchgezogener Balken wirken
+                  const rundung =
+                    nurStart ? 'rounded'
+                    : istStart ? 'rounded-l -mr-0.5 pr-0'
+                    : istEnde  ? 'rounded-r -ml-0.5 pl-0'
+                    : 'rounded-none -mx-0.5'
                   return (
                     <button
                       key={ev.id}
                       type="button"
                       onClick={() => onSelect(ev)}
-                      className={`w-full flex items-center gap-1 px-1 py-0.5 rounded truncate hover:brightness-95 transition-all ${cfg.bgFarbe} ${
+                      className={`w-full flex items-center gap-1 px-1 py-0.5 truncate hover:brightness-95 transition-all ${cfg.bgFarbe} ${rundung} ${
                         ueberfaellig ? 'ring-1 ring-red-300' : ''
                       }`}
                       title={ev.titel}
                     >
-                      <span className={`w-1 h-1 rounded-full shrink-0 ${cfg.punktFarbe}`} />
-                      <span className={`truncate ${cfg.farbe}`}>{ev.titel}</span>
+                      {/* Dot nur am Start-Tag (vermeidet 5 Dots bei 5-tägiger Phase) */}
+                      {(istStart || nurStart) && (
+                        <span className={`w-1 h-1 rounded-full shrink-0 ${cfg.punktFarbe}`} />
+                      )}
+                      <span className={`truncate ${cfg.farbe}`}>
+                        {(istStart || nurStart) ? ev.titel : istMitte ? ' ' : '→'}
+                      </span>
                     </button>
                   )
                 })}
