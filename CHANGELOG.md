@@ -44,6 +44,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - Timeline Auto-Sync Status-Events werden korrekt erzeugt
 - Bei fehlender SUPABASE-ENV-Var crasht der Build nicht mehr (Fallback auf Platzhalter)
 
+### Einstellungen > Änderungen: neues Design
+- Hero-Band oben mit Brand-Gradient + drei Stats (Gesamt-Updates, Letzte 30 Tage, Änderungen total, relatives Datum der letzten Aktualisierung)
+- **Zeitstrahl-Layout** mit vertikaler Linie + Datum-Bubbles statt einklappbarer Akkordeon-Karten — alle Änderungen auf einen Blick sichtbar
+- **Such-Feld** über der Timeline — filtert Einträge in Echtzeit nach Keywords
+- **Neu-Badge** (grün) bei Einträgen, die seit deinem letzten Besuch dazugekommen sind
+- **Sektions-Icons** mit passenden Farben je nach Thema (Bugfixes rot, Design lila, Partner/Verträge grün, Timeline indigo, Performance amber, Security blau, …) — macht den Changelog scanbar
+- Jeder Sektion zeigt Anzahl der enthaltenen Änderungen
+
 ### Vertragsvorlagen — kein HTML-Code mehr nötig
 - Bisher musste man HTML-Tags (`<h1>`, `<p>`, `<ul>` …) in eine Textarea tippen — unzumutbar
 - Jetzt: WYSIWYG-Editor wie in Word/Notion mit Toolbar (Überschrift 1/2/3, Fett, Liste, nummerierte Liste, Trennlinie)
