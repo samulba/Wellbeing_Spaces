@@ -153,11 +153,13 @@ export default async function RaumDetailPage({
         </div>
       </div>
 
-      {/* Grundriss-Vorschau */}
-      <div className="mb-6">
+      {/* Grundriss + Timeline nebeneinander (auf lg: 3/2, darunter gestapelt) */}
+      <div className="mb-6 grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {/* Grundriss (3/5 auf lg+) */}
+        <div className="lg:col-span-3">
         {raum.grundriss_json ? (
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-full flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
               <div>
                 <p className="text-sm font-medium text-gray-800">Grundriss</p>
                 {(raum.breite_m || raum.laenge_m) && (
@@ -169,29 +171,29 @@ export default async function RaumDetailPage({
               </div>
               <Link
                 href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-xs font-medium rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-xs font-medium rounded-lg transition-colors"
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
-                Im Raumplaner bearbeiten
+                Bearbeiten
               </Link>
             </div>
-            <div className="p-4 bg-gray-50 flex justify-center">
+            <div className="flex-1 p-4 bg-gray-50 flex justify-center items-center">
               <GrundrissVorschau
                 grundrissJson={JSON.stringify(raum.grundriss_json)}
                 breiteM={raum.breite_m}
                 laengeM={raum.laenge_m}
-                vorschauBreite={500}
+                vorschauBreite={420}
                 className="shadow-sm"
               />
             </div>
           </div>
         ) : (
-          <div className="bg-white border border-dashed border-gray-300 rounded-xl px-6 py-5 flex items-center justify-between">
+          <div className="bg-white border border-dashed border-gray-300 rounded-xl px-6 py-5 flex items-center justify-between h-full">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
                 <LayoutDashboard className="w-5 h-5 text-gray-400" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-700">Noch kein Grundriss erstellt</p>
                 <p className="text-xs text-gray-400 mt-0.5">Plane den Raum mit dem interaktiven Raumplaner</p>
               </div>
@@ -205,6 +207,38 @@ export default async function RaumDetailPage({
             </Link>
           </div>
         )}
+        </div>
+
+        {/* Raum-Timeline (2/5 auf lg+) */}
+        <div className="lg:col-span-2">
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm h-full flex flex-col">
+            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap shrink-0">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Timeline</p>
+                {timelineEvents.length > 0 && (
+                  <span className="text-[10px] text-gray-400 tabular-nums">
+                    {timelineEvents.length}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <TimelineSyncButton raumId={params.raumId} projektId={params.id} />
+                <RaumEventButton projektId={params.id} raumId={params.raumId} />
+              </div>
+            </div>
+            <div className="flex-1 min-h-0">
+              <Timeline events={timelineEvents} maxHoehe="460px" />
+            </div>
+            <div className="mt-2 shrink-0">
+              <Link
+                href={`/dashboard/projekte/${params.id}/timeline?raum=${params.raumId}`}
+                className="text-xs text-wellbeing-green hover:underline"
+              >
+                Zur Projekt-Timeline →
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -267,30 +301,6 @@ export default async function RaumDetailPage({
         </>
       )}
 
-      {/* Raum-Timeline */}
-      <div className="mt-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Raum-Timeline</p>
-            {timelineEvents.length > 0 && (
-              <span className="text-[10px] text-gray-400 tabular-nums">
-                {timelineEvents.length}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <TimelineSyncButton raumId={params.raumId} projektId={params.id} />
-            <RaumEventButton projektId={params.id} raumId={params.raumId} />
-            <Link
-              href={`/dashboard/projekte/${params.id}/timeline?raum=${params.raumId}`}
-              className="text-xs text-wellbeing-green hover:underline"
-            >
-              Zur Projekt-Timeline →
-            </Link>
-          </div>
-        </div>
-        <Timeline events={timelineEvents} />
-      </div>
     </div>
   )
 }
