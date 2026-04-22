@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText, Flag, Truck, Layers } from 'lucide-react'
+import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText, Flag, Truck, Layers, Info } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
 
@@ -160,6 +161,59 @@ const EVENT_COLOR: Record<DeadlineEventTyp, string> = {
   phase:       'text-gray-500 bg-gray-50',
 }
 
+// ── Info-Tooltip ──────────────────────────────────────────────
+function InfoHinweis({
+  titel,
+  beschreibung,
+  anlegenHinweis,
+  anlegenLink,
+  anlegenLinkLabel,
+}: {
+  titel: string
+  beschreibung: string
+  anlegenHinweis: string
+  anlegenLink?: string
+  anlegenLinkLabel?: string
+}) {
+  const [offen, setOffen] = useState(false)
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setOffen(true)}
+      onMouseLeave={() => setOffen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setOffen((v) => !v)}
+        className="w-4 h-4 flex items-center justify-center text-gray-300 hover:text-gray-500 transition-colors rounded-full"
+        aria-label="Was ist das?"
+      >
+        <Info className="w-3.5 h-3.5" />
+      </button>
+      {offen && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 bg-gray-900 text-white text-xs rounded-xl shadow-xl p-3 z-50 leading-relaxed animate-fadeIn"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Pfeil nach oben */}
+          <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-900 rotate-45" />
+          <p className="font-semibold text-white mb-1">{titel}</p>
+          <p className="text-gray-300 mb-2">{beschreibung}</p>
+          <p className="text-gray-300 mb-2">{anlegenHinweis}</p>
+          {anlegenLink && (
+            <Link
+              href={anlegenLink}
+              className="inline-flex items-center gap-1 text-[11px] text-wellbeing-green-light hover:text-white font-medium"
+            >
+              {anlegenLinkLabel ?? 'Dorthin →'}
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function NaechsteDeadlines({
   projekte,
   events = [],
@@ -182,6 +236,13 @@ export function NaechsteDeadlines({
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-blue-500" />
           <h2 className="text-sm font-semibold text-gray-900">Anstehende Deadlines</h2>
+          <InfoHinweis
+            titel="Anstehende Deadlines"
+            beschreibung="Hier siehst du alle Projekt-Deadlines und Timeline-Events (Lieferungen, Meilensteine, Termine, Phasen), die in den nächsten Tagen fällig werden oder bereits überfällig sind."
+            anlegenHinweis="Neue Deadlines setzt du im Projekt: Projekt öffnen → Deadline-Feld oder Timeline öffnen und Event anlegen."
+            anlegenLink="/dashboard/projekte"
+            anlegenLinkLabel="Zu den Projekten"
+          />
         </div>
         <Link href="/dashboard/projekte" className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors font-medium">
           Alle →
@@ -274,6 +335,13 @@ export function OffeneFollowUps({ eintraege }: { eintraege: FollowUpEintrag[] })
               </span>
             )}
           </h2>
+          <InfoHinweis
+            titel="Offene Follow-ups"
+            beschreibung="Alle Kommunikations-Einträge (Anrufe, E-Mails, Meetings, Notizen), bei denen du dir ein Follow-up-Datum gesetzt hast und das in den nächsten 7 Tagen fällig oder bereits überfällig ist."
+            anlegenHinweis="Follow-ups legst du beim Kunden an: Kunde öffnen → Block „Kommunikation“ → „+ Neuer Eintrag“ → Follow-up-Datum setzen. Erledigen via Haken-Icon am Eintrag."
+            anlegenLink="/dashboard/kunden"
+            anlegenLinkLabel="Zu den Kunden"
+          />
         </div>
         <Link href="/dashboard/kunden" className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors font-medium">
           Kunden →
