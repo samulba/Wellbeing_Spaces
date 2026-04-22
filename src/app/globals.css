@@ -65,6 +65,69 @@ nav *, aside * {
   }
 }
 
+/* ── Vertrags-Editor (TipTap + Vorschau-Renderer) ─────────────── */
+.vertrags-editor-content {
+  user-select: text;
+}
+.vertrags-editor-content h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+.vertrags-editor-content h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+.vertrags-editor-content h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+.vertrags-editor-content p {
+  font-size: 0.875rem;
+  color: #374151;
+  margin: 0.5rem 0;
+  line-height: 1.65;
+}
+.vertrags-editor-content strong {
+  font-weight: 600;
+  color: #111827;
+}
+.vertrags-editor-content ul,
+.vertrags-editor-content ol {
+  margin: 0.5rem 0 0.75rem 1.5rem;
+}
+.vertrags-editor-content ul { list-style: disc; }
+.vertrags-editor-content ol { list-style: decimal; }
+.vertrags-editor-content li {
+  font-size: 0.875rem;
+  color: #374151;
+  line-height: 1.6;
+  margin: 0.25rem 0;
+}
+.vertrags-editor-content hr {
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  margin: 1.25rem 0;
+}
+/* Platzhalter-Tokens visuell als Badges hervorheben */
+.vertrags-editor-content {
+  /* Zwei-Phasen-Trick: nicht via :has(), sondern durch eine
+     CSS-Variable die im JSX gesetzt wird — alternativ ein Span.
+     Hier: simpler Workaround per Inline-Code-Stil bei {{…}}-Pattern
+     funktioniert nicht aus reinem CSS. Wir lassen Klartext und
+     stylen weiter unten via NodeView falls gewünscht. */
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, FileText, ChevronDown, Sparkles } from 'lucide-re
 import type { VertragsVorlage, VertragsVorlageKategorie } from '@/lib/supabase/types'
 import { vorlageAnlegen, vorlageAktualisieren, vorlageLoeschen } from '@/app/actions/vertraege'
 import { standardVorlagenErstellenAction } from '@/app/actions/vorlagen-seed'
-import { PLATZHALTER } from '@/lib/vertrags-platzhalter'
+import VertragsEditor from '@/components/VertragsEditor'
 
 const KATEGORIEN: { value: VertragsVorlageKategorie; label: string }[] = [
   { value: 'projektvertrag', label: 'Projektvertrag' },
@@ -36,7 +36,7 @@ function VorlageFormular({
   onAbbrechen: () => void
 }) {
   const [f, setF] = useState(initial)
-  const [phOffen, setPhOffen] = useState(false)
+  const istNeu = !initial.name && !initial.inhalt_html
 
   return (
     <div className="space-y-4">
@@ -63,42 +63,18 @@ function VorlageFormular({
       </div>
 
       <div>
-        <button
-          type="button"
-          onClick={() => setPhOffen((v) => !v)}
-          className="flex items-center gap-1 text-xs text-wellbeing-green hover:text-wellbeing-green-dark font-medium mb-2 transition-colors"
-        >
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${phOffen ? 'rotate-180' : ''}`} />
-          Verfügbare Platzhalter
-        </button>
-        {phOffen && (
-          <div className="mb-2 p-3 bg-gray-50 rounded-lg border border-gray-200 grid grid-cols-2 gap-2">
-            {PLATZHALTER.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => setF((prev) => ({ ...prev, inhalt_html: prev.inhalt_html + p.key }))}
-                title={p.beschreibung}
-                className="text-left group"
-              >
-                <code className="text-[10px] font-mono bg-white border border-gray-200 px-1.5 py-0.5 rounded text-wellbeing-green group-hover:bg-wellbeing-green group-hover:text-white transition-colors">
-                  {p.key}
-                </code>
-                <span className="block text-[10px] text-gray-400 mt-0.5">{p.beschreibung}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-xs text-gray-500 mb-1 font-medium">HTML-Inhalt *</label>
-        <textarea
+        <label className="block text-xs text-gray-500 mb-1 font-medium">Vertragstext *</label>
+        <VertragsEditor
           value={f.inhalt_html}
-          onChange={(e) => setF((p) => ({ ...p, inhalt_html: e.target.value }))}
-          className={`${inp} resize-y font-mono text-[11px]`}
-          rows={14}
-          placeholder="<h1>Vertrag</h1>&#10;<p>Zwischen {{firmenname}} und {{kunde_name}}...</p>"
+          onChange={(html) => setF((p) => ({ ...p, inhalt_html: html }))}
+          zeigeQuickStart={istNeu}
+          onQuickStart={(v) => setF((p) => ({
+            ...p,
+            // Bei leerem Form auch Name + Beschreibung + Kategorie übernehmen
+            name:         p.name         || v.name,
+            beschreibung: p.beschreibung || v.beschreibung,
+            kategorie:    p.kategorie    || v.kategorie,
+          }))}
         />
       </div>
 

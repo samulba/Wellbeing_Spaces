@@ -44,6 +44,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - Timeline Auto-Sync Status-Events werden korrekt erzeugt
 - Bei fehlender SUPABASE-ENV-Var crasht der Build nicht mehr (Fallback auf Platzhalter)
 
+### Vertragsvorlagen — kein HTML-Code mehr nötig
+- Bisher musste man HTML-Tags (`<h1>`, `<p>`, `<ul>` …) in eine Textarea tippen — unzumutbar
+- Jetzt: WYSIWYG-Editor wie in Word/Notion mit Toolbar (Überschrift 1/2/3, Fett, Liste, nummerierte Liste, Trennlinie)
+- **Platzhalter-Picker** als Dropdown rechts in der Toolbar — klick auf einen Eintrag und der Platzhalter (z.B. `{{kunde_name}}`) wird an der Cursor-Position eingefügt
+- **3 Quick-Start-Vorlagen** beim Erstellen einer neuen Vorlage: Interior Design Vertrag, Angebot, Auftragsbestätigung — klick und der Editor ist befüllt, du kannst direkt anpassen
+- **Live-Vorschau-Toggle** (Editor / Geteilt / Vorschau) — Vorschau zeigt den Vertrag mit Beispieldaten in den Platzhaltern
+- Bestehende Vorlagen (mit altem HTML-Inhalt) werden weiter geladen und können im neuen Editor bearbeitet werden — keine Migration nötig
+
 ### Partner-Verträge: Dokumente hochladen
 - Auf der Partner-Detailseite gibt's jetzt einen neuen Block „Verträge & Dokumente"
 - Du kannst PDFs, Word-/Excel-Dateien und Bilder vom Partner per Drag & Drop oder Klick hochladen (max. 50 MB)
