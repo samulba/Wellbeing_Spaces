@@ -346,12 +346,12 @@ export default async function DashboardPage() {
         </div>
 
         {/* ROW 3: Budget-Übersicht */}
-        <div className="min-h-[220px]">
+        <div>
           <BudgetUebersicht projekte={budgetProjekte} />
         </div>
 
         {/* ROW 4: Letzte Projekte */}
-        <div className="min-h-[280px]">
+        <div>
           <LetzteProjekte projekte={letzteProjekte} />
         </div>
 
