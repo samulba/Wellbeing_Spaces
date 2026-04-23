@@ -3,6 +3,19 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-04-23
+
+### Freigabe-System komplett neu gebaut
+- **Granularere Freigabe-Links**: Beim Erstellen wählst du jetzt den Umfang — „Gesamtes Projekt", „Einzelner Raum" oder „Kuratierte Auswahl" (handverlesene Produkte). Der Kunde sieht dann auch nur genau diese Auswahl, keine anderen Räume.
+- **Pflicht-Abschluss**: Sobald der Kunde alle Positionen entschieden hat (freigegeben / abgelehnt / Alternative), erscheint unten ein prominenter „Freigabe abschließen"-Button. Dialog fragt nach Name + optionalem Kommentar + Bestätigungs-Haken. Erst nach Abschluss gilt die Freigabe als final.
+- **Automatische Admin-Benachrichtigung**: Nach Abschluss landet eine Mail in deinem Postfach mit Kundennamen, Zusammenfassung (X freigegeben, Y abgelehnt) und optionalem Kommentar des Kunden. Außerdem wird ein Timeline-Event im Projekt angelegt.
+- **Freigabe-Verlauf pro Projekt**: Neuer Block auf der Projektdetailseite zeigt alle jemals erstellten Links (Offen / Abgeschlossen / Zurückgezogen / Abgelaufen) mit Scope-Icon und Abschluss-Info. Per „Verlauf →"-Klick öffnet sich ein Seitenpanel mit der kompletten History (wer hat wann was freigegeben, inklusive Portal-vs-Link-Unterscheidung).
+- **Auto-Invalidierung bei Produkt-Änderungen**: Wenn du Preis, Menge, Beschreibung oder Bild eines bereits freigegebenen Produkts änderst, wird die Freigabe automatisch auf „Ausstehend" zurückgesetzt — mit Kommentar „Automatisch zurückgesetzt: X geändert am TT.MM.JJJJ". Fair & transparent gegenüber dem Kunden.
+- **Duplikat-Schutz**: Pro Projekt kann es nur einen offenen Projekt-weiten Freigabe-Link gleichzeitig geben. Wenn du versuchst, einen zweiten zu erstellen, bekommst du den Hinweis „Bestehenden Link verwenden oder zuerst zurückziehen".
+- **Einheitliche Datenquelle**: Portal-Freigaben und Token-Freigaben schreiben ab sofort alle auf dieselbe Tabelle (`raum_produkte`). Kein Auseinanderdriften mehr zwischen „Portal sagt freigegeben, Link sagt offen".
+- **Read-Only-Bestätigung**: Nach Abschluss zeigt der Freigabe-Link nur noch eine Bestätigungsseite („Danke, deine Freigabe ist bei uns eingegangen"). Kein versehentliches Weiter-Klicken mehr möglich.
+- Migrationen 078/079/080/081 manuell in Supabase ausführen.
+
 ## 2026-04-21
 
 ### Onboarding-Dashboard komplett neu gestaltet
