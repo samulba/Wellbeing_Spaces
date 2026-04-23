@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import RaumHinzufuegen from '@/components/RaumHinzufuegen'
 import FreigabeLinkKarte from '@/components/FreigabeLinkKarte'
+import FreigabeUebersicht from '@/components/FreigabeUebersicht'
+import { freigabeTokensAbrufenFuerProjekt } from '@/app/actions/freigaben'
 import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
@@ -55,11 +57,17 @@ async function getRaeume(projektId: string): Promise<Raum[]> {
 
 async function getAktivenToken(projektId: string) {
   const supabase = await createClient()
+  // Nur offenen Projekt-Scope-Token für FreigabeLinkKarte (Duplikat-Schutz
+  // verhindert zweiten; Raum-/Auswahl-Tokens werden separat in der
+  // Freigabe-Übersicht angezeigt).
   const { data } = await supabase
     .from('freigabe_tokens')
     .select('id, token, gueltig_bis')
     .eq('projekt_id', projektId)
     .eq('aktiv', true)
+    .eq('scope_typ', 'projekt')
+    .is('deleted_at', null)
+    .is('abgeschlossen_am', null)
     .maybeSingle()
   return data
 }
@@ -70,46 +78,46 @@ async function getProjektStats(projektId: string) {
   const raumIds = (raeume ?? []).map((r) => r.id)
   if (raumIds.length === 0) return { gesamtkosten: 0, ausstehend: 0, freigegeben: 0, abgelehnt: 0, ueberarbeitung: 0, produkteGesamt: 0 }
 
-  // Lade über raum_produkte mit JOIN auf produkte + produktstatus
+  // Seit Mig. 078: freigabe_status kommt von raum_produkte (Single Source of Truth),
+  // nicht mehr vom produktstatus-JOIN.
   const { data: eintraege } = await supabase
     .from('raum_produkte')
-    .select('menge, verkaufspreis_override, rabatt_prozent, produkte(id, verkaufspreis, deleted_at, produktstatus(status))')
+    .select('menge, verkaufspreis_override, rabatt_prozent, freigabe_status, produkte(id, verkaufspreis, deleted_at)')
     .in('raum_id', raumIds)
 
-  let gesamtkosten = 0, ausstehend = 0, freigegeben = 0, abgelehnt = 0, ueberarbeitung = 0
+  let gesamtkosten = 0, ausstehend = 0, freigegeben = 0, abgelehnt = 0
   const aktiveEintraege = (eintraege ?? []).filter((e) => {
     const prod = (e.produkte as unknown) as { deleted_at: string | null } | null
     return prod?.deleted_at == null
   })
 
   for (const e of aktiveEintraege) {
-    const prod = (e.produkte as unknown) as { verkaufspreis: number | null; produktstatus: { status: string } | { status: string }[] | null } | null
+    const prod = (e.produkte as unknown) as { verkaufspreis: number | null } | null
     const vp = effektiverVpNetto(
       { verkaufspreis_override: e.verkaufspreis_override, rabatt_prozent: e.rabatt_prozent ?? null },
       prod?.verkaufspreis ?? null,
     )
     gesamtkosten += vp * e.menge
-    const statusObj = Array.isArray(prod?.produktstatus) ? prod?.produktstatus[0] : prod?.produktstatus
-    const s = statusObj?.status ?? 'ausstehend'
+    const s = (e as { freigabe_status?: string }).freigabe_status ?? 'ausstehend'
     if (s === 'ausstehend') ausstehend++
     else if (s === 'freigegeben') freigegeben++
     else if (s === 'abgelehnt') abgelehnt++
-    else if (s === 'ueberarbeitung') ueberarbeitung++
   }
-  return { gesamtkosten: Math.round(gesamtkosten * 100) / 100, ausstehend, freigegeben, abgelehnt, ueberarbeitung, produkteGesamt: aktiveEintraege.length }
+  return { gesamtkosten: Math.round(gesamtkosten * 100) / 100, ausstehend, freigegeben, abgelehnt, ueberarbeitung: 0, produkteGesamt: aktiveEintraege.length }
 }
 
 async function getRaumStats(raumIds: string[]): Promise<Record<string, RaumStat>> {
   if (raumIds.length === 0) return {}
   const supabase = await createClient()
+  // Mig. 078: freigabe_status pro raum_produkte (nicht mehr produktstatus)
   const { data: eintraege } = await supabase
     .from('raum_produkte')
-    .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, produkte(verkaufspreis, deleted_at, produktstatus(status))')
+    .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, freigabe_status, produkte(verkaufspreis, deleted_at)')
     .in('raum_id', raumIds)
 
   const result: Record<string, RaumStat> = {}
   for (const e of eintraege ?? []) {
-    const prod = (e.produkte as unknown) as { verkaufspreis: number | null; deleted_at: string | null; produktstatus: { status: string } | { status: string }[] | null } | null
+    const prod = (e.produkte as unknown) as { verkaufspreis: number | null; deleted_at: string | null } | null
     if (prod?.deleted_at != null) continue
     if (!result[e.raum_id]) result[e.raum_id] = { produkteAnzahl: 0, vpSumme: 0, freigegeben: 0 }
     result[e.raum_id].produkteAnzahl++
@@ -118,8 +126,8 @@ async function getRaumStats(raumIds: string[]): Promise<Record<string, RaumStat>
       prod?.verkaufspreis ?? null,
     )
     result[e.raum_id].vpSumme += vp * e.menge
-    const statusObj = Array.isArray(prod?.produktstatus) ? prod?.produktstatus[0] : prod?.produktstatus
-    if (statusObj?.status === 'freigegeben') result[e.raum_id].freigegeben++
+    const s = (e as { freigabe_status?: string }).freigabe_status
+    if (s === 'freigegeben') result[e.raum_id].freigegeben++
   }
   return result
 }
@@ -137,10 +145,11 @@ async function getDateien(projektId: string): Promise<DateiItem[]> {
 }
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten] = await Promise.all([
+  const [projekt, raeume, aktiverToken, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
+    freigabeTokensAbrufenFuerProjekt(params.id),
     getDateien(params.id),
     getProjektStats(params.id),
     getNotizen(params.id),
@@ -413,12 +422,13 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
           )}
 
           {/* ── Kunden-Freigabe & PIN ────────────────────────── */}
-          <div className="px-6 py-4 border-b border-gray-50">
+          <div className="px-6 py-4 border-b border-gray-50 space-y-4">
             <FreigabeLinkKarte
               projektId={projekt.id}
               initialToken={aktiverToken ?? null}
               initialHatPin={projekt.freigabe_pin != null}
             />
+            <FreigabeUebersicht projektId={projekt.id} initialTokens={alleTokens} />
           </div>
 
           {/* ── Konfigurator (deaktiviert) ─────────────────────── */}
