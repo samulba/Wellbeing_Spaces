@@ -220,6 +220,71 @@ export async function freigabeMailVersenden(
 }
 
 // ═══════════════════════════════════════════════════════════════
+// SCOPE-OPTIONEN (für Admin-UI Scope-Picker)
+// ═══════════════════════════════════════════════════════════════
+
+export interface ScopeOptionenRaum {
+  id: string
+  name: string
+  items: { id: string; name: string; menge: number; einheit: string | null }[]
+}
+
+/**
+ * Lädt alle Räume + deren raum_produkte für ein Projekt. Wird im
+ * FreigabeLinkKarte-Scope-Picker verwendet um dem Admin die Auswahl
+ * (Einzelner Raum / Kuratierte Auswahl) zu ermöglichen.
+ */
+export async function freigabeScopeOptionenLaden(
+  projektId: string,
+): Promise<ScopeOptionenRaum[]> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { data: raeume } = await supabase
+    .from('raeume')
+    .select('id, name, reihenfolge')
+    .eq('projekt_id', projektId)
+    .eq('organisation_id', orgId)
+    .is('deleted_at', null)
+    .order('reihenfolge')
+    .order('name')
+
+  if (!raeume || raeume.length === 0) return []
+
+  const { data: rps } = await supabase
+    .from('raum_produkte')
+    .select('id, raum_id, menge, produkte(name, einheit)')
+    .in('raum_id', raeume.map((r) => r.id))
+    .order('reihenfolge')
+
+  type RpRow = {
+    id: string
+    raum_id: string
+    menge: number
+    produkte: { name: string; einheit: string | null } | null
+  }
+
+  const rpsByRaum: Record<string, ScopeOptionenRaum['items']> = {}
+  for (const rp of ((rps ?? []) as unknown as RpRow[])) {
+    if (!rp.produkte) continue
+    if (!rpsByRaum[rp.raum_id]) rpsByRaum[rp.raum_id] = []
+    rpsByRaum[rp.raum_id].push({
+      id:      rp.id,
+      name:    rp.produkte.name,
+      menge:   rp.menge,
+      einheit: rp.produkte.einheit,
+    })
+  }
+
+  return raeume.map((r) => ({
+    id:    r.id,
+    name:  r.name,
+    items: rpsByRaum[r.id] ?? [],
+  }))
+}
+
+
+// ═══════════════════════════════════════════════════════════════
 // TOKEN-ABRUF (öffentlich, für /freigabe/[token])
 // ═══════════════════════════════════════════════════════════════
 

@@ -201,9 +201,11 @@ export interface PartnerKondition {
   updated_at: string
 }
 
-// Öffentliche Produkt-Felder für Freigabe-Ansicht – KEINE internen Felder
+// Öffentliche Produkt-Felder für Freigabe-Ansicht – KEINE internen Felder.
+// id = raum_produkte.id (eindeutig pro Raum-Instanz, Source of Truth seit Mig. 078).
 export interface FreigabeProdukt {
-  id: string
+  id: string                // raum_produkte.id
+  produkt_id: string        // produkte.id (für Links/Referenzen)
   name: string
   beschreibung: string | null
   kategorie: string | null

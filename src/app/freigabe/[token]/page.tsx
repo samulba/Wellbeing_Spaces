@@ -3,7 +3,7 @@ import { getMwstSatz } from '@/app/actions/einstellungen'
 import { brandingFuerToken } from '@/app/actions/branding'
 import { effektiverVpNetto } from '@/lib/preise'
 import FreigabeClient from './FreigabeClient'
-import type { FreigabeRaum, FreigabeProdukt, ProduktStatus } from '@/lib/supabase/types'
+import type { FreigabeRaum, FreigabeProdukt, FreigabeScopeTyp } from '@/lib/supabase/types'
 
 interface Props {
   params: { token: string }
@@ -12,15 +12,15 @@ interface Props {
 export default async function FreigabePage({ params }: Props) {
   const supabase = createAdminClient()
 
-  // 1. Token validieren
+  // 1. Token validieren (inkl. Scope + Abschluss-Status — Migration 078)
   const { data: tokenData } = await supabase
     .from('freigabe_tokens')
-    .select('projekt_id, gueltig_bis, aktiv')
+    .select('id, projekt_id, gueltig_bis, aktiv, scope_typ, scope_ids, abgeschlossen_am, abgeschlossen_durch, deleted_at')
     .eq('token', params.token)
     .single()
 
-  if (!tokenData || !tokenData.aktiv) {
-    return <Fehlerseite meldung="Dieser Freigabe-Link ist ungültig oder wurde deaktiviert." />
+  if (!tokenData || !tokenData.aktiv || tokenData.deleted_at) {
+    return <Fehlerseite meldung="Dieser Freigabe-Link ist ungültig oder wurde zurückgezogen." />
   }
 
   if (tokenData.gueltig_bis && new Date(tokenData.gueltig_bis) < new Date()) {
@@ -53,72 +53,81 @@ export default async function FreigabePage({ params }: Props) {
     return <Fehlerseite meldung="Für dieses Projekt wurden noch keine Räume oder Produkte angelegt." />
   }
 
-  // 4. Produkte via raum_produkte laden – erfasst sowohl direkt angelegte als auch
-  //    aus Bibliothek hinzugefügte Produkte. NUR öffentliche Felder, KEINE internen Preise.
-  const { data: rpDaten } = await supabase
+  // 4. Produkte via raum_produkte laden — Scope-Filter gemäß Token (Migration 078).
+  //    freigabe_status + freigabe_kommentar kommen ab jetzt direkt von raum_produkte.
+  const scopeTyp: FreigabeScopeTyp = (tokenData.scope_typ as FreigabeScopeTyp) ?? 'projekt'
+  const scopeIds: string[] = (tokenData.scope_ids as string[] | null) ?? []
+
+  let rpQuery = supabase
     .from('raum_produkte')
     .select(`
-      raum_id,
-      menge,
-      verkaufspreis_override,
-      rabatt_prozent,
-      reihenfolge,
+      id, raum_id, menge, verkaufspreis_override, rabatt_prozent, reihenfolge,
+      freigabe_status, freigabe_kommentar,
       produkte!inner(
         id, name, beschreibung, kategorie, einheit, verkaufspreis,
         bild_url, produkt_url, deleted_at,
-        hinweis_extern, hinweis_extern_sichtbar,
-        produktstatus ( status, kommentar )
+        hinweis_extern, hinweis_extern_sichtbar
       )
     `)
     .in('raum_id', raeumeDaten.map((r) => r.id))
     .order('reihenfolge')
     .order('created_at')
 
-  // 5. Struktur aufbauen: Räume mit Produkten
+  if (scopeTyp === 'raum' && scopeIds[0]) {
+    rpQuery = rpQuery.eq('raum_id', scopeIds[0])
+  } else if (scopeTyp === 'auswahl' && scopeIds.length > 0) {
+    rpQuery = rpQuery.in('id', scopeIds)
+  }
+
+  const { data: rpDaten } = await rpQuery
+
+  // 5. Struktur aufbauen: Räume mit Produkten (nur Räume mit Items anzeigen)
+  type RpRow = {
+    id: string
+    raum_id: string
+    menge: number
+    verkaufspreis_override: number | null
+    rabatt_prozent: number | null
+    reihenfolge: number
+    freigabe_status: 'ausstehend' | 'freigegeben' | 'abgelehnt'
+    freigabe_kommentar: string | null
+    produkte: {
+      id: string; name: string; beschreibung: string | null; kategorie: string | null
+      einheit: string; verkaufspreis: number | null; bild_url: string | null
+      produkt_url: string | null
+      deleted_at: string | null
+      hinweis_extern: string | null; hinweis_extern_sichtbar: boolean
+    }
+  }
+
   const raeume: FreigabeRaum[] = raeumeDaten
     .map((raum) => {
-      const raumpProdukte = (rpDaten ?? [])
-        .filter((rp) => {
-          if (rp.raum_id !== raum.id) return false
-          // Gelöschte Produkte ausblenden
-          const p = rp.produkte as unknown as { deleted_at: string | null }
-          return !p?.deleted_at
-        })
+      const raumpProdukte = ((rpDaten ?? []) as unknown as RpRow[])
+        .filter((rp) => rp.raum_id === raum.id && !rp.produkte?.deleted_at)
         .map((rp): FreigabeProdukt => {
-          type ProdRaw = {
-            id: string; name: string; beschreibung: string | null; kategorie: string | null
-            einheit: string; verkaufspreis: number | null; bild_url: string | null
-            produkt_url: string | null
-            hinweis_extern: string | null; hinweis_extern_sichtbar: boolean
-            produktstatus: { status: string; kommentar: string | null } | { status: string; kommentar: string | null }[] | null
-          }
-          type PS = { status: string; kommentar: string | null } | null
-          const p = rp.produkte as unknown as ProdRaw
-          const psRaw = p.produktstatus as PS | PS[]
-          const ps = Array.isArray(psRaw) ? psRaw[0] : psRaw
-          // Endpreis über zentralen Helper: Override → Rabatt → gerundet
+          const p = rp.produkte
           const vp = effektiverVpNetto(
             {
-              verkaufspreis_override: (rp.verkaufspreis_override as number | null) ?? null,
-              rabatt_prozent: (rp.rabatt_prozent as number | null) ?? null,
+              verkaufspreis_override: rp.verkaufspreis_override,
+              rabatt_prozent:         rp.rabatt_prozent,
             },
             p.verkaufspreis,
           )
           return {
-            id: p.id,
-            name: p.name,
-            beschreibung: p.beschreibung,
-            kategorie: p.kategorie,
-            menge: rp.menge,
-            einheit: p.einheit,
-            verkaufspreis: vp,
-            bild_url: p.bild_url,
-            produkt_url: p.produkt_url,
-            status: (ps?.status as ProduktStatus) ?? 'ausstehend',
-            kommentar: ps?.kommentar ?? null,
-            // Hinweis NUR an Kunden durchreichen wenn sichtbar=true
-            hinweis: p.hinweis_extern_sichtbar ? p.hinweis_extern : null,
-            rabatt_prozent: (rp.rabatt_prozent as number | null) ?? null,
+            id:              rp.id,               // raum_produkte.id
+            produkt_id:      p.id,                // produkte.id
+            name:            p.name,
+            beschreibung:    p.beschreibung,
+            kategorie:       p.kategorie,
+            menge:           rp.menge,
+            einheit:         p.einheit,
+            verkaufspreis:   vp,
+            bild_url:        p.bild_url,
+            produkt_url:     p.produkt_url,
+            status:          rp.freigabe_status,
+            kommentar:       rp.freigabe_kommentar,
+            hinweis:         p.hinweis_extern_sichtbar ? p.hinweis_extern : null,
+            rabatt_prozent:  rp.rabatt_prozent,
           }
         })
       return { id: raum.id, name: raum.name, produkte: raumpProdukte }
@@ -126,7 +135,7 @@ export default async function FreigabePage({ params }: Props) {
     .filter((r) => r.produkte.length > 0)
 
   if (raeume.length === 0) {
-    return <Fehlerseite meldung="Für dieses Projekt wurden noch keine Produkte hinterlegt." />
+    return <Fehlerseite meldung="Für diesen Freigabe-Umfang wurden keine Produkte gefunden." />
   }
 
   const [kundeName, mwst, branding] = await Promise.all([
@@ -135,15 +144,24 @@ export default async function FreigabePage({ params }: Props) {
     brandingFuerToken(),
   ])
 
+  const scopeBeschreibung =
+    scopeTyp === 'projekt' ? 'Gesamtes Projekt' :
+    scopeTyp === 'raum'    ? `Raum: ${raeume[0]?.name ?? ''}` :
+                              `${raeume.reduce((sum, r) => sum + r.produkte.length, 0)} ausgewählte Produkte`
+
   return (
     <FreigabeClient
       token={params.token}
+      tokenId={tokenData.id}
       projektName={projekt.name}
       kundeName={kundeName}
       raeume={raeume}
       mwst={mwst}
       hatPin={projekt.freigabe_pin != null}
       branding={branding}
+      scopeBeschreibung={scopeBeschreibung}
+      bereitsAbgeschlossen={tokenData.abgeschlossen_am != null}
+      abgeschlossenDurch={tokenData.abgeschlossen_durch}
     />
   )
 }

@@ -3,9 +3,9 @@
 import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { Check, X, RefreshCw, ExternalLink, ChevronDown, Lock, Package } from 'lucide-react'
-import { freigabeStatusAendern } from '@/app/actions/freigabe'
+import { freigabeStatusSetzen } from '@/app/actions/freigaben'
 import { pinPruefen } from '@/app/actions/projekte'
-import type { FreigabeRaum, FreigabeProdukt, ProduktStatus, Branding } from '@/lib/supabase/types'
+import type { FreigabeRaum, FreigabeProdukt, FreigabeStatus, ProduktStatus, Branding } from '@/lib/supabase/types'
 import HinweisBanner from '@/components/HinweisBanner'
 
 // ── Konstante (Fallback) ──────────────────────────────────────
@@ -24,12 +24,16 @@ interface ProduktState {
 
 interface Props {
   token: string
+  tokenId: string
   projektName: string
   kundeName: string | null
   raeume: FreigabeRaum[]
   mwst?: number
   hatPin?: boolean
   branding?: Branding | null
+  scopeBeschreibung?: string
+  bereitsAbgeschlossen?: boolean
+  abgeschlossenDurch?: string | null
 }
 
 // ── Logo ────────────────────────────────────────────
@@ -164,7 +168,19 @@ function PinEingabe({ token, projektName, onErfolg, brandingBg, brandingPrim, fi
 }
 
 // ── Hauptkomponente ───────────────────────────────────────────
-export default function FreigabeClient({ token, projektName, kundeName, raeume, mwst = MWST_DEFAULT, hatPin = false, branding }: Props) {
+export default function FreigabeClient({
+  token,
+  tokenId,
+  projektName,
+  kundeName,
+  raeume,
+  mwst = MWST_DEFAULT,
+  hatPin = false,
+  branding,
+  scopeBeschreibung,
+  bereitsAbgeschlossen = false,
+  abgeschlossenDurch = null,
+}: Props) {
   const prim       = branding?.primary_color    ?? '#445c49'
   const bg         = branding?.background_color ?? '#f6ede2'
   const firmenname = branding?.firmenname       ?? 'Wellbeing Spaces'
@@ -192,6 +208,28 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
 
   const [isPending, startTransition] = useTransition()
 
+  // Bereits abgeschlossen → Read-Only-Bestätigungsscreen
+  if (bereitsAbgeschlossen) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 py-10" style={{ backgroundColor: bg }}>
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-lg p-8 text-center">
+          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <Check className="w-8 h-8 text-emerald-600" />
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Freigabe abgeschlossen</h1>
+          <p className="text-sm text-gray-500 leading-relaxed mb-6">
+            Diese Freigabe wurde {abgeschlossenDurch ? <>von <span className="font-semibold text-gray-700">{abgeschlossenDurch}</span></> : null} bereits eingereicht.
+            <br />Danke für deine Rückmeldung!
+          </p>
+          <div className="text-xs text-gray-400 border-t pt-4">
+            <p className="font-medium text-gray-600 mb-0.5">{projektName}</p>
+            {scopeBeschreibung && <p>{scopeBeschreibung}</p>}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // PIN-Screen anzeigen solange nicht verifiziert
   if (hatPin && !pinVerifiziert) {
     return (
@@ -216,13 +254,23 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
   const fortschritt       = total > 0 ? Math.round((freigegebenCount / total) * 100) : 0
   const alleDone          = freigegebenCount === total && total > 0
 
-  function speichereStatus(produktId: string, status: ProduktStatus, kommentar = '') {
+  function speichereStatus(raumProduktId: string, status: ProduktStatus, kommentar = '') {
+    if (bereitsAbgeschlossen) return
+    // UI unterscheidet 'abgelehnt' vs 'ueberarbeitung'; DB kennt nur 3 FreigabeStatus.
+    // 'ueberarbeitung' wird als 'abgelehnt' gespeichert, Kommentar differenziert.
+    const dbStatus: FreigabeStatus = status === 'ueberarbeitung' ? 'abgelehnt' : (status as FreigabeStatus)
     startTransition(async () => {
-      const result = await freigabeStatusAendern(token, produktId, status, kommentar)
+      const result = await freigabeStatusSetzen({
+        raumProduktId,
+        status:    dbStatus,
+        kommentar,
+        kanal:     'token',
+        kontext:   { tokenId, geaendertVon: kundeName ?? 'Kunde' },
+      })
       if ('erfolg' in result) {
         setState((prev) => ({
           ...prev,
-          [produktId]: { ...prev[produktId], status, kommentar, aktiveAktion: null, kommentarEingabe: kommentar },
+          [raumProduktId]: { ...prev[raumProduktId], status, kommentar, aktiveAktion: null, kommentarEingabe: kommentar },
         }))
       }
     })
@@ -306,6 +354,9 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
               Bitte prüfen Sie die folgenden Produkte und geben Sie diese frei oder lehnen Sie sie ab.
               {kundeName && <span className="text-gray-500"> · {kundeName}</span>}
             </p>
+            {scopeBeschreibung && scopeBeschreibung !== 'Gesamtes Projekt' && (
+              <p className="text-xs text-wellbeing-green mt-1 font-medium">Umfang: {scopeBeschreibung}</p>
+            )}
             <p className="text-xs text-gray-400 mt-1.5">
               {total - freigegebenCount} von {total} Produkt{total - freigegebenCount !== 1 ? 'en' : ''} noch ausstehend
             </p>
