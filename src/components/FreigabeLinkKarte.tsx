@@ -1,10 +1,16 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { tokenGenerieren, tokenDeaktivieren, tokenErneuern } from '@/app/actions/freigabe-token'
+import { tokenDeaktivieren, tokenErneuern } from '@/app/actions/freigabe-token'
+import {
+  freigabeTokenErstellen,
+  freigabeScopeOptionenLaden,
+  type ScopeOptionenRaum,
+} from '@/app/actions/freigaben'
 import { pinSetzen } from '@/app/actions/projekte'
-import { RefreshCw, Clock, Lock, LockOpen, Copy, Check, Eye, EyeOff, Share2 } from 'lucide-react'
+import { RefreshCw, Clock, Lock, LockOpen, Copy, Check, Eye, EyeOff, Share2, Layers, Home, ListChecks } from 'lucide-react'
 import { ConfirmModal } from '@/components/ConfirmModal'
+import type { FreigabeScopeTyp } from '@/lib/supabase/types'
 
 interface Props {
   projektId: string
@@ -40,6 +46,33 @@ export default function FreigabeLinkKarte({ projektId, initialToken, initialHatP
   const [confirmDeaktivieren, setConfirmDeaktivieren] = useState(false)
   const [confirmErneuern, setConfirmErneuern]         = useState(false)
 
+  // Scope-Picker State (Mig 081)
+  const [scopeTyp, setScopeTyp]                 = useState<FreigabeScopeTyp>('projekt')
+  const [scopeRaumId, setScopeRaumId]           = useState<string>('')
+  const [scopeItemIds, setScopeItemIds]         = useState<string[]>([])
+  const [scopeOptionen, setScopeOptionen]       = useState<ScopeOptionenRaum[] | null>(null)
+  const [scopeFehler, setScopeFehler]           = useState<string | null>(null)
+  const [erstellenFehler, setErstellenFehler]   = useState<string | null>(null)
+
+  async function scopeOptionenLadenWennNoetig(neuerTyp: FreigabeScopeTyp) {
+    if (neuerTyp === 'projekt' || scopeOptionen !== null) return
+    const data = await freigabeScopeOptionenLaden(projektId)
+    setScopeOptionen(data)
+    if (neuerTyp === 'raum' && data.length > 0) setScopeRaumId(data[0].id)
+  }
+
+  function handleScopeWechsel(neuerTyp: FreigabeScopeTyp) {
+    setScopeTyp(neuerTyp)
+    setScopeFehler(null)
+    setErstellenFehler(null)
+    if (neuerTyp !== 'projekt') scopeOptionenLadenWennNoetig(neuerTyp)
+    if (neuerTyp === 'projekt') { setScopeItemIds([]); setScopeRaumId('') }
+  }
+
+  function toggleItem(id: string) {
+    setScopeItemIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+  }
+
   const freigabeUrl = tokenData
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/freigabe/${tokenData.token}`
     : null
@@ -53,10 +86,25 @@ export default function FreigabeLinkKarte({ projektId, initialToken, initialHatP
 
   // ── Token-Aktionen ────────────────────────────────────────────
   function handleGenerieren() {
+    setErstellenFehler(null)
+
+    // Scope validieren
+    let scopeIds: string[] = []
+    if (scopeTyp === 'raum') {
+      if (!scopeRaumId) { setScopeFehler('Bitte einen Raum auswählen.'); return }
+      scopeIds = [scopeRaumId]
+    } else if (scopeTyp === 'auswahl') {
+      if (scopeItemIds.length === 0) { setScopeFehler('Bitte mindestens ein Produkt auswählen.'); return }
+      scopeIds = scopeItemIds
+    }
+    setScopeFehler(null)
+
     startTransition(async () => {
-      const result = await tokenGenerieren(projektId)
+      const result = await freigabeTokenErstellen(projektId, scopeTyp, scopeIds)
       if ('token' in result) {
         setTokenData({ id: '', token: result.token, gueltig_bis: null })
+      } else {
+        setErstellenFehler(result.fehler)
       }
     })
   }
@@ -168,6 +216,89 @@ export default function FreigabeLinkKarte({ projektId, initialToken, initialHatP
           <p className="text-sm text-gray-500 mb-4 leading-relaxed">
             Erstellen Sie einen Link, den Sie an Ihren Kunden senden können.
           </p>
+
+          {/* Scope-Auswahl (Projekt / Raum / Auswahl) */}
+          <div className="mb-4">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Umfang</label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {([
+                { typ: 'projekt' as const, icon: Layers,     label: 'Projekt' },
+                { typ: 'raum'    as const, icon: Home,       label: 'Raum' },
+                { typ: 'auswahl' as const, icon: ListChecks, label: 'Auswahl' },
+              ]).map(({ typ, icon: Icon, label }) => (
+                <button
+                  key={typ}
+                  type="button"
+                  onClick={() => handleScopeWechsel(typ)}
+                  className={`flex flex-col items-center gap-1 px-2 py-2.5 text-[11px] font-medium rounded-lg border transition-colors ${
+                    scopeTyp === typ
+                      ? 'bg-wellbeing-green text-white border-wellbeing-green'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {scopeTyp === 'raum' && scopeOptionen && (
+            <div className="mb-4">
+              {scopeOptionen.length === 0 ? (
+                <p className="text-xs text-amber-600">Keine Räume im Projekt vorhanden.</p>
+              ) : (
+                <select
+                  value={scopeRaumId}
+                  onChange={(e) => setScopeRaumId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/30"
+                >
+                  {scopeOptionen.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.items.length} Produkt{r.items.length === 1 ? '' : 'e'})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {scopeTyp === 'auswahl' && scopeOptionen && (
+            <div className="mb-4 max-h-60 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+              {scopeOptionen.length === 0 ? (
+                <p className="text-xs text-amber-600 p-3">Keine Produkte im Projekt vorhanden.</p>
+              ) : (
+                scopeOptionen.map((r) => (
+                  <div key={r.id}>
+                    <p className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50">{r.name}</p>
+                    {r.items.length === 0 ? (
+                      <p className="px-3 py-2 text-[11px] text-gray-400 italic">keine Produkte</p>
+                    ) : r.items.map((it) => (
+                      <label key={it.id} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={scopeItemIds.includes(it.id)}
+                          onChange={() => toggleItem(it.id)}
+                          className="rounded border-gray-300 text-wellbeing-green focus:ring-wellbeing-green/30"
+                        />
+                        <span className="flex-1">{it.name}</span>
+                        <span className="text-gray-400">{it.menge}{it.einheit ? ` ${it.einheit}` : ''}</span>
+                      </label>
+                    ))}
+                  </div>
+                ))
+              )}
+              {scopeOptionen.length > 0 && (
+                <div className="px-3 py-1.5 text-[10px] text-gray-500 bg-gray-50 text-right">
+                  {scopeItemIds.length} ausgewählt
+                </div>
+              )}
+            </div>
+          )}
+
+          {scopeFehler && <p className="text-xs text-red-500 mb-3">{scopeFehler}</p>}
+          {erstellenFehler && <p className="text-xs text-red-500 mb-3">{erstellenFehler}</p>}
+
           <button
             onClick={handleGenerieren}
             disabled={isPending}

@@ -19,7 +19,7 @@ export type TimelineEventDaten = {
   kunde_sichtbar?: boolean
 }
 
-export type AutoEventQuelle = 'produkt' | 'bestellstatus' | 'deadline' | 'angebot' | 'vertrag'
+export type AutoEventQuelle = 'produkt' | 'bestellstatus' | 'deadline' | 'angebot' | 'vertrag' | 'freigabe'
 
 // ── Alle Events eines Projekts ────────────────────────────────
 export async function eventsAbrufen(projektId: string): Promise<TimelineEvent[]> {
@@ -234,6 +234,7 @@ const QUELLE_KUNDE_SICHTBAR_DEFAULT: Record<AutoEventQuelle, boolean> = {
   deadline:      true,   // Projekt-Ende
   angebot:       false,  // intern
   vertrag:       true,   // Signatur-Termin
+  freigabe:      false,  // intern: "Kunde hat Freigabe abgeschlossen"
 }
 
 /**

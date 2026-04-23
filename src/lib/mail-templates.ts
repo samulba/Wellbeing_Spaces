@@ -176,6 +176,53 @@ export function freigabeLinkMail(opts: {
 }
 
 
+/** Freigabe wurde vom Kunden abgeschlossen (Admin-Benachrichtigung). */
+export function freigabeAbgeschlossenMail(opts: {
+  empfaengerName:    string   // Admin-Name
+  kundenName:        string   // Name aus Abschluss-Modal
+  projektName:       string
+  scopeBeschreibung: string   // "Gesamtes Projekt" | "Raum X" | "3 ausgewählte Produkte"
+  freigegebenCount:  number
+  abgelehntCount:    number
+  kommentar:         string | null
+  linkUrl:           string   // Link zur Projekt-Detailseite
+  branding?:         MailBranding
+}): MailTemplateResult {
+  const firmenname    = opts.branding?.firmenname    ?? DEFAULT_FIRMA
+  const primary_color = opts.branding?.primary_color ?? DEFAULT_PRIMARY
+
+  const statsZeile = `<strong>${opts.freigegebenCount}</strong> freigegeben, <strong>${opts.abgelehntCount}</strong> abgelehnt`
+  const kommentarBlock = opts.kommentar
+    ? `<div style="background: #f6ede2; border-left: 3px solid ${primary_color}; padding: 12px 16px; margin: 18px 0; border-radius: 6px;">
+         <p style="margin: 0 0 4px; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Kommentar</p>
+         <p style="margin: 0; font-size: 14px; color: #374151; line-height: 1.5;">${escapeHtml(opts.kommentar)}</p>
+       </div>`
+    : ''
+
+  const body = `
+    <p style="font-size: 15px; color: #4b5563; line-height: 1.55; margin: 0 0 18px;">
+      <strong>${escapeHtml(opts.kundenName)}</strong> hat die Produktfreigabe für
+      <strong>${escapeHtml(opts.projektName)}</strong> (${escapeHtml(opts.scopeBeschreibung)}) abgeschlossen.
+    </p>
+    <p style="font-size: 14px; color: #4b5563; margin: 0 0 6px;">
+      Ergebnis: ${statsZeile}
+    </p>
+    ${kommentarBlock}`.trim()
+
+  return {
+    subject: `Freigabe abgeschlossen: ${opts.projektName}`,
+    html: layout({
+      firmenname,
+      primary_color,
+      anrede:   `Hallo ${opts.empfaengerName},`,
+      bodyHtml: body,
+      ctaLabel: 'Freigabe ansehen',
+      ctaUrl:   opts.linkUrl,
+    }),
+  }
+}
+
+
 /** Onboarding-Link für neue Kunden. */
 export function onboardingLinkMail(opts: {
   empfaengerName: string

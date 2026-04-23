@@ -7,6 +7,7 @@ import { freigabeStatusAendern } from '@/app/actions/freigabe'
 import { pinPruefen } from '@/app/actions/projekte'
 import type { FreigabeRaum, FreigabeProdukt, ProduktStatus, Branding } from '@/lib/supabase/types'
 import HinweisBanner from '@/components/HinweisBanner'
+import FreigabeAbschlussModal from '@/components/FreigabeAbschlussModal'
 
 // ── Konstante (Fallback) ──────────────────────────────────────
 const MWST_DEFAULT = 0.19
@@ -30,6 +31,10 @@ interface Props {
   mwst?: number
   hatPin?: boolean
   branding?: Branding | null
+  // Pflicht-Abschluss (Migration 081)
+  scopeBeschreibung?: string
+  bereitsAbgeschlossen?: boolean
+  abgeschlossenDurch?: string | null
 }
 
 // ── Logo ────────────────────────────────────────────
@@ -261,7 +266,18 @@ function PinEingabe({ token, projektName, onErfolg, brandingBg, brandingPrim, fi
 }
 
 // ── Hauptkomponente ───────────────────────────────────────────
-export default function FreigabeClient({ token, projektName, kundeName, raeume, mwst = MWST_DEFAULT, hatPin = false, branding }: Props) {
+export default function FreigabeClient({
+  token,
+  projektName,
+  kundeName,
+  raeume,
+  mwst = MWST_DEFAULT,
+  hatPin = false,
+  branding,
+  scopeBeschreibung,
+  bereitsAbgeschlossen = false,
+  abgeschlossenDurch = null,
+}: Props) {
   const prim       = branding?.primary_color    ?? '#445c49'
   const bg         = branding?.background_color ?? '#f6ede2'
   const firmenname = branding?.firmenname       ?? 'Wellbeing Spaces'
@@ -288,6 +304,30 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
   })
 
   const [isPending, startTransition] = useTransition()
+  const [abschlussModalOffen, setAbschlussModalOffen] = useState(false)
+  const [lokalAbgeschlossen, setLokalAbgeschlossen] = useState(false)
+
+  // Read-Only-Bestätigungsscreen wenn bereits abgeschlossen
+  if (bereitsAbgeschlossen || lokalAbgeschlossen) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 py-10" style={{ backgroundColor: bg }}>
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-lg p-8 text-center">
+          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <Check className="w-8 h-8 text-emerald-600" />
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Freigabe abgeschlossen</h1>
+          <p className="text-sm text-gray-500 leading-relaxed mb-6">
+            Diese Freigabe wurde {abgeschlossenDurch ? <>von <span className="font-semibold text-gray-700">{abgeschlossenDurch}</span></> : null} bereits eingereicht.
+            <br />Danke für deine Rückmeldung!
+          </p>
+          <div className="text-xs text-gray-400 border-t pt-4">
+            <p className="font-medium text-gray-600 mb-0.5">{projektName}</p>
+            {scopeBeschreibung && <p>{scopeBeschreibung}</p>}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // PIN-Screen anzeigen solange nicht verifiziert
   if (hatPin && !pinVerifiziert) {
@@ -310,8 +350,12 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
   const alleProdukteFlach = raeume.flatMap((r) => r.produkte)
   const total             = alleProdukteFlach.length
   const freigegebenCount  = Object.values(state).filter((s) => s.status === 'freigegeben').length
-  const fortschritt       = total > 0 ? Math.round((freigegebenCount / total) * 100) : 0
+  const abgelehntCount    = Object.values(state).filter((s) => s.status === 'abgelehnt' || s.status === 'ueberarbeitung').length
+  const entschiedenCount  = freigegebenCount + abgelehntCount
+  const offenCount        = total - entschiedenCount
+  const fortschritt       = total > 0 ? Math.round((entschiedenCount / total) * 100) : 0
   const alleDone          = freigegebenCount === total && total > 0
+  const alleEntschieden   = entschiedenCount === total && total > 0
 
   function speichereStatus(produktId: string, status: ProduktStatus, kommentar = '') {
     startTransition(async () => {
@@ -447,6 +491,55 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume, 
             </div>
           )
         })}
+
+        {/* ── Abschluss-Panel ──────────────────────────────── */}
+        {total > 0 && (
+          <div className={`mt-8 mb-4 p-5 border rounded-2xl transition-all ${
+            alleEntschieden
+              ? 'bg-white border-wellbeing-green/40 shadow-md'
+              : 'bg-gray-50 border-gray-200'
+          }`}>
+            {alleEntschieden ? (
+              <>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Bereit zum Abschluss</h3>
+                <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                  Sie haben alle {total} Positionen entschieden ({freigegebenCount} freigegeben, {abgelehntCount} abgelehnt).
+                  Mit einem Klick senden Sie Ihre finale Rückmeldung an uns.
+                </p>
+                <button
+                  onClick={() => setAbschlussModalOffen(true)}
+                  disabled={isPending}
+                  style={{ backgroundColor: prim }}
+                  className="w-full sm:w-auto px-6 py-3 text-sm font-semibold text-white rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  Freigabe abschließen →
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Noch {offenCount} offen</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  Bitte entscheiden Sie zu jedem Produkt (Freigeben, Ablehnen oder Alternative),
+                  danach können Sie die Freigabe abschließen.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Abschluss-Modal ──────────────────────────────── */}
+        <FreigabeAbschlussModal
+          isOpen={abschlussModalOffen}
+          onClose={() => setAbschlussModalOffen(false)}
+          onErfolg={() => { setAbschlussModalOffen(false); setLokalAbgeschlossen(true) }}
+          token={token}
+          projektName={projektName}
+          scopeBeschreibung={scopeBeschreibung}
+          gesamtCount={total}
+          freigegebenCount={freigegebenCount}
+          abgelehntCount={abgelehntCount}
+          brandingPrim={prim}
+        />
 
         {/* ── Footer ────────────────────────────────────────── */}
         <div className="text-center pt-8 pb-6 border-t border-gray-200 mt-4 space-y-2.5">

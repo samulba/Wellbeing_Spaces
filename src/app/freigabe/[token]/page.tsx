@@ -12,15 +12,15 @@ interface Props {
 export default async function FreigabePage({ params }: Props) {
   const supabase = createAdminClient()
 
-  // 1. Token validieren
+  // 1. Token validieren — inkl. Scope + Abschluss + Soft-Delete (Mig 081)
   const { data: tokenData } = await supabase
     .from('freigabe_tokens')
-    .select('projekt_id, gueltig_bis, aktiv')
+    .select('id, projekt_id, gueltig_bis, aktiv, scope_typ, scope_ids, abgeschlossen_am, abgeschlossen_durch, deleted_at')
     .eq('token', params.token)
     .single()
 
-  if (!tokenData || !tokenData.aktiv) {
-    return <Fehlerseite meldung="Dieser Freigabe-Link ist ungültig oder wurde deaktiviert." />
+  if (!tokenData || !tokenData.aktiv || tokenData.deleted_at) {
+    return <Fehlerseite meldung="Dieser Freigabe-Link ist ungültig oder wurde zurückgezogen." />
   }
 
   if (tokenData.gueltig_bis && new Date(tokenData.gueltig_bis) < new Date()) {
@@ -56,7 +56,12 @@ export default async function FreigabePage({ params }: Props) {
   // 4. Produkte via raum_produkte laden – erfasst sowohl direkt angelegte als auch
   //    aus Bibliothek hinzugefügte Produkte. NUR öffentliche Felder, KEINE internen Preise.
   //    freigabe_status liegt seit Migration 076 auf raum_produkte (pro Raum eigen).
-  const { data: rpDaten } = await supabase
+  // Scope-Filter (Migration 081): projekt=alle, raum=ein Raum, auswahl=explizite IDs
+  const scopeTyp   = (tokenData.scope_typ   as 'projekt' | 'raum' | 'auswahl' | null) ?? 'projekt'
+  const scopeIds   = (tokenData.scope_ids   as string[] | null) ?? []
+  const raumFilter = scopeTyp === 'raum' && scopeIds[0] ? [scopeIds[0]] : raeumeDaten.map((r) => r.id)
+
+  let rpQuery = supabase
     .from('raum_produkte')
     .select(`
       id,
@@ -73,9 +78,15 @@ export default async function FreigabePage({ params }: Props) {
         hinweis_extern, hinweis_extern_sichtbar
       )
     `)
-    .in('raum_id', raeumeDaten.map((r) => r.id))
+    .in('raum_id', raumFilter)
     .order('reihenfolge')
     .order('created_at')
+
+  if (scopeTyp === 'auswahl' && scopeIds.length > 0) {
+    rpQuery = rpQuery.in('id', scopeIds)
+  }
+
+  const { data: rpDaten } = await rpQuery
 
   // 5. Struktur aufbauen: Räume mit Produkten
   const raeume: FreigabeRaum[] = raeumeDaten
@@ -134,6 +145,11 @@ export default async function FreigabePage({ params }: Props) {
     brandingFuerToken(),
   ])
 
+  const scopeBeschreibung =
+    scopeTyp === 'projekt' ? 'Gesamtes Projekt' :
+    scopeTyp === 'raum'    ? `Raum: ${raeume[0]?.name ?? ''}` :
+                              `${raeume.reduce((sum, r) => sum + r.produkte.length, 0)} ausgewählte Produkte`
+
   return (
     <FreigabeClient
       token={params.token}
@@ -143,6 +159,9 @@ export default async function FreigabePage({ params }: Props) {
       mwst={mwst}
       hatPin={!!projekt.freigabe_pin && projekt.freigabe_pin.toString().trim().length >= 4}
       branding={branding}
+      scopeBeschreibung={scopeBeschreibung}
+      bereitsAbgeschlossen={tokenData.abgeschlossen_am != null}
+      abgeschlossenDurch={tokenData.abgeschlossen_durch}
     />
   )
 }

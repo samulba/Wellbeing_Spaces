@@ -362,6 +362,9 @@ export interface Produktstatus {
   updated_at: string
 }
 
+// ── Freigabe-Token + Scope + Abschluss (Migration 081) ────────
+export type FreigabeScopeTyp = 'projekt' | 'raum' | 'auswahl'
+
 export interface FreigabeToken {
   id: string
   organisation_id?: string | null
@@ -369,6 +372,30 @@ export interface FreigabeToken {
   token: string
   gueltig_bis: string | null
   aktiv: boolean
+  // Scope (Migration 081)
+  scope_typ: FreigabeScopeTyp
+  scope_ids: string[]
+  // Pflicht-Abschluss (Migration 081)
+  abgeschlossen_am: string | null
+  abgeschlossen_durch: string | null
+  abgeschlossen_kommentar: string | null
+  deleted_at: string | null
+  created_at: string
+}
+
+// ── Freigabe-Audit-Log (Migration 082) ───────────────────────
+export type FreigabeKanal = 'portal' | 'token' | 'admin' | 'system'
+
+export interface FreigabeAudit {
+  id: string
+  organisation_id: string
+  token_id: string | null
+  raum_produkt_id: string | null
+  alter_status: string | null
+  neuer_status: string
+  kommentar: string | null
+  geaendert_von: string
+  kanal: FreigabeKanal
   created_at: string
 }
 
@@ -645,7 +672,7 @@ export interface KonfiguratorAuswahl {
 export type TimelineEventTyp    = 'meilenstein' | 'lieferung' | 'termin' | 'phase'
 export type TimelineEventStatus = 'geplant' | 'in_arbeit' | 'abgeschlossen' | 'verspaetet'
 
-export type TimelineEventQuelle = 'manuell' | 'produkt' | 'bestellstatus' | 'deadline' | 'angebot' | 'vertrag'
+export type TimelineEventQuelle = 'manuell' | 'produkt' | 'bestellstatus' | 'deadline' | 'angebot' | 'vertrag' | 'freigabe'
 
 export interface TimelineEvent {
   id: string
