@@ -3,6 +3,16 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+### Freigabe-System erweitert: Scope + Pflicht-Abschluss + Audit
+- **Granularere Freigabe-Links**: Beim Erstellen wählst du den Umfang — „Gesamtes Projekt", „Einzelner Raum" oder „Kuratierte Auswahl" (handverlesene Produkte). Der Kunde sieht nur genau diese Auswahl.
+- **Pflicht-Abschluss**: Sobald der Kunde alle Positionen entschieden hat, erscheint unten ein prominenter „Freigabe abschließen"-Button mit Dialog (Name + optionaler Kommentar + Bestätigungs-Haken). Erst dann gilt die Freigabe als final — Token wird read-only.
+- **Admin-Mail bei Abschluss**: Nach Klick auf „Abschließen" landet automatisch eine Mail bei dir mit Kundennamen, Zusammenfassung (X freigegeben, Y abgelehnt) und optionalem Feedback-Kommentar. Außerdem Timeline-Event im Projekt.
+- **Freigabe-Verlauf pro Projekt**: Neuer Block unter dem Freigabe-Link zeigt alle jemals erstellten Links (Offen / Abgeschlossen / Zurückgezogen / Abgelaufen) mit Scope-Icon. Per „Verlauf →"-Klick öffnet sich ein Seitenpanel mit der kompletten History — wer hat wann was freigegeben (Portal / Link / Admin / System).
+- **Auto-Invalidierung bei Produkt-Änderungen**: Wenn du Preis, Menge, Beschreibung oder Bild eines bereits freigegebenen Produkts änderst, wird die Freigabe automatisch auf „Ausstehend" zurückgesetzt mit Kommentar „Automatisch zurückgesetzt: X geändert am TT.MM.JJJJ". Fair & transparent gegenüber dem Kunden.
+- **Duplikat-Schutz**: Pro Projekt kann es nur einen offenen Projekt-weiten Link geben. Zweiter Versuch bekommt „Bestehenden Link verwenden oder zuerst zurückziehen".
+- **Read-Only-Bestätigung**: Nach Abschluss zeigt der Freigabe-Link nur noch eine Bestätigungsseite — kein versehentliches Weiter-Klicken mehr.
+- Migrationen 081/082/083 manuell in Supabase ausführen.
+
 ## 2026-04-22
 
 ### Chat — Stabilität und Bug-Fixes

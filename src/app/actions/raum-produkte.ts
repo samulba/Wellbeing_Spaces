@@ -61,6 +61,15 @@ export async function raumProdukteAktualisieren(
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+
+  // Alten Stand für Auto-Invalidierung laden (Mig 081+082)
+  const { data: vorher } = await supabase
+    .from('raum_produkte')
+    .select('produkt_id, menge, verkaufspreis_override, rabatt_prozent')
+    .eq('id', raumProduktId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+
   const update: Record<string, unknown> = {}
   if (daten.menge !== undefined) update.menge = daten.menge
   if ('verkaufspreisOverride' in daten) update.verkaufspreis_override = daten.verkaufspreisOverride
@@ -69,6 +78,27 @@ export async function raumProdukteAktualisieren(
 
   const { error } = await supabase.from('raum_produkte').update(update).eq('id', raumProduktId).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
+
+  // Auto-Invalidierung NUR dieser einen Raum-Instanz bei Menge/Override/Rabatt
+  if (vorher) {
+    const geaendert: string[] = []
+    if (daten.menge !== undefined && vorher.menge !== daten.menge) geaendert.push('Menge')
+    if ('verkaufspreisOverride' in daten && vorher.verkaufspreis_override !== daten.verkaufspreisOverride) geaendert.push('Preis-Override')
+    if ('rabattProzent' in daten && vorher.rabatt_prozent !== daten.rabattProzent) geaendert.push('Rabatt')
+    if (geaendert.length > 0) {
+      try {
+        const { freigabeInvalidierenBeiProduktAenderung } = await import('./freigaben')
+        await freigabeInvalidierenBeiProduktAenderung({
+          produktId:          vorher.produkt_id,
+          grund:              `${geaendert.join(', ')} geändert am ${new Date().toLocaleDateString('de-DE')}`,
+          nurRaumProdukteIds: [raumProduktId],
+        })
+      } catch (e) {
+        console.error('[raumProdukteAktualisieren:invalidate]', e)
+      }
+    }
+  }
+
   if (pfad) revalidatePath(`/dashboard/projekte/${pfad.projektId}/raeume/${pfad.raumId}`)
   return {}
 }

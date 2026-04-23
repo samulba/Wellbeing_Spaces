@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import RaumHinzufuegen from '@/components/RaumHinzufuegen'
 import FreigabeLinkKarte from '@/components/FreigabeLinkKarte'
+import FreigabeUebersicht from '@/components/FreigabeUebersicht'
+import { freigabeTokensAbrufenFuerProjekt } from '@/app/actions/freigaben'
 import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
@@ -135,10 +137,11 @@ async function getDateien(projektId: string): Promise<DateiItem[]> {
 }
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten] = await Promise.all([
+  const [projekt, raeume, aktiverToken, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
+    freigabeTokensAbrufenFuerProjekt(params.id),
     getDateien(params.id),
     getProjektStats(params.id),
     getNotizen(params.id),
@@ -411,12 +414,13 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
           )}
 
           {/* ── Kunden-Freigabe & PIN ────────────────────────── */}
-          <div className="px-6 py-4 border-b border-gray-50">
+          <div className="px-6 py-4 border-b border-gray-50 space-y-4">
             <FreigabeLinkKarte
               projektId={projekt.id}
               initialToken={aktiverToken ?? null}
               initialHatPin={!!projekt.freigabe_pin && projekt.freigabe_pin.toString().trim().length >= 4}
             />
+            <FreigabeUebersicht projektId={projekt.id} initialTokens={alleTokens} />
           </div>
 
           {/* ── Konfigurator (deaktiviert) ─────────────────────── */}
