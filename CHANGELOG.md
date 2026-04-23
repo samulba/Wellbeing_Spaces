@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-23
 
+### Standard-Daten auf Knopfdruck für neue Firmen
+- Neu angelegte Firmen haben einen Banner auf der Kategorien-Seite mit „Standard-Daten jetzt laden" — ein Klick legt die Standard-Kategorien (12 Produktkategorien, 8 Projektarten, 13 Raumtypen), 3 Vertragsvorlagen und 6 Onboarding-Vorlagen an. Behebt das Problem, dass Firmen, die per SQL im Supabase-Dashboard angelegt werden, keine Standard-Daten mitbekommen.
+- Dashboard-Block „Letzte Projekte": Leer-Zustand sieht nicht mehr zusammengequetscht aus — Icon + größere Textfläche + CTA „Projekt anlegen →".
+
 ### Freigabe-System komplett neu gebaut
 - **Granularere Freigabe-Links**: Beim Erstellen wählst du jetzt den Umfang — „Gesamtes Projekt", „Einzelner Raum" oder „Kuratierte Auswahl" (handverlesene Produkte). Der Kunde sieht dann auch nur genau diese Auswahl, keine anderen Räume.
 - **Pflicht-Abschluss**: Sobald der Kunde alle Positionen entschieden hat (freigegeben / abgelehnt / Alternative), erscheint unten ein prominenter „Freigabe abschließen"-Button. Dialog fragt nach Name + optionalem Kommentar + Bestätigungs-Haken. Erst nach Abschluss gilt die Freigabe als final.
