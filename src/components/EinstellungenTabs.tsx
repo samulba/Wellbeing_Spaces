@@ -296,7 +296,7 @@ function WorkspaceTab({
   istAdmin: boolean
 }) {
   const [state, action] = useFormState(saveAllgemein, null)
-  const [defaultsState, defaultsAction] = useFormState<FirmaActionState, FormData>(firmenDefaultsAktualisieren, null)
+  const [defaultsState, defaultsAction] = useFormState(firmenDefaultsAktualisieren, null)
   const e = einstellungen
 
   return (
@@ -371,7 +371,7 @@ function WorkspaceTab({
               label="Standard-Angebotsgültigkeit" name="standard_angebot_gueltigkeit_tage" type="number"
               defaultValue={(organisation?.standard_angebot_gueltigkeit_tage ?? 30).toString()}
               min="0" max="365" step="1"
-              hint="In Tagen. Typisch: 30. Wird bei neuen Angeboten als „gültig bis" vorbelegt."
+              hint={`In Tagen. Typisch: 30. Wird bei neuen Angeboten als "gültig bis" vorbelegt.`}
               disabled={!istAdmin}
             />
           </div>
@@ -421,8 +421,8 @@ function FirmaTab({
   organisation: Organisation | null
   istAdmin: boolean
 }) {
-  const [basisState, basisAction]   = useFormState<FirmaActionState, FormData>(firmaAktualisieren, null)
-  const [slugState, slugAction]     = useFormState<FirmaActionState, FormData>(slugAendern, null)
+  const [basisState, basisAction]   = useFormState(firmaAktualisieren, null)
+  const [slugState, slugAction]     = useFormState(slugAendern, null)
   const [slugModalOffen, setSlugModalOffen] = useState(false)
   const [neuerSlug, setNeuerSlug]   = useState(organisation?.slug ?? '')
 
@@ -1222,7 +1222,7 @@ function RechtlichesTab({
   organisation: Organisation | null
   istAdmin: boolean
 }) {
-  const [rechtState, rechtAction] = useFormState<FirmaActionState, FormData>(rechtsangabenAktualisieren, null)
+  const [rechtState, rechtAction] = useFormState(rechtsangabenAktualisieren, null)
   const [modal, setModal] = useState<'impressum' | 'datenschutz' | 'agb' | null>(null)
 
   const items = [
