@@ -66,7 +66,12 @@ export async function freigabeTokenErstellen(
     if (error?.code === '23505') {
       return { fehler: 'Für dieses Projekt gibt es bereits einen offenen Freigabe-Link. Bitte bestehenden verwenden oder zuerst zurückziehen.' }
     }
-    return { fehler: 'Token konnte nicht erstellt werden.' }
+    // Häufige Ursache: Migration 081 wurde nicht in Supabase ausgeführt
+    if (error?.code === '42703' || error?.message?.includes('scope_typ') || error?.message?.includes('scope_ids')) {
+      return { fehler: 'Migration 081 scheint zu fehlen (scope_typ-Spalte). Bitte im Supabase SQL-Editor ausführen.' }
+    }
+    console.error('[freigabeTokenErstellen] Insert fehlgeschlagen:', error)
+    return { fehler: `Token konnte nicht erstellt werden${error?.message ? ': ' + error.message : ''}` }
   }
 
   revalidatePath(`/dashboard/projekte/${projektId}`)
