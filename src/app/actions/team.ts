@@ -29,32 +29,22 @@ export async function meineRolleAbrufen(): Promise<Rolle> {
 
     if (!count || count === 0) return 'admin'
 
-    // Aktiven Eintrag via user_id
+    // Aktiven Eintrag via user_id – bei mehreren Orgs deterministisch die
+    // älteste Mitgliedschaft (primäre Org) wählen.
     const { data } = await admin
       .from('team_mitglieder')
       .select('rolle')
       .eq('user_id', user.id)
       .eq('status', 'aktiv')
+      .order('created_at', { ascending: true })
+      .limit(1)
       .maybeSingle()
 
     if (data) return data.rolle as Rolle
 
-    // Ausstehende Einladung via E-Mail → auto-aktivieren
-    const { data: pending } = await admin
-      .from('team_mitglieder')
-      .select('id, rolle')
-      .eq('email', user.email ?? '')
-      .eq('status', 'ausstehend')
-      .maybeSingle()
-
-    if (pending) {
-      await admin
-        .from('team_mitglieder')
-        .update({ user_id: user.id, status: 'aktiv', einladungs_token: null })
-        .eq('id', pending.id)
-      return pending.rolle as Rolle
-    }
-
+    // WICHTIG: KEINE automatische Einladungs-Aktivierung per E-Mail-Match.
+    // Einladungen MÜSSEN explizit über /einladung/[token] angenommen werden –
+    // sonst könnten User ungewollt in fremde Organisationen gezogen werden.
     return 'viewer'
   } catch {
     return 'viewer'

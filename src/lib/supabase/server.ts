@@ -43,11 +43,15 @@ export async function getOrganisationIdOrNull(): Promise<string | null> {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
 
+    // Bei mehreren aktiven Mitgliedschaften deterministisch die älteste
+    // (primäre) Organisation wählen – verhindert unvorhersagbares Wechseln
+    // zwischen Orgs.
     const { data } = await supabase
       .from('team_mitglieder')
       .select('organisation_id')
       .eq('user_id', user.id)
       .eq('status', 'aktiv')
+      .order('created_at', { ascending: true })
       .limit(1)
       .maybeSingle()
 
@@ -73,6 +77,7 @@ export async function getOrganisationId(): Promise<string> {
     .select('organisation_id')
     .eq('user_id', user.id)
     .eq('status', 'aktiv')
+    .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle()
 

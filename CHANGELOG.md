@@ -3,6 +3,14 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-04-24
+
+### Sicherheit: Multi-Tenancy-Leak beim Login geschlossen
+- **Kritischer Fix**: Wenn ein User (z. B. `wbc@…`) eine ausstehende Team-Einladung einer anderen Firma hatte, wurde er beim nächsten Login **still und automatisch** in diese Firma gezogen — ohne je den Einladungs-Link anzuklicken. Dadurch konnte z. B. wbc@ plötzlich in Sorays „Wellbeing Concepts" landen, obwohl er eigentlich in einer Test-Firma war. Diese automatische E-Mail-Aktivierung wurde entfernt. Einladungen müssen jetzt **immer** explizit über den Token-Link `/einladung/…` angenommen werden.
+- **Determinismus bei Mehrfach-Mitgliedschaft**: Wenn ein User in mehreren Orgs Mitglied ist, wählt das System jetzt deterministisch die **älteste** Mitgliedschaft (primäre Org) — kein zufälliges Hin- und Her-Springen zwischen Firmen mehr.
+
+## 2026-04-23
+
 ### Freigabe-System erweitert: Scope + Pflicht-Abschluss + Audit
 - **Granularere Freigabe-Links**: Beim Erstellen wählst du den Umfang — „Gesamtes Projekt", „Einzelner Raum" oder „Kuratierte Auswahl" (handverlesene Produkte). Der Kunde sieht nur genau diese Auswahl.
 - **Pflicht-Abschluss**: Sobald der Kunde alle Positionen entschieden hat, erscheint unten ein prominenter „Freigabe abschließen"-Button mit Dialog (Name + optionaler Kommentar + Bestätigungs-Haken). Erst dann gilt die Freigabe als final — Token wird read-only.
