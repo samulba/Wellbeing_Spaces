@@ -373,7 +373,7 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
             </div>
             {scopeTyp === 'projekt' && hatProjektToken && (
               <p className="mt-2 text-[11px] text-amber-600">
-                Es gibt bereits einen Projekt-Link. Deaktiviere ihn zuerst oder wähle „Raum" / „Auswahl".
+                Es gibt bereits einen Projekt-Link. Deaktiviere ihn zuerst oder wähle &bdquo;Raum&ldquo; / &bdquo;Auswahl&ldquo;.
               </p>
             )}
           </div>
