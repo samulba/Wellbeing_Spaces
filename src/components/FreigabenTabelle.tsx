@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
-import { freigabeZuruecksetzenAdmin } from '@/app/actions/freigabe'
+import { freigabeZuruecksetzenAdmin, freigabeBulkStatusAendernAdmin } from '@/app/actions/freigabe'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type FreigabeEintrag = {
@@ -308,6 +308,8 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
   const [projektFilter, setProjektFilter] = useState<string>('alle')
   const [collapsedGroups, setCollapsed]  = useState<Set<string>>(new Set())
   const [selectedEintrag, setSelected]   = useState<FreigabeEintrag | null>(null)
+  const [selectedIds, setSelectedIds]    = useState<Set<string>>(new Set())
+  const [bulkToast, setBulkToast]        = useState<string | null>(null)
   const [isPending, startTransition]     = useTransition()
   const router                           = useRouter()
 
@@ -370,6 +372,58 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
     })
   }
 
+  // ── Bulk-Auswahl ────────────────────────────────────────────
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectGroup(groupIds: string[]) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      const alleDrin = groupIds.every((id) => next.has(id))
+      if (alleDrin) groupIds.forEach((id) => next.delete(id))
+      else groupIds.forEach((id) => next.add(id))
+      return next
+    })
+  }
+
+  function selectAllVisible() {
+    setSelectedIds(new Set(gefiltert.map((e) => e.id)))
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set())
+  }
+
+  function showBulkToast(msg: string) {
+    setBulkToast(msg)
+    setTimeout(() => setBulkToast(null), 2800)
+  }
+
+  function handleBulk(neuerStatus: 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung') {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    startTransition(async () => {
+      const res = await freigabeBulkStatusAendernAdmin(ids, neuerStatus)
+      if (res.erfolg) {
+        const label = neuerStatus === 'ausstehend' ? 'zurückgesetzt'
+          : neuerStatus === 'freigegeben' ? 'freigegeben'
+          : neuerStatus === 'abgelehnt' ? 'abgelehnt'
+          : 'zur Überarbeitung markiert'
+        showBulkToast(`${res.anzahl} Produkt${res.anzahl === 1 ? '' : 'e'} ${label}`)
+        clearSelection()
+        router.refresh()
+      } else {
+        showBulkToast(res.fehler ?? 'Bulk-Aktion fehlgeschlagen')
+      }
+    })
+  }
+
   // ── Produkt-Zeile (kompakt, Hover-Actions) ──────────────────
   const produktZeile = (e: FreigabeEintrag, withProjekt = false) => {
     const status    = (e.produktstatus?.status ?? 'ausstehend') as keyof typeof counts
@@ -378,85 +432,109 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
     const cfg       = STATUS_CFG.find((c) => c.key === status)
     const vp        = (e.verkaufspreis ?? 0) * (e.menge ?? 0)
 
+    const istMarkiert = selectedIds.has(e.id)
     return (
       <li
         key={e.id}
-        className="group flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer"
+        className={`group px-4 md:px-5 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${
+          istMarkiert ? 'bg-wellbeing-green/5' : ''
+        }`}
         onClick={() => setSelected(e)}
       >
-        {/* Thumbnail 32px */}
-        {e.bild_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={e.bild_url}
-            alt={e.name}
-            className="w-8 h-8 rounded-lg object-cover border border-gray-200 shrink-0"
-          />
-        ) : (
-          <div className="w-8 h-8 rounded-lg bg-wellbeing-cream border border-wellbeing-cream shrink-0 flex items-center justify-center">
-            <span className="text-[10px] font-bold text-wellbeing-green-light">{kuerzel}</span>
-          </div>
-        )}
-
-        {/* Name + Kontext */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{e.name}</p>
-            {e.raeume?.name && (
-              <span className="text-[11px] text-gray-400 shrink-0">· {e.raeume.name}</span>
-            )}
-            {withProjekt && e.raeume?.projekte && (
-              <span className="text-[11px] text-gray-400 truncate">· {e.raeume.projekte.name}</span>
-            )}
-          </div>
-          {kommentar && (
-            <p className="text-[11px] text-amber-600 mt-0.5 truncate max-w-lg" title={kommentar}>
-              &bdquo;{kommentar}&ldquo;
-            </p>
-          )}
-        </div>
-
-        {/* VP-Summe */}
-        {vp > 0 && (
-          <span className="text-[11px] font-mono text-gray-500 shrink-0 tabular-nums">
-            {eur(vp)}
-          </span>
-        )}
-
-        {/* Status-Pill mit Dot */}
-        {cfg && (
-          <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text} shrink-0`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-            {cfg.label}
-          </span>
-        )}
-
-        {/* Datum */}
-        <span className="text-[11px] text-gray-400 shrink-0 w-14 text-right tabular-nums">
-          {formatDatum(e.created_at)}
-        </span>
-
-        {/* Hover-Actions */}
-        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-          {status !== 'ausstehend' && (
-            <button
-              type="button"
-              onClick={(ev) => { ev.stopPropagation(); handleReset(e.id) }}
-              disabled={isPending}
-              title="Zurücksetzen"
-              className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
-            >
-              <Undo2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-          <Link
-            href={`/dashboard/projekte/${e.raeume?.projekte?.id ?? ''}`}
+        <div className="flex items-start gap-3">
+          {/* Checkbox */}
+          <label
+            className="flex items-center justify-center shrink-0 w-5 h-5 mt-1"
             onClick={(ev) => ev.stopPropagation()}
-            title="Zum Projekt"
-            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-wellbeing-green hover:bg-wellbeing-green/10 rounded-md transition-colors"
           >
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
+            <input
+              type="checkbox"
+              checked={istMarkiert}
+              onChange={() => toggleSelect(e.id)}
+              className="w-4 h-4 rounded border-gray-300 text-wellbeing-green focus:ring-wellbeing-green/30 cursor-pointer"
+              aria-label={`${e.name} auswählen`}
+            />
+          </label>
+
+          {/* Thumbnail 32px */}
+          {e.bild_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={e.bild_url}
+              alt={e.name}
+              className="w-9 h-9 rounded-lg object-cover border border-gray-200 shrink-0"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-lg bg-wellbeing-cream border border-wellbeing-cream shrink-0 flex items-center justify-center">
+              <span className="text-[10px] font-bold text-wellbeing-green-light">{kuerzel}</span>
+            </div>
+          )}
+
+          {/* Main */}
+          <div className="flex-1 min-w-0">
+            {/* Row 1: Name + Datum (Datum rechts, immer) */}
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-medium text-gray-900 truncate">{e.name}</p>
+              <span className="text-[11px] text-gray-400 shrink-0 tabular-nums">
+                {formatDatum(e.created_at)}
+              </span>
+            </div>
+
+            {/* Row 2: Raum · Projekt */}
+            {(e.raeume?.name || (withProjekt && e.raeume?.projekte)) && (
+              <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                {e.raeume?.name}
+                {withProjekt && e.raeume?.projekte && (
+                  <> · {e.raeume.projekte.name}</>
+                )}
+              </p>
+            )}
+
+            {/* Kommentar (wenn Überarbeitung/Abgelehnt mit Kommentar) */}
+            {kommentar && (
+              <p className="text-[11px] text-amber-600 mt-0.5 truncate" title={kommentar}>
+                &bdquo;{kommentar}&ldquo;
+              </p>
+            )}
+
+            {/* Row 3: Status-Pill + VP + Actions — Actions auf Mobile immer sichtbar */}
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              {cfg && (
+                <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text} shrink-0`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                  {cfg.label}
+                </span>
+              )}
+              {vp > 0 && (
+                <span className="text-[11px] font-mono text-gray-500 tabular-nums">
+                  {eur(vp)}
+                </span>
+              )}
+              <div className="ml-auto flex items-center gap-0.5 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                {status !== 'ausstehend' && (
+                  <button
+                    type="button"
+                    onClick={(ev) => { ev.stopPropagation(); handleReset(e.id) }}
+                    disabled={isPending}
+                    title="Zurücksetzen"
+                    className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
+                    aria-label="Freigabe zurücksetzen"
+                  >
+                    <Undo2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <Link
+                  href={`/dashboard/projekte/${e.raeume?.projekte?.id ?? ''}`}
+                  onClick={(ev) => ev.stopPropagation()}
+                  title="Zum Projekt"
+                  aria-label="Zum Projekt"
+                  className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-wellbeing-green hover:bg-wellbeing-green/10 rounded-md transition-colors"
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </li>
     )
@@ -624,13 +702,32 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
               const erledigt = g.freigegebenCount + g.abgelehntCount
               const progressPct = gesamtInGruppe > 0 ? Math.round((erledigt / gesamtInGruppe) * 100) : 0
 
+              const gruppeIds = g.eintraege.map((e) => e.id)
+              const alleInGruppeMarkiert = gruppeIds.length > 0 && gruppeIds.every((id) => selectedIds.has(id))
+              const teilweiseMarkiert = !alleInGruppeMarkiert && gruppeIds.some((id) => selectedIds.has(id))
+
               return (
                 <div key={g.projektId} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => toggleGroup(g.projektId)}
-                    className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors text-left"
-                  >
+                  <div className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                    <label
+                      className="flex items-center justify-center shrink-0 w-5 h-5"
+                      onClick={(ev) => ev.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={alleInGruppeMarkiert}
+                        ref={(el) => { if (el) el.indeterminate = teilweiseMarkiert }}
+                        onChange={() => toggleSelectGroup(gruppeIds)}
+                        className="w-4 h-4 rounded border-gray-300 text-wellbeing-green focus:ring-wellbeing-green/30 cursor-pointer"
+                        aria-label={`Alle Produkte in ${g.projektName} auswählen`}
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(g.projektId)}
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                    >
                     <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
 
                     <div className="flex-1 min-w-0">
@@ -665,6 +762,8 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                       </div>
                     </div>
 
+                    </button>
+
                     {g.vpSumme > 0 && (
                       <span className="text-[11px] font-mono text-gray-500 tabular-nums shrink-0">
                         {eur(g.vpSumme)}
@@ -679,7 +778,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                       <ArrowUpRight className="w-3 h-3" />
                       Projekt
                     </Link>
-                  </button>
+                  </div>
 
                   {!isCollapsed && (
                     <ul className="border-t border-gray-100 divide-y divide-gray-50">
@@ -722,6 +821,79 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
         )}
 
       </div>
+
+      {/* ── Floating Bulk-Action-Bar ────────────────────────── */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-fadeIn">
+          <div className="flex items-center gap-2 bg-gray-900 text-white rounded-full shadow-2xl pl-4 pr-2 py-2">
+            <span className="text-xs font-semibold tabular-nums">
+              {selectedIds.size} ausgewählt
+            </span>
+            <span className="text-gray-500 mx-1">·</span>
+            <button
+              type="button"
+              onClick={() => handleBulk('freigegeben')}
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 rounded-full transition-colors"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Freigeben
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulk('abgelehnt')}
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 disabled:opacity-50 rounded-full transition-colors"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              Ablehnen
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulk('ueberarbeitung')}
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-violet-500 hover:bg-violet-600 disabled:opacity-50 rounded-full transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Überarbeiten
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulk('ausstehend')}
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-500 hover:bg-amber-600 disabled:opacity-50 rounded-full transition-colors"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+              Zurücksetzen
+            </button>
+            <span className="w-px h-5 bg-gray-700 mx-1" />
+            {selectedIds.size < gefiltert.length && (
+              <button
+                type="button"
+                onClick={selectAllVisible}
+                className="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white transition-colors"
+              >
+                Alle sichtbaren ({gefiltert.length})
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={clearSelection}
+              title="Auswahl aufheben"
+              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk-Toast */}
+      {bulkToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-wellbeing-green text-white text-xs font-medium rounded-lg shadow-lg animate-fadeIn">
+          ✓ {bulkToast}
+        </div>
+      )}
     </div>
   )
 }

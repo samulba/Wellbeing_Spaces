@@ -5,6 +5,22 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-24
 
+### Kunden-Portal: Willkommens-Tour beim ersten Login
+- **Drei-Schritt-Intro** erscheint einmalig beim ersten Besuch des Portal-Dashboards: „Willkommen bei {Firma}" → „Produkte freigeben" → „Direkter Chat statt E-Mail-Ping-Pong".
+- Nutzt die Firmen-**Akzentfarbe** aus dem Branding, optional wird der Welcome-Text aus den Branding-Einstellungen übernommen.
+- Fortschritts-Dots, Vor/Zurück-Navigation, „Los geht's!"-CTA am Ende.
+- **LocalStorage-Flag** (`portal-welcome-seen-v1`) verhindert erneute Anzeige — Kunde muss nicht mehr weg-klicken bei jedem Login.
+- Kann jederzeit mit dem X-Button oder durch Klick auf den Hintergrund geschlossen werden.
+
+### Freigaben-Dashboard: Bulk-Aktionen + Mobile-Card-Zeilen
+- **Checkboxen pro Produkt-Zeile** — mit einem Klick mehrere Produkte markieren.
+- **Gruppen-Header** hat eine Indeterminate-Checkbox, die alle Produkte des Projekts gleichzeitig markiert oder demarkiert.
+- **Floating Action-Bar** unten erscheint sobald mindestens ein Produkt markiert ist: „N ausgewählt · Freigeben · Ablehnen · Überarbeiten · Zurücksetzen · Alle sichtbaren · X". Sammel-Aktion betrifft alle markierten Produkte gleichzeitig.
+- Alle Bulk-Änderungen werden ins Audit-Log geschrieben (Kanal „admin").
+- **Neue Server-Action** `freigabeBulkStatusAendernAdmin(ids, status)` macht ein einziges Batch-Update statt N Einzel-Requests.
+- **Produkt-Zeilen mobil-freundlich**: auf schmalen Screens sind Name/Datum/Raum/Status/VP/Actions sauber in Zeilen gestapelt statt in einer überladenen Horizontal-Zeile. Hover-Actions sind auf Mobile immer sichtbar (nicht mehr nur on-hover).
+- Keine Migration nötig.
+
 ### Freigaben-Dashboard: kompletter Rework
 - **Kompakter Hero** mit einer einzigen farbigen Progress-Bar, die die Verteilung aller Produkte über alle Projekte zeigt (grün/amber/rot/violett). Ein Blick genügt.
 - **Status-Chips als Filter**: vier farbige Chips oben (• 4 Freigegeben, • 34 Ausstehend …), klickbar zum Umschalten. Ein zusätzlicher „Alle"-Chip rechts.

@@ -8,6 +8,7 @@ import {
   ArrowRight, Users, Settings, Sparkles, Activity,
 } from 'lucide-react'
 import PortalShell from '@/components/portal/PortalShell'
+import PortalWelcomeModal from '@/components/portal/PortalWelcomeModal'
 
 export default async function PortalDashboardPage() {
   const [daten, branding, session] = await Promise.all([
@@ -38,6 +39,7 @@ export default async function PortalDashboardPage() {
 
   return (
     <PortalShell active="dashboard" session={session} branding={branding}>
+      <PortalWelcomeModal firma={firma} primColor={prim} welcomeText={welcomeText} />
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
 
         {/* ── Bento-Grid: Hero + Side-Rail ─────────────────── */}

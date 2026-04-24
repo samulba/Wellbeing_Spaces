@@ -72,3 +72,63 @@ export async function freigabeZuruecksetzenAdmin(raumProduktId: string): Promise
     .eq('id', raumProduktId)
   revalidatePath('/dashboard/freigaben')
 }
+
+/**
+ * Bulk-Admin-Action: setzt den Freigabe-Status mehrerer raum_produkte gleichzeitig.
+ * Wird aus der Freigaben-Dashboard-Auswahl-Toolbar aufgerufen. Schreibt einen
+ * Audit-Eintrag pro Item (Kanal 'admin').
+ */
+export async function freigabeBulkStatusAendernAdmin(
+  raumProduktIds: string[],
+  neuerStatus: 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung',
+): Promise<{ erfolg: boolean; anzahl: number; fehler?: string }> {
+  if (raumProduktIds.length === 0) return { erfolg: true, anzahl: 0 }
+
+  const supabase = await createClient()
+
+  // Aktuelle Rolle + User-Email des Admins (für Audit)
+  const { data: { user } } = await supabase.auth.getUser()
+  const akteur = user?.email ?? 'admin'
+
+  // Snapshot für Audit-Log (alter Status + organisation_id)
+  const { data: vorher } = await supabase
+    .from('raum_produkte')
+    .select('id, organisation_id, freigabe_status')
+    .in('id', raumProduktIds)
+
+  if (!vorher || vorher.length === 0) {
+    return { erfolg: false, anzahl: 0, fehler: 'Keine der ausgewählten Einträge gefunden.' }
+  }
+
+  // Bulk-Update
+  const { error } = await supabase
+    .from('raum_produkte')
+    .update({
+      freigabe_status:    neuerStatus,
+      freigabe_kommentar: neuerStatus === 'ausstehend' ? null : undefined,
+    })
+    .in('id', raumProduktIds)
+
+  if (error) return { erfolg: false, anzahl: 0, fehler: 'Bulk-Update fehlgeschlagen: ' + error.message }
+
+  // Bulk-Audit-Insert (ein Eintrag pro Item)
+  try {
+    const auditRows = vorher.map((v) => ({
+      organisation_id: v.organisation_id,
+      token_id:        null,
+      raum_produkt_id: v.id,
+      alter_status:    v.freigabe_status,
+      neuer_status:    neuerStatus,
+      kommentar:       null,
+      geaendert_von:   akteur,
+      kanal:           'admin' as const,
+    }))
+    await supabase.from('freigabe_audit').insert(auditRows)
+  } catch (err) {
+    console.error('[freigabeBulkStatusAendernAdmin] Audit fehlgeschlagen:', err)
+    // Nicht fatal — Update war erfolgreich
+  }
+
+  revalidatePath('/dashboard/freigaben')
+  return { erfolg: true, anzahl: vorher.length }
+}
