@@ -5,6 +5,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-24
 
+### Projekt-Detail: Tab-Navigation statt 2-Spalten-Chaos
+- Die Projekt-Detailseite war sehr dicht gepackt — links Räume/Budget/Freigabe untereinander, rechts Budget-Ring/Status/Timeline/Dateien/Chat/Notizen in einem einzigen Scroll-Strang. Jetzt klar strukturiert über **7 Tabs** mit Icons und Badge-Counts: **Übersicht** (Default), **Räume**, **Freigaben**, **Timeline**, **Dateien**, **Chat** (nur wenn Portal aktiv), **Notizen**.
+- **Übersicht** zeigt die wichtigsten Kennzahlen kompakt: Budget-Ring + 4 Status-Kacheln (Freigegeben/Ausstehend/Räume/Produkte), darunter Räume-Kurzliste und Mini-Timeline nebeneinander. Zeiterfassung erscheint bei Stundensatz-Projekten direkt darunter.
+- **Räume** bekommt jetzt die volle Breite für SortableRaumListe + Budget-pro-Raum-Grid.
+- **Freigaben** konzentriert FreigabeLinkKarte + FreigabeUebersicht auf einer Seite, ohne Ablenkung.
+- **Timeline** zeigt alle Events in voller Breite mit direktem Sprung zum Gantt-Editor.
+- Alle Funktionen, Actions und Daten bleiben 1:1 erhalten — nur Layout geändert. URL `?tab=raeume` usw. ist bookmarkbar.
+
 ### Onboarding: Standard-Vorlagen laden
 - **6 vorgefertigte Onboarding-Vorlagen** können jetzt auf Knopfdruck geladen werden, wenn die Liste noch leer ist — analog zum Vertrags-Vorlagen-System. Im Empty-State erscheint ein großer Sparkles-Button „Standard-Vorlagen laden".
 - Die Vorlagen decken die typischen Szenarien ab: **Kontaktanfrage** (kurzes Formular für Erstkontakte), **Neukunden-Onboarding Standard** (Erstgespräch für neue Kunden), **Projekt-Briefing bestehender Kunde** (schnelles Briefing ohne Kontaktfragen), **Projekt-Privat** (detailliertes Wohnprojekt), **Projekt-Gewerbe** (umfassend für Gewerbe) und **Raum-Bestandsaufnahme** (pro Raum, vor Vor-Ort-Termin).

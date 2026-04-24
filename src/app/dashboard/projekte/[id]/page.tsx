@@ -15,6 +15,7 @@ import {
   ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote,
   Archive, CalendarDays, User, Phone, Mail,
   AlertTriangle, Wrench, FileText, ReceiptText,
+  LayoutDashboard, Layers, Share2, Files, MessageSquare, StickyNote,
 } from 'lucide-react'
 import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
 import SortableRaumListe, { type RaumStat } from '@/components/SortableRaumListe'
@@ -136,7 +137,14 @@ async function getDateien(projektId: string): Promise<DateiItem[]> {
   return (data ?? []) as DateiItem[]
 }
 
-export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
+export default async function ProjektDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string }
+  searchParams: Promise<{ tab?: string }>
+}) {
+  const { tab: tabParam } = await searchParams
   const [projekt, raeume, aktiverToken, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
@@ -376,14 +384,228 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      {/* ── 2-Spalten Content ──────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto xl:overflow-hidden flex flex-col xl:flex-row">
+      {/* ── Tab-Nav ─────────────────────────────────────────────── */}
+      {(() => {
+        const tabs: { key: string; label: string; icon: typeof LayoutDashboard; badge?: number }[] = [
+          { key: 'uebersicht', label: 'Übersicht',  icon: LayoutDashboard },
+          { key: 'raeume',     label: 'Räume',      icon: Layers,     badge: raeume.length || undefined },
+          { key: 'freigaben',  label: 'Freigaben',  icon: Share2 },
+          { key: 'timeline',   label: 'Timeline',   icon: CalendarDays, badge: alleEvents.length || undefined },
+          { key: 'dateien',    label: 'Dateien',    icon: Files,       badge: dateien.length || undefined },
+          ...(hatPortal ? [{ key: 'chat' as const, label: 'Chat', icon: MessageSquare, badge: nachrichten.length || undefined }] : []),
+          { key: 'notizen',    label: 'Notizen',    icon: StickyNote,  badge: notizen.length || undefined },
+        ]
+        const aktiverTab = tabs.some((t) => t.key === tabParam) ? tabParam : 'uebersicht'
+        return (
+          <div className="shrink-0 border-b border-gray-100 bg-white px-6">
+            <nav className="flex items-center gap-0 overflow-x-auto">
+              {tabs.map((t) => {
+                const Icon = t.icon
+                const ist = aktiverTab === t.key
+                return (
+                  <Link
+                    key={t.key}
+                    href={`/dashboard/projekte/${projekt.id}${t.key === 'uebersicht' ? '' : `?tab=${t.key}`}`}
+                    className={`flex items-center gap-2 px-4 py-3 text-xs font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
+                      ist
+                        ? 'border-wellbeing-green text-wellbeing-green'
+                        : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-200'
+                    }`}
+                  >
+                    <Icon className={`w-3.5 h-3.5 ${ist ? 'text-wellbeing-green' : 'text-gray-400'}`} />
+                    {t.label}
+                    {t.badge != null && (
+                      <span className={`ml-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                        ist ? 'bg-wellbeing-green/10 text-wellbeing-green' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {t.badge}
+                      </span>
+                    )}
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
+        )
+      })()}
 
-        {/* ── Linke Spalte (60%) ─────────────────────────────── */}
-        <div className="xl:flex-[3] xl:overflow-y-auto border-b xl:border-b-0 xl:border-r border-gray-100">
+      {/* ── Tab-Content ─────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-6 py-5 bg-gray-50/30">
 
-          {/* ── Räume ────────────────────────────────────────── */}
-          <div className="px-6 py-4 border-b border-gray-50">
+        {/* ── ÜBERSICHT ─────────────────────────────────────────── */}
+        {(!tabParam || tabParam === 'uebersicht') && (
+          <div className="max-w-7xl mx-auto space-y-5">
+            {/* Row 1: Budget-Karte + Status-Kacheln */}
+            <div className="grid grid-cols-1 xl:grid-cols-[auto_1fr] gap-5">
+              {/* Budget-Karte */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm xl:min-w-[420px]">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Budget-Auslastung</p>
+                {budgetPct != null ? (
+                  <div className="flex items-center gap-5">
+                    <svg width="108" height="108" viewBox="0 0 128 128" className="shrink-0">
+                      <circle cx="64" cy="64" r={ringR} fill="none" stroke="#f3f4f6" strokeWidth="14" />
+                      <circle
+                        cx="64" cy="64" r={ringR}
+                        fill="none"
+                        stroke={ringFarbe}
+                        strokeWidth="14"
+                        strokeLinecap="round"
+                        strokeDasharray={`${ringDash} ${ringCircum - ringDash}`}
+                        transform="rotate(-90 64 64)"
+                      />
+                      <text x="64" y="60" textAnchor="middle" fill={ringFarbe} fontSize="20" fontWeight="bold" fontFamily="monospace">
+                        {budgetPct}%
+                      </text>
+                      <text x="64" y="76" textAnchor="middle" fill="#9ca3af" fontSize="10">Produkte</text>
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-400 mb-0.5">VP-Summe netto</p>
+                      <p className="text-xl font-bold text-gray-900 font-mono">{eur(stats.gesamtkosten)}</p>
+                      <p className="text-xs text-gray-400 mt-1">von {eur(produktBudget!)}</p>
+                      {budgetPct >= 80 && (
+                        <p className={`text-xs mt-2 font-medium ${budgetPct >= 100 ? 'text-red-500' : 'text-amber-500'}`}>
+                          {budgetPct >= 100 ? '⚠ Budget überschritten' : '⚠ Budget fast aufgebraucht'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-xs text-gray-400 mb-0.5">VP-Summe Produkte (netto)</p>
+                    <p className="text-2xl font-bold text-gray-900 font-mono">{eur(stats.gesamtkosten)}</p>
+                    <p className="text-xs text-gray-400 mt-1">Kein Produkt-Budget definiert</p>
+                  </div>
+                )}
+
+                {serviceKosten != null && (
+                  <div className="border-t border-gray-100 mt-4 pt-4 flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-wellbeing-cream flex items-center justify-center shrink-0 mt-0.5">
+                      <Wrench className="w-3.5 h-3.5 text-wellbeing-green" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-0.5">
+                        {projekt.service_modell === 'pauschale' ? 'Service-Pauschale' : `Service (${zeitSumme.abrechenbarStunden.toFixed(2).replace('.', ',')} h × ${eur(projekt.service_stundensatz!)} /h)`}
+                      </p>
+                      <p className="text-lg font-bold font-mono text-gray-900">{eur(serviceKosten)}</p>
+                    </div>
+                  </div>
+                )}
+                {serviceKosten != null && (
+                  <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                    <p className="text-xs text-gray-400">Gesamt (Produkte + Service)</p>
+                    <p className="text-sm font-mono font-bold text-wellbeing-green">
+                      {eur(stats.gesamtkosten + serviceKosten)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Freigabe-Status + Räume-Count */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 self-start">
+                <StatCard
+                  icon={CheckCircle2}
+                  wert={stats.freigegeben}
+                  label="Freigegeben"
+                  tone="emerald"
+                />
+                <StatCard
+                  icon={Clock}
+                  wert={stats.ausstehend + stats.ueberarbeitung}
+                  label="Ausstehend"
+                  tone="amber"
+                />
+                {stats.abgelehnt > 0 ? (
+                  <StatCard
+                    icon={XCircle}
+                    wert={stats.abgelehnt}
+                    label="Abgelehnt"
+                    tone="red"
+                  />
+                ) : (
+                  <StatCard
+                    icon={Layers}
+                    wert={raeume.length}
+                    label={raeume.length === 1 ? 'Raum' : 'Räume'}
+                    tone="gray"
+                  />
+                )}
+                <StatCard
+                  icon={Banknote}
+                  wert={stats.produkteGesamt}
+                  label={stats.produkteGesamt === 1 ? 'Produkt' : 'Produkte'}
+                  tone="gray"
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Räume (kompakt) + Mini-Timeline */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Räume kompakt */}
+              <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Räume</p>
+                  <Link href={`/dashboard/projekte/${projekt.id}?tab=raeume`} className="text-xs text-wellbeing-green hover:underline">
+                    Alle verwalten →
+                  </Link>
+                </div>
+                {raeume.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-8">Noch keine Räume angelegt.</p>
+                ) : (
+                  <ul className="divide-y divide-gray-50 max-h-[280px] overflow-y-auto">
+                    {raeume.slice(0, 8).map((r) => {
+                      const s = raumStats[r.id] ?? { produkteAnzahl: 0, vpSumme: 0, freigegeben: 0 }
+                      return (
+                        <li key={r.id}>
+                          <Link
+                            href={`/dashboard/projekte/${projekt.id}/raeume/${r.id}`}
+                            className="flex items-center justify-between gap-3 px-5 py-2.5 hover:bg-gray-50 transition-colors"
+                          >
+                            <span className="text-sm font-medium text-gray-800 truncate">{r.name}</span>
+                            <span className="shrink-0 flex items-center gap-2 text-[11px] text-gray-500">
+                              {s.produkteAnzahl} Produkte · {eur(s.vpSumme)}
+                            </span>
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              {/* Mini-Timeline */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Projekt-Timeline</p>
+                  <Link
+                    href={`/dashboard/projekte/${projekt.id}?tab=timeline`}
+                    className="text-xs text-wellbeing-green hover:underline"
+                  >
+                    Alle Events →
+                  </Link>
+                </div>
+                <Timeline
+                  events={alleEvents}
+                  showRaumBadge={true}
+                  alleLink={`/dashboard/projekte/${projekt.id}/timeline`}
+                  limit={5}
+                />
+              </div>
+            </div>
+
+            {/* Row 3 (optional): Zeiterfassung */}
+            {projekt.service_modell === 'stundensatz' && projekt.service_stundensatz != null && (
+              <ZeiterfassungBlock
+                projektId={projekt.id}
+                stundensatz={projekt.service_stundensatz}
+                initialEintraege={zeitEintraege}
+              />
+            )}
+          </div>
+        )}
+
+        {/* ── RÄUME ──────────────────────────────────────────────── */}
+        {tabParam === 'raeume' && (
+          <div className="max-w-7xl mx-auto space-y-5">
             <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <RaumHinzufuegen
                 aktion={raumHinzufuegenAktion}
@@ -399,23 +621,24 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
                 <SortableRaumListe projektId={projekt.id} raeume={raeume} raumStats={raumStats} />
               )}
             </div>
-          </div>
 
-          {/* ── Budget pro Raum (Aufschlüsselung + Kategorie-Mix) ── */}
-          {raumBudgetDetails.length > 0 && (
-            <div className="px-6 py-4 border-b border-gray-50">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Budget pro Raum</p>
-                <p className="text-[11px] text-gray-400">
-                  Wo wurde wieviel investiert · Top-Kategorien pro Raum
-                </p>
+            {raumBudgetDetails.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Budget pro Raum</p>
+                  <p className="text-[11px] text-gray-400">
+                    Wo wurde wieviel investiert · Top-Kategorien pro Raum
+                  </p>
+                </div>
+                <RaumBudgetGrid details={raumBudgetDetails} projektId={projekt.id} />
               </div>
-              <RaumBudgetGrid details={raumBudgetDetails} projektId={projekt.id} />
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          {/* ── Kunden-Freigabe & PIN ────────────────────────── */}
-          <div className="px-6 py-4 border-b border-gray-50 space-y-4">
+        {/* ── FREIGABEN ─────────────────────────────────────────── */}
+        {tabParam === 'freigaben' && (
+          <div className="max-w-5xl mx-auto space-y-5">
             <FreigabeLinkKarte
               projektId={projekt.id}
               initialToken={aktiverToken ?? null}
@@ -423,164 +646,85 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
             />
             <FreigabeUebersicht projektId={projekt.id} initialTokens={alleTokens} />
           </div>
+        )}
 
-          {/* ── Konfigurator (deaktiviert) ─────────────────────── */}
-        </div>
-
-        {/* ── Rechte Spalte (40%) ────────────────────────────── */}
-        <div className="xl:flex-[2] xl:overflow-y-auto px-5 py-4 space-y-4">
-
-          {/* Budget-Karte: Produkte + Service */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Budget-Auslastung</p>
-
-            {/* Produkte-Ring */}
-            {budgetPct != null ? (
-              <div className="flex items-center gap-5">
-                <svg width="108" height="108" viewBox="0 0 128 128" className="shrink-0">
-                  <circle cx="64" cy="64" r={ringR} fill="none" stroke="#f3f4f6" strokeWidth="14" />
-                  <circle
-                    cx="64" cy="64" r={ringR}
-                    fill="none"
-                    stroke={ringFarbe}
-                    strokeWidth="14"
-                    strokeLinecap="round"
-                    strokeDasharray={`${ringDash} ${ringCircum - ringDash}`}
-                    transform="rotate(-90 64 64)"
-                  />
-                  <text x="64" y="60" textAnchor="middle" fill={ringFarbe} fontSize="20" fontWeight="bold" fontFamily="monospace">
-                    {budgetPct}%
-                  </text>
-                  <text x="64" y="76" textAnchor="middle" fill="#9ca3af" fontSize="10">Produkte</text>
-                </svg>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-400 mb-0.5">VP-Summe netto</p>
-                  <p className="text-xl font-bold text-gray-900 font-mono">{eur(stats.gesamtkosten)}</p>
-                  <p className="text-xs text-gray-400 mt-1">von {eur(produktBudget!)}</p>
-                  {projekt.produkt_budget != null && (
-                    <p className="text-[10px] text-wellbeing-green/70 mt-0.5">Produkt-Budget (klientenseitig)</p>
-                  )}
-                  {budgetPct >= 80 && (
-                    <p className={`text-xs mt-2 font-medium ${budgetPct >= 100 ? 'text-red-500' : 'text-amber-500'}`}>
-                      {budgetPct >= 100 ? '⚠ Budget überschritten' : '⚠ Budget fast aufgebraucht'}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div>
-                <p className="text-xs text-gray-400 mb-0.5">VP-Summe Produkte (netto)</p>
-                <p className="text-2xl font-bold text-gray-900 font-mono">{eur(stats.gesamtkosten)}</p>
-                <p className="text-xs text-gray-400 mt-1">Kein Produkt-Budget definiert</p>
-              </div>
-            )}
-
-            {/* Service-Kosten */}
-            {serviceKosten != null && (
-              <div className="border-t border-gray-100 mt-4 pt-4 flex items-start gap-3">
-                <div className="w-7 h-7 rounded-lg bg-wellbeing-cream flex items-center justify-center shrink-0 mt-0.5">
-                  <Wrench className="w-3.5 h-3.5 text-wellbeing-green" />
-                </div>
+        {/* ── TIMELINE ──────────────────────────────────────────── */}
+        {tabParam === 'timeline' && (
+          <div className="max-w-5xl mx-auto">
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-xs text-gray-400 mb-0.5">
-                    {projekt.service_modell === 'pauschale' ? 'Service-Pauschale' : `Service (${zeitSumme.abrechenbarStunden.toFixed(2).replace('.', ',')} h × ${eur(projekt.service_stundensatz!)} /h)`}
-                  </p>
-                  <p className="text-lg font-bold font-mono text-gray-900">{eur(serviceKosten)}</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Projekt-Timeline</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{alleEvents.length} Events</p>
                 </div>
+                <Link
+                  href={`/dashboard/projekte/${projekt.id}/timeline`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors"
+                >
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  Timeline-Editor öffnen
+                </Link>
               </div>
-            )}
-
-            {/* Gesamtsumme wenn beide vorhanden */}
-            {serviceKosten != null && (
-              <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-                <p className="text-xs text-gray-400">Gesamt (Produkte + Service)</p>
-                <p className="text-sm font-mono font-bold text-wellbeing-green">
-                  {eur(stats.gesamtkosten + serviceKosten)}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Freigabe-Status */}
-          {stats.produkteGesamt > 0 && (
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="bg-emerald-50 border border-emerald-200/60 rounded-xl p-3.5 flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <div>
-                  <p className="text-lg font-bold text-emerald-700 leading-none">{stats.freigegeben}</p>
-                  <p className="text-[11px] text-emerald-600 mt-0.5">Freigegeben</p>
-                </div>
-              </div>
-              <div className="bg-amber-50 border border-amber-200/60 rounded-xl p-3.5 flex items-center gap-2.5">
-                <Clock className="w-4 h-4 text-amber-500 shrink-0" />
-                <div>
-                  <p className="text-lg font-bold text-amber-700 leading-none">{stats.ausstehend + stats.ueberarbeitung}</p>
-                  <p className="text-[11px] text-amber-600 mt-0.5">Ausstehend</p>
-                </div>
-              </div>
-              {stats.abgelehnt > 0 && (
-                <div className="bg-red-50 border border-red-200/60 rounded-xl p-3.5 flex items-center gap-2.5">
-                  <XCircle className="w-4 h-4 text-red-500 shrink-0" />
-                  <div>
-                    <p className="text-lg font-bold text-red-700 leading-none">{stats.abgelehnt}</p>
-                    <p className="text-[11px] text-red-600 mt-0.5">Abgelehnt</p>
-                  </div>
-                </div>
-              )}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 flex items-center gap-2.5">
-                <Banknote className="w-4 h-4 text-gray-400 shrink-0" />
-                <div>
-                  <p className="text-lg font-bold text-gray-700 leading-none">{stats.produkteGesamt}</p>
-                  <p className="text-[11px] text-gray-500 mt-0.5">Produkte</p>
-                </div>
-              </div>
+              <Timeline
+                events={alleEvents}
+                showRaumBadge={true}
+                alleLink={`/dashboard/projekte/${projekt.id}/timeline`}
+              />
             </div>
-          )}
-
-          {/* Zeiterfassung (nur bei Stundensatz-Projekten) */}
-          {projekt.service_modell === 'stundensatz' && projekt.service_stundensatz != null && (
-            <ZeiterfassungBlock
-              projektId={projekt.id}
-              stundensatz={projekt.service_stundensatz}
-              initialEintraege={zeitEintraege}
-            />
-          )}
-
-          {/* Projekt-Timeline */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Projekt-Timeline</p>
-              <Link
-                href={`/dashboard/projekte/${projekt.id}/timeline`}
-                className="text-xs text-wellbeing-green hover:underline"
-              >
-                Bearbeiten →
-              </Link>
-            </div>
-            <Timeline
-              events={alleEvents}
-              showRaumBadge={true}
-              alleLink={`/dashboard/projekte/${projekt.id}/timeline`}
-              limit={6}
-            />
           </div>
+        )}
 
-          {/* Dateien */}
-          <DateiUpload projektId={projekt.id} initialDateien={dateien} />
+        {/* ── DATEIEN ───────────────────────────────────────────── */}
+        {tabParam === 'dateien' && (
+          <div className="max-w-5xl mx-auto">
+            <DateiUpload projektId={projekt.id} initialDateien={dateien} />
+          </div>
+        )}
 
-          {/* Chat (nur wenn Portal aktiv) */}
-          {hatPortal && projekt.kunden && (
+        {/* ── CHAT ──────────────────────────────────────────────── */}
+        {tabParam === 'chat' && hatPortal && projekt.kunden && (
+          <div className="max-w-5xl mx-auto">
             <ChatBlock
               projektId={projekt.id}
               kundeName={projekt.kunden.name}
               initialNachrichten={nachrichten}
-              compact
             />
-          )}
+          </div>
+        )}
 
-          {/* Notizen */}
-          <NotizBlock typ="projekt" referenzId={projekt.id} initialNotizen={notizen} />
-        </div>
+        {/* ── NOTIZEN ───────────────────────────────────────────── */}
+        {tabParam === 'notizen' && (
+          <div className="max-w-5xl mx-auto">
+            <NotizBlock typ="projekt" referenzId={projekt.id} initialNotizen={notizen} />
+          </div>
+        )}
+
+      </div>
+    </div>
+  )
+}
+
+// ── Mini-Stat-Kachel ─────────────────────────────────────────
+function StatCard({
+  icon: Icon, wert, label, tone,
+}: {
+  icon: typeof CheckCircle2
+  wert: number
+  label: string
+  tone: 'emerald' | 'amber' | 'red' | 'gray'
+}) {
+  const toneClasses = {
+    emerald: { bg: 'bg-emerald-50', border: 'border-emerald-200/60', iconColor: 'text-emerald-500', wertColor: 'text-emerald-700', labelColor: 'text-emerald-600' },
+    amber:   { bg: 'bg-amber-50',   border: 'border-amber-200/60',   iconColor: 'text-amber-500',   wertColor: 'text-amber-700',   labelColor: 'text-amber-600' },
+    red:     { bg: 'bg-red-50',     border: 'border-red-200/60',     iconColor: 'text-red-500',     wertColor: 'text-red-700',     labelColor: 'text-red-600' },
+    gray:    { bg: 'bg-white',      border: 'border-gray-200',        iconColor: 'text-gray-400',    wertColor: 'text-gray-700',    labelColor: 'text-gray-500' },
+  }[tone]
+  return (
+    <div className={`${toneClasses.bg} border ${toneClasses.border} rounded-xl p-3.5 flex items-center gap-2.5`}>
+      <Icon className={`w-4 h-4 shrink-0 ${toneClasses.iconColor}`} />
+      <div>
+        <p className={`text-lg font-bold leading-none ${toneClasses.wertColor}`}>{wert}</p>
+        <p className={`text-[11px] mt-0.5 ${toneClasses.labelColor}`}>{label}</p>
       </div>
     </div>
   )
