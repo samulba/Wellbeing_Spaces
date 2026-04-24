@@ -2,7 +2,12 @@
 
 import { useFormState, useFormStatus } from 'react-dom'
 import { useState, useTransition } from 'react'
-import { ChevronDown } from 'lucide-react'
+import {
+  ChevronDown,
+  User, Building2, Scale, Palette, SlidersHorizontal, FileCode,
+  CheckSquare, Bell, Users, CreditCard, BookOpen, Sparkles,
+  type LucideIcon,
+} from 'lucide-react'
 import {
   saveAllgemein,
   saveFreigabeLinks,
@@ -39,19 +44,51 @@ import type { ChangelogEntry } from '@/lib/changelog'
 
 // ── Konstanten ────────────────────────────────────────────────
 
-const TABS = [
-  { key: 'profil',             label: 'Profil' },
-  { key: 'firma',              label: 'Firma' },
-  { key: 'workspace',          label: 'Workspace' },
-  { key: 'branding',           label: 'Branding' },
-  { key: 'team',               label: 'Team' },
-  { key: 'vorlagen',           label: 'Vorlagen' },
-  { key: 'freigaben',          label: 'Freigaben' },
-  { key: 'benachrichtigungen', label: 'Benachrichtigungen' },
-  { key: 'abrechnung',         label: 'Abrechnung' },
-  { key: 'rechtliches',        label: 'Rechtliches' },
-  { key: 'handbuch',           label: 'Handbuch' },
-  { key: 'changelog',          label: 'Änderungen' },
+type TabItem = {
+  key:        string
+  label:      string
+  icon:       LucideIcon
+  adminOnly?: boolean
+}
+
+const TAB_GROUPS: { label: string; items: TabItem[] }[] = [
+  {
+    label: 'Persönlich',
+    items: [
+      { key: 'profil',     label: 'Profil',         icon: User },
+    ],
+  },
+  {
+    label: 'Firma',
+    items: [
+      { key: 'firma',       label: 'Firma',        icon: Building2 },
+      { key: 'rechtliches', label: 'Rechtliches',  icon: Scale },
+      { key: 'branding',    label: 'Branding',     icon: Palette, adminOnly: true },
+    ],
+  },
+  {
+    label: 'Workspace',
+    items: [
+      { key: 'workspace',          label: 'Workspace',           icon: SlidersHorizontal },
+      { key: 'vorlagen',           label: 'Vorlagen',            icon: FileCode },
+      { key: 'freigaben',          label: 'Freigaben',           icon: CheckSquare },
+      { key: 'benachrichtigungen', label: 'Benachrichtigungen',  icon: Bell },
+    ],
+  },
+  {
+    label: 'Team & Zugriff',
+    items: [
+      { key: 'team',       label: 'Team',        icon: Users },
+      { key: 'abrechnung', label: 'Abrechnung',  icon: CreditCard },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { key: 'handbuch',  label: 'Handbuch',   icon: BookOpen },
+      { key: 'changelog', label: 'Änderungen', icon: Sparkles },
+    ],
+  },
 ]
 
 const RECHTSFORMEN: Rechtsform[] = [
@@ -218,69 +255,68 @@ function ProfilTab({
     : 'Unbekannt'
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      {/* Profilbild */}
-      <Abschnitt titel="Profilbild" beschreibung="Erscheint im Team-Tab und in Kommentaren">
-        <AvatarUpload initialUrl={userAvatarUrl} userLabel={nameLabel} />
-      </Abschnitt>
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 max-w-6xl">
+      {/* Linke Spalte: Identität */}
+      <div className="space-y-6">
+        <Abschnitt titel="Profilbild" beschreibung="Erscheint im Team-Tab und in Kommentaren">
+          <AvatarUpload initialUrl={userAvatarUrl} userLabel={nameLabel} />
+        </Abschnitt>
 
-      {/* Name */}
-      <Abschnitt titel="Dein Name" beschreibung="Wie andere dich im Team sehen">
-        <form action={namenAction} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Feld label="Vorname"  name="vorname"  defaultValue={userVorname  ?? ''} placeholder="Max" />
-            <Feld label="Nachname" name="nachname" defaultValue={userNachname ?? ''} placeholder="Mustermann" />
-          </div>
-          <div className="flex items-center gap-3 pt-1">
-            <SubmitButton label="Name speichern" />
-            <Meldung state={namenState} />
-          </div>
-        </form>
-      </Abschnitt>
+        <Abschnitt titel="Dein Name" beschreibung="Wie andere dich im Team sehen">
+          <form action={namenAction} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Feld label="Vorname"  name="vorname"  defaultValue={userVorname  ?? ''} placeholder="Max" />
+              <Feld label="Nachname" name="nachname" defaultValue={userNachname ?? ''} placeholder="Mustermann" />
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <SubmitButton label="Name speichern" />
+              <Meldung state={namenState} />
+            </div>
+          </form>
+        </Abschnitt>
+      </div>
 
-      {/* Konto-Info */}
-      <Abschnitt titel="Mein Konto" beschreibung="Persönliche Anmeldedaten">
-        <div className="space-y-3">
+      {/* Rechte Spalte: Konto + Sicherheit */}
+      <div className="space-y-6">
+        <Abschnitt titel="Mein Konto" beschreibung="Persönliche Anmeldedaten">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">E-Mail-Adresse</label>
             <p className="text-sm text-gray-700 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">{userEmail}</p>
             <p className="text-[11px] text-gray-400 mt-1">E-Mail-Änderung erfordert Bestätigung per E-Mail.</p>
           </div>
-        </div>
-      </Abschnitt>
+        </Abschnitt>
 
-      {/* Passwort */}
-      <Abschnitt titel="Passwort ändern" beschreibung="Mindestens 6 Zeichen">
-        <form action={passwortAction} className="space-y-4">
-          <Feld label="Neues Passwort" name="passwort" type="password" required />
-          <Feld label="Passwort bestätigen" name="bestaetigung" type="password" required />
-          <div className="flex items-center gap-3 pt-1">
-            <SubmitButton label="Passwort ändern" />
-            <Meldung state={passwortState} />
-          </div>
-        </form>
-      </Abschnitt>
-
-      {/* Aktive Sessions */}
-      <Abschnitt titel="Aktive Sessions" beschreibung="Aktuell angemeldete Geräte">
-        <div className="border border-gray-100 rounded-lg overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-white">
-            <div>
-              <p className="text-sm font-medium text-gray-900">Aktuelle Sitzung</p>
-              <p className="text-xs text-gray-400 mt-0.5">{userEmail}</p>
+        <Abschnitt titel="Passwort ändern" beschreibung="Mindestens 6 Zeichen">
+          <form action={passwortAction} className="space-y-4">
+            <Feld label="Neues Passwort" name="passwort" type="password" required />
+            <Feld label="Passwort bestätigen" name="bestaetigung" type="password" required />
+            <div className="flex items-center gap-3 pt-1">
+              <SubmitButton label="Passwort ändern" />
+              <Meldung state={passwortState} />
             </div>
-            <div className="text-right">
-              <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium">
-                Aktiv
-              </span>
-              <p className="text-xs text-gray-400 mt-1">Zuletzt: {letzteAnmeldung}</p>
+          </form>
+        </Abschnitt>
+
+        <Abschnitt titel="Aktive Sessions" beschreibung="Aktuell angemeldete Geräte">
+          <div className="border border-gray-100 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-white">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Aktuelle Sitzung</p>
+                <p className="text-xs text-gray-400 mt-0.5">{userEmail}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium">
+                  Aktiv
+                </span>
+                <p className="text-xs text-gray-400 mt-1">Zuletzt: {letzteAnmeldung}</p>
+              </div>
             </div>
           </div>
-        </div>
-        <p className="text-xs text-gray-400 mt-3">
-          Weitere Session-Verwaltung wird in einer zukünftigen Version verfügbar sein.
-        </p>
-      </Abschnitt>
+          <p className="text-xs text-gray-400 mt-3">
+            Weitere Session-Verwaltung folgt in einer zukünftigen Version.
+          </p>
+        </Abschnitt>
+      </div>
     </div>
   )
 }
@@ -301,114 +337,118 @@ function WorkspaceTab({
   const e = einstellungen
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <Abschnitt titel="Anwendung" beschreibung="Grundlegende Einstellungen Ihrer Instanz">
-        <form action={action} className="space-y-5">
-          <Feld
-            label="App-Name" name="app_name" defaultValue={e.app_name ?? 'Studio'} required
-            hint="Wird in der Seitenleiste und auf Freigabelinks angezeigt."
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <AuswahlFeld
-              label="Standardwährung" name="standardwaehrung" defaultValue={e.standardwaehrung ?? 'EUR'}
-              optionen={[
-                { wert: 'EUR', label: 'Euro (EUR)' },
-                { wert: 'CHF', label: 'Schweizer Franken (CHF)' },
-                { wert: 'USD', label: 'US-Dollar (USD)' },
-              ]}
-            />
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 max-w-6xl">
+      {/* Linke Spalte: App-Einstellungen */}
+      <div className="space-y-6">
+        <Abschnitt titel="Anwendung" beschreibung="Grundlegende Einstellungen deiner Instanz.">
+          <form action={action} className="space-y-5">
             <Feld
-              label="MwSt.-Satz (%)" name="mwst_satz" type="number"
-              defaultValue={e.mwst_satz ?? '19'} required min="0" max="100" step="0.01"
+              label="App-Name" name="app_name" defaultValue={e.app_name ?? 'Studio'} required
+              hint="Wird in der Seitenleiste und auf Freigabelinks angezeigt."
             />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <AuswahlFeld
-              label="Sprache" name="sprache" defaultValue={e.sprache ?? 'Deutsch'}
-              optionen={[
-                { wert: 'Deutsch', label: 'Deutsch' },
-                { wert: 'English', label: 'English' },
-              ]}
-            />
-            <AuswahlFeld
-              label="Zeitzone" name="zeitzone" defaultValue={e.zeitzone ?? 'Europe/Berlin'}
-              optionen={ZEITZONEN.map((z) => ({ wert: z, label: z }))}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <AuswahlFeld
-              label="Datumsformat" name="datumsformat" defaultValue={e.datumsformat ?? 'DD.MM.YYYY'}
-              optionen={[
-                { wert: 'DD.MM.YYYY', label: 'DD.MM.YYYY (31.12.2025)' },
-                { wert: 'MM/DD/YYYY', label: 'MM/DD/YYYY (12/31/2025)' },
-                { wert: 'YYYY-MM-DD', label: 'YYYY-MM-DD (2025-12-31)' },
-              ]}
-            />
-            <Feld
-              label="Budget-Warnschwelle (%)" name="budget_warnschwelle" type="number"
-              defaultValue={e.budget_warnschwelle ?? '80'} min="1" max="100"
-              hint="Ab wann eine Budget-Warnung angezeigt wird."
-            />
-          </div>
-          <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-            <SubmitButton label="Einstellungen speichern" />
-            <Meldung state={state} />
-          </div>
-        </form>
-      </Abschnitt>
-
-      {/* ── Firmen-Defaults ────────────────────────────────── */}
-      <Abschnitt titel="Firmen-Defaults" beschreibung="Vorgabewerte für neue Angebote und Verträge.">
-        <form action={defaultsAction} className="space-y-5">
-          <div className="grid grid-cols-2 gap-4">
-            <Feld
-              label="Standard-Zahlungsziel" name="standard_zahlungsziel_tage" type="number"
-              defaultValue={(organisation?.standard_zahlungsziel_tage ?? 14).toString()}
-              min="0" max="365" step="1"
-              hint="In Tagen. Typisch: 14. Wird bei neuen Angeboten + Rechnungen vorbelegt."
-              disabled={!istAdmin}
-            />
-            <Feld
-              label="Standard-Angebotsgültigkeit" name="standard_angebot_gueltigkeit_tage" type="number"
-              defaultValue={(organisation?.standard_angebot_gueltigkeit_tage ?? 30).toString()}
-              min="0" max="365" step="1"
-              hint={`In Tagen. Typisch: 30. Wird bei neuen Angeboten als "gültig bis" vorbelegt.`}
-              disabled={!istAdmin}
-            />
-          </div>
-          {istAdmin && (
+            <div className="grid grid-cols-2 gap-4">
+              <AuswahlFeld
+                label="Standardwährung" name="standardwaehrung" defaultValue={e.standardwaehrung ?? 'EUR'}
+                optionen={[
+                  { wert: 'EUR', label: 'Euro (EUR)' },
+                  { wert: 'CHF', label: 'Schweizer Franken (CHF)' },
+                  { wert: 'USD', label: 'US-Dollar (USD)' },
+                ]}
+              />
+              <Feld
+                label="MwSt.-Satz (%)" name="mwst_satz" type="number"
+                defaultValue={e.mwst_satz ?? '19'} required min="0" max="100" step="0.01"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <AuswahlFeld
+                label="Sprache" name="sprache" defaultValue={e.sprache ?? 'Deutsch'}
+                optionen={[
+                  { wert: 'Deutsch', label: 'Deutsch' },
+                  { wert: 'English', label: 'English' },
+                ]}
+              />
+              <AuswahlFeld
+                label="Zeitzone" name="zeitzone" defaultValue={e.zeitzone ?? 'Europe/Berlin'}
+                optionen={ZEITZONEN.map((z) => ({ wert: z, label: z }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <AuswahlFeld
+                label="Datumsformat" name="datumsformat" defaultValue={e.datumsformat ?? 'DD.MM.YYYY'}
+                optionen={[
+                  { wert: 'DD.MM.YYYY', label: 'DD.MM.YYYY' },
+                  { wert: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+                  { wert: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
+                ]}
+              />
+              <Feld
+                label="Budget-Warnschwelle (%)" name="budget_warnschwelle" type="number"
+                defaultValue={e.budget_warnschwelle ?? '80'} min="1" max="100"
+                hint="Ab wann eine Budget-Warnung angezeigt wird."
+              />
+            </div>
             <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-              <SubmitButton label="Defaults speichern" />
-              <Meldung state={defaultsState} />
+              <SubmitButton label="Einstellungen speichern" />
+              <Meldung state={state} />
             </div>
-          )}
-        </form>
-      </Abschnitt>
+          </form>
+        </Abschnitt>
+      </div>
 
-      {/* Platzhalter: DSGVO / Account */}
-      <Abschnitt titel="Daten & Konto" beschreibung="Datenschutz und Kontoverwaltung">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="text-sm font-medium text-gray-800">DSGVO-Export</p>
-              <p className="text-xs text-gray-500 mt-0.5">Alle Ihre Daten als ZIP herunterladen</p>
+      {/* Rechte Spalte: Firmen-Defaults + DSGVO */}
+      <div className="space-y-6">
+        <Abschnitt titel="Firmen-Defaults" beschreibung="Vorgabewerte für neue Angebote und Verträge.">
+          <form action={defaultsAction} className="space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <Feld
+                label="Standard-Zahlungsziel" name="standard_zahlungsziel_tage" type="number"
+                defaultValue={(organisation?.standard_zahlungsziel_tage ?? 14).toString()}
+                min="0" max="365" step="1"
+                hint="In Tagen. Typisch: 14."
+                disabled={!istAdmin}
+              />
+              <Feld
+                label="Standard-Angebotsgültigkeit" name="standard_angebot_gueltigkeit_tage" type="number"
+                defaultValue={(organisation?.standard_angebot_gueltigkeit_tage ?? 30).toString()}
+                min="0" max="365" step="1"
+                hint="In Tagen. Typisch: 30."
+                disabled={!istAdmin}
+              />
             </div>
-            <button disabled className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg text-gray-400 cursor-not-allowed">
-              Bald verfügbar
-            </button>
-          </div>
-          <div className="h-px bg-gray-100" />
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="text-sm font-medium text-red-600">Konto löschen</p>
-              <p className="text-xs text-gray-500 mt-0.5">Alle Daten unwiderruflich entfernen</p>
+            {istAdmin && (
+              <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+                <SubmitButton label="Defaults speichern" />
+                <Meldung state={defaultsState} />
+              </div>
+            )}
+          </form>
+        </Abschnitt>
+
+        <Abschnitt titel="Daten & Konto" beschreibung="Datenschutz und Kontoverwaltung.">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm font-medium text-gray-800">DSGVO-Export</p>
+                <p className="text-xs text-gray-500 mt-0.5">Alle Daten als ZIP herunterladen</p>
+              </div>
+              <button disabled className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg text-gray-400 cursor-not-allowed">
+                Bald verfügbar
+              </button>
             </div>
-            <button disabled className="px-3 py-1.5 text-xs font-medium border border-red-200 rounded-lg text-red-400 cursor-not-allowed">
-              Bald verfügbar
-            </button>
+            <div className="h-px bg-gray-100" />
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm font-medium text-red-600">Konto löschen</p>
+                <p className="text-xs text-gray-500 mt-0.5">Alle Daten unwiderruflich entfernen</p>
+              </div>
+              <button disabled className="px-3 py-1.5 text-xs font-medium border border-red-200 rounded-lg text-red-400 cursor-not-allowed">
+                Bald verfügbar
+              </button>
+            </div>
           </div>
-        </div>
-      </Abschnitt>
+        </Abschnitt>
+      </div>
     </div>
   )
 }
@@ -429,88 +469,91 @@ function FirmaTab({
 
   if (!organisation) {
     return (
-      <div className="max-w-2xl">
+      <div>
         <p className="text-sm text-gray-500">Keine Organisation geladen.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      {/* Logo */}
-      <Abschnitt titel="Firmenlogo" beschreibung="Erscheint in Mails, auf Freigabelinks, PDFs und im Kunden-Portal.">
-        <FirmenLogoUpload
-          initialUrl={organisation.logo_url}
-          firmenname={organisation.name}
-          disabled={!istAdmin}
-        />
-      </Abschnitt>
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 max-w-6xl">
+      {/* Linke Spalte: Logo + Basisdaten */}
+      <div className="space-y-6">
+        <Abschnitt titel="Firmenlogo" beschreibung="Erscheint in Mails, auf Freigabelinks, PDFs und im Kunden-Portal.">
+          <FirmenLogoUpload
+            initialUrl={organisation.logo_url}
+            firmenname={organisation.name}
+            disabled={!istAdmin}
+          />
+        </Abschnitt>
 
-      {/* Basisdaten */}
-      <Abschnitt titel="Firma" beschreibung="Identität deiner Firma. Wird auf Freigabelinks, Mails und im Portal angezeigt.">
-        <form action={basisAction} className="space-y-5">
-          <Feld
-            label="Firmenname" name="name" defaultValue={organisation.name} required
-            hint="So heißt deine Firma offiziell – erscheint in Mails + Kundenportal."
-            disabled={!istAdmin}
-          />
-          <div className="grid grid-cols-2 gap-4">
+        <Abschnitt titel="Firma" beschreibung="Identität deiner Firma. Wird auf Freigabelinks, Mails und im Portal angezeigt.">
+          <form action={basisAction} className="space-y-5">
             <Feld
-              label="Kontakt-E-Mail" name="email" type="email"
-              defaultValue={organisation.email ?? ''}
-              placeholder="info@deine-firma.de"
+              label="Firmenname" name="name" defaultValue={organisation.name} required
+              hint="So heißt deine Firma offiziell – erscheint in Mails + Kundenportal."
               disabled={!istAdmin}
             />
-            <Feld
-              label="Telefon" name="telefon"
-              defaultValue={organisation.telefon ?? ''}
-              placeholder="+49 …"
-              disabled={!istAdmin}
-            />
-          </div>
-          <Feld
-            label="Website" name="website" type="url"
-            defaultValue={organisation.website ?? ''}
-            placeholder="https://deine-firma.de"
-            disabled={!istAdmin}
-          />
-          <Feld
-            label="Adresse" name="adresse"
-            defaultValue={organisation.adresse ?? ''}
-            placeholder="Musterstraße 12, 12345 Musterstadt"
-            hint="Vollständige Geschäftsadresse. Wird u. a. im Impressum genutzt."
-            disabled={!istAdmin}
-          />
-          {istAdmin && (
-            <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-              <SubmitButton label="Firmendaten speichern" />
-              <Meldung state={basisState} />
+            <div className="grid grid-cols-2 gap-4">
+              <Feld
+                label="Kontakt-E-Mail" name="email" type="email"
+                defaultValue={organisation.email ?? ''}
+                placeholder="info@deine-firma.de"
+                disabled={!istAdmin}
+              />
+              <Feld
+                label="Telefon" name="telefon"
+                defaultValue={organisation.telefon ?? ''}
+                placeholder="+49 …"
+                disabled={!istAdmin}
+              />
             </div>
-          )}
-        </form>
-      </Abschnitt>
+            <Feld
+              label="Website" name="website" type="url"
+              defaultValue={organisation.website ?? ''}
+              placeholder="https://deine-firma.de"
+              disabled={!istAdmin}
+            />
+            <Feld
+              label="Adresse" name="adresse"
+              defaultValue={organisation.adresse ?? ''}
+              placeholder="Musterstraße 12, 12345 Musterstadt"
+              hint="Vollständige Geschäftsadresse. Wird u. a. im Impressum genutzt."
+              disabled={!istAdmin}
+            />
+            {istAdmin && (
+              <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+                <SubmitButton label="Firmendaten speichern" />
+                <Meldung state={basisState} />
+              </div>
+            )}
+          </form>
+        </Abschnitt>
+      </div>
 
-      {/* Login-Slug */}
-      <Abschnitt titel="Login-Slug" beschreibung="Der Slug ist Teil der Login-URL deiner Firma.">
-        <div className="space-y-4">
-          <div className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-4">
-            <p className="text-[11px] uppercase tracking-wide font-semibold text-gray-500 mb-1">Aktueller Login-Link</p>
-            <p className="text-sm font-mono text-gray-800">
-              app.wellbeing-spaces.de/login?firma=
-              <span className="text-wellbeing-green font-semibold">{organisation.slug ?? '–'}</span>
-            </p>
-          </div>
-          {istAdmin && (
-            <button
-              type="button"
-              onClick={() => { setNeuerSlug(organisation.slug ?? ''); setSlugModalOffen(true) }}
-              className="px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-            >
+      {/* Rechte Spalte: Login-Slug */}
+      <div className="space-y-6">
+        <Abschnitt titel="Login-Slug" beschreibung="Der Slug ist Teil der Login-URL deiner Firma. Alle Teammitglieder melden sich damit an.">
+          <div className="space-y-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-4">
+              <p className="text-[11px] uppercase tracking-wide font-semibold text-gray-500 mb-1">Aktueller Login-Link</p>
+              <p className="text-sm font-mono text-gray-800 break-all">
+                app.wellbeing-spaces.de/login?firma=
+                <span className="text-wellbeing-green font-semibold">{organisation.slug ?? '–'}</span>
+              </p>
+            </div>
+            {istAdmin && (
+              <button
+                type="button"
+                onClick={() => { setNeuerSlug(organisation.slug ?? ''); setSlugModalOffen(true) }}
+                className="px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+              >
               Slug ändern
             </button>
           )}
-        </div>
-      </Abschnitt>
+          </div>
+        </Abschnitt>
+      </div>
 
       {/* Slug-Änderungs-Modal */}
       {slugModalOffen && (
@@ -1285,110 +1328,117 @@ function RechtlichesTab({
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-6xl">
       {/* ── Deine Firmenangaben ─────────────────────────────── */}
       <Abschnitt titel="Deine Firmenangaben" beschreibung="Erscheinen auf Rechnungen, Angeboten, Verträgen + im Impressum des Kunden-Portals.">
         <form action={rechtAction} className="space-y-5">
-          <div className="grid grid-cols-2 gap-4">
-            <AuswahlFeld
-              label="Rechtsform" name="rechtsform"
-              defaultValue={organisation?.rechtsform ?? ''}
-              leererWert="— bitte wählen —"
-              optionen={RECHTSFORMEN.map((r) => ({ wert: r, label: r }))}
-              disabled={!istAdmin}
-            />
-            <Feld
-              label="Geschäftsführer / Inhaber" name="geschaeftsfuehrer"
-              defaultValue={organisation?.geschaeftsfuehrer ?? ''}
-              placeholder="Max Mustermann, Erika Mustermann"
-              hint="Komma-getrennt bei mehreren Personen."
-              disabled={!istAdmin}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Feld
-              label="Handelsregister-Nr." name="handelsregister_nr"
-              defaultValue={organisation?.handelsregister_nr ?? ''}
-              placeholder="HRB 123456"
-              disabled={!istAdmin}
-            />
-            <Feld
-              label="Registergericht" name="registergericht"
-              defaultValue={organisation?.registergericht ?? ''}
-              placeholder="Amtsgericht München"
-              disabled={!istAdmin}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Feld
-              label="USt-IdNr." name="ust_id"
-              defaultValue={organisation?.ust_id ?? ''}
-              placeholder="DE123456789"
-              hint="Pflicht auf Rechnungen, wenn vorhanden."
-              disabled={!istAdmin}
-            />
-            <Feld
-              label="Steuernummer" name="steuernummer"
-              defaultValue={organisation?.steuernummer ?? ''}
-              placeholder="123/456/78901"
-              hint="Alternative falls keine USt-IdNr."
-              disabled={!istAdmin}
-            />
-          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* Linke Spalte: Stammdaten + Bank */}
+            <div className="space-y-5">
+              <p className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Stammdaten</p>
+              <div className="grid grid-cols-2 gap-4">
+                <AuswahlFeld
+                  label="Rechtsform" name="rechtsform"
+                  defaultValue={organisation?.rechtsform ?? ''}
+                  leererWert="— bitte wählen —"
+                  optionen={RECHTSFORMEN.map((r) => ({ wert: r, label: r }))}
+                  disabled={!istAdmin}
+                />
+                <Feld
+                  label="Geschäftsführer / Inhaber" name="geschaeftsfuehrer"
+                  defaultValue={organisation?.geschaeftsfuehrer ?? ''}
+                  placeholder="Max Mustermann"
+                  hint="Komma-getrennt bei mehreren Personen."
+                  disabled={!istAdmin}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Feld
+                  label="Handelsregister-Nr." name="handelsregister_nr"
+                  defaultValue={organisation?.handelsregister_nr ?? ''}
+                  placeholder="HRB 123456"
+                  disabled={!istAdmin}
+                />
+                <Feld
+                  label="Registergericht" name="registergericht"
+                  defaultValue={organisation?.registergericht ?? ''}
+                  placeholder="Amtsgericht München"
+                  disabled={!istAdmin}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Feld
+                  label="USt-IdNr." name="ust_id"
+                  defaultValue={organisation?.ust_id ?? ''}
+                  placeholder="DE123456789"
+                  hint="Pflicht auf Rechnungen."
+                  disabled={!istAdmin}
+                />
+                <Feld
+                  label="Steuernummer" name="steuernummer"
+                  defaultValue={organisation?.steuernummer ?? ''}
+                  placeholder="123/456/78901"
+                  hint="Alternative zur USt-IdNr."
+                  disabled={!istAdmin}
+                />
+              </div>
 
-          <div className="pt-4 border-t border-gray-100 space-y-4">
-            <p className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Bankverbindung (für Rechnungen)</p>
-            <div className="grid grid-cols-2 gap-4">
-              <Feld
-                label="Bank-Name" name="bank_name"
-                defaultValue={organisation?.bank_name ?? ''}
-                placeholder="Sparkasse Musterstadt"
+              <div className="pt-4 border-t border-gray-100 space-y-4">
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Bankverbindung (für Rechnungen)</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <Feld
+                    label="Bank-Name" name="bank_name"
+                    defaultValue={organisation?.bank_name ?? ''}
+                    placeholder="Sparkasse Musterstadt"
+                    disabled={!istAdmin}
+                  />
+                  <Feld
+                    label="BIC" name="bank_bic"
+                    defaultValue={organisation?.bank_bic ?? ''}
+                    placeholder="BYLADEM1MUC"
+                    disabled={!istAdmin}
+                  />
+                </div>
+                <Feld
+                  label="IBAN" name="bank_iban"
+                  defaultValue={organisation?.bank_iban ?? ''}
+                  placeholder="DE89 3704 0044 0532 0130 00"
+                  disabled={!istAdmin}
+                />
+              </div>
+            </div>
+
+            {/* Rechte Spalte: Rechtstexte */}
+            <div className="space-y-5">
+              <p className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Rechtstexte</p>
+              <TextareaFeld
+                label="Eigener Impressum-Text" name="impressum_text"
+                defaultValue={organisation?.impressum_text ?? ''}
+                rows={6}
+                placeholder="Wird im Kunden-Portal angezeigt. HTML ist erlaubt."
+                hint="Wenn leer, werden die Stammdaten automatisch zusammengesetzt."
                 disabled={!istAdmin}
               />
               <Feld
-                label="BIC" name="bank_bic"
-                defaultValue={organisation?.bank_bic ?? ''}
-                placeholder="BYLADEM1MUC"
+                label="Datenschutz-URL" name="datenschutz_url" type="url"
+                defaultValue={organisation?.datenschutz_url ?? ''}
+                placeholder="https://deine-firma.de/datenschutz"
+                hint="Link zu deiner Datenschutzerklärung."
+                disabled={!istAdmin}
+              />
+              <TextareaFeld
+                label="Standard-AGB-Text" name="standard_agb_text"
+                defaultValue={organisation?.standard_agb_text ?? ''}
+                rows={8}
+                placeholder="Default bei neuen Angeboten + Verträgen."
+                hint="Kann pro Angebot/Vertrag überschrieben werden."
                 disabled={!istAdmin}
               />
             </div>
-            <Feld
-              label="IBAN" name="bank_iban"
-              defaultValue={organisation?.bank_iban ?? ''}
-              placeholder="DE89 3704 0044 0532 0130 00"
-              disabled={!istAdmin}
-            />
-          </div>
-
-          <div className="pt-4 border-t border-gray-100 space-y-4">
-            <p className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Rechtstexte</p>
-            <TextareaFeld
-              label="Eigener Impressum-Text" name="impressum_text"
-              defaultValue={organisation?.impressum_text ?? ''}
-              rows={5}
-              placeholder="Wird im Kunden-Portal angezeigt. HTML ist erlaubt."
-              hint="Wenn leer, werden die obigen Stammdaten automatisch zusammengesetzt."
-              disabled={!istAdmin}
-            />
-            <Feld
-              label="Datenschutz-URL" name="datenschutz_url" type="url"
-              defaultValue={organisation?.datenschutz_url ?? ''}
-              placeholder="https://deine-firma.de/datenschutz"
-              hint="Link zu deiner Datenschutzerklärung. Wird im Portal-Footer verlinkt."
-              disabled={!istAdmin}
-            />
-            <TextareaFeld
-              label="Standard-AGB-Text" name="standard_agb_text"
-              defaultValue={organisation?.standard_agb_text ?? ''}
-              rows={6}
-              placeholder="Dieser Text wird als Default bei neuen Angeboten + Verträgen eingefügt."
-              hint="Kann pro Angebot/Vertrag überschrieben werden."
-              disabled={!istAdmin}
-            />
           </div>
 
           {istAdmin && (
-            <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+            <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
               <SubmitButton label="Rechtsangaben speichern" />
               <Meldung state={rechtState} />
             </div>
@@ -1398,27 +1448,29 @@ function RechtlichesTab({
 
       {/* ── Wellbeing Spaces Rechtsinfos ─────────────────────── */}
       <Abschnitt titel="Rechtliches zu Wellbeing Spaces" beschreibung="Rechtliche Informationen zur Software. Klicke auf einen Eintrag, um den Text zu öffnen.">
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100">
-          {items.map((item) => (
-            <div key={item.key} className="flex items-center justify-between px-6 py-4">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{item.titel}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{item.beschreibung}</p>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100">
+            {items.map((item) => (
+              <div key={item.key} className="flex items-center justify-between px-6 py-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{item.titel}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{item.beschreibung}</p>
+                </div>
+                <button
+                  onClick={() => setModal(item.key)}
+                  className="shrink-0 ml-4 px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                >
+                  Anzeigen
+                </button>
               </div>
-              <button
-                onClick={() => setModal(item.key)}
-                className="shrink-0 ml-4 px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-              >
-                Anzeigen
-              </button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="bg-gray-50 border border-gray-100 rounded-xl px-5 py-4 text-xs text-gray-500 space-y-1 mt-4">
-          <p className="font-medium text-gray-700">Verantwortlicher</p>
-          <p>Samuel Liba · Geranienweg 7, 85586 Poing</p>
-          <p>info@vicinusmedia.com · 0176 31335327</p>
+          <div className="bg-gray-50 border border-gray-100 rounded-xl px-5 py-4 text-xs text-gray-500 space-y-1">
+            <p className="font-medium text-gray-700">Verantwortlicher</p>
+            <p>Samuel Liba · Geranienweg 7, 85586 Poing</p>
+            <p>info@vicinusmedia.com · 0176 31335327</p>
+          </div>
         </div>
       </Abschnitt>
 
@@ -1493,47 +1545,68 @@ export default function EinstellungenTabs({
   organisation: Organisation | null
 }) {
   const istAdmin = userRolle === 'admin'
-  const adminOnlyKeys = new Set(['branding'])
-  const sichtbareTabs = TABS.filter((t) => !adminOnlyKeys.has(t.key) || istAdmin)
 
   return (
-    <div>
-      {/* Tab-Leiste (sticky direkt unter dem Page-Header, ohne 4px-Spalt) */}
-      <div className="sticky top-[60px] z-20 bg-white -mx-6 px-6 flex flex-wrap gap-0 mb-8 border-b border-gray-200">
-        {sichtbareTabs.map((t) => (
-          <a
-            key={t.key}
-            href={`/dashboard/einstellungen?tab=${t.key}`}
-            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
-              aktuellerTab === t.key
-                ? 'border-wellbeing-green text-wellbeing-green'
-                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-            }`}
-          >
-            {t.label}
-          </a>
-        ))}
+    <div className="flex gap-6">
+      {/* ── Settings-Sidebar (sticky unter dem Page-Header) ─── */}
+      <nav className="w-[210px] shrink-0 sticky top-[60px] self-start py-4">
+        <div className="space-y-6">
+          {TAB_GROUPS.map((group) => {
+            const items = group.items.filter((i) => !i.adminOnly || istAdmin)
+            if (items.length === 0) return null
+            return (
+              <div key={group.label}>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.08em] px-3 mb-2">
+                  {group.label}
+                </p>
+                <ul className="space-y-0.5">
+                  {items.map((item) => {
+                    const aktiv = aktuellerTab === item.key
+                    const Icon = item.icon
+                    return (
+                      <li key={item.key}>
+                        <a
+                          href={`/dashboard/einstellungen?tab=${item.key}`}
+                          className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg transition-colors ${
+                            aktiv
+                              ? 'bg-wellbeing-green/10 text-wellbeing-green font-semibold'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                          }`}
+                        >
+                          <Icon className={`w-4 h-4 shrink-0 ${aktiv ? 'text-wellbeing-green' : 'text-gray-400'}`} />
+                          <span className="truncate">{item.label}</span>
+                        </a>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )
+          })}
+        </div>
+      </nav>
+
+      {/* ── Content-Bereich ────────────────────────────────── */}
+      <div className="flex-1 min-w-0 py-4">
+        {aktuellerTab === 'profil'             && <ProfilTab userEmail={userEmail} userAvatarUrl={userAvatarUrl} userVorname={userVorname} userNachname={userNachname} lastSignIn={lastSignIn} />}
+        {aktuellerTab === 'firma'              && <FirmaTab organisation={organisation} istAdmin={istAdmin} />}
+        {aktuellerTab === 'workspace'          && <WorkspaceTab einstellungen={einstellungen} organisation={organisation} istAdmin={istAdmin} />}
+        {aktuellerTab === 'branding' && istAdmin && <BrandingTab branding={branding} />}
+        {aktuellerTab === 'team'               && <TeamTab team={team} userRolle={userRolle} userId={userId} userEmail={userEmail} lastSignIn={lastSignIn} />}
+        {aktuellerTab === 'vorlagen'            && <VorlagenTab vorlagen={vorlagen} />}
+        {aktuellerTab === 'freigaben'          && <FreigabenTab einstellungen={einstellungen} />}
+        {aktuellerTab === 'benachrichtigungen' && <BenachrichtigungenTab einstellungen={einstellungen} />}
+        {aktuellerTab === 'abrechnung'         && <AbrechnungTab />}
+        {aktuellerTab === 'rechtliches'        && <RechtlichesTab organisation={organisation} istAdmin={istAdmin} />}
+        {aktuellerTab === 'handbuch'           && <HandbuchTab />}
+        {aktuellerTab === 'changelog'          && <ChangelogTab eintraege={changelog} />}
+
+        {/* Fallback: alte Tab-Keys weiterleiten */}
+        {(aktuellerTab === 'allgemein' || aktuellerTab === 'sicherheit') && (
+          <WorkspaceTab einstellungen={einstellungen} organisation={organisation} istAdmin={istAdmin} />
+        )}
+        {aktuellerTab === 'freigabe' && <FreigabenTab einstellungen={einstellungen} />}
       </div>
-
-      {/* Inhalt */}
-      {aktuellerTab === 'profil'             && <ProfilTab userEmail={userEmail} userAvatarUrl={userAvatarUrl} userVorname={userVorname} userNachname={userNachname} lastSignIn={lastSignIn} />}
-      {aktuellerTab === 'firma'              && <FirmaTab organisation={organisation} istAdmin={istAdmin} />}
-      {aktuellerTab === 'workspace'          && <WorkspaceTab einstellungen={einstellungen} organisation={organisation} istAdmin={istAdmin} />}
-      {aktuellerTab === 'branding' && istAdmin && <BrandingTab branding={branding} />}
-      {aktuellerTab === 'team'               && <TeamTab team={team} userRolle={userRolle} userId={userId} userEmail={userEmail} lastSignIn={lastSignIn} />}
-      {aktuellerTab === 'vorlagen'            && <VorlagenTab vorlagen={vorlagen} />}
-      {aktuellerTab === 'freigaben'          && <FreigabenTab einstellungen={einstellungen} />}
-      {aktuellerTab === 'benachrichtigungen' && <BenachrichtigungenTab einstellungen={einstellungen} />}
-      {aktuellerTab === 'abrechnung'         && <AbrechnungTab />}
-      {aktuellerTab === 'rechtliches'        && <RechtlichesTab organisation={organisation} istAdmin={istAdmin} />}
-      {aktuellerTab === 'handbuch'           && <HandbuchTab />}
-      {aktuellerTab === 'changelog'          && <ChangelogTab eintraege={changelog} />}
-
-      {/* Fallback: alte Tab-Keys weiterleiten */}
-      {(aktuellerTab === 'allgemein' || aktuellerTab === 'sicherheit') && (
-        <WorkspaceTab einstellungen={einstellungen} organisation={organisation} istAdmin={istAdmin} />
-      )}
-      {aktuellerTab === 'freigabe' && <FreigabenTab einstellungen={einstellungen} />}
     </div>
   )
 }

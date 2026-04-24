@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-24
 
+### Einstellungen: Sidebar-Nav + 2-Spalten-Layout
+- **Neue Seiten-Sidebar statt horizontaler Tabs**: Links in den Einstellungen findest du jetzt eine Navigation mit 5 Gruppen (Persönlich · Firma · Workspace · Team & Zugriff · System), jedes Item mit Icon und hover. Aktives Tab grün hinterlegt. Viel übersichtlicher als die 12-Tab-Zeile oben drüber.
+- **2-Spalten-Layout im Content**: Profil, Firma, Workspace und Rechtliches nutzen jetzt den rechten weißen Platz auf großen Bildschirmen — Cards stehen nebeneinander statt untereinander. Weniger scrollen, alles im Blick. Auf kleineren Bildschirmen (< 1280px) fällt das Layout automatisch auf eine Spalte zurück.
+- **Content-Breite** auf `max-w-6xl` erhöht (vorher `max-w-2xl`) — füllt größere Screens spürbar besser.
+
 ### Einstellungen: Team-Dropdown-Fix + Firmenlogo-Upload
 - **Team-Tab Dropdown-Bug gefixt**: Das ⋮-Menü beim Bearbeiten von Mitgliedern wurde durch `overflow-hidden` der Card-Container abgeschnitten und lief an Viewport-Rändern ins Off-Screen. Jetzt rendert es `position: fixed` mit JS-berechneten Koordinaten — bleibt immer vollständig sichtbar, egal wo die Zeile steht. Klick außerhalb schließt.
 - **Firmenlogo direkt hochladen**: Der Firma-Tab hat jetzt einen richtigen Datei-Upload (Camera-Overlay, Drag-Preview, Auto-Save) statt eines URL-Feldes. PNG/JPG/WebP/SVG bis 50 MB. Speichern geht in den neuen Storage-Bucket `org-logos`, der Firmenname bleibt mit `organisationen.logo_url` verknüpft. Migration 085 muss manuell in Supabase ausgeführt werden.
