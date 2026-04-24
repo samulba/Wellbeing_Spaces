@@ -211,7 +211,8 @@ export async function firmaAktualisieren(
   const telefon  = (formData.get('telefon')  ?? '').toString().trim()
   const website  = (formData.get('website')  ?? '').toString().trim()
   const adresse  = (formData.get('adresse')  ?? '').toString().trim()
-  const logo_url = (formData.get('logo_url') ?? '').toString().trim()
+
+  // logo_url wird über firmenLogoHochladen gesetzt, nicht in diesem Formular.
 
   if (!name) return { fehler: 'Firmenname darf nicht leer sein.' }
 
@@ -219,11 +220,10 @@ export async function firmaAktualisieren(
     .from('organisationen')
     .update({
       name,
-      email:    email    || null,
-      telefon:  telefon  || null,
-      website:  website  || null,
-      adresse:  adresse  || null,
-      logo_url: logo_url || null,
+      email:   email   || null,
+      telefon: telefon || null,
+      website: website || null,
+      adresse: adresse || null,
     })
     .eq('id', orgId)
 

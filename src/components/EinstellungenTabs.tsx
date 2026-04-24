@@ -30,6 +30,7 @@ import type { TeamMitglied, Rolle, Branding, Organisation, Rechtsform } from '@/
 import { ROLLEN_CONFIG } from '@/lib/permissions'
 import HandbuchClient from '@/app/dashboard/einstellungen/handbuch/HandbuchClient'
 import BrandingEditor from '@/components/BrandingEditor'
+import FirmenLogoUpload from '@/components/FirmenLogoUpload'
 import VertragsVorlagenVerwaltung from '@/components/VertragsVorlagenVerwaltung'
 import type { VertragsVorlage } from '@/lib/supabase/types'
 import { ConfirmModal } from '@/components/ConfirmModal'
@@ -436,6 +437,15 @@ function FirmaTab({
 
   return (
     <div className="space-y-6 max-w-2xl">
+      {/* Logo */}
+      <Abschnitt titel="Firmenlogo" beschreibung="Erscheint in Mails, auf Freigabelinks, PDFs und im Kunden-Portal.">
+        <FirmenLogoUpload
+          initialUrl={organisation.logo_url}
+          firmenname={organisation.name}
+          disabled={!istAdmin}
+        />
+      </Abschnitt>
+
       {/* Basisdaten */}
       <Abschnitt titel="Firma" beschreibung="Identität deiner Firma. Wird auf Freigabelinks, Mails und im Portal angezeigt.">
         <form action={basisAction} className="space-y-5">
@@ -469,13 +479,6 @@ function FirmaTab({
             defaultValue={organisation.adresse ?? ''}
             placeholder="Musterstraße 12, 12345 Musterstadt"
             hint="Vollständige Geschäftsadresse. Wird u. a. im Impressum genutzt."
-            disabled={!istAdmin}
-          />
-          <Feld
-            label="Logo-URL" name="logo_url" type="url"
-            defaultValue={organisation.logo_url ?? ''}
-            placeholder="https://…/logo.png"
-            hint="Öffentlich erreichbare URL. Upload-Feld kommt später."
             disabled={!istAdmin}
           />
           {istAdmin && (
@@ -607,6 +610,7 @@ function TeamTab({
 }) {
   const [einladenOffen, setEinladenOffen] = useState(false)
   const [offenesMenue, setOffenesMenue]   = useState<string | null>(null)
+  const [menuePos, setMenuePos] = useState<{ top: number; left: number } | null>(null)
   const [confirmDeaktivId, setConfirmDeaktivId] = useState<string | null>(null)
   const [einladeState, einladeAction]     = useFormState(mitgliedEinladen, null)
   const [, startTransition]               = useTransition()
@@ -720,39 +724,30 @@ function TeamTab({
                   {rollenInfo.label}
                 </span>
                 {istAdmin && !istCurrentUser && (
-                  <div className="relative shrink-0 z-20">
+                  <div className="shrink-0">
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); setOffenesMenue(menuOffen ? null : m.id) }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (menuOffen) {
+                          setOffenesMenue(null)
+                          setMenuePos(null)
+                          return
+                        }
+                        const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
+                        const MENU_W = 192
+                        const MENU_H = 120
+                        const spaceBelow = window.innerHeight - rect.bottom
+                        const top = spaceBelow >= MENU_H ? rect.bottom + 4 : rect.top - MENU_H - 4
+                        // Menü rechtsbündig zum Button, aber nie rechts aus dem Viewport
+                        const left = Math.max(8, Math.min(rect.right - MENU_W, window.innerWidth - MENU_W - 8))
+                        setMenuePos({ top, left })
+                        setOffenesMenue(m.id)
+                      }}
                       className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-bold"
                     >
                       ⋮
                     </button>
-                    {menuOffen && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden">
-                        <div className="px-3 py-2.5 border-b border-gray-100">
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Rolle</p>
-                          <select
-                            defaultValue={m.rolle}
-                            onChange={(e) => handleRolleAendern(m.id, e.target.value as Rolle)}
-                            className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-wellbeing-green-light"
-                          >
-                            <option value="admin">Admin</option>
-                            <option value="editor">Editor</option>
-                            <option value="viewer">Viewer</option>
-                          </select>
-                        </div>
-                        <div>
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2.5 text-xs text-red-500 hover:bg-red-50 transition-colors"
-                            onClick={() => { setOffenesMenue(null); setConfirmDeaktivId(m.id) }}
-                          >
-                            Deaktivieren
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </li>
@@ -925,6 +920,46 @@ function TeamTab({
           </div>
         </div>
       )}
+
+      {/* Fixed-Positioned Mitglieder-Dropdown (verhindert Clipping durch overflow-hidden-Parent) */}
+      {offenesMenue && menuePos && (() => {
+        const m = aktive.find((x) => x.id === offenesMenue)
+        if (!m) return null
+        return (
+          <>
+            {/* Click-Outside-Backdrop */}
+            <div
+              className="fixed inset-0 z-[100]"
+              onClick={() => { setOffenesMenue(null); setMenuePos(null) }}
+            />
+            <div
+              style={{ position: 'fixed', top: menuePos.top, left: menuePos.left, width: 192, zIndex: 101 }}
+              className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-3 py-2.5 border-b border-gray-100">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Rolle</p>
+                <select
+                  defaultValue={m.rolle}
+                  onChange={(e) => handleRolleAendern(m.id, e.target.value as Rolle)}
+                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-wellbeing-green-light"
+                >
+                  <option value="admin">Admin</option>
+                  <option value="editor">Editor</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                className="w-full text-left px-3 py-2.5 text-xs text-red-500 hover:bg-red-50 transition-colors"
+                onClick={() => { setOffenesMenue(null); setMenuePos(null); setConfirmDeaktivId(m.id) }}
+              >
+                Deaktivieren
+              </button>
+            </div>
+          </>
+        )
+      })()}
     </div>
     </>
   )

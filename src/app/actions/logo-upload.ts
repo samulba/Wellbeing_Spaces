@@ -187,3 +187,70 @@ export async function partnerLogoHochladen(
   revalidatePath(`/dashboard/partner/${partnerId}`)
   return { url: logo_url }
 }
+
+/**
+ * Firmenlogo hochladen. Schreibt in Bucket `org-logos`, aktualisiert
+ * organisationen.logo_url für die aktuelle Organisation. Nur Admins.
+ */
+export async function firmenLogoHochladen(
+  prevState: LogoUploadState,
+  formData: FormData,
+): Promise<LogoUploadState> {
+  const file = formData.get('logo') as File | null
+  if (!file || file.size === 0) return { fehler: 'Keine Datei ausgewählt.' }
+  if (file.size > 50 * 1024 * 1024) return { fehler: 'Datei ist zu groß (max. 50 MB).' }
+
+  // Auth + Admin-Check
+  const userClient = await createClient()
+  const { data: { user } } = await userClient.auth.getUser()
+  if (!user) return { fehler: 'Nicht angemeldet.' }
+
+  let orgId: string
+  try { orgId = await getOrganisationId() }
+  catch { return { fehler: 'Keine Organisation gefunden.' } }
+
+  const admin = createAdminClient()
+  const { data: mitglied } = await admin
+    .from('team_mitglieder')
+    .select('rolle')
+    .eq('user_id', user.id)
+    .eq('organisation_id', orgId)
+    .eq('status', 'aktiv')
+    .maybeSingle()
+  if (mitglied?.rolle !== 'admin') {
+    return { fehler: 'Nur Admins dürfen das Firmenlogo ändern.' }
+  }
+
+  // Upload
+  const path  = `${orgId}/logo.${safeExt(file.name)}`
+  const bytes = new Uint8Array(await file.arrayBuffer())
+
+  const { error: uploadError } = await admin.storage
+    .from('org-logos')
+    .upload(path, bytes, {
+      upsert: true,
+      contentType: file.type || 'application/octet-stream',
+    })
+
+  if (uploadError) {
+    console.error('[firmenLogoHochladen] Storage-Upload fehlgeschlagen:', uploadError)
+    return { fehler: `Upload fehlgeschlagen: ${uploadError.message}` }
+  }
+
+  const { data: urlData } = admin.storage.from('org-logos').getPublicUrl(path)
+  const logo_url = `${urlData.publicUrl}?t=${Date.now()}`
+
+  const { error: dbError } = await admin
+    .from('organisationen')
+    .update({ logo_url })
+    .eq('id', orgId)
+
+  if (dbError) {
+    console.error('[firmenLogoHochladen] DB-Update fehlgeschlagen:', dbError)
+    return { fehler: 'URL konnte nicht gespeichert werden.' }
+  }
+
+  revalidatePath('/dashboard/einstellungen')
+  revalidatePath('/dashboard')
+  return { url: logo_url }
+}

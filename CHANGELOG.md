@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-24
 
+### Einstellungen: Team-Dropdown-Fix + Firmenlogo-Upload
+- **Team-Tab Dropdown-Bug gefixt**: Das ⋮-Menü beim Bearbeiten von Mitgliedern wurde durch `overflow-hidden` der Card-Container abgeschnitten und lief an Viewport-Rändern ins Off-Screen. Jetzt rendert es `position: fixed` mit JS-berechneten Koordinaten — bleibt immer vollständig sichtbar, egal wo die Zeile steht. Klick außerhalb schließt.
+- **Firmenlogo direkt hochladen**: Der Firma-Tab hat jetzt einen richtigen Datei-Upload (Camera-Overlay, Drag-Preview, Auto-Save) statt eines URL-Feldes. PNG/JPG/WebP/SVG bis 50 MB. Speichern geht in den neuen Storage-Bucket `org-logos`, der Firmenname bleibt mit `organisationen.logo_url` verknüpft. Migration 085 muss manuell in Supabase ausgeführt werden.
+
 ### Einstellungen: Firma + Rechtliches + Firmen-Defaults
 - **Neuer Tab „Firma"** (zwischen Profil und Workspace) zum Bearbeiten der Firmen-Identität: Firmenname, Kontakt-E-Mail, Telefon, Website, Adresse, Logo-URL. Alles was auf Freigabelinks, Mails und im Kunden-Portal erscheint.
 - **Login-Slug ändern** direkt im Firma-Tab, mit Bestätigungs-Modal und deutlicher Warnung: „Alle Teammitglieder müssen sich mit dem neuen Slug neu einloggen". Uniqueness wird serverseitig geprüft — doppelte Slugs sind ausgeschlossen.
