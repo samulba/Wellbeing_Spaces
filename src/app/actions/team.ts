@@ -51,12 +51,20 @@ export async function meineRolleAbrufen(): Promise<Rolle> {
   }
 }
 
-/** Alle Team-Mitglieder (nur für Admins). */
+/** Alle Team-Mitglieder der aktuellen Organisation. */
 export async function teamMitgliederAbrufen(): Promise<TeamMitglied[]> {
+  let orgId: string
+  try {
+    orgId = await getOrganisationId()
+  } catch {
+    return [] // nicht eingeloggt / keine Org → leere Liste
+  }
+
   const admin = createAdminClient()
   const { data } = await admin
     .from('team_mitglieder')
     .select('*')
+    .eq('organisation_id', orgId)
     .order('created_at')
   return (data ?? []) as TeamMitglied[]
 }
@@ -80,11 +88,13 @@ export async function mitgliedEinladen(
   const orgId = await getOrganisationId()
   const admin = createAdminClient()
 
-  // Duplikat verhindern
+  // Duplikat-Check NUR in der eigenen Org – kein Cross-Tenant-Leak
+  // (wir wollen nicht verraten, dass ein User in einer anderen Firma existiert)
   const { data: existing } = await admin
     .from('team_mitglieder')
     .select('id, status')
     .eq('email', email)
+    .eq('organisation_id', orgId)
     .maybeSingle()
 
   if (existing?.status === 'aktiv')      return { fehler: `${email} ist bereits Teammitglied.` }
@@ -97,6 +107,7 @@ export async function mitgliedEinladen(
       .update({ rolle, status: 'ausstehend', eingeladen_von: user.id,
                  einladungs_token: crypto.randomUUID() })
       .eq('id', existing.id)
+      .eq('organisation_id', orgId)
     revalidatePath('/dashboard/einstellungen')
     return { erfolg: `${email} wurde erneut eingeladen.` }
   }
@@ -125,20 +136,33 @@ export async function mitgliedEinladen(
 // ── Rolle ändern ──────────────────────────────────────────────
 
 export async function rolleAendern(mitgliedId: string, neueRolle: Rolle): Promise<void> {
+  let orgId: string
+  try { orgId = await getOrganisationId() } catch { return }
+
   const admin = createAdminClient()
 
-  if (neueRolle !== 'admin') {
-    const { data: target } = await admin
-      .from('team_mitglieder').select('rolle').eq('id', mitgliedId).single()
-    if (target?.rolle === 'admin') {
-      const { count } = await admin
-        .from('team_mitglieder').select('*', { count: 'exact', head: true })
-        .eq('rolle', 'admin').eq('status', 'aktiv')
-      if ((count ?? 0) <= 1) return // letzten Admin schützen
-    }
+  // Target nur laden, wenn er in DERSELBEN Org ist → verhindert Cross-Tenant-Edits.
+  const { data: target } = await admin
+    .from('team_mitglieder')
+    .select('rolle, organisation_id')
+    .eq('id', mitgliedId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!target) return // falscher oder fremder mitgliedId → still ignorieren
+
+  if (neueRolle !== 'admin' && target.rolle === 'admin') {
+    const { count } = await admin
+      .from('team_mitglieder').select('*', { count: 'exact', head: true })
+      .eq('organisation_id', orgId)
+      .eq('rolle', 'admin').eq('status', 'aktiv')
+    if ((count ?? 0) <= 1) return // letzten Admin IN DIESER ORG schützen
   }
 
-  await admin.from('team_mitglieder').update({ rolle: neueRolle }).eq('id', mitgliedId)
+  await admin
+    .from('team_mitglieder')
+    .update({ rolle: neueRolle })
+    .eq('id', mitgliedId)
+    .eq('organisation_id', orgId)
   revalidatePath('/dashboard/einstellungen')
 }
 
@@ -149,32 +173,60 @@ export async function mitgliedEntfernen(mitgliedId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
+  let orgId: string
+  try { orgId = await getOrganisationId() } catch { return }
+
   const admin = createAdminClient()
   const { data: target } = await admin
-    .from('team_mitglieder').select('user_id, rolle').eq('id', mitgliedId).single()
+    .from('team_mitglieder')
+    .select('user_id, rolle, organisation_id')
+    .eq('id', mitgliedId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!target) return
 
-  if (target?.user_id === user.id) return // nicht sich selbst
+  if (target.user_id === user.id) return // nicht sich selbst
 
-  if (target?.rolle === 'admin') {
+  if (target.rolle === 'admin') {
     const { count } = await admin
       .from('team_mitglieder').select('*', { count: 'exact', head: true })
+      .eq('organisation_id', orgId)
       .eq('rolle', 'admin').eq('status', 'aktiv')
     if ((count ?? 0) <= 1) return
   }
 
-  await admin.from('team_mitglieder').update({ status: 'deaktiviert' }).eq('id', mitgliedId)
+  await admin
+    .from('team_mitglieder')
+    .update({ status: 'deaktiviert' })
+    .eq('id', mitgliedId)
+    .eq('organisation_id', orgId)
   revalidatePath('/dashboard/einstellungen')
 }
 
 export async function mitgliedReaktivieren(mitgliedId: string): Promise<void> {
+  let orgId: string
+  try { orgId = await getOrganisationId() } catch { return }
+
   const admin = createAdminClient()
-  await admin.from('team_mitglieder').update({ status: 'aktiv' }).eq('id', mitgliedId)
+  await admin
+    .from('team_mitglieder')
+    .update({ status: 'aktiv' })
+    .eq('id', mitgliedId)
+    .eq('organisation_id', orgId)
   revalidatePath('/dashboard/einstellungen')
 }
 
 export async function einladungZurueckziehen(mitgliedId: string): Promise<void> {
+  let orgId: string
+  try { orgId = await getOrganisationId() } catch { return }
+
   const admin = createAdminClient()
-  await admin.from('team_mitglieder').delete().eq('id', mitgliedId).eq('status', 'ausstehend')
+  await admin
+    .from('team_mitglieder')
+    .delete()
+    .eq('id', mitgliedId)
+    .eq('organisation_id', orgId)
+    .eq('status', 'ausstehend')
   revalidatePath('/dashboard/einstellungen')
 }
 
