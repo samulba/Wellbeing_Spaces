@@ -139,3 +139,56 @@ export const PAGE_W  = 210   // A4 mm
 export const PAGE_H  = 297   // A4 mm
 export const MARGIN  = 15    // mm
 export const COL_W   = PAGE_W - MARGIN * 2  // ~180 mm
+
+// ── Legal-Footer (Impressum-Block) ────────────────────────────
+
+export type OrgLegalData = {
+  name:               string | null
+  rechtsform:         string | null
+  handelsregister_nr: string | null
+  registergericht:    string | null
+  geschaeftsfuehrer:  string | null
+  ust_id:             string | null
+  steuernummer:       string | null
+  bank_name:          string | null
+  bank_iban:          string | null
+  bank_bic:           string | null
+}
+
+/**
+ * Baut die Zeilen für den Legal-Footer (Impressum-Block + optional Bank).
+ * Leere/null-Felder werden übersprungen. Gibt eine Liste von Zeilen
+ * zurück, die die aufrufende Seite unten rendern kann.
+ */
+export function pdfLegalFooterZeilen(
+  org: OrgLegalData | null,
+  opts: { includeBank?: boolean } = {},
+): string[] {
+  if (!org) return []
+  const zeilen: string[] = []
+
+  // Zeile 1: Rechtsform + Register
+  const line1: string[] = []
+  if (org.rechtsform)         line1.push(org.rechtsform)
+  if (org.handelsregister_nr) line1.push(org.handelsregister_nr)
+  if (org.registergericht)    line1.push(org.registergericht)
+  if (org.geschaeftsfuehrer)  line1.push(`GF: ${org.geschaeftsfuehrer}`)
+  if (line1.length) zeilen.push(line1.join('  ·  '))
+
+  // Zeile 2: Steuer
+  const line2: string[] = []
+  if (org.ust_id)       line2.push(`USt-IdNr. ${org.ust_id}`)
+  if (org.steuernummer) line2.push(`Steuernr. ${org.steuernummer}`)
+  if (line2.length) zeilen.push(line2.join('  ·  '))
+
+  // Zeile 3: Bank (optional)
+  if (opts.includeBank) {
+    const line3: string[] = []
+    if (org.bank_name) line3.push(`Bank: ${org.bank_name}`)
+    if (org.bank_iban) line3.push(`IBAN: ${org.bank_iban}`)
+    if (org.bank_bic)  line3.push(`BIC: ${org.bank_bic}`)
+    if (line3.length) zeilen.push(line3.join('  ·  '))
+  }
+
+  return zeilen
+}

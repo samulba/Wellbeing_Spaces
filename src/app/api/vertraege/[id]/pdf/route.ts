@@ -4,6 +4,7 @@ import {
   pdfDatum, pdfHeute,
   logoAlsBase64,
   htmlZuBloecke,
+  pdfLegalFooterZeilen,
   WB_GREEN, GRAY_900, GRAY_600, GRAY_400, GRAY_100,
   MARGIN, PAGE_W, PAGE_H,
 } from '@/lib/pdf-helpers'
@@ -24,9 +25,13 @@ export async function GET(req: NextRequest, { params }: Params) {
   const [
     { data: vertrag },
     { data: branding },
+    { data: org },
   ] = await Promise.all([
     supabase.from('vertraege').select('*').eq('id', id).eq('organisation_id', orgId).single(),
     supabase.from('branding').select('*').maybeSingle(),
+    supabase.from('organisationen').select(
+      'name, rechtsform, handelsregister_nr, registergericht, geschaeftsfuehrer, ust_id, steuernummer, bank_name, bank_iban, bank_bic',
+    ).eq('id', orgId).maybeSingle(),
   ])
 
   if (!vertrag) return NextResponse.json({ error: 'Vertrag nicht gefunden' }, { status: 404 })
@@ -71,6 +76,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (branding?.email)   kontakt.push(branding.email)
   if (branding?.website) kontakt.push(branding.website)
   if (kontakt.length) firmLines.push(kontakt.join('  ·  '))
+  if (org?.ust_id)       firmLines.push(`USt-IdNr. ${org.ust_id}`)
 
   firmLines.forEach((line, i) => {
     doc.text(line, colRight, MARGIN + 5 + i * 4.2, { align: 'right' })
@@ -223,13 +229,23 @@ export async function GET(req: NextRequest, { params }: Params) {
   doc.text('Unterschrift', colL, y + 4)
   doc.text('Unterschrift', colR, y + 4)
 
-  // ── Footer: Seitenzahl ────────────────────────────────────
+  // ── Footer: Legal + Seitenzahl ────────────────────────────
+  // Legal-Footer auf jeder Seite, ohne Bank-Daten (bei Verträgen
+  // nicht relevant), darunter die Seitenzahl.
+  const legalZeilen = pdfLegalFooterZeilen(org ?? null, { includeBank: false })
   const pageCount = (doc.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
+    doc.setFontSize(6.5)
     doc.setTextColor(...GRAY_400)
+
+    const legalStartY = PAGE_H - 14 - (legalZeilen.length - 1) * 3
+    legalZeilen.forEach((zeile, idx) => {
+      doc.text(zeile, PAGE_W / 2, legalStartY + idx * 3, { align: 'center' })
+    })
+
+    doc.setFontSize(7)
     doc.text(
       `${firmenname}  ·  ${vertrag.titel}  ·  Seite ${i} / ${pageCount}`,
       PAGE_W / 2,

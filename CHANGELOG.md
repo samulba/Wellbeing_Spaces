@@ -5,6 +5,13 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-24
 
+### PDFs: Firmenangaben aus Einstellungen nutzen
+- **Angebots- und Vertrags-PDFs** rendern jetzt automatisch die Firmen-Stammdaten aus den Einstellungen → Rechtliches: Rechtsform, Handelsregister-Nr., Registergericht, Geschäftsführer, USt-IdNr., Steuernummer. Erscheinen als kleiner Legal-Footer am Seitenende.
+- **Angebots-PDFs** zeigen zusätzlich **Bankdaten** (Bank-Name, IBAN, BIC) im Footer — sofort rechnungsfähige Angebots-PDFs.
+- **USt-IdNr.** erscheint zusätzlich im Header rechts unter den Kontaktdaten (Pflicht auf Rechnungen).
+- Fehlende Felder werden sauber ausgelassen — kein „null"-Text im PDF.
+- Keine Migration nötig, Daten kommen aus den Einstellungen → Firma/Rechtliches, die du bereits pflegen kannst.
+
 ### Projekt-Status: automatischer Vorwärts-Fortschritt
 - **Der Projekt-Status (Aktiv / Warten auf Kunde / Abgeschlossen) aktualisiert sich jetzt von selbst**, wenn entsprechende Events eintreten:
   - Beim ersten erstellten **Freigabe-Link** springt ein Projekt automatisch von „Aktiv" auf „Warten auf Kunde".
