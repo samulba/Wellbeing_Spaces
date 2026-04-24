@@ -164,6 +164,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
       .from('client_users')
       .select('id', { count: 'exact', head: true })
       .eq('kunde_id', projekt.kunde_id)
+      .eq('organisation_id', projekt.organisation_id)  // defense-in-depth gegen Cross-Tenant
     hatPortal = (count ?? 0) > 0
   }
 
