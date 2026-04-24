@@ -135,29 +135,42 @@ function FirmaWaehlen({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <label htmlFor="firma" className="block text-xs font-semibold text-gray-600 mb-2 tracking-wide uppercase">
-          Firmen-Slug
-        </label>
-        <div className="relative flex items-stretch rounded-xl border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-wellbeing-green/20 focus-within:border-wellbeing-green-light transition-all overflow-hidden">
-          <span className="flex items-center pl-3.5 pr-1 text-[12px] text-gray-400 select-none whitespace-nowrap">
-            {APP_DOMAIN}/
-          </span>
-          <input
-            id="firma"
-            type="text"
-            autoComplete="organization"
-            autoFocus
-            required
-            value={slug}
-            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-            placeholder="firma-slug"
-            className="flex-1 py-3 pr-3.5 text-sm bg-transparent text-gray-900 placeholder:text-gray-300 focus:outline-none"
-          />
+      {/* Icon + Intro */}
+      <div className="flex flex-col items-center text-center pb-1">
+        <div className="w-12 h-12 rounded-2xl bg-wellbeing-green/10 flex items-center justify-center mb-3">
+          <Building2 className="w-5 h-5 text-wellbeing-green" />
         </div>
-        <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
-          Den Slug findest du in der Einladungs-E-Mail oder bei deinem Admin.
+        <h2 className="font-syne text-[16px] font-semibold text-gray-900 leading-tight">
+          Bei welcher Firma?
+        </h2>
+        <p className="text-[12px] text-gray-400 mt-1 leading-relaxed max-w-[260px]">
+          Gib den Firmen-Slug ein, den du von deinem Admin bekommen hast.
         </p>
+      </div>
+
+      {/* Slug-Eingabe: groß, mittig, mono */}
+      <div>
+        <input
+          id="firma"
+          type="text"
+          autoComplete="organization"
+          autoFocus
+          required
+          value={slug}
+          onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+          placeholder="firma-slug"
+          className="w-full px-4 py-3.5 text-center text-[15px] font-mono tracking-wide bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:bg-white focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition-all"
+        />
+
+        {/* Live-URL-Vorschau (nur wenn etwas getippt wurde) */}
+        <div className="mt-2.5 text-center text-[11px] font-mono h-4">
+          {slug ? (
+            <span className="text-gray-300">
+              {APP_DOMAIN}/
+              <span className="text-wellbeing-green font-semibold">{slug}</span>
+            </span>
+          ) : null}
+        </div>
       </div>
 
       {fehler && (
@@ -169,8 +182,8 @@ function FirmaWaehlen({
 
       <button
         type="submit"
-        disabled={isPending}
-        className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#445c49] hover:bg-wellbeing-green active:bg-wellbeing-green-dark disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-all shadow-sm hover:shadow-md mt-1"
+        disabled={isPending || !slug}
+        className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#445c49] hover:bg-wellbeing-green active:bg-wellbeing-green-dark disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all shadow-sm hover:shadow-md"
       >
         {isPending ? (
           <>
@@ -184,6 +197,11 @@ function FirmaWaehlen({
           </>
         )}
       </button>
+
+      {/* Footer-Hilfe */}
+      <p className="text-center text-[11px] text-gray-300 pt-1">
+        Du hast noch keinen Slug? Frag deinen Admin.
+      </p>
     </form>
   )
 }
