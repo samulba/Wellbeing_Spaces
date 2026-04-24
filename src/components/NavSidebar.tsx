@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { logoutAction } from '@/app/login/actions'
 import {
   LayoutDashboard,
   Users,
@@ -105,6 +106,9 @@ export default function NavSidebar({
   ]
 
   async function handleLogout() {
+    // Server-Action räumt sowohl Supabase-Session als auch active_org_id-Cookie auf.
+    await logoutAction()
+    // Client-Session ebenfalls invalidieren (lokales LocalStorage etc.)
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
