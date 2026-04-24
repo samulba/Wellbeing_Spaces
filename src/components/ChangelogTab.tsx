@@ -220,8 +220,8 @@ export default function ChangelogTab({ eintraege }: { eintraege: ChangelogEntry[
         </div>
       </div>
 
-      {/* Sticky Filter-Bar: Suche + Kategorien */}
-      <div className="sticky top-[113px] z-10 bg-gray-50/95 backdrop-blur-md -mx-6 px-6 py-3 mb-3 border-b border-gray-100">
+      {/* Sticky Filter-Bar: Suche + Kategorien (klebt unter dem Einstellungs-Page-Header) */}
+      <div className="sticky top-[60px] z-10 bg-white -mx-6 px-6 py-3 mb-3 border-b border-gray-100">
         <div className="relative mb-2.5">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input
