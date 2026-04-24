@@ -5,6 +5,8 @@ export type Json = string | number | boolean | null | { [key: string]: Json } | 
 // ── Organisation ──────────────────────────────────────────────
 export type AboPlan = 'trial' | 'starter' | 'professional' | 'enterprise'
 
+export type Rechtsform = 'GmbH' | 'GbR' | 'Einzelunternehmen' | 'UG (haftungsbeschränkt)' | 'AG' | 'e.K.' | 'OHG' | 'KG' | 'Sonstige'
+
 export interface Organisation {
   id: string
   name: string
@@ -18,6 +20,24 @@ export interface Organisation {
   abo_aktiv_bis: string | null
   max_projekte: number
   max_mitglieder: number
+  // Migration 084: Rechtsform + Register
+  rechtsform: Rechtsform | null
+  handelsregister_nr: string | null
+  registergericht: string | null
+  geschaeftsfuehrer: string | null
+  ust_id: string | null
+  steuernummer: string | null
+  // Bank
+  bank_name: string | null
+  bank_iban: string | null
+  bank_bic: string | null
+  // Eigene Rechtstexte
+  impressum_text: string | null
+  datenschutz_url: string | null
+  standard_agb_text: string | null
+  // Operative Defaults
+  standard_zahlungsziel_tage: number | null
+  standard_angebot_gueltigkeit_tage: number | null
   created_at: string
   updated_at: string
 }

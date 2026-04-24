@@ -18,8 +18,15 @@ import {
   type TeamActionState,
 } from '@/app/actions/team'
 import { updatePasswort, benutzerNamenAktualisieren, type ProfilActionState } from '@/app/actions/profil'
+import {
+  firmaAktualisieren,
+  slugAendern,
+  rechtsangabenAktualisieren,
+  firmenDefaultsAktualisieren,
+  type FirmaActionState,
+} from '@/app/actions/organisation'
 import AvatarUpload from './AvatarUpload'
-import type { TeamMitglied, Rolle, Branding } from '@/lib/supabase/types'
+import type { TeamMitglied, Rolle, Branding, Organisation, Rechtsform } from '@/lib/supabase/types'
 import { ROLLEN_CONFIG } from '@/lib/permissions'
 import HandbuchClient from '@/app/dashboard/einstellungen/handbuch/HandbuchClient'
 import BrandingEditor from '@/components/BrandingEditor'
@@ -33,6 +40,7 @@ import type { ChangelogEntry } from '@/lib/changelog'
 
 const TABS = [
   { key: 'profil',             label: 'Profil' },
+  { key: 'firma',              label: 'Firma' },
   { key: 'workspace',          label: 'Workspace' },
   { key: 'branding',           label: 'Branding' },
   { key: 'team',               label: 'Team' },
@@ -43,6 +51,11 @@ const TABS = [
   { key: 'rechtliches',        label: 'Rechtliches' },
   { key: 'handbuch',           label: 'Handbuch' },
   { key: 'changelog',          label: 'Änderungen' },
+]
+
+const RECHTSFORMEN: Rechtsform[] = [
+  'GmbH', 'GbR', 'Einzelunternehmen', 'UG (haftungsbeschränkt)',
+  'AG', 'e.K.', 'OHG', 'KG', 'Sonstige',
 ]
 
 const ZEITZONEN = [
@@ -68,7 +81,7 @@ function SubmitButton({ label }: { label: string }) {
   )
 }
 
-type AnyState = EinstellungActionState | TeamActionState | ProfilActionState
+type AnyState = EinstellungActionState | TeamActionState | ProfilActionState | FirmaActionState
 
 function Meldung({ state }: { state: AnyState }) {
   if (!state) return null
@@ -78,31 +91,66 @@ function Meldung({ state }: { state: AnyState }) {
 }
 
 function Feld({
-  label, name, defaultValue, type = 'text',
-  required, min, max, step, hint, placeholder,
+  label, name, defaultValue, value, onChange, type = 'text',
+  required, min, max, step, hint, placeholder, disabled,
 }: {
-  label: string; name: string; defaultValue?: string; type?: string
+  label: string; name: string
+  defaultValue?: string
+  value?: string
+  onChange?: (v: string) => void
+  type?: string
   required?: boolean; min?: string; max?: string; step?: string; hint?: string
   placeholder?: string
+  disabled?: boolean
 }) {
+  const kontrolliert = value !== undefined
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       {hint && <p className="text-xs text-gray-400 mb-1.5">{hint}</p>}
       <input
-        name={name} type={type} defaultValue={defaultValue}
+        name={name} type={type}
+        {...(kontrolliert
+          ? { value, onChange: (e) => onChange?.(e.target.value) }
+          : { defaultValue })}
         required={required} min={min} max={max} step={step} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light"
+        disabled={disabled}
+        className={`w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light ${
+          disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''
+        }`}
+      />
+    </div>
+  )
+}
+
+function TextareaFeld({
+  label, name, defaultValue, hint, placeholder, rows = 4, disabled,
+}: {
+  label: string; name: string; defaultValue?: string; hint?: string
+  placeholder?: string; rows?: number; disabled?: boolean
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      {hint && <p className="text-xs text-gray-400 mb-1.5">{hint}</p>}
+      <textarea
+        name={name} defaultValue={defaultValue} rows={rows} placeholder={placeholder}
+        disabled={disabled}
+        className={`w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light font-mono leading-relaxed ${
+          disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''
+        }`}
       />
     </div>
   )
 }
 
 function AuswahlFeld({
-  label, name, defaultValue, optionen, hint,
+  label, name, defaultValue, optionen, hint, disabled, leererWert,
 }: {
   label: string; name: string; defaultValue?: string
   optionen: { wert: string; label: string }[]; hint?: string
+  disabled?: boolean
+  leererWert?: string  // Wenn gesetzt, wird eine leere Option als erste angezeigt
 }) {
   return (
     <div>
@@ -111,8 +159,12 @@ function AuswahlFeld({
       <div className="relative">
         <select
           name={name} defaultValue={defaultValue}
-          className="w-full px-3 py-2 pr-9 text-sm border border-gray-200 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light bg-white"
+          disabled={disabled}
+          className={`w-full px-3 py-2 pr-9 text-sm border border-gray-200 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light bg-white ${
+            disabled ? 'text-gray-500 cursor-not-allowed bg-gray-50' : ''
+          }`}
         >
+          {leererWert !== undefined && <option value="">{leererWert}</option>}
           {optionen.map((o) => <option key={o.wert} value={o.wert}>{o.label}</option>)}
         </select>
         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -234,8 +286,17 @@ function ProfilTab({
 
 // ── Tab: Workspace ────────────────────────────────────────────
 
-function WorkspaceTab({ einstellungen }: { einstellungen: Record<string, string> }) {
+function WorkspaceTab({
+  einstellungen,
+  organisation,
+  istAdmin,
+}: {
+  einstellungen: Record<string, string>
+  organisation: Organisation | null
+  istAdmin: boolean
+}) {
   const [state, action] = useFormState(saveAllgemein, null)
+  const [defaultsState, defaultsAction] = useFormState<FirmaActionState, FormData>(firmenDefaultsAktualisieren, null)
   const e = einstellungen
 
   return (
@@ -295,6 +356,34 @@ function WorkspaceTab({ einstellungen }: { einstellungen: Record<string, string>
         </form>
       </Abschnitt>
 
+      {/* ── Firmen-Defaults ────────────────────────────────── */}
+      <Abschnitt titel="Firmen-Defaults" beschreibung="Vorgabewerte für neue Angebote und Verträge.">
+        <form action={defaultsAction} className="space-y-5">
+          <div className="grid grid-cols-2 gap-4">
+            <Feld
+              label="Standard-Zahlungsziel" name="standard_zahlungsziel_tage" type="number"
+              defaultValue={(organisation?.standard_zahlungsziel_tage ?? 14).toString()}
+              min="0" max="365" step="1"
+              hint="In Tagen. Typisch: 14. Wird bei neuen Angeboten + Rechnungen vorbelegt."
+              disabled={!istAdmin}
+            />
+            <Feld
+              label="Standard-Angebotsgültigkeit" name="standard_angebot_gueltigkeit_tage" type="number"
+              defaultValue={(organisation?.standard_angebot_gueltigkeit_tage ?? 30).toString()}
+              min="0" max="365" step="1"
+              hint="In Tagen. Typisch: 30. Wird bei neuen Angeboten als „gültig bis" vorbelegt."
+              disabled={!istAdmin}
+            />
+          </div>
+          {istAdmin && (
+            <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+              <SubmitButton label="Defaults speichern" />
+              <Meldung state={defaultsState} />
+            </div>
+          )}
+        </form>
+      </Abschnitt>
+
       {/* Platzhalter: DSGVO / Account */}
       <Abschnitt titel="Daten & Konto" beschreibung="Datenschutz und Kontoverwaltung">
         <div className="space-y-3">
@@ -320,6 +409,158 @@ function WorkspaceTab({ einstellungen }: { einstellungen: Record<string, string>
         </div>
       </Abschnitt>
     </div>
+  )
+}
+
+// ── Tab: Firma ─────────────────────────────────────────────────
+
+function FirmaTab({
+  organisation,
+  istAdmin,
+}: {
+  organisation: Organisation | null
+  istAdmin: boolean
+}) {
+  const [basisState, basisAction]   = useFormState<FirmaActionState, FormData>(firmaAktualisieren, null)
+  const [slugState, slugAction]     = useFormState<FirmaActionState, FormData>(slugAendern, null)
+  const [slugModalOffen, setSlugModalOffen] = useState(false)
+  const [neuerSlug, setNeuerSlug]   = useState(organisation?.slug ?? '')
+
+  if (!organisation) {
+    return (
+      <div className="max-w-2xl">
+        <p className="text-sm text-gray-500">Keine Organisation geladen.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      {/* Basisdaten */}
+      <Abschnitt titel="Firma" beschreibung="Identität deiner Firma. Wird auf Freigabelinks, Mails und im Portal angezeigt.">
+        <form action={basisAction} className="space-y-5">
+          <Feld
+            label="Firmenname" name="name" defaultValue={organisation.name} required
+            hint="So heißt deine Firma offiziell – erscheint in Mails + Kundenportal."
+            disabled={!istAdmin}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Feld
+              label="Kontakt-E-Mail" name="email" type="email"
+              defaultValue={organisation.email ?? ''}
+              placeholder="info@deine-firma.de"
+              disabled={!istAdmin}
+            />
+            <Feld
+              label="Telefon" name="telefon"
+              defaultValue={organisation.telefon ?? ''}
+              placeholder="+49 …"
+              disabled={!istAdmin}
+            />
+          </div>
+          <Feld
+            label="Website" name="website" type="url"
+            defaultValue={organisation.website ?? ''}
+            placeholder="https://deine-firma.de"
+            disabled={!istAdmin}
+          />
+          <Feld
+            label="Adresse" name="adresse"
+            defaultValue={organisation.adresse ?? ''}
+            placeholder="Musterstraße 12, 12345 Musterstadt"
+            hint="Vollständige Geschäftsadresse. Wird u. a. im Impressum genutzt."
+            disabled={!istAdmin}
+          />
+          <Feld
+            label="Logo-URL" name="logo_url" type="url"
+            defaultValue={organisation.logo_url ?? ''}
+            placeholder="https://…/logo.png"
+            hint="Öffentlich erreichbare URL. Upload-Feld kommt später."
+            disabled={!istAdmin}
+          />
+          {istAdmin && (
+            <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+              <SubmitButton label="Firmendaten speichern" />
+              <Meldung state={basisState} />
+            </div>
+          )}
+        </form>
+      </Abschnitt>
+
+      {/* Login-Slug */}
+      <Abschnitt titel="Login-Slug" beschreibung="Der Slug ist Teil der Login-URL deiner Firma.">
+        <div className="space-y-4">
+          <div className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-4">
+            <p className="text-[11px] uppercase tracking-wide font-semibold text-gray-500 mb-1">Aktueller Login-Link</p>
+            <p className="text-sm font-mono text-gray-800">
+              app.wellbeing-spaces.de/login?firma=
+              <span className="text-wellbeing-green font-semibold">{organisation.slug ?? '–'}</span>
+            </p>
+          </div>
+          {istAdmin && (
+            <button
+              type="button"
+              onClick={() => { setNeuerSlug(organisation.slug ?? ''); setSlugModalOffen(true) }}
+              className="px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+            >
+              Slug ändern
+            </button>
+          )}
+        </div>
+      </Abschnitt>
+
+      {/* Slug-Änderungs-Modal */}
+      {slugModalOffen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSlugModalOffen(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 p-6">
+            <h3 className="font-syne font-bold text-[18px] text-gray-900 mb-1">Slug ändern?</h3>
+            <p className="text-[13px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4 leading-relaxed">
+              ⚠️ Nach der Änderung müssen sich <strong>alle Teammitglieder</strong> mit dem neuen Slug neu einloggen. Alte Login-Links funktionieren nicht mehr.
+            </p>
+            <form action={slugAction} className="space-y-4">
+              <Feld
+                label="Neuer Slug" name="slug"
+                value={neuerSlug}
+                onChange={(v) => setNeuerSlug(v.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                placeholder="deine-firma"
+                hint="Nur Kleinbuchstaben, Ziffern, Bindestriche. 2–60 Zeichen."
+                required
+              />
+              {slugState?.fehler && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{slugState.fehler}</p>
+              )}
+              {slugState?.erfolg && (
+                <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">{slugState.erfolg}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setSlugModalOffen(false)}
+                  className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-[13px] font-semibold rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Abbrechen
+                </button>
+                <SlugSaveButton />
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SlugSaveButton() {
+  const { pending } = useFormStatus()
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="flex-1 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white text-[13px] font-semibold rounded-xl transition-colors"
+    >
+      {pending ? 'Speichern…' : 'Slug ändern'}
+    </button>
   )
 }
 
@@ -974,7 +1215,14 @@ function RechtlichesModal({
   )
 }
 
-function RechtlichesTab() {
+function RechtlichesTab({
+  organisation,
+  istAdmin,
+}: {
+  organisation: Organisation | null
+  istAdmin: boolean
+}) {
+  const [rechtState, rechtAction] = useFormState<FirmaActionState, FormData>(rechtsangabenAktualisieren, null)
   const [modal, setModal] = useState<'impressum' | 'datenschutz' | 'agb' | null>(null)
 
   const items = [
@@ -1002,32 +1250,142 @@ function RechtlichesTab() {
   }
 
   return (
-    <div className="space-y-4 max-w-2xl">
-      <p className="text-sm text-gray-500 mb-2">
-        Rechtliche Informationen zu Wellbeing Spaces. Klicke auf einen Eintrag, um den vollständigen Text anzuzeigen.
-      </p>
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100">
-        {items.map((item) => (
-          <div key={item.key} className="flex items-center justify-between px-6 py-4">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">{item.titel}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{item.beschreibung}</p>
-            </div>
-            <button
-              onClick={() => setModal(item.key)}
-              className="shrink-0 ml-4 px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-            >
-              Anzeigen
-            </button>
+    <div className="space-y-6 max-w-2xl">
+      {/* ── Deine Firmenangaben ─────────────────────────────── */}
+      <Abschnitt titel="Deine Firmenangaben" beschreibung="Erscheinen auf Rechnungen, Angeboten, Verträgen + im Impressum des Kunden-Portals.">
+        <form action={rechtAction} className="space-y-5">
+          <div className="grid grid-cols-2 gap-4">
+            <AuswahlFeld
+              label="Rechtsform" name="rechtsform"
+              defaultValue={organisation?.rechtsform ?? ''}
+              leererWert="— bitte wählen —"
+              optionen={RECHTSFORMEN.map((r) => ({ wert: r, label: r }))}
+              disabled={!istAdmin}
+            />
+            <Feld
+              label="Geschäftsführer / Inhaber" name="geschaeftsfuehrer"
+              defaultValue={organisation?.geschaeftsfuehrer ?? ''}
+              placeholder="Max Mustermann, Erika Mustermann"
+              hint="Komma-getrennt bei mehreren Personen."
+              disabled={!istAdmin}
+            />
           </div>
-        ))}
-      </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Feld
+              label="Handelsregister-Nr." name="handelsregister_nr"
+              defaultValue={organisation?.handelsregister_nr ?? ''}
+              placeholder="HRB 123456"
+              disabled={!istAdmin}
+            />
+            <Feld
+              label="Registergericht" name="registergericht"
+              defaultValue={organisation?.registergericht ?? ''}
+              placeholder="Amtsgericht München"
+              disabled={!istAdmin}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Feld
+              label="USt-IdNr." name="ust_id"
+              defaultValue={organisation?.ust_id ?? ''}
+              placeholder="DE123456789"
+              hint="Pflicht auf Rechnungen, wenn vorhanden."
+              disabled={!istAdmin}
+            />
+            <Feld
+              label="Steuernummer" name="steuernummer"
+              defaultValue={organisation?.steuernummer ?? ''}
+              placeholder="123/456/78901"
+              hint="Alternative falls keine USt-IdNr."
+              disabled={!istAdmin}
+            />
+          </div>
 
-      <div className="bg-gray-50 border border-gray-100 rounded-xl px-5 py-4 text-xs text-gray-500 space-y-1">
-        <p className="font-medium text-gray-700">Verantwortlicher</p>
-        <p>Samuel Liba · Geranienweg 7, 85586 Poing</p>
-        <p>info@vicinusmedia.com · 0176 31335327</p>
-      </div>
+          <div className="pt-4 border-t border-gray-100 space-y-4">
+            <p className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Bankverbindung (für Rechnungen)</p>
+            <div className="grid grid-cols-2 gap-4">
+              <Feld
+                label="Bank-Name" name="bank_name"
+                defaultValue={organisation?.bank_name ?? ''}
+                placeholder="Sparkasse Musterstadt"
+                disabled={!istAdmin}
+              />
+              <Feld
+                label="BIC" name="bank_bic"
+                defaultValue={organisation?.bank_bic ?? ''}
+                placeholder="BYLADEM1MUC"
+                disabled={!istAdmin}
+              />
+            </div>
+            <Feld
+              label="IBAN" name="bank_iban"
+              defaultValue={organisation?.bank_iban ?? ''}
+              placeholder="DE89 3704 0044 0532 0130 00"
+              disabled={!istAdmin}
+            />
+          </div>
+
+          <div className="pt-4 border-t border-gray-100 space-y-4">
+            <p className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Rechtstexte</p>
+            <TextareaFeld
+              label="Eigener Impressum-Text" name="impressum_text"
+              defaultValue={organisation?.impressum_text ?? ''}
+              rows={5}
+              placeholder="Wird im Kunden-Portal angezeigt. HTML ist erlaubt."
+              hint="Wenn leer, werden die obigen Stammdaten automatisch zusammengesetzt."
+              disabled={!istAdmin}
+            />
+            <Feld
+              label="Datenschutz-URL" name="datenschutz_url" type="url"
+              defaultValue={organisation?.datenschutz_url ?? ''}
+              placeholder="https://deine-firma.de/datenschutz"
+              hint="Link zu deiner Datenschutzerklärung. Wird im Portal-Footer verlinkt."
+              disabled={!istAdmin}
+            />
+            <TextareaFeld
+              label="Standard-AGB-Text" name="standard_agb_text"
+              defaultValue={organisation?.standard_agb_text ?? ''}
+              rows={6}
+              placeholder="Dieser Text wird als Default bei neuen Angeboten + Verträgen eingefügt."
+              hint="Kann pro Angebot/Vertrag überschrieben werden."
+              disabled={!istAdmin}
+            />
+          </div>
+
+          {istAdmin && (
+            <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+              <SubmitButton label="Rechtsangaben speichern" />
+              <Meldung state={rechtState} />
+            </div>
+          )}
+        </form>
+      </Abschnitt>
+
+      {/* ── Wellbeing Spaces Rechtsinfos ─────────────────────── */}
+      <Abschnitt titel="Rechtliches zu Wellbeing Spaces" beschreibung="Rechtliche Informationen zur Software. Klicke auf einen Eintrag, um den Text zu öffnen.">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100">
+          {items.map((item) => (
+            <div key={item.key} className="flex items-center justify-between px-6 py-4">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{item.titel}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{item.beschreibung}</p>
+              </div>
+              <button
+                onClick={() => setModal(item.key)}
+                className="shrink-0 ml-4 px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+              >
+                Anzeigen
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-gray-50 border border-gray-100 rounded-xl px-5 py-4 text-xs text-gray-500 space-y-1 mt-4">
+          <p className="font-medium text-gray-700">Verantwortlicher</p>
+          <p>Samuel Liba · Geranienweg 7, 85586 Poing</p>
+          <p>info@vicinusmedia.com · 0176 31335327</p>
+        </div>
+      </Abschnitt>
 
       {modal && (
         <RechtlichesModal
@@ -1082,6 +1440,7 @@ export default function EinstellungenTabs({
   branding,
   vorlagen,
   changelog,
+  organisation,
 }: {
   aktuellerTab: string
   einstellungen: Record<string, string>
@@ -1096,6 +1455,7 @@ export default function EinstellungenTabs({
   branding: Branding | null
   vorlagen: VertragsVorlage[]
   changelog: ChangelogEntry[]
+  organisation: Organisation | null
 }) {
   const istAdmin = userRolle === 'admin'
   const adminOnlyKeys = new Set(['branding'])
@@ -1122,20 +1482,21 @@ export default function EinstellungenTabs({
 
       {/* Inhalt */}
       {aktuellerTab === 'profil'             && <ProfilTab userEmail={userEmail} userAvatarUrl={userAvatarUrl} userVorname={userVorname} userNachname={userNachname} lastSignIn={lastSignIn} />}
-      {aktuellerTab === 'workspace'          && <WorkspaceTab einstellungen={einstellungen} />}
+      {aktuellerTab === 'firma'              && <FirmaTab organisation={organisation} istAdmin={istAdmin} />}
+      {aktuellerTab === 'workspace'          && <WorkspaceTab einstellungen={einstellungen} organisation={organisation} istAdmin={istAdmin} />}
       {aktuellerTab === 'branding' && istAdmin && <BrandingTab branding={branding} />}
       {aktuellerTab === 'team'               && <TeamTab team={team} userRolle={userRolle} userId={userId} userEmail={userEmail} lastSignIn={lastSignIn} />}
       {aktuellerTab === 'vorlagen'            && <VorlagenTab vorlagen={vorlagen} />}
       {aktuellerTab === 'freigaben'          && <FreigabenTab einstellungen={einstellungen} />}
       {aktuellerTab === 'benachrichtigungen' && <BenachrichtigungenTab einstellungen={einstellungen} />}
       {aktuellerTab === 'abrechnung'         && <AbrechnungTab />}
-      {aktuellerTab === 'rechtliches'        && <RechtlichesTab />}
+      {aktuellerTab === 'rechtliches'        && <RechtlichesTab organisation={organisation} istAdmin={istAdmin} />}
       {aktuellerTab === 'handbuch'           && <HandbuchTab />}
       {aktuellerTab === 'changelog'          && <ChangelogTab eintraege={changelog} />}
 
       {/* Fallback: alte Tab-Keys weiterleiten */}
       {(aktuellerTab === 'allgemein' || aktuellerTab === 'sicherheit') && (
-        <WorkspaceTab einstellungen={einstellungen} />
+        <WorkspaceTab einstellungen={einstellungen} organisation={organisation} istAdmin={istAdmin} />
       )}
       {aktuellerTab === 'freigabe' && <FreigabenTab einstellungen={einstellungen} />}
     </div>

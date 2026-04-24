@@ -5,6 +5,15 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-24
 
+### Einstellungen: Firma + Rechtliches + Firmen-Defaults
+- **Neuer Tab „Firma"** (zwischen Profil und Workspace) zum Bearbeiten der Firmen-Identität: Firmenname, Kontakt-E-Mail, Telefon, Website, Adresse, Logo-URL. Alles was auf Freigabelinks, Mails und im Kunden-Portal erscheint.
+- **Login-Slug ändern** direkt im Firma-Tab, mit Bestätigungs-Modal und deutlicher Warnung: „Alle Teammitglieder müssen sich mit dem neuen Slug neu einloggen". Uniqueness wird serverseitig geprüft — doppelte Slugs sind ausgeschlossen.
+- **Rechtliches-Tab komplett überarbeitet**: oben gibt es jetzt „Deine Firmenangaben" mit Rechtsform-Dropdown (9 Optionen inkl. GbR/GmbH/UG/AG), Handelsregister-Nr., Registergericht, Geschäftsführer, USt-IdNr., Steuernummer, Bank-Daten (Name/IBAN/BIC) sowie freien Texten für Impressum, Datenschutz-URL und Standard-AGB. Alles landet später automatisch auf Rechnungen, Angeboten und Verträgen.
+- **Workspace-Tab** erweitert um Firmen-Defaults: Standard-Zahlungsziel (Tage) + Standard-Angebotsgültigkeit (Tage) — werden bei neuen Angeboten und Rechnungen als Startwert vorbelegt.
+- **Rollenschutz**: Nur Admins können Firmendaten ändern. Andere Team-Rollen sehen die Felder nur readonly.
+- **Header-Fix**: Zwischen Titel „Einstellungen" und Tab-Leiste klaffte eine Lücke, in der der graue Hintergrund durchblitzte — jetzt komplett weißer Hintergrund, sauberer Übergang.
+- Migration 084 muss manuell in Supabase ausgeführt werden.
+
 ### Slug-first Login (Firmen-Slug vor E-Mail/Passwort)
 - **Neuer Login-Ablauf in zwei Schritten**: Beim Aufruf von `/login` fragt Wellbeing Spaces zuerst nach dem **Firmen-Slug** (z. B. `wellbeing-concepts`). Erst danach erscheint das gewohnte E-Mail/Passwort-Formular — mit Firmenname als Header („Anmeldung bei Wellbeing Concepts GbR"). Über „Andere Firma" oben rechts kann man jederzeit zurück.
 - **Strikte Mitgliedschafts-Prüfung beim Login**: Auch wenn E-Mail und Passwort stimmen, lässt das System dich nur in die Firma rein, in der du tatsächlich aktives Teammitglied bist. Falsche Firma → sofortige Fehlermeldung „Diese E-Mail gehört nicht zu {Firma}", Session wird sofort wieder beendet. Kein stilles Landen in einer fremden Firma mehr möglich.

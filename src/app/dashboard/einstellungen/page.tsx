@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { teamMitgliederAbrufen, meineRolleAbrufen } from '@/app/actions/team'
 import { brandingAbrufen } from '@/app/actions/branding'
 import { getVorlagen } from '@/app/actions/vertraege'
+import { getAktuelleOrganisation } from '@/app/actions/organisation'
 import EinstellungenTabs from '@/components/EinstellungenTabs'
 import StickyPageHeader from '@/components/StickyPageHeader'
 import { getChangelog } from '@/lib/changelog'
@@ -16,13 +17,14 @@ export default async function EinstellungenPage({
   const tab = tabParam ?? 'profil'
 
   const supabase = await createClient()
-  const [{ data: { user } }, einstellungen, team, userRolle, branding, vorlagen] = await Promise.all([
+  const [{ data: { user } }, einstellungen, team, userRolle, branding, vorlagen, organisation] = await Promise.all([
     supabase.auth.getUser(),
     getEinstellungen(),
     teamMitgliederAbrufen(),
     meineRolleAbrufen(),
     brandingAbrufen(),
     getVorlagen(),
+    getAktuelleOrganisation(),
   ])
 
   const changelog = getChangelog()
@@ -44,9 +46,9 @@ export default async function EinstellungenPage({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto animate-fadeIn">
+    <div className="flex-1 overflow-y-auto animate-fadeIn bg-white">
       <StickyPageHeader title="Einstellungen" />
-      <div className="px-6 py-6">
+      <div className="px-6 pb-6">
         <EinstellungenTabs
           aktuellerTab={tab}
           einstellungen={einstellungen}
@@ -61,6 +63,7 @@ export default async function EinstellungenPage({
           branding={branding}
           vorlagen={vorlagen}
           changelog={changelog}
+          organisation={organisation}
         />
       </div>
     </div>
