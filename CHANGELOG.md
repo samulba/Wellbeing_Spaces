@@ -5,6 +5,17 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-24
 
+### Freigaben-Dashboard: kompletter Rework
+- **Kompakter Hero** mit einer einzigen farbigen Progress-Bar, die die Verteilung aller Produkte über alle Projekte zeigt (grün/amber/rot/violett). Ein Blick genügt.
+- **Status-Chips als Filter**: vier farbige Chips oben (• 4 Freigegeben, • 34 Ausstehend …), klickbar zum Umschalten. Ein zusätzlicher „Alle"-Chip rechts.
+- **Action-Bar** mit Volltext-Suche (Produkt, Raum, Projekt, Kategorie) + Projekt-Filter-Dropdown + View-Toggle rechts (Gruppen / Tabelle / Balken).
+- **Gruppen-View komplett neu**: aufklappbare Projekt-Karten mit Mini-Progress-Bar pro Projekt, VP-Summe, offen-Badge, Zum-Projekt-Link. Klick auf den Header klappt die Liste ein/aus.
+- **Produkt-Zeilen dichter** (32px-Thumbnails statt 40px), neue Status-Pill mit Farb-Dot, VP-Preis in der Zeile, **Inline-Hover-Actions**: Zurücksetzen + Zum Projekt ohne Modal öffnen zu müssen.
+- **Tabelle-View**: reine Flachliste mit Projekt-Info in jeder Zeile — ideal für CSV-ähnliche Übersicht.
+- **Balken-View**: horizontales gestapeltes Balken-Diagramm pro Projekt mit Statistik-Tooltip.
+- Wenn alle offenen Freigaben erledigt sind: Empty-State mit grünem Check und „Alle Freigaben erledigt!".
+- Keine Migration nötig.
+
 ### PDFs: Firmenangaben aus Einstellungen nutzen
 - **Angebots- und Vertrags-PDFs** rendern jetzt automatisch die Firmen-Stammdaten aus den Einstellungen → Rechtliches: Rechtsform, Handelsregister-Nr., Registergericht, Geschäftsführer, USt-IdNr., Steuernummer. Erscheinen als kleiner Legal-Footer am Seitenende.
 - **Angebots-PDFs** zeigen zusätzlich **Bankdaten** (Bank-Name, IBAN, BIC) im Footer — sofort rechnungsfähige Angebots-PDFs.
