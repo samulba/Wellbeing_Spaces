@@ -114,6 +114,68 @@ export async function projektStatusAendern(
   revalidatePath('/dashboard/projekte')
 }
 
+// ═══════════════════════════════════════════════════════════════
+// Auto-Status-Progression (nur Vorwärts, nur von Event-Aktionen)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Setzt den Projekt-Status automatisch eine Stufe weiter, aber NUR
+ * wenn der aktuelle Status dem erwarteten Ausgangs-Status der Regel
+ * entspricht. Dadurch überschreibt die Automatik keine manuell
+ * gesetzten Stati (z.B. wenn User „Abgeschlossen" gedrückt hat,
+ * springt sie nicht zurück auf „Warten auf Kunde").
+ *
+ * Rules:
+ *   - 'offen' | 'in_bearbeitung' → 'freigegeben' (Warten auf Kunde)
+ *   - 'freigegeben' → 'abgeschlossen'
+ *
+ * Nutzt Admin-Client, weil die auslösende Aktion meist einen
+ * eigenen Auth-Kontext hat und Auto-Status nur Nebeneffekt ist.
+ * Fehler hier crashen nie den aufrufenden Flow.
+ */
+export async function autoProjektStatusVorwaerts(
+  projektId: string,
+  neuerStatus: 'freigegeben' | 'abgeschlossen',
+): Promise<{ geaendert: boolean; alter?: ProjektStatus }> {
+  try {
+    const admin = createAdminClient()
+    const { data: p } = await admin
+      .from('projekte')
+      .select('status, organisation_id')
+      .eq('id', projektId)
+      .is('deleted_at', null)
+      .maybeSingle()
+
+    if (!p) return { geaendert: false }
+
+    const aktueller = p.status as ProjektStatus
+
+    // Regel 1: → freigegeben nur wenn aktuell offen oder in_bearbeitung
+    if (neuerStatus === 'freigegeben' && aktueller !== 'offen' && aktueller !== 'in_bearbeitung') {
+      return { geaendert: false, alter: aktueller }
+    }
+    // Regel 2: → abgeschlossen nur wenn aktuell freigegeben
+    if (neuerStatus === 'abgeschlossen' && aktueller !== 'freigegeben') {
+      return { geaendert: false, alter: aktueller }
+    }
+
+    const { error } = await admin
+      .from('projekte')
+      .update({ status: neuerStatus })
+      .eq('id', projektId)
+      .eq('organisation_id', p.organisation_id)
+      .is('deleted_at', null)
+
+    if (error) return { geaendert: false, alter: aktueller }
+
+    revalidatePath(`/dashboard/projekte/${projektId}`)
+    revalidatePath('/dashboard/projekte')
+    return { geaendert: true, alter: aktueller }
+  } catch {
+    return { geaendert: false }
+  }
+}
+
 export async function projektSoftDelete(id: string): Promise<void> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()

@@ -20,6 +20,7 @@ import { revalidatePath } from 'next/cache'
 import { sendMail } from '@/lib/mail'
 import { freigabeAbgeschlossenMail } from '@/lib/mail-templates'
 import { syncAutoEvent } from './timeline'
+import { autoProjektStatusVorwaerts } from './projekte'
 import type {
   FreigabeAudit,
   FreigabeKanal,
@@ -75,6 +76,11 @@ export async function freigabeTokenErstellen(
   }
 
   revalidatePath(`/dashboard/projekte/${projektId}`)
+
+  // Auto-Status: offen/in_bearbeitung → freigegeben (Warten auf Kunde).
+  // Fehler hier darf den Haupt-Flow nicht crashen.
+  try { await autoProjektStatusVorwaerts(projektId, 'freigegeben') } catch {}
+
   return { token: data.token }
 }
 
@@ -393,6 +399,26 @@ export async function freigabeAbschliessen(
     )
   } catch (e) {
     console.error('[freigabeAbschliessen:timeline]', e)
+  }
+
+  // Auto-Status: prüfen ob ALLE raum_produkte des Projekts jetzt
+  // freigegeben sind — wenn ja, Projekt auf 'abgeschlossen' setzen.
+  // Nur wenn aktueller Status 'freigegeben' ist (siehe autoProjekt…).
+  // Fehler hier darf den Haupt-Flow nicht crashen.
+  try {
+    const { data: alleItems } = await supabase
+      .from('raum_produkte')
+      .select('freigabe_status, raeume!inner(projekt_id)')
+      .eq('raeume.projekt_id', tok.projekt_id)
+
+    if (alleItems && alleItems.length > 0) {
+      const alleFreigegeben = alleItems.every((i) => i.freigabe_status === 'freigegeben')
+      if (alleFreigegeben) {
+        await autoProjektStatusVorwaerts(tok.projekt_id, 'abgeschlossen')
+      }
+    }
+  } catch (e) {
+    console.error('[freigabeAbschliessen:autoStatus]', e)
   }
 
   return { erfolg: true }

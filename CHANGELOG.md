@@ -5,6 +5,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-24
 
+### Projekt-Status: automatischer Vorwärts-Fortschritt
+- **Der Projekt-Status (Aktiv / Warten auf Kunde / Abgeschlossen) aktualisiert sich jetzt von selbst**, wenn entsprechende Events eintreten:
+  - Beim ersten erstellten **Freigabe-Link** springt ein Projekt automatisch von „Aktiv" auf „Warten auf Kunde".
+  - Wenn der Kunde die Freigabe abschließt und dadurch **alle Produkte des Projekts** freigegeben sind, springt „Warten auf Kunde" automatisch auf „Abgeschlossen".
+- **Manuelle Override-Regel**: Der Automatismus greift nur vorwärts und nur vom erwarteten Ausgangs-Status. Wenn du den Status manuell setzt (z. B. „Abgeschlossen" bevor alle Freigaben da sind), springt das System nicht mehr zurück.
+- Die 3 Status-Buttons im Projekt-Header bleiben — du kannst sie jederzeit manuell setzen. Bei normalem Workflow musst du sie aber kaum noch anfassen.
+- Keine Migration nötig.
+
 ### Projekt-Detail: Header-Refresh + Übersicht-Dashboard + Audit-Timeline
 - **Neuer Hero-Header**: Titel, Status-Toggle (Aktiv/Warten/Abgeschlossen) und Deadline-Countdown in einer Zeile. Darunter eine kompakte Meta-Leiste mit Icons (👤 Kunde · 📍 Standort · 💰 Budget · 🏷 Projektart · 📅 Angelegt) statt der alten Pill-Karten. Toolbar rechts: Verträge + Angebote als Text-Buttons, dahinter kleine Icon-Buttons für Timeline/CSV/PDF/Bearbeiten + ⋮-Menü. Kein graustufiger Strip mehr — alles in einem sauberen weißen Header.
 - **Übersicht neu: Dashboard-Karte** mit Ring, Progress-Bars (Produkt-Kosten, Service-Kosten, Gesamt) inkl. 80%-Warn-Marker und Überschreitungs-Anzeige in Euro. Status-Kacheln (Freigegeben/Ausstehend/Räume/Produkte) sind jetzt als 4-Feld-Strip direkt an der Budget-Karte dran — keine fetten leeren Flächen mehr.
