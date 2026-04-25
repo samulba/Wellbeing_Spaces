@@ -64,12 +64,13 @@ async function getDashboardData() {
         .is('deleted_at', null)
     ),
 
-    // Laufende Projekte
+    // Laufende Projekte – alle nicht abgeschlossenen / nicht archivierten Projekte
+    // (offen, in_bearbeitung, freigegeben = "Warten auf Kunde" sind laufend)
     safeQuery(() =>
       supabase
         .from('projekte')
         .select('*', { count: 'exact', head: true })
-        .in('status', ['offen', 'in_bearbeitung'])
+        .neq('status', 'abgeschlossen')
         .is('deleted_at', null)
         .eq('archiviert', false)
     ),
@@ -81,7 +82,7 @@ async function getDashboardData() {
         .select('id, name, deadline, kunden(name)')
         .is('deleted_at', null)
         .eq('archiviert', false)
-        .in('status', ['offen', 'in_bearbeitung'])
+        .neq('status', 'abgeschlossen')
         .not('deadline', 'is', null)
         .lte('deadline', in60Str)
         .order('deadline', { ascending: true })
@@ -113,7 +114,7 @@ async function getDashboardData() {
         .select('id, name, gesamtbudget')
         .is('deleted_at', null)
         .eq('archiviert', false)
-        .in('status', ['offen', 'in_bearbeitung'])
+        .neq('status', 'abgeschlossen')
         .not('gesamtbudget', 'is', null)
         .order('gesamtbudget', { ascending: false })
         .limit(5)

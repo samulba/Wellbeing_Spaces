@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-04-25
+
+### Dashboard: „Laufende Projekte"-Zähler korrekt
+- KPI-Kachel **„Laufende Projekte"** zählt jetzt auch Projekte mit Status „Warten auf Kunde" — ein Projekt das auf eine Kundenfreigabe wartet ist immer noch ein laufendes Projekt, nicht abgeschlossen.
+- Gleiche Logik bei „Nächste Deadlines" und „Budget-Übersicht": alles außer „Abgeschlossen" und Archiviert wird angezeigt.
+
 ## 2026-04-24
 
 ### Kunden-Portal: Willkommens-Tour beim ersten Login
