@@ -5,6 +5,13 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Partner: Auto-Favicon + Bewertungs-Filter (Phase C)
+- **Auto-Favicon als Logo**: Sobald du beim Partner eine **Website** hinterlegst und (noch) kein eigenes Logo hochgeladen ist, ziehen wir das **Favicon der Domain** automatisch über Google's Favicon-Service als Logo-Bild ein. Funktioniert beim Anlegen UND beim späteren Bearbeiten der Website. Eigene Logo-Uploads werden niemals überschrieben.
+- **Bewertungs-Filter** in der Partner-Liste: Toggle-Leiste „Alle / 3+ / 4+ / 5+ Sterne" oben rechts. Findest sofort die Top-Partner, mit denen du arbeiten willst.
+- **Sortierung**: zusätzlich zur alphabetischen Sortierung gibt's jetzt „Bewertung ↓" und „Bewertung ↑" — die besten zuerst.
+- **Sterne sichtbar**: Bewertung wird in Karten- und Listen-Ansicht direkt angezeigt (Liste hat statt der inhaltlich überholten Spalte „Ansprechpartner" eine Spalte „Bewertung" — der Hauptkontakt steht jetzt im Detail-Tab).
+- Keine Migration nötig.
+
 ### Partner: mehrere Kontaktpersonen pro Firma (Phase B)
 - **Neuer Tab „Kontakte"** auf der Partner-Detailseite. Statt eines einzigen „Ansprechpartner"-Strings legst du jetzt beliebig viele Kontaktpersonen mit eigenen Daten an: Name, Rolle (Vertrieb / Innendienst / Geschäftsführung …), E-Mail, Telefon, Mobil und persönliche Notizen.
 - **Hauptkontakt-Markierung** mit Stern-Badge — pro Partner gibt es genau einen, er wird in der Übersicht prominent angezeigt und in Listen/PDFs verwendet.

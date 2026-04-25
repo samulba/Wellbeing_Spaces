@@ -7,6 +7,59 @@ import type { PartnerKondition, PartnerKonditionTyp, PartnerKontakt, Json } from
 
 export type AltNotizResult = { fehler?: string; erfolg?: boolean }
 
+// ── Auto-Favicon ────────────────────────────────────────────
+//
+// Wenn der User eine Website hinterlegt aber (noch) kein eigenes Logo hochgeladen
+// hat, ziehen wir automatisch das Favicon der Domain als Logo-URL via Google's
+// öffentlichen S2-Favicon-Service. Stabil, kein Storage-Upload, sofort sichtbar.
+function ableitenFaviconUrl(websiteUrl: string | null | undefined): string | null {
+  const w = websiteUrl?.trim()
+  if (!w) return null
+  try {
+    const u = new URL(w.startsWith('http') ? w : `https://${w}`)
+    if (!u.hostname) return null
+    return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=128`
+  } catch {
+    return null
+  }
+}
+
+/** Identifiziert URLs, die wir zuvor selbst als Auto-Favicon gesetzt haben. */
+function istAutoFavicon(url: string | null | undefined): boolean {
+  return !!url && url.startsWith('https://www.google.com/s2/favicons')
+}
+
+/**
+ * Setzt das Logo automatisch auf das Website-Favicon wenn:
+ *  - kein Logo vorhanden, oder
+ *  - das vorhandene Logo selbst ein Auto-Favicon ist (Domain könnte sich geändert
+ *    haben). Eigene Uploads werden nie überschrieben.
+ */
+async function applyFaviconIfNeeded(partnerId: string, orgId: string): Promise<void> {
+  const supabase = await createClient()
+  const { data: row } = await supabase
+    .from('partner')
+    .select('logo_url, website')
+    .eq('id', partnerId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!row) return
+
+  const aktuell = row.logo_url as string | null
+  const website = row.website as string | null
+
+  if (aktuell && !istAutoFavicon(aktuell)) return       // eigenes Logo bewahren
+  const favicon = ableitenFaviconUrl(website)
+  if (!favicon) return                                  // keine Website → kein Favicon
+  if (favicon === aktuell) return                       // schon gleich
+
+  await supabase
+    .from('partner')
+    .update({ logo_url: favicon })
+    .eq('id', partnerId)
+    .eq('organisation_id', orgId)
+}
+
 export type PartnerActionState = { fehler: string } | null
 
 // ── Partner CRUD ──────────────────────────────────────────────
@@ -26,9 +79,12 @@ export async function partnerAnlegen(
   // Hinweis: ansprechpartner/email/telefon werden ab Phase B nicht mehr direkt
   // ueber das Formular gepflegt, sondern vom Hauptkontakt im Kontakte-Tab via
   // syncPartnerHauptkontakt() gespiegelt.
-  const { error } = await supabase.from('partner').insert({
+  const websiteRaw = (formData.get('website') as string) || null
+  const autoFavicon = ableitenFaviconUrl(websiteRaw)
+  const { data: angelegt, error } = await supabase.from('partner').insert({
     name: formData.get('name') as string,
-    website: (formData.get('website') as string) || null,
+    website: websiteRaw,
+    logo_url: autoFavicon,
     adresse: (formData.get('adresse') as string) || null,
     provisionsmodell,
     provisions_wert:
@@ -42,9 +98,9 @@ export async function partnerAnlegen(
     ust_id: (formData.get('ust_id') as string) || null,
     bewertung: bewertungRaw ? parseInt(bewertungRaw) : null,
     organisation_id: orgId,
-  })
+  }).select('id').single()
 
-  if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
+  if (error || !angelegt) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
 
   revalidatePath('/dashboard/partner')
   redirect('/dashboard/partner')
@@ -87,6 +143,9 @@ export async function partnerAktualisieren(
     .is('deleted_at', null)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren. Bitte erneut versuchen.' }
+
+  // Auto-Favicon: wenn Website geaendert wurde und kein eigenes Logo gesetzt ist
+  await applyFaviconIfNeeded(id, orgId)
 
   revalidatePath('/dashboard/partner')
   revalidatePath(`/dashboard/partner/${id}`)

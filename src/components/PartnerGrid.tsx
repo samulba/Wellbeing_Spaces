@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Search, LayoutGrid, List, ExternalLink } from 'lucide-react'
+import { Search, LayoutGrid, List, ExternalLink, Star } from 'lucide-react'
 import type { Partner } from '@/lib/supabase/types'
 
 const modellBadge: Record<string, string> = {
@@ -22,9 +22,13 @@ function initials(name: string) { return name.split(' ').map((w) => w[0]).join('
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
+type Sortierung = 'name-asc' | 'bewertung-desc' | 'bewertung-asc'
+
 export default function PartnerGrid({ partner }: { partner: Partner[] }) {
-  const [suche,   setSuche]   = useState('')
-  const [ansicht, setAnsicht] = useState<'grid' | 'list'>('grid')
+  const [suche,      setSuche]      = useState('')
+  const [ansicht,    setAnsicht]    = useState<'grid' | 'list'>('grid')
+  const [sterneMin,  setSterneMin]  = useState<number>(0)
+  const [sortierung, setSortierung] = useState<Sortierung>('name-asc')
 
   useEffect(() => {
     const s = localStorage.getItem('partner-ansicht')
@@ -36,24 +40,74 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
     localStorage.setItem('partner-ansicht', neu)
   }
 
-  const gefiltert = suche.trim()
-    ? partner.filter((p) =>
-        p.name.toLowerCase().includes(suche.toLowerCase()) ||
-        p.ansprechpartner?.toLowerCase().includes(suche.toLowerCase())
-      )
-    : partner
+  const gefiltert = useMemo(() => {
+    const q = suche.trim().toLowerCase()
+    let liste = partner.filter((p) => {
+      if (q && !p.name.toLowerCase().includes(q) && !p.ansprechpartner?.toLowerCase().includes(q)) {
+        return false
+      }
+      if (sterneMin > 0 && (p.bewertung ?? 0) < sterneMin) return false
+      return true
+    })
+    liste = [...liste].sort((a, b) => {
+      if (sortierung === 'bewertung-desc') return (b.bewertung ?? 0) - (a.bewertung ?? 0) || a.name.localeCompare(b.name)
+      if (sortierung === 'bewertung-asc')  return (a.bewertung ?? 0) - (b.bewertung ?? 0) || a.name.localeCompare(b.name)
+      return a.name.localeCompare(b.name)
+    })
+    return liste
+  }, [partner, suche, sterneMin, sortierung])
 
   return (
     <>
       {/* Toolbar */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
         <div className="relative w-[340px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input type="text" placeholder="Partner suchen…" value={suche}
             onChange={(e) => setSuche(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition" />
         </div>
+
+        {/* Bewertungs-Filter */}
+        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
+          {[0, 3, 4, 5].map((min) => (
+            <button
+              key={min}
+              type="button"
+              onClick={() => setSterneMin(min)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md transition-colors ${
+                sterneMin === min
+                  ? 'bg-amber-100 text-amber-700 font-medium'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+              title={min === 0 ? 'Alle Bewertungen' : `Min. ${min} Sterne`}
+            >
+              {min === 0 ? (
+                'Alle'
+              ) : (
+                <>
+                  <Star className={`w-3 h-3 ${sterneMin === min ? 'fill-amber-500 text-amber-500' : ''}`} />
+                  {min}+
+                </>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Sortierung */}
+        <select
+          value={sortierung}
+          onChange={(e) => setSortierung(e.target.value as Sortierung)}
+          className="text-sm px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:border-wellbeing-green focus:ring-2 focus:ring-wellbeing-green/20"
+          title="Sortierung"
+        >
+          <option value="name-asc">Name (A–Z)</option>
+          <option value="bewertung-desc">Bewertung ↓</option>
+          <option value="bewertung-asc">Bewertung ↑</option>
+        </select>
+
         <span className="text-sm text-gray-400">{gefiltert.length} {gefiltert.length === 1 ? 'Eintrag' : 'Einträge'}</span>
+
         <div className="ml-auto flex items-center border border-gray-200 rounded-lg overflow-hidden">
           <button onClick={() => toggleAnsicht('grid')} title="Kachelansicht"
             className={`px-3 py-2 transition-colors ${ansicht === 'grid' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
@@ -88,6 +142,16 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
                   <div className="min-w-0">
                     <p className="font-bold text-gray-900 group-hover:text-wellbeing-green transition-colors truncate">{p.name}</p>
                     {p.ansprechpartner && <p className="text-xs text-gray-500 truncate mt-0.5">{p.ansprechpartner}</p>}
+                    {p.bewertung != null && p.bewertung > 0 && (
+                      <div className="flex items-center gap-0.5 mt-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-3 h-3 ${s <= (p.bewertung ?? 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 {p.provisionsmodell && (
@@ -128,7 +192,7 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className={th + ' text-left'}>Partnername</th>
-                <th className={th}>Ansprechpartner</th>
+                <th className={th}>Bewertung</th>
                 <th className={th}>Provisionsmodell</th>
                 <th className={th + ' text-left'}>Konditionen</th>
                 <th className={th}>Website</th>
@@ -152,7 +216,20 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
                       <span className="font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors">{p.name}</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-center text-gray-500">{p.ansprechpartner ?? '–'}</td>
+                  <td className="px-5 py-3.5 text-center">
+                    {p.bewertung != null && p.bewertung > 0 ? (
+                      <div className="inline-flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-3.5 h-3.5 ${s <= (p.bewertung ?? 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-300">–</span>
+                    )}
+                  </td>
                   <td className="px-5 py-3.5 text-center">
                     {p.provisionsmodell ? (
                       <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${modellBadge[p.provisionsmodell] ?? ''}`}>
