@@ -5,6 +5,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Produkt-Auto-Fill: deutlich mehr Shops + mehrere Bilder + Auto-Partner (Phase A)
+- **Mehrere Bilder** statt nur ein og:image: Scraper sammelt Produktbilder aus JSON-LD-Arrays, Shopify-/WooCommerce-Galerien, Microdata, `<picture>`-Sources und Karussell-Containern. Im AutoFill-Modal kannst du sie als **Grid** mit Klick auswählen (max. 5 werden übernommen, „Alle / Keine"-Buttons).
+- **Bessere Erfolgsquote bei Nicht-IKEA-Shops**: zusätzlicher Microdata-Layer (`itemprop="…"`), RDFa, MPN/GTIN als Artikelnummer-Fallback, Shop-spezifische Selektoren für Shopify, WooCommerce und Magento (Titel, Preis, SKU). Bessere Preis-Parsung für europäische Formate (1.234,56 €).
+- **Auto-Partner-Zuordnung**: erkennt der Scraper, dass die Domain einem deiner Partner gehört (Match auf `partner.website`-Hostname), wird der Partner direkt im Formular gesetzt. Im Modal-Header siehst du das Match.
+- **URL-History**: zuletzt gescraped Domains als Schnellauswahl-Chips unter dem URL-Feld (localStorage, top 5 sichtbar von 10 gespeichert). Ein Klick → Scrape startet automatisch.
+- Maße werden zusätzlich aus Beschreibungstexten extrahiert („60 × 40 × 80 cm").
+- Keine Migration nötig.
+
 ### Onboarding: Empfänger-Etikett bei Neukunden-Links
 - Bei Neukunden-Links gibt's per Definition keinen verknüpften Kunden — die Übersicht zeigte deshalb nur „Neuer Onboarding-Link" und man wusste nicht mehr, an wen man die URL geschickt hatte.
 - **Beim Erstellen eines Links** kannst du jetzt optional ein **Empfänger-Etikett** + **E-Mail** hinterlegen (z. B. „Frau Müller (Instagram-Anfrage)"). Das Etikett ist rein für deine Übersicht — der Kunde sieht es im Formular nicht.

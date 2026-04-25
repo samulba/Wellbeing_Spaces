@@ -1,7 +1,7 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Upload, Loader2, X, Zap, Check, ChevronLeft, ChevronRight,
@@ -72,7 +72,7 @@ function AutoFillModal({
   onAbbrechen,
 }: {
   data:           ScraperErgebnis
-  onUebernehmen:  (ausgewaehlt: Set<keyof ScraperErgebnis>) => void
+  onUebernehmen:  (ausgewaehlt: Set<keyof ScraperErgebnis>, ausgewaehlteBilder: string[]) => void
   onAbbrechen:    () => void
 }) {
   const felder: AutoFillFeld[] = [
@@ -93,14 +93,19 @@ function AutoFillModal({
   const gefunden = felder.filter((f) => f.wert)
   const nichtGefunden = felder.filter((f) => !f.wert).map((f) => f.label)
   const hatMasse = masseWert !== ''
+  const hatBilder = data.images.length > 0
 
   const [ausgewaehlt, setAusgewaehlt] = useState<Set<keyof ScraperErgebnis>>(() => {
     const s = new Set<keyof ScraperErgebnis>()
     gefunden.forEach((f) => s.add(f.key))
-    if (data.image) s.add('image')
-    if (hatMasse)   s.add('breite_cm')
+    if (hatMasse) s.add('breite_cm')
     return s
   })
+
+  // Per Default die ersten 5 Bilder ausgewählt (Limit der Bibliothek)
+  const [bildAuswahl, setBildAuswahl] = useState<Set<string>>(
+    () => new Set(data.images.slice(0, 5)),
+  )
 
   function toggle(key: keyof ScraperErgebnis) {
     setAusgewaehlt((prev) => {
@@ -110,102 +115,155 @@ function AutoFillModal({
     })
   }
 
+  function toggleBild(url: string) {
+    setBildAuswahl((prev) => {
+      const next = new Set(prev)
+      if (next.has(url)) next.delete(url)
+      else if (next.size < 5) next.add(url)
+      return next
+    })
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-wellbeing-cream flex items-center justify-center">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-wellbeing-cream flex items-center justify-center shrink-0">
               <Zap className="w-3.5 h-3.5 text-wellbeing-green" />
             </div>
-            <h3 className="font-semibold text-gray-900 text-sm">Gefundene Produktdaten</h3>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-gray-900 text-sm">Gefundene Produktdaten</h3>
+              {data.quelle_domain && (
+                <p className="text-[11px] text-gray-400 truncate">
+                  Quelle: {data.quelle_domain}
+                  {data.partner_match && (
+                    <span className="ml-2 text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                      → Partner: {data.partner_match.name}
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
           </div>
           <button type="button" onClick={onAbbrechen}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto px-5 py-4 space-y-2 flex-1">
+        <div className="overflow-y-auto px-5 py-4 space-y-4 flex-1">
 
-          {/* Bild + Felder */}
-          <div className="flex gap-4">
-            {/* Bild */}
-            {data.image && (
-              <button
-                type="button"
-                onClick={() => toggle('image')}
-                className={`relative shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all ${
-                  ausgewaehlt.has('image') ? 'border-wellbeing-green shadow-sm' : 'border-gray-200 opacity-50'
-                }`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={data.image} alt="" className="w-full h-full object-cover" />
-                {ausgewaehlt.has('image') && (
-                  <div className="absolute top-1 right-1 w-5 h-5 bg-wellbeing-green rounded-full flex items-center justify-center">
-                    <Check className="w-3 h-3 text-white" />
-                  </div>
-                )}
-                <span className="absolute bottom-0 left-0 right-0 text-[9px] text-center bg-black/50 text-white py-0.5">
-                  Bild
-                </span>
-              </button>
-            )}
-
-            <div className="flex-1 space-y-2">
-              {gefunden.map((f) => (
-                <label key={f.key} className="flex items-start gap-2.5 cursor-pointer group">
-                  <div className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
-                    ausgewaehlt.has(f.key)
-                      ? 'bg-wellbeing-green border-wellbeing-green'
-                      : 'border-gray-300 group-hover:border-wellbeing-green-light'
-                  }`}
-                    onClick={() => toggle(f.key)}
+          {/* Bilder-Grid */}
+          {hatBilder && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
+                  Bilder ({bildAuswahl.size}/{Math.min(5, data.images.length)} gewählt)
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBildAuswahl(new Set(data.images.slice(0, 5)))}
+                    className="text-[11px] text-wellbeing-green hover:text-wellbeing-green-dark"
                   >
-                    {ausgewaehlt.has(f.key) && <Check className="w-2.5 h-2.5 text-white" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide block">{f.label}</span>
-                    <span className="text-xs text-gray-800 leading-snug line-clamp-2">{f.wert}</span>
-                  </div>
-                </label>
-              ))}
+                    Alle (max. 5)
+                  </button>
+                  <span className="text-gray-300">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setBildAuswahl(new Set())}
+                    className="text-[11px] text-gray-400 hover:text-gray-600"
+                  >
+                    Keine
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                {data.images.map((u) => {
+                  const aktiv = bildAuswahl.has(u)
+                  return (
+                    <button
+                      key={u}
+                      type="button"
+                      onClick={() => toggleBild(u)}
+                      className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                        aktiv
+                          ? 'border-wellbeing-green shadow-sm'
+                          : 'border-gray-200 opacity-50 hover:opacity-80'
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={u} alt="" className="w-full h-full object-cover" />
+                      {aktiv && (
+                        <div className="absolute top-1 right-1 w-5 h-5 bg-wellbeing-green rounded-full flex items-center justify-center">
+                          <Check className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1.5">
+                Maximum 5 Bilder werden übernommen.
+              </p>
             </div>
-          </div>
-
-          {/* Maße (separat, togglen alle 3 zusammen) */}
-          {hatMasse && (
-            <label className="flex items-start gap-2.5 cursor-pointer group">
-              <div className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
-                ausgewaehlt.has('breite_cm')
-                  ? 'bg-wellbeing-green border-wellbeing-green'
-                  : 'border-gray-300 group-hover:border-wellbeing-green-light'
-              }`}
-                onClick={() => {
-                  const keys: Array<keyof ScraperErgebnis> = ['breite_cm', 'tiefe_cm', 'hoehe_cm']
-                  setAusgewaehlt((prev) => {
-                    const next = new Set(prev)
-                    if (next.has('breite_cm')) keys.forEach((k) => next.delete(k))
-                    else keys.forEach((k) => next.add(k))
-                    return next
-                  })
-                }}
-              >
-                {ausgewaehlt.has('breite_cm') && <Check className="w-2.5 h-2.5 text-white" />}
-              </div>
-              <div>
-                <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide block">Maße (cm)</span>
-                <span className="text-xs text-gray-800">{masseWert} cm</span>
-              </div>
-            </label>
           )}
+
+          {/* Felder */}
+          <div className="space-y-2">
+            {gefunden.map((f) => (
+              <label key={f.key} className="flex items-start gap-2.5 cursor-pointer group">
+                <div className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
+                  ausgewaehlt.has(f.key)
+                    ? 'bg-wellbeing-green border-wellbeing-green'
+                    : 'border-gray-300 group-hover:border-wellbeing-green-light'
+                }`}
+                  onClick={() => toggle(f.key)}
+                >
+                  {ausgewaehlt.has(f.key) && <Check className="w-2.5 h-2.5 text-white" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide block">{f.label}</span>
+                  <span className="text-xs text-gray-800 leading-snug line-clamp-2">{f.wert}</span>
+                </div>
+              </label>
+            ))}
+
+            {/* Maße */}
+            {hatMasse && (
+              <label className="flex items-start gap-2.5 cursor-pointer group">
+                <div className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
+                  ausgewaehlt.has('breite_cm')
+                    ? 'bg-wellbeing-green border-wellbeing-green'
+                    : 'border-gray-300 group-hover:border-wellbeing-green-light'
+                }`}
+                  onClick={() => {
+                    const keys: Array<keyof ScraperErgebnis> = ['breite_cm', 'tiefe_cm', 'hoehe_cm']
+                    setAusgewaehlt((prev) => {
+                      const next = new Set(prev)
+                      if (next.has('breite_cm')) keys.forEach((k) => next.delete(k))
+                      else keys.forEach((k) => next.add(k))
+                      return next
+                    })
+                  }}
+                >
+                  {ausgewaehlt.has('breite_cm') && <Check className="w-2.5 h-2.5 text-white" />}
+                </div>
+                <div>
+                  <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide block">Maße (cm)</span>
+                  <span className="text-xs text-gray-800">{masseWert} cm</span>
+                </div>
+              </label>
+            )}
+          </div>
 
           {/* Nicht gefunden */}
           {nichtGefunden.length > 0 && (
-            <div className="flex items-center gap-1.5 pt-1">
+            <div className="flex items-center gap-1.5">
               <AlertCircle className="w-3 h-3 text-gray-300 shrink-0" />
               <span className="text-[10px] text-gray-400">
                 Nicht gefunden: {nichtGefunden.join(', ')}
@@ -222,7 +280,7 @@ function AutoFillModal({
           </button>
           <button
             type="button"
-            onClick={() => onUebernehmen(ausgewaehlt)}
+            onClick={() => onUebernehmen(ausgewaehlt, Array.from(bildAuswahl))}
             className="px-4 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5"
           >
             <Check className="w-3.5 h-3.5" />
@@ -407,6 +465,7 @@ export default function ProduktFormular({
   const [farbe,          setFarbe]          = useState((initialData as ProduktErweitert)?.farbe      ?? '')
   const [artikelnummer,  setArtikelnummer]  = useState((initialData as ProduktErweitert)?.artikelnummer ?? '')
   const [verfuegbarkeit, setVerfuegbarkeit] = useState((initialData as ProduktErweitert)?.verfuegbarkeit ?? '')
+  const [partnerId,      setPartnerId]      = useState<string>(initialData?.partner_id ?? '')
 
   // Vermerk/Hinweis (Migration 058)
   const [hinweisExtern, setHinweisExtern] = useState((initialData as ProduktErweitert)?.hinweis_extern ?? '')
@@ -436,6 +495,29 @@ export default function ProduktFormular({
   const [scrapingFehler,  setScrapingFehler]  = useState<string | null>(null)
   const [scraperModal,    setScraperModal]     = useState<ScraperErgebnis | null>(null)
   const urlInputRef = useRef<HTMLInputElement>(null)
+
+  type UrlHistEntry = { url: string; host: string }
+  const URL_HIST_KEY = 'wbs-scrape-url-history'
+  const [urlHistory, setUrlHistory] = useState<UrlHistEntry[]>([])
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(URL_HIST_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as UrlHistEntry[]
+        if (Array.isArray(parsed)) setUrlHistory(parsed.slice(0, 10))
+      }
+    } catch { /* ignore */ }
+  }, [])
+  const merkeUrl = useCallback((u: string) => {
+    try {
+      const host = new URL(u).hostname.replace(/^www\./, '')
+      setUrlHistory((prev) => {
+        const next = [{ url: u, host }, ...prev.filter((e) => e.url !== u)].slice(0, 10)
+        localStorage.setItem(URL_HIST_KEY, JSON.stringify(next))
+        return next
+      })
+    } catch { /* ignore */ }
+  }, [])
 
   // ── Preis-Logik ───────────────────────────────────────────
   const vpBrutto     = r2(vpNetto * (1 + mwst))
@@ -480,9 +562,10 @@ export default function ProduktFormular({
   }, [])
 
   // ── Auto-Fill ─────────────────────────────────────────────
-  const handleUrlScrape = useCallback(async () => {
-    const url = urlInputRef.current?.value?.trim()
+  const handleUrlScrape = useCallback(async (urlOverride?: string) => {
+    const url = (urlOverride ?? urlInputRef.current?.value)?.trim()
     if (!url || !url.startsWith('http')) return
+    if (urlInputRef.current && urlOverride) urlInputRef.current.value = urlOverride
     setScrapingLoading(true)
     setScrapingFehler(null)
     try {
@@ -491,20 +574,21 @@ export default function ProduktFormular({
       if ((data as { error?: string }).error) throw new Error((data as { error?: string }).error)
 
       // Prüfe ob überhaupt sinnvolle Daten vorhanden
-      const hatDaten = data.title || data.image || data.description || data.price
+      const hatDaten = data.title || (data.images && data.images.length > 0) || data.description || data.price
       if (!hatDaten) {
         setScrapingFehler('Keine Produktdaten gefunden. Bitte manuell eingeben.')
         return
       }
+      merkeUrl(url)
       setScraperModal(data)
     } catch {
       setScrapingFehler('Automatisches Auslesen fehlgeschlagen. Bitte manuell eingeben.')
     } finally {
       setScrapingLoading(false)
     }
-  }, [])
+  }, [merkeUrl])
 
-  const handleUebernehmen = useCallback((ausgewaehlt: Set<keyof ScraperErgebnis>) => {
+  const handleUebernehmen = useCallback((ausgewaehlt: Set<keyof ScraperErgebnis>, ausgewaehlteBilder: string[]) => {
     if (!scraperModal) return
     if (ausgewaehlt.has('title')        && scraperModal.title)        setProduktName(scraperModal.title)
     if (ausgewaehlt.has('description')  && scraperModal.description)  setBeschreibung(scraperModal.description)
@@ -512,7 +596,15 @@ export default function ProduktFormular({
     if (ausgewaehlt.has('material')     && scraperModal.material)      setMaterial(scraperModal.material)
     if (ausgewaehlt.has('farbe')        && scraperModal.farbe)         setFarbe(scraperModal.farbe)
     if (ausgewaehlt.has('lieferzeit')   && scraperModal.lieferzeit)    setLieferzeit(scraperModal.lieferzeit)
-    if (ausgewaehlt.has('image')        && scraperModal.image)         setBilderUrls((prev) => prev.includes(scraperModal.image!) ? prev : [scraperModal.image!, ...prev].slice(0, 5))
+    if (ausgewaehlteBilder.length > 0) {
+      setBilderUrls((prev) => {
+        const merged = [...prev]
+        for (const u of ausgewaehlteBilder) {
+          if (!merged.includes(u)) merged.push(u)
+        }
+        return merged.slice(0, 5)
+      })
+    }
     if (ausgewaehlt.has('breite_cm')    && scraperModal.breite_cm)     setBreiteCm(String(scraperModal.breite_cm))
     if (ausgewaehlt.has('tiefe_cm')     && scraperModal.tiefe_cm)      setTiefeCm(String(scraperModal.tiefe_cm))
     if (ausgewaehlt.has('hoehe_cm')     && scraperModal.hoehe_cm)      setHoeheCm(String(scraperModal.hoehe_cm))
@@ -522,6 +614,8 @@ export default function ProduktFormular({
       setVpNetto(nettoAusGescraped)
       if (ep > 0) setMarge(r2(((nettoAusGescraped - ep) / ep) * 100))
     }
+    // Auto-Partner aus Domain-Match
+    if (scraperModal.partner_match) setPartnerId(scraperModal.partner_match.id)
     setScraperModal(null)
   }, [scraperModal, ep, mwst])
 
@@ -589,7 +683,7 @@ export default function ProduktFormular({
                   className={inp}
                   placeholder="https://…"
                 />
-                <button type="button" onClick={handleUrlScrape} disabled={scrapingLoading}
+                <button type="button" onClick={() => handleUrlScrape()} disabled={scrapingLoading}
                   className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-wellbeing-cream border border-wellbeing-green-light text-wellbeing-green rounded-lg hover:bg-wellbeing-cream/80 transition-colors disabled:opacity-50 whitespace-nowrap font-medium">
                   {scrapingLoading
                     ? <><Loader2 className="w-3 h-3 animate-spin" /> Lädt…</>
@@ -600,6 +694,23 @@ export default function ProduktFormular({
                 <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3 shrink-0" /> {scrapingFehler}
                 </p>
+              )}
+              {urlHistory.length > 0 && (
+                <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Zuletzt:</span>
+                  {urlHistory.slice(0, 5).map((e) => (
+                    <button
+                      key={e.url}
+                      type="button"
+                      onClick={() => handleUrlScrape(e.url)}
+                      disabled={scrapingLoading}
+                      title={e.url}
+                      className="text-[11px] px-2 py-0.5 bg-gray-100 hover:bg-wellbeing-cream hover:text-wellbeing-green-dark text-gray-600 rounded-full transition-colors disabled:opacity-50"
+                    >
+                      {e.host}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -645,7 +756,12 @@ export default function ProduktFormular({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={lbl}>Partner / Lieferant</label>
-                <select name="partner_id" defaultValue={initialData?.partner_id ?? ''} className={inp}>
+                <select
+                  name="partner_id"
+                  value={partnerId}
+                  onChange={(e) => setPartnerId(e.target.value)}
+                  className={inp}
+                >
                   <option value="">Kein Partner</option>
                   {partner.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
