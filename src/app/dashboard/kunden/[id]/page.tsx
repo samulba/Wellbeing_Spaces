@@ -16,6 +16,7 @@ import KundeStatsBand from '@/components/KundeStatsBand'
 import KundeProjektliste from '@/components/KundeProjektliste'
 import KundeTimelineBlock from '@/components/KundeTimelineBlock'
 import KundeKontakteBlock from '@/components/KundeKontakteBlock'
+import KundeDetailTabs from '@/components/KundeDetailTabs'
 
 async function getKunde(id: string) {
   const supabase = await createClient()
@@ -99,60 +100,68 @@ export default async function KundeDetailPage({ params }: { params: { id: string
         </div>
       </div>
 
-      {/* KPI-Band: Projekte / Angebote / Verträge / Letzter Kontakt */}
-      <div className="mb-6">
-        <KundeStatsBand stats={stats} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Stammdaten + Sidebar */}
-        <div className="space-y-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Firma</h2>
-            <dl className="space-y-3">
-              <InfoZeile label="Website" wert={kunde.website} link={kunde.website ?? undefined} />
-              <InfoZeile label="Adresse" wert={kunde.adresse} />
-              {!kunde.website && !kunde.adresse && (
-                <p className="text-sm text-gray-400">Keine Firmen-Daten hinterlegt.</p>
-              )}
-            </dl>
-          </div>
-
-          {/* Ansprechpartner: mehrere mit eigenen Kontaktdaten */}
-          <KundeKontakteBlock kundeId={kunde.id} initialKontakte={kontakte} />
-
-          {kunde.notizen && (
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Interne Notizen (alt)</h2>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{kunde.notizen}</p>
+      {/* Tabs */}
+      <KundeDetailTabs
+        badgeKontakte={kontakte.length}
+        badgeProjekte={projekteMitStats.length}
+        badgeTimeline={kundeEvents.length}
+        badgeKommunikation={kommunikation.length}
+        badgeNotizen={notizen.length + (kunde.notizen ? 1 : 0)}
+        uebersicht={
+          <div className="space-y-6">
+            <KundeStatsBand stats={stats} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Firma</h2>
+                <dl className="space-y-3">
+                  <InfoZeile label="Website" wert={kunde.website} link={kunde.website ?? undefined} />
+                  <InfoZeile label="Adresse" wert={kunde.adresse} />
+                  {!kunde.website && !kunde.adresse && (
+                    <p className="text-sm text-gray-400">Keine Firmen-Daten hinterlegt.</p>
+                  )}
+                </dl>
+              </div>
+              <KundenPortalSection
+                kundeId={kunde.id}
+                kundeName={kunde.name}
+                initialPortalUser={portalUser}
+              />
             </div>
-          )}
-          <NotizBlock typ="kunde" referenzId={kunde.id} initialNotizen={notizen} />
-          <KundenPortalSection
-            kundeId={kunde.id}
-            kundeName={kunde.name}
-            initialPortalUser={portalUser}
-          />
-        </div>
-
-        {/* Rechte Spalte: Projekte + Kommunikation */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Projekte mit Mini-Stats */}
+          </div>
+        }
+        kontakte={
+          <KundeKontakteBlock kundeId={kunde.id} initialKontakte={kontakte} />
+        }
+        projekte={
           <KundeProjektliste
             projekte={projekteMitStats}
             neuesProjektHref={`/dashboard/projekte/neu?kunde=${kunde.id}`}
           />
-
-          {/* Multi-Projekt-Timeline */}
+        }
+        timeline={
           <KundeTimelineBlock
             events={kundeEvents}
             projekte={projekteMitStats.map((p) => ({ id: p.id, name: p.name }))}
           />
-
-          {/* Kommunikationslog */}
+        }
+        kommunikation={
           <KommunikationBlock kundeId={kunde.id} initialEintraege={kommunikation} />
-        </div>
-      </div>
+        }
+        notizen={
+          <div className="space-y-4">
+            {kunde.notizen && (
+              <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4">
+                <h2 className="text-xs font-semibold text-amber-800 uppercase tracking-widest mb-2">Interne Notizen (alt)</h2>
+                <p className="text-sm text-amber-900/90 whitespace-pre-wrap leading-relaxed">{kunde.notizen}</p>
+                <p className="text-[11px] text-amber-700/80 mt-2">
+                  Aus dem alten Freitext-Feld. Übernimm den Inhalt manuell als Notiz unten — das Feld wird in einer kommenden Version entfernt.
+                </p>
+              </div>
+            )}
+            <NotizBlock typ="kunde" referenzId={kunde.id} initialNotizen={notizen} />
+          </div>
+        }
+      />
     </div>
   )
 }

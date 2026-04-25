@@ -59,39 +59,41 @@ export default function PartnerDetailTabs({
 
   return (
     <div>
-      {/* Tab-Leiste */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm mb-6 px-2 py-1.5 flex flex-wrap gap-1">
-        {TABS.map(({ id, label, icon: Icon }) => {
-          const aktiv = tabIst(id)
-          const badge = badgeFor(id)
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => wechsle(id)}
-              className={`flex items-center gap-2 px-3.5 py-2 text-sm rounded-lg font-medium transition-colors ${
-                aktiv
-                  ? 'bg-wellbeing-green text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{label}</span>
-              {badge != null && badge > 0 && (
-                <span
-                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${
-                    aktiv ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-                  }`}
-                >
-                  {badge}
-                </span>
-              )}
-            </button>
-          )
-        })}
+      {/* Tab-Leiste — Underline-Style analog Projekt-Detail */}
+      <div className="border-b border-gray-100 bg-white -mx-6 px-6 mb-6">
+        <nav className="flex items-center gap-0 overflow-x-auto">
+          {TABS.map(({ id, label, icon: Icon }) => {
+            const aktiv = tabIst(id)
+            const badge = badgeFor(id)
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => wechsle(id)}
+                className={`flex items-center gap-2 px-4 py-3 text-xs font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
+                  aktiv
+                    ? 'border-wellbeing-green text-wellbeing-green'
+                    : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-200'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${aktiv ? 'text-wellbeing-green' : 'text-gray-400'}`} />
+                {label}
+                {badge != null && badge > 0 && (
+                  <span
+                    className={`ml-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${
+                      aktiv ? 'bg-wellbeing-green/10 text-wellbeing-green' : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {badge}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </nav>
       </div>
 
-      {/* Tab-Inhalt – kein hidden, damit Browser die Scroll-Position pro Tab vergisst */}
+      {/* Tab-Inhalt */}
       {tabIst('uebersicht')  && <div>{uebersicht}</div>}
       {tabIst('kontakte')    && <div>{kontakte}</div>}
       {tabIst('konditionen') && <div>{konditionen}</div>}
