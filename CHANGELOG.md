@@ -5,6 +5,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Onboarding: Empfänger-Etikett bei Neukunden-Links
+- Bei Neukunden-Links gibt's per Definition keinen verknüpften Kunden — die Übersicht zeigte deshalb nur „Neuer Onboarding-Link" und man wusste nicht mehr, an wen man die URL geschickt hatte.
+- **Beim Erstellen eines Links** kannst du jetzt optional ein **Empfänger-Etikett** + **E-Mail** hinterlegen (z. B. „Frau Müller (Instagram-Anfrage)"). Das Etikett ist rein für deine Übersicht — der Kunde sieht es im Formular nicht.
+- **In der Übersicht** taucht das Etikett als Titel der Zeile auf (Priorität: eingereichter Name → Empfänger-Etikett → verknüpfter Kunde → Fallback). E-Mail steht im Untertitel.
+- **Im Detail-Panel** kannst du das Etikett **nachträglich ergänzen oder bearbeiten** (Pencil-Button neben „Adressat") — falls du beim Erstellen vergessen hast, wer der Empfänger war.
+- Bonus-Fix: Das Formular-Absenden war bei verknüpften Kunden unmöglich (der Check `if (kunde_name)` blockierte den Submit, weil bei Verknüpfung schon vorausgefüllt war). Wir prüfen jetzt zuverlässig auf `antworten`.
+- Migration **089** nötig (`empfaenger_label TEXT`, `empfaenger_email TEXT` auf `onboarding_anfragen`).
+
 ### Einstellungen → Profil: aktive Sessions tatsächlich verwalten
 - Der bisherige Platzhalter „Aktive Sessions" zeigte nur die aktuelle Sitzung mit dem Hinweis „weitere Session-Verwaltung folgt". Jetzt voll funktional:
 - Liste **aller eingeloggten Geräte / Browser** für den eigenen Account — pro Eintrag erkennbarer Browser + OS (Chrome auf macOS, Safari auf iPhone …), letzte Aktivität (relativ, z. B. „vor 12 Min."), Anmeldedatum, IP.

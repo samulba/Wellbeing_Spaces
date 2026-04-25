@@ -7,13 +7,14 @@ import {
   ChevronDown, ChevronUp, Check, Plus, User, Mail, Phone, MapPin,
   Home, Euro, Clock, Palette, MessageSquare, ExternalLink, Trash2,
   X, ChevronRight, Settings2, Briefcase, Inbox, CheckCircle2,
-  UserPlus, Layers,
+  UserPlus, Layers, Pencil,
 } from 'lucide-react'
 import {
   onboardingLinkErstellen,
   onboardingStatusAendern,
   onboardingLinkLoeschen,
   kundeAusOnboardingAnlegen,
+  onboardingEmpfaengerAktualisieren,
 } from '@/app/actions/onboarding'
 import { kundeUndProjektAusOnboarding } from '@/app/actions/onboarding-erweitert'
 import type { OnboardingAnfrage, OnboardingStatus, OnboardingVorlage } from '@/lib/supabase/types'
@@ -120,13 +121,18 @@ function LinkErstellenModal({
   onClose: () => void
 }) {
   const standard = vorlagen.find((v) => v.ist_standard)
-  const [gewaehlt, setGewaehlt]       = useState<string>(standard?.id ?? vorlagen[0]?.id ?? '')
-  const [kundeId, setKundeId]         = useState<string>('')
-  const [kopiert, setKopiert]         = useState(false)
-  const [isPending, startTransition]  = useTransition()
+  const [gewaehlt, setGewaehlt]               = useState<string>(standard?.id ?? vorlagen[0]?.id ?? '')
+  const [kundeId, setKundeId]                 = useState<string>('')
+  const [empfaengerLabel, setEmpfaengerLabel] = useState<string>('')
+  const [empfaengerEmail, setEmpfaengerEmail] = useState<string>('')
+  const [kopiert, setKopiert]                 = useState(false)
+  const [isPending, startTransition]          = useTransition()
 
   const aktuelleVorlage = vorlagen.find((v) => v.id === gewaehlt)
   const istProjektVorlage = aktuelleVorlage?.typ === 'projekt'
+  // Empfänger-Felder zeigen wir, wenn kein bestehender Kunde ausgewählt ist
+  // (auch bei Projekt-Vorlagen sinnvoll, falls Lead noch nicht angelegt wurde).
+  const zeigeEmpfaengerFelder = !kundeId
 
   // Wenn von Projekt- zu Nicht-Projekt-Vorlage gewechselt wird,
   // die Kunde-Auswahl zurücksetzen.
@@ -144,6 +150,9 @@ function LinkErstellenModal({
       const { pfad } = await onboardingLinkErstellen(
         gewaehlt || null,
         kundeId || null,
+        kundeId
+          ? null
+          : { label: empfaengerLabel.trim() || null, email: empfaengerEmail.trim() || null },
       )
       const url = window.location.origin + pfad
       await navigator.clipboard.writeText(url)
@@ -252,6 +261,35 @@ function LinkErstellenModal({
             </div>
           )}
 
+          {/* Empfänger-Etikett bei Neukunden / nicht verknüpften Links */}
+          {zeigeEmpfaengerFelder && (
+            <div className="mt-4 p-4 bg-amber-50/50 border border-amber-100 rounded-xl">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Für wen ist der Link?
+                <span className="ml-1.5 text-[11px] font-normal text-gray-400">(optional)</span>
+              </label>
+              <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                Hilft dir später in der Übersicht zu sehen, an wen du den Link versendet hast — z. B.
+                {' '}<span className="italic">&bdquo;Frau Müller, Instagram-Anfrage&ldquo;</span>.
+                Wird dem Kunden im Formular nicht angezeigt.
+              </p>
+              <input
+                type="text"
+                value={empfaengerLabel}
+                onChange={(e) => setEmpfaengerLabel(e.target.value)}
+                placeholder="z. B. Frau Müller (Empfehlung Lisa)"
+                className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-wellbeing-green focus:ring-2 focus:ring-wellbeing-green/20 transition-all"
+              />
+              <input
+                type="email"
+                value={empfaengerEmail}
+                onChange={(e) => setEmpfaengerEmail(e.target.value)}
+                placeholder="empfaenger@beispiel.de (optional)"
+                className="w-full mt-2 px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-wellbeing-green focus:ring-2 focus:ring-wellbeing-green/20 transition-all"
+              />
+            </div>
+          )}
+
           <Link
             href="/dashboard/onboarding/vorlagen"
             className="flex items-center gap-1.5 mt-3 text-xs text-gray-400 hover:text-wellbeing-green transition-colors"
@@ -327,6 +365,7 @@ function AnfrageDetail({
   const [isPending, startTransition] = useTransition()
   const [kopiert, setKopiert]        = useState(false)
   const [fehler, setFehler]          = useState<string | null>(null)
+  const [empfaengerOffen, setEmpfaengerOffen] = useState(false)
   const offen = anfrage.status === 'offen' || anfrage.status === 'in_bearbeitung'
   const hatDaten = istEingereicht(anfrage)
   const hatProjektName = !!anfrage.projekt_name
@@ -446,11 +485,32 @@ function AnfrageDetail({
             <div className="flex items-start gap-2">
               <User className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
-                <dt className="text-[11px] text-gray-400">Adressat</dt>
+                <div className="flex items-center justify-between gap-2">
+                  <dt className="text-[11px] text-gray-400">Adressat</dt>
+                  {!verknuepfterKundeName && (
+                    <button
+                      type="button"
+                      onClick={() => setEmpfaengerOffen(true)}
+                      className="text-[11px] text-wellbeing-green hover:text-wellbeing-green-dark inline-flex items-center gap-1"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      {anfrage.empfaenger_label ? 'Bearbeiten' : 'Empfänger ergänzen'}
+                    </button>
+                  )}
+                </div>
                 <dd className="text-gray-700">
-                  {verknuepfterKundeName
-                    ? <>Verknüpft mit <span className="font-medium">{verknuepfterKundeName}</span></>
-                    : 'Kein Kunde verknüpft – Link wartet auf Eintrag durch einen neuen Interessenten.'}
+                  {verknuepfterKundeName ? (
+                    <>Verknüpft mit <span className="font-medium">{verknuepfterKundeName}</span></>
+                  ) : anfrage.empfaenger_label ? (
+                    <>
+                      <span className="font-medium">{anfrage.empfaenger_label}</span>
+                      {anfrage.empfaenger_email && (
+                        <span className="text-gray-500 ml-1.5">· {anfrage.empfaenger_email}</span>
+                      )}
+                    </>
+                  ) : (
+                    'Kein Empfänger hinterlegt – ergänze ihn, damit du später weißt für wen der Link war.'
+                  )}
                 </dd>
               </div>
             </div>
@@ -551,6 +611,15 @@ function AnfrageDetail({
           </button>
         </div>
       </div>
+
+      {empfaengerOffen && (
+        <EmpfaengerModal
+          anfrageId={anfrage.id}
+          initialLabel={anfrage.empfaenger_label ?? ''}
+          initialEmail={anfrage.empfaenger_email ?? ''}
+          onClose={() => setEmpfaengerOffen(false)}
+        />
+      )}
     </div>
   )
 }
@@ -635,6 +704,104 @@ function FilterTab({
         {count}
       </span>
     </button>
+  )
+}
+
+// ── Empfänger-Etikett bearbeiten ──────────────────────────────
+function EmpfaengerModal({
+  anfrageId,
+  initialLabel,
+  initialEmail,
+  onClose,
+}: {
+  anfrageId:    string
+  initialLabel: string
+  initialEmail: string
+  onClose:      () => void
+}) {
+  const router = useRouter()
+  const [label, setLabel]            = useState(initialLabel)
+  const [email, setEmail]            = useState(initialEmail)
+  const [isPending, startTransition] = useTransition()
+  const [fehler, setFehler]          = useState<string | null>(null)
+
+  function speichern() {
+    setFehler(null)
+    startTransition(async () => {
+      const r = await onboardingEmpfaengerAktualisieren(anfrageId, {
+        label: label.trim() || null,
+        email: email.trim() || null,
+      })
+      if (r.fehler) { setFehler(r.fehler); return }
+      router.refresh()
+      onClose()
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-gray-900">Empfänger ergänzen</h2>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            aria-label="Schließen"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+          Hilft dir in der Übersicht zu erkennen, an wen der Link gerichtet war.
+          Wird dem Kunden im Formular nicht angezeigt.
+        </p>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Für wen?</label>
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="z. B. Frau Müller (Empfehlung Lisa)"
+              className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-wellbeing-green focus:ring-2 focus:ring-wellbeing-green/20 transition-all"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">E-Mail (optional)</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="empfaenger@beispiel.de"
+              className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-wellbeing-green focus:ring-2 focus:ring-wellbeing-green/20 transition-all"
+            />
+          </div>
+        </div>
+
+        {fehler && (
+          <p className="text-xs text-red-600 mt-3">{fehler}</p>
+        )}
+
+        <div className="flex items-center justify-end gap-2 mt-5">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
+          >
+            Abbrechen
+          </button>
+          <button
+            onClick={speichern}
+            disabled={isPending}
+            className="px-5 py-2 text-sm font-semibold text-white bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 rounded-lg transition-colors"
+          >
+            {isPending ? 'Speichert…' : 'Speichern'}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -828,7 +995,12 @@ export default function OnboardingTabelle({
                 const loeschen    = loeschenId === anfrage.id
                 const eingereicht = istEingereicht(anfrage)
                 const begonnen    = istBegonnen(anfrage)
-                const kundeName   = anfrage.kunde_id ? kundenMap.get(anfrage.kunde_id) ?? anfrage.kunde_name : anfrage.kunde_name
+                // Anzeige-Priorität: eingereichter Name → Empfänger-Etikett →
+                // verknüpfter Kunde → null (Fallback "Neuer Onboarding-Link")
+                const kundeName   = eingereicht
+                  ? anfrage.kunde_name
+                  : anfrage.empfaenger_label
+                    || (anfrage.kunde_id ? kundenMap.get(anfrage.kunde_id) ?? anfrage.kunde_name : null)
                 // Subtitle baut sich je nach Status zusammen, damit der Admin
                 // sofort sieht: für wen ist der Link, was muss noch passieren.
                 const subtitleTeile: string[] = []
@@ -868,12 +1040,12 @@ export default function OnboardingTabelle({
                           <p className="text-sm font-semibold text-gray-900 truncate">
                             {kundeName ?? 'Neuer Onboarding-Link'}
                           </p>
-                          {anfrage.kunde_id && !eingereicht && (
+                          {(anfrage.kunde_id || anfrage.empfaenger_label) && !eingereicht && (
                             <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full shrink-0">
                               Wartet auf Antwort
                             </span>
                           )}
-                          {!anfrage.kunde_id && !eingereicht && !begonnen && (
+                          {!anfrage.kunde_id && !anfrage.empfaenger_label && !eingereicht && !begonnen && (
                             <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full shrink-0">
                               Noch nicht versendet?
                             </span>
@@ -888,6 +1060,9 @@ export default function OnboardingTabelle({
                           {subtitleTeile.join(' · ')}
                           {eingereicht && anfrage.kunde_email && (
                             <span className="text-gray-500"> · {anfrage.kunde_email}</span>
+                          )}
+                          {!eingereicht && anfrage.empfaenger_email && (
+                            <span className="text-gray-500"> · {anfrage.empfaenger_email}</span>
                           )}
                         </p>
                       </div>

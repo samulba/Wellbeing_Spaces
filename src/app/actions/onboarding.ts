@@ -28,7 +28,8 @@ export interface OnboardingDaten {
  */
 export async function onboardingLinkErstellen(
   vorlage_id?: string | null,
-  kunde_id?: string | null
+  kunde_id?: string | null,
+  empfaenger?: { label?: string | null; email?: string | null } | null,
 ): Promise<{ token: string; pfad: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
@@ -52,12 +53,17 @@ export async function onboardingLinkErstellen(
     }
   }
 
+  const empfaengerLabel = empfaenger?.label?.trim() || null
+  const empfaengerEmail = empfaenger?.email?.trim() || null
+
   const { data, error } = await supabase
     .from('onboarding_anfragen')
     .insert({
       status: 'offen',
       vorlage_id: vorlage_id ?? null,
       kunde_id:   kunde_id   ?? null,
+      empfaenger_label: empfaengerLabel,
+      empfaenger_email: empfaengerEmail,
       organisation_id: orgId,
       ...kundePrefill,
     })
@@ -67,6 +73,29 @@ export async function onboardingLinkErstellen(
   if (error || !data) throw new Error('Fehler beim Erstellen des Links')
   revalidatePath('/dashboard/onboarding')
   return { token: data.token, pfad: `/onboarding/${data.token}` }
+}
+
+/** Setzt oder aktualisiert das Empfänger-Etikett nachträglich (z. B. wenn
+ *  der Admin beim Erstellen vergessen hat anzugeben, für wen der Link war). */
+export async function onboardingEmpfaengerAktualisieren(
+  id: string,
+  empfaenger: { label: string | null; email: string | null },
+): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { error } = await supabase
+    .from('onboarding_anfragen')
+    .update({
+      empfaenger_label: empfaenger.label?.trim() || null,
+      empfaenger_email: empfaenger.email?.trim() || null,
+    })
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+
+  if (error) return { fehler: 'Fehler beim Speichern.' }
+  revalidatePath('/dashboard/onboarding')
+  return { erfolg: true }
 }
 
 /**
@@ -81,15 +110,17 @@ export async function onboardingAbsenden(
 
   const { data: anfrage } = await supabase
     .from('onboarding_anfragen')
-    .select('id, status, kunde_name')
+    .select('id, status, antworten')
     .eq('token', token)
     .single()
 
   if (!anfrage) return { erfolg: false, fehler: 'Dieser Link ist ungültig.' }
-  if (anfrage.status !== 'offen') {
+  if (anfrage.status !== 'offen' && anfrage.status !== 'in_bearbeitung') {
     return { erfolg: false, fehler: 'Dieses Formular wurde bereits ausgefüllt oder deaktiviert.' }
   }
-  if (anfrage.kunde_name) {
+  // Hinweis: kunde_name darf bereits vorgefüllt sein (bei verknüpftem Kunden).
+  // Echter "schon ausgefüllt"-Indikator ist `antworten`.
+  if (anfrage.antworten) {
     return { erfolg: false, fehler: 'Dieses Formular wurde bereits ausgefüllt.' }
   }
 

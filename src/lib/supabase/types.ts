@@ -999,6 +999,9 @@ export interface OnboardingAnfrage {
   kunde_name: string | null
   kunde_email: string | null
   kunde_telefon: string | null
+  // Empfänger-Etikett (Migration 089) – nur Admin-Tracking, nicht im Formular
+  empfaenger_label?: string | null
+  empfaenger_email?: string | null
   projekt_name: string | null
   projekt_adresse: string | null
   raumtypen: string[] | null
