@@ -40,7 +40,9 @@ import VertragsVorlagenVerwaltung from '@/components/VertragsVorlagenVerwaltung'
 import type { VertragsVorlage } from '@/lib/supabase/types'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import ChangelogTab from '@/components/ChangelogTab'
+import SessionsListe from '@/components/SessionsListe'
 import type { ChangelogEntry } from '@/lib/changelog'
+import type { SessionInfo } from '@/app/actions/sessions'
 
 // ── Konstanten ────────────────────────────────────────────────
 
@@ -235,24 +237,20 @@ function ProfilTab({
   userVorname,
   userNachname,
   lastSignIn,
+  sessions,
 }: {
   userEmail: string
   userAvatarUrl: string | null
   userVorname: string | null
   userNachname: string | null
   lastSignIn: string | null
+  sessions: SessionInfo[]
 }) {
   const [passwortState, passwortAction] = useFormState(updatePasswort, null)
   const [namenState,    namenAction]    = useFormState(benutzerNamenAktualisieren, null)
 
   const nameLabel = [userVorname, userNachname].filter(Boolean).join(' ') || userEmail
-
-  const letzteAnmeldung = lastSignIn
-    ? new Date(lastSignIn).toLocaleString('de-DE', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-      })
-    : 'Unbekannt'
+  void lastSignIn // Wird inzwischen über die Sessions-Liste angezeigt
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 max-w-6xl">
@@ -297,24 +295,8 @@ function ProfilTab({
           </form>
         </Abschnitt>
 
-        <Abschnitt titel="Aktive Sessions" beschreibung="Aktuell angemeldete Geräte">
-          <div className="border border-gray-100 rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 bg-white">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Aktuelle Sitzung</p>
-                <p className="text-xs text-gray-400 mt-0.5">{userEmail}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium">
-                  Aktiv
-                </span>
-                <p className="text-xs text-gray-400 mt-1">Zuletzt: {letzteAnmeldung}</p>
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-gray-400 mt-3">
-            Weitere Session-Verwaltung folgt in einer zukünftigen Version.
-          </p>
+        <Abschnitt titel="Aktive Sessions" beschreibung="Geräte und Browser, die aktuell mit deinem Konto eingeloggt sind">
+          <SessionsListe initialSessions={sessions} />
         </Abschnitt>
       </div>
     </div>
@@ -1524,6 +1506,7 @@ export default function EinstellungenTabs({
   userVorname,
   userNachname,
   lastSignIn,
+  sessions,
   branding,
   vorlagen,
   changelog,
@@ -1539,6 +1522,7 @@ export default function EinstellungenTabs({
   userVorname: string | null
   userNachname: string | null
   lastSignIn: string | null
+  sessions: SessionInfo[]
   branding: Branding | null
   vorlagen: VertragsVorlage[]
   changelog: ChangelogEntry[]
@@ -1588,7 +1572,7 @@ export default function EinstellungenTabs({
 
       {/* ── Content-Bereich ────────────────────────────────── */}
       <div className="flex-1 min-w-0 py-4">
-        {aktuellerTab === 'profil'             && <ProfilTab userEmail={userEmail} userAvatarUrl={userAvatarUrl} userVorname={userVorname} userNachname={userNachname} lastSignIn={lastSignIn} />}
+        {aktuellerTab === 'profil'             && <ProfilTab userEmail={userEmail} userAvatarUrl={userAvatarUrl} userVorname={userVorname} userNachname={userNachname} lastSignIn={lastSignIn} sessions={sessions} />}
         {aktuellerTab === 'firma'              && <FirmaTab organisation={organisation} istAdmin={istAdmin} />}
         {aktuellerTab === 'workspace'          && <WorkspaceTab einstellungen={einstellungen} organisation={organisation} istAdmin={istAdmin} />}
         {aktuellerTab === 'branding' && istAdmin && <BrandingTab branding={branding} />}

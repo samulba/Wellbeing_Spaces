@@ -5,6 +5,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Einstellungen → Profil: aktive Sessions tatsächlich verwalten
+- Der bisherige Platzhalter „Aktive Sessions" zeigte nur die aktuelle Sitzung mit dem Hinweis „weitere Session-Verwaltung folgt". Jetzt voll funktional:
+- Liste **aller eingeloggten Geräte / Browser** für den eigenen Account — pro Eintrag erkennbarer Browser + OS (Chrome auf macOS, Safari auf iPhone …), letzte Aktivität (relativ, z. B. „vor 12 Min."), Anmeldedatum, IP.
+- Aktuelle Sitzung wird mit grünem Rand, grünem Icon und „Diese Sitzung"-Badge oben prominent markiert — du läufst nicht Gefahr, dich versehentlich selbst rauszuwerfen.
+- **Pro Session abmelden**: roter „Abmelden"-Button rechts an jeder fremden Session, mit Bestätigungs-Modal.
+- **„Alle anderen Geräte abmelden"**: ein Klick + Bestätigung → alle Sitzungen außer dieser werden invalidiert. Praktisch, falls man auf einem fremden Gerät vergessen hat sich abzumelden oder einen unbefugten Zugriff vermutet.
+- Migration **088** nötig (RPC-Funktionen `get_meine_sessions` + `session_beenden`, beide SECURITY DEFINER, lesen/löschen nur Sessions des aktuellen Users).
+
 ### Partner: Auto-Favicon + Bewertungs-Filter (Phase C)
 - **Auto-Favicon als Logo**: Sobald du beim Partner eine **Website** hinterlegst und (noch) kein eigenes Logo hochgeladen ist, ziehen wir das **Favicon der Domain** automatisch über Google's Favicon-Service als Logo-Bild ein. Funktioniert beim Anlegen UND beim späteren Bearbeiten der Website. Eigene Logo-Uploads werden niemals überschrieben.
 - **Bewertungs-Filter** in der Partner-Liste: Toggle-Leiste „Alle / 3+ / 4+ / 5+ Sterne" oben rechts. Findest sofort die Top-Partner, mit denen du arbeiten willst.

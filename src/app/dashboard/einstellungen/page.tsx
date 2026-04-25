@@ -4,6 +4,7 @@ import { teamMitgliederAbrufen, meineRolleAbrufen } from '@/app/actions/team'
 import { brandingAbrufen } from '@/app/actions/branding'
 import { getVorlagen } from '@/app/actions/vertraege'
 import { getAktuelleOrganisation } from '@/app/actions/organisation'
+import { getMeineSessions } from '@/app/actions/sessions'
 import EinstellungenTabs from '@/components/EinstellungenTabs'
 import StickyPageHeader from '@/components/StickyPageHeader'
 import { getChangelog } from '@/lib/changelog'
@@ -17,7 +18,7 @@ export default async function EinstellungenPage({
   const tab = tabParam ?? 'profil'
 
   const supabase = await createClient()
-  const [{ data: { user } }, einstellungen, team, userRolle, branding, vorlagen, organisation] = await Promise.all([
+  const [{ data: { user } }, einstellungen, team, userRolle, branding, vorlagen, organisation, sessions] = await Promise.all([
     supabase.auth.getUser(),
     getEinstellungen(),
     teamMitgliederAbrufen(),
@@ -25,6 +26,7 @@ export default async function EinstellungenPage({
     brandingAbrufen(),
     getVorlagen(),
     getAktuelleOrganisation(),
+    getMeineSessions(),
   ])
 
   const changelog = getChangelog()
@@ -60,6 +62,7 @@ export default async function EinstellungenPage({
           userVorname={userVorname}
           userNachname={userNachname}
           lastSignIn={user?.last_sign_in_at ?? null}
+          sessions={sessions}
           branding={branding}
           vorlagen={vorlagen}
           changelog={changelog}
