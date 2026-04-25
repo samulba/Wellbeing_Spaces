@@ -5,6 +5,15 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Produkt-Auto-Fill: AI-Fallback + Screenshot-Upload (Phase B)
+- **Universeller AI-Fallback**: Wenn der klassische Scraper auf einer Seite zu wenig findet (weniger als 3 von Titel/Beschreibung/Preis/Art-Nr./Bilder/Maße), eskaliert das System automatisch zu **Claude Haiku 4.5**. Das Modell liest den bereinigten Seitentext und extrahiert die fehlenden Felder strukturiert. Funktioniert auf praktisch jeder Seite — auch bei custom-HTML ohne JSON-LD/Microdata.
+- **Screenshot-Upload als Alternative**: Neuer Knopf „Screenshot" neben „Auto-Fill" im Produktformular. Drag-and-Drop oder Klick → Bild hochladen (PNG/JPG/WebP/GIF, max. 5 MB) → **Claude Sonnet 4.6 Vision** liest die sichtbaren Daten aus. Ideal für Seiten hinter Cloudflare/Login oder JavaScript-only-Shops, die der Server-Scraper nicht erreicht.
+- **AI-Sichtbarkeit**: Im Übernahme-Modal kennzeichnet ein kleines violettes „✨ AI"-Badge, wenn das Modell beteiligt war — keine versteckten AI-Magie, du siehst sofort wo's herkam.
+- **Konservatives Verhalten**: Das Modell darf Felder NUR setzen wenn die Info eindeutig auf der Seite ist — keine Halluzinationen, keine geratenen Werte, keine Marketing-Floskeln. Bei Unsicherheit → Feld bleibt leer.
+- Server-Voraussetzung: `ANTHROPIC_API_KEY` als Env-Variable in Vercel + lokal in `.env.local`. Ohne Key funktioniert weiter alles wie in Phase A — nur der AI-Pfad ist deaktiviert.
+- Cost-Realität: ~0,001 € pro HTML-Fallback (Haiku) und ~0,005 € pro Screenshot (Sonnet). Bei 100 Scrapes/Monat unter 1 €.
+- Keine Migration nötig.
+
 ### Produkt-Auto-Fill: deutlich mehr Shops + mehrere Bilder + Auto-Partner (Phase A)
 - **Mehrere Bilder** statt nur ein og:image: Scraper sammelt Produktbilder aus JSON-LD-Arrays, Shopify-/WooCommerce-Galerien, Microdata, `<picture>`-Sources und Karussell-Containern. Im AutoFill-Modal kannst du sie als **Grid** mit Klick auswählen (max. 5 werden übernommen, „Alle / Keine"-Buttons).
 - **Bessere Erfolgsquote bei Nicht-IKEA-Shops**: zusätzlicher Microdata-Layer (`itemprop="…"`), RDFa, MPN/GTIN als Artikelnummer-Fallback, Shop-spezifische Selektoren für Shopify, WooCommerce und Magento (Titel, Preis, SKU). Bessere Preis-Parsung für europäische Formate (1.234,56 €).

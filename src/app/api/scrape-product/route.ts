@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { load, type CheerioAPI } from 'cheerio'
 import { createClient, getOrganisationIdOrNull } from '@/lib/supabase/server'
+import { aiExtractFromHtml } from '@/lib/ai-product-scraper'
 
 export type ScraperErgebnis = {
   title:         string | null
@@ -17,6 +18,7 @@ export type ScraperErgebnis = {
   // Meta
   quelle_domain: string | null
   partner_match: { id: string; name: string } | null
+  ai_used:       boolean             // true wenn Claude den Extraktor übernommen hat
 }
 
 // ── Hilfsfunktionen ──────────────────────────────────────────
@@ -390,6 +392,7 @@ export async function GET(req: Request) {
       hoehe_cm:      null,
       quelle_domain: hostname,
       partner_match: null,
+      ai_used:       false,
     }
 
     // Extraktoren in Prioritäts-Reihenfolge
@@ -399,6 +402,32 @@ export async function GET(req: Request) {
     extrahiereShopSpezifisch($, erg)
 
     erg.images = sammleBilder($, url)
+
+    // ── AI-Fallback: wenn klassische Extraktion zu wenig findet ──
+    // Schwelle: < 3 sinnvolle Felder. Bilder zählen als 1 Feld.
+    const fuellGrad =
+      (erg.title ? 1 : 0) +
+      (erg.description ? 1 : 0) +
+      (erg.price != null ? 1 : 0) +
+      (erg.artikelnummer ? 1 : 0) +
+      (erg.images.length > 0 ? 1 : 0) +
+      ((erg.breite_cm != null || erg.tiefe_cm != null || erg.hoehe_cm != null) ? 1 : 0)
+    if (fuellGrad < 3) {
+      const aiData = await aiExtractFromHtml(html, hostname)
+      if (aiData) {
+        erg.ai_used = true
+        if (!erg.title         && aiData.title)         erg.title         = aiData.title
+        if (!erg.description   && aiData.description)   erg.description   = aiData.description
+        if (erg.price == null  && aiData.price != null) erg.price         = aiData.price
+        if (!erg.artikelnummer && aiData.artikelnummer) erg.artikelnummer = aiData.artikelnummer
+        if (!erg.material      && aiData.material)      erg.material      = aiData.material
+        if (!erg.farbe         && aiData.farbe)         erg.farbe         = aiData.farbe
+        if (!erg.lieferzeit    && aiData.lieferzeit)    erg.lieferzeit    = aiData.lieferzeit
+        if (erg.breite_cm == null && aiData.breite_cm != null) erg.breite_cm = aiData.breite_cm
+        if (erg.tiefe_cm  == null && aiData.tiefe_cm  != null) erg.tiefe_cm  = aiData.tiefe_cm
+        if (erg.hoehe_cm  == null && aiData.hoehe_cm  != null) erg.hoehe_cm  = aiData.hoehe_cm
+      }
+    }
 
     // Partner-Match per Domain
     const orgId = await getOrganisationIdOrNull()
