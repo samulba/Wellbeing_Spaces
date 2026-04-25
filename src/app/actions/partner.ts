@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import type { PartnerKondition, PartnerKonditionTyp, Json } from '@/lib/supabase/types'
 
+export type AltNotizResult = { fehler?: string; erfolg?: boolean }
+
 export type PartnerActionState = { fehler: string } | null
 
 // ── Partner CRUD ──────────────────────────────────────────────
@@ -34,7 +36,6 @@ export async function partnerAnlegen(
         ? parseFloat(provisionsWertRaw)
         : null,
     einkaufskonditionen: (formData.get('einkaufskonditionen') as string) || null,
-    notizen: (formData.get('notizen') as string) || null,
     partner_typ: (formData.get('partner_typ') as string) || null,
     zahlungsziel_tage: zahlungszielRaw ? parseInt(zahlungszielRaw) : null,
     iban: (formData.get('iban') as string) || null,
@@ -77,7 +78,6 @@ export async function partnerAktualisieren(
           ? parseFloat(provisionsWertRaw)
           : null,
       einkaufskonditionen: (formData.get('einkaufskonditionen') as string) || null,
-      notizen: (formData.get('notizen') as string) || null,
       partner_typ: (formData.get('partner_typ') as string) || null,
       zahlungsziel_tage: zahlungszielRaw ? parseInt(zahlungszielRaw) : null,
       iban: (formData.get('iban') as string) || null,
@@ -106,6 +106,45 @@ export async function partnerSoftDelete(id: string): Promise<void> {
 
   revalidatePath('/dashboard/partner')
   redirect('/dashboard/partner')
+}
+
+/**
+ * Hebt den Inhalt aus dem alten Freitext-Feld `partner.notizen` als regulären
+ * Eintrag in die `notizen`-Tabelle und nullt anschliessend das Alt-Feld.
+ * Damit verschwindet die "(alt)"-Anzeige ohne Datenverlust.
+ */
+export async function partnerAltNotizUebernehmen(partnerId: string): Promise<AltNotizResult> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { data: partner } = await supabase
+    .from('partner')
+    .select('notizen')
+    .eq('id', partnerId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+
+  const inhalt = partner?.notizen?.trim()
+  if (!inhalt) return { erfolg: true }
+
+  const { error: insErr } = await supabase.from('notizen').insert({
+    typ:             'partner',
+    referenz_id:     partnerId,
+    inhalt,
+    erstellt_von:    user?.email ?? null,
+    organisation_id: orgId,
+  })
+  if (insErr) return { fehler: 'Fehler beim Übernehmen der Notiz.' }
+
+  await supabase
+    .from('partner')
+    .update({ notizen: null })
+    .eq('id', partnerId)
+    .eq('organisation_id', orgId)
+
+  revalidatePath(`/dashboard/partner/${partnerId}`)
+  return { erfolg: true }
 }
 
 // ── Partner-Konditionen ───────────────────────────────────────

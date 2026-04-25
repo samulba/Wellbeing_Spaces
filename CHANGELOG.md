@@ -5,6 +5,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Partner-Bereich aufgeräumt (Phase A)
+- **Sub-Tabs auf der Partner-Detailseite**: Übersicht · Konditionen · Verträge · Produkte. URL merkt sich den aktiven Tab (`?tab=konditionen` o. ä.). Damit ist die Seite nicht mehr eine endlose Spaltenwand — jeder Bereich bekommt seinen eigenen Platz.
+- **Produkte komplett neu — zwei Ansichten:**
+  - **Sortiment**: 1 Zeile pro Produkt, aggregiert. Zeigt „In 3 Räumen verbaut · 8 Stk. · 2 bestellt (1 geliefert)". Status / Raum / Menge sind hier weg, weil sie pro Einsatz unterschiedlich sind.
+  - **Einsatz**: 1 Zeile pro tatsächlicher Raum-Zuweisung mit eigenem Bestellstatus + Freigabestatus, Projekt + Raum direkt verlinkt, Menge, effektivem VP. Filter nach Projekt + Bestell-Status, Volltextsuche, Summen-Footer.
+- **KPI-Kacheln neu**: Bestellter Umsatz · Aktive Bestellungen · Offene Lieferungen — viel nützlicher fürs tägliche Reporting als das vorher dreifach gespiegelte Provisions-Modell.
+- **„Notizen (alt)"-Feld**: aus dem Partner-Formular entfernt. Wenn ein Partner noch Inhalt im alten Freitext-Feld hat, erscheint auf der Übersicht ein gelber Banner mit der bisherigen Notiz und einem Knopf „In Notizen-Block übernehmen" — ein Klick und der Inhalt wandert in den modernen Notizen-Block, der Banner verschwindet. **Keine Migration nötig**, kein Datenverlust.
+
 ### Dashboard: „Laufende Projekte"-Zähler korrekt
 - KPI-Kachel **„Laufende Projekte"** zählt jetzt auch Projekte mit Status „Warten auf Kunde" — ein Projekt das auf eine Kundenfreigabe wartet ist immer noch ein laufendes Projekt, nicht abgeschlossen.
 - Gleiche Logik bei „Nächste Deadlines" und „Budget-Übersicht": alles außer „Abgeschlossen" und Archiviert wird angezeigt.

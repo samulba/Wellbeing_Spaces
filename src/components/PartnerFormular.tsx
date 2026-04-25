@@ -259,17 +259,9 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
           className={`${inp} resize-none`}
           placeholder="Rabattstaffel, Mindestbestellwert, Zahlungsziel, besondere Konditionen…"
         />
-      </div>
-
-      {/* Notizen */}
-      <div>
-        <label htmlFor="notizen" className={lbl}>Notizen</label>
-        <textarea
-          id="notizen" name="notizen" rows={3}
-          defaultValue={initialData?.notizen ?? ''}
-          className={`${inp} resize-none`}
-          placeholder="Allgemeine Anmerkungen zum Partner…"
-        />
+        <p className="mt-1 text-[11px] text-gray-400">
+          Längere Anmerkungen zum Partner kannst du auf der Detailseite im Notizen-Block ablegen.
+        </p>
       </div>
 
       {/* Aktionen */}

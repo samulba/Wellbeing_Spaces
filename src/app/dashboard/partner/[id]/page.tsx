@@ -5,18 +5,16 @@ import { partnerSoftDelete, getPartnerKonditionen } from '@/app/actions/partner'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
-import PartnerProduktHinzufuegen from '@/components/PartnerProduktHinzufuegen'
 import PartnerKonditionenBlock from '@/components/PartnerKonditionenBlock'
 import PartnerVertraegeBlock from '@/components/PartnerVertraegeBlock'
+import PartnerDetailTabs from '@/components/PartnerDetailTabs'
+import PartnerProdukteTab, { type SortimentEintrag, type EinsatzEintrag } from '@/components/PartnerProdukteTab'
+import PartnerAltNotizBanner from '@/components/PartnerAltNotizBanner'
 import { vertraegeAbrufen } from '@/app/actions/partner-vertraege'
-import { ExternalLink, Mail, Phone, Globe, Star, MapPin } from 'lucide-react'
-
-type ProduktMitRaum = {
-  id: string; name: string; menge: number; einheit: string
-  verkaufspreis: number | null
-  raeume: { id: string; name: string; projekte: { id: string; name: string } | null } | null
-  produktstatus: { status: string } | null
-}
+import {
+  ExternalLink, Mail, Phone, Globe, Star, MapPin,
+  ShoppingCart, Truck, Banknote,
+} from 'lucide-react'
 
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
@@ -26,16 +24,7 @@ const modellBadge: Record<string, string> = {
   Fix:         'bg-emerald-50 text-emerald-700',
   Individuell: 'bg-gray-100 text-gray-600',
 }
-const statusBadge: Record<string, string> = {
-  ausstehend:     'bg-gray-100 text-gray-500',
-  freigegeben:    'bg-emerald-50 text-emerald-700',
-  abgelehnt:      'bg-red-50 text-red-600',
-  ueberarbeitung: 'bg-amber-50 text-amber-700',
-}
-const statusLabel: Record<string, string> = {
-  ausstehend: 'Ausstehend', freigegeben: 'Freigegeben',
-  abgelehnt: 'Abgelehnt', ueberarbeitung: 'Überarbeitung',
-}
+
 const partnerTypLabel: Record<string, string> = {
   lieferant:   'Lieferant',
   hersteller:  'Hersteller',
@@ -43,7 +32,6 @@ const partnerTypLabel: Record<string, string> = {
   planer:      'Planer',
   sonstiges:   'Sonstiges',
 }
-
 
 async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
   const supabase = await createClient()
@@ -59,48 +47,153 @@ async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
 
 export default async function PartnerDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
-  const [{ data: partner }, { data: produkte }, { data: bestellteRows }, notizen, konditionen, vertraege] = await Promise.all([
-    supabase.from('partner').select('*').eq('id', params.id).is('deleted_at', null).single(),
-    supabase
-      .from('produkte')
-      .select('id, name, menge, einheit, verkaufspreis, produktstatus(status), raeume(id, name, projekte(id, name))')
-      .eq('partner_id', params.id).is('deleted_at', null)
-      .order('created_at', { ascending: false }),
-    // Gesamtumsatz nur über tatsächlich bestellte raum_produkte – nicht über
-    // alle Bibliothekszuordnungen. Quelle: raum_produkte.bestellstatus (Mig. 076).
-    supabase
-      .from('raum_produkte')
-      .select('menge, verkaufspreis_override, bestellstatus, produkte!inner(verkaufspreis, partner_id, deleted_at)')
-      .eq('produkte.partner_id', params.id)
-      .is('produkte.deleted_at', null)
-      .in('bestellstatus', ['bestellt', 'geliefert', 'rechnung_erhalten']),
+
+  // Partner zuerst laden – brauchen wir für die Folge-Queries (insb. RLS-Sicht)
+  const { data: partner } = await supabase
+    .from('partner')
+    .select('*')
+    .eq('id', params.id)
+    .is('deleted_at', null)
+    .single()
+  if (!partner) notFound()
+
+  // Bibliotheks-Produkte dieses Partners (Sortiment-Basis)
+  const { data: produkte } = await supabase
+    .from('produkte')
+    .select('id, name, artikelnummer, einheit, verkaufspreis, bilder_urls')
+    .eq('partner_id', params.id)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+
+  type ProduktBasis = {
+    id: string
+    name: string
+    artikelnummer: string | null
+    einheit: string | null
+    verkaufspreis: number | null
+    bilder_urls: string[] | null
+  }
+  const produkteBasis = (produkte ?? []) as ProduktBasis[]
+  const produktIds   = produkteBasis.map((p) => p.id)
+
+  // Alle raum_produkte-Einsätze für diese Produkte (Einsatz-Basis)
+  type RpRow = {
+    id: string
+    produkt_id: string
+    menge: number
+    verkaufspreis_override: number | null
+    rabatt_prozent: number | null
+    bestellstatus: 'ausstehend' | 'bestellt' | 'geliefert' | 'rechnung_erhalten'
+    freigabe_status: 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung'
+    raeume: {
+      id: string
+      name: string
+      deleted_at: string | null
+      projekte: { id: string; name: string; deleted_at: string | null } | null
+    } | null
+  }
+  const { data: rpRows } = produktIds.length > 0
+    ? await supabase
+        .from('raum_produkte')
+        .select('id, produkt_id, menge, verkaufspreis_override, rabatt_prozent, bestellstatus, freigabe_status, raeume!inner(id, name, deleted_at, projekte!inner(id, name, deleted_at))')
+        .in('produkt_id', produktIds)
+    : { data: [] as RpRow[] }
+  const einsatzRaw = ((rpRows ?? []) as unknown as RpRow[]).filter(
+    (e) => e.raeume && !e.raeume.deleted_at && e.raeume.projekte && !e.raeume.projekte.deleted_at,
+  )
+
+  // Notizen / Konditionen / Verträge parallel
+  const [notizen, konditionen, vertraege] = await Promise.all([
     getPartnerNotizen(params.id),
     getPartnerKonditionen(params.id),
     vertraegeAbrufen(params.id),
   ])
 
-  if (!partner) notFound()
+  // ── KPI-Aggregate ────────────────────────────────────────────
+  // VP-Effektiv pro Einsatz (override → rabatt) * menge — nur für „bestellt+"
+  const aktiveStatus = ['bestellt', 'geliefert', 'rechnung_erhalten'] as const
+  type AktiverStatus = (typeof aktiveStatus)[number]
+  const istAktiv = (s: string): s is AktiverStatus => (aktiveStatus as readonly string[]).includes(s)
+  const istGeliefert = (s: string) => s === 'geliefert' || s === 'rechnung_erhalten'
+
+  const produktById = new Map(produkteBasis.map((p) => [p.id, p]))
+  function effPreis(rp: RpRow): number {
+    const basis = rp.verkaufspreis_override ?? produktById.get(rp.produkt_id)?.verkaufspreis ?? 0
+    const rabatt = rp.rabatt_prozent ?? 0
+    return Math.round(basis * (1 - rabatt / 100) * 100) / 100
+  }
+
+  let bestellterUmsatz = 0
+  let aktiveBestellungen = 0
+  let offeneLieferungen = 0
+  for (const rp of einsatzRaw) {
+    if (istAktiv(rp.bestellstatus)) {
+      bestellterUmsatz   += effPreis(rp) * rp.menge
+      aktiveBestellungen += 1
+      if (!istGeliefert(rp.bestellstatus)) offeneLieferungen += 1
+    }
+  }
+
+  // ── Sortiment-Liste ──────────────────────────────────────────
+  type Agg = { raumIds: Set<string>; menge: number; bestellt: number; geliefert: number }
+  const agg = new Map<string, Agg>()
+  for (const rp of einsatzRaw) {
+    const cur = agg.get(rp.produkt_id) ?? { raumIds: new Set(), menge: 0, bestellt: 0, geliefert: 0 }
+    if (rp.raeume) cur.raumIds.add(rp.raeume.id)
+    cur.menge += rp.menge
+    if (istAktiv(rp.bestellstatus))   cur.bestellt  += 1
+    if (istGeliefert(rp.bestellstatus)) cur.geliefert += 1
+    agg.set(rp.produkt_id, cur)
+  }
+  const sortiment: SortimentEintrag[] = produkteBasis.map((p) => {
+    const a = agg.get(p.id) ?? { raumIds: new Set(), menge: 0, bestellt: 0, geliefert: 0 }
+    return {
+      id:            p.id,
+      name:          p.name,
+      artikelnummer: p.artikelnummer,
+      bild_url:      (p.bilder_urls && p.bilder_urls.length > 0) ? p.bilder_urls[0] : null,
+      einheit:       p.einheit ?? 'Stk.',
+      verkaufspreis: p.verkaufspreis,
+      raumCount:     a.raumIds.size,
+      mengeGesamt:   a.menge,
+      bestellt:      a.bestellt,
+      geliefert:     a.geliefert,
+    }
+  })
+
+  // ── Einsatz-Liste ────────────────────────────────────────────
+  const einsatz: EinsatzEintrag[] = einsatzRaw
+    .map((rp) => {
+      const p = produktById.get(rp.produkt_id)
+      if (!p || !rp.raeume?.projekte) return null
+      return {
+        raumProduktId:  rp.id,
+        produktId:      rp.produkt_id,
+        produktName:    p.name,
+        artikelnummer:  p.artikelnummer,
+        bild_url:       (p.bilder_urls && p.bilder_urls.length > 0) ? p.bilder_urls[0] : null,
+        projektId:      rp.raeume.projekte.id,
+        projektName:    rp.raeume.projekte.name,
+        raumId:         rp.raeume.id,
+        raumName:       rp.raeume.name,
+        einheit:        p.einheit ?? 'Stk.',
+        menge:          rp.menge,
+        preisEffektiv:  effPreis(rp),
+        bestellstatus:  rp.bestellstatus,
+        freigabeStatus: rp.freigabe_status,
+      } as EinsatzEintrag
+    })
+    .filter((e): e is EinsatzEintrag => e != null)
+    .sort((a, b) => a.projektName.localeCompare(b.projektName) || a.raumName.localeCompare(b.raumName))
 
   const loeschenAktion = partnerSoftDelete.bind(null, partner.id)
-  type BestellRow = {
-    menge: number
-    verkaufspreis_override: number | null
-    bestellstatus: string
-    produkte: { verkaufspreis: number | null } | null
-  }
-  const bestellteUmsatz = ((bestellteRows ?? []) as unknown as BestellRow[])
-    .reduce((s, r) => {
-      const ep = r.verkaufspreis_override ?? r.produkte?.verkaufspreis ?? 0
-      return s + ep * (r.menge ?? 0)
-    }, 0)
-  const gesamtUmsatz   = bestellteUmsatz
-  const produktListe   = (produkte ?? []) as unknown as ProduktMitRaum[]
   const bewertung      = partner.bewertung as number | null
 
+  // ── UI ───────────────────────────────────────────────────────
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-5">
           <LogoUpload typ="partner" entityId={partner.id} initialLogoUrl={partner.logo_url} name={partner.name} />
           <div>
@@ -151,205 +244,177 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      {/* 3 Info-Kacheln */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-1">Provisionsmodell</p>
-          <p className="text-lg font-semibold text-gray-900">{partner.provisionsmodell ?? '–'}</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-1">Provisionssatz</p>
-          <p className="text-lg font-semibold text-gray-900 font-mono">
-            {partner.provisions_wert != null
-              ? partner.provisionsmodell === 'Prozent'
-                ? `${partner.provisions_wert} %`
-                : eur(partner.provisions_wert)
-              : '–'}
-          </p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-1">Bestellter Umsatz (VP netto)</p>
-          <p className="text-lg font-semibold text-wellbeing-green font-mono">{gesamtUmsatz > 0 ? eur(gesamtUmsatz) : '–'}</p>
-          <p className="text-[11px] text-gray-400 mt-1">Nur Produkte mit Bestellstatus &bdquo;bestellt&ldquo; / &bdquo;geliefert&ldquo; / &bdquo;Rechnung erhalten&ldquo;</p>
-        </div>
+      {/* KPI-Kacheln (3 nützliche statt Provisionsmodell+Satz dupliziert) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <KpiKarte
+          icon={<Banknote className="w-4 h-4" />}
+          tone="emerald"
+          label="Bestellter Umsatz"
+          value={bestellterUmsatz > 0 ? eur(bestellterUmsatz) : '–'}
+          hint={'Nur Positionen mit Bestellstatus „bestellt", „geliefert" oder „Rechnung erhalten".'}
+        />
+        <KpiKarte
+          icon={<ShoppingCart className="w-4 h-4" />}
+          tone="amber"
+          label="Aktive Bestellungen"
+          value={aktiveBestellungen}
+          hint="Anzahl Positionen, die mindestens als bestellt markiert sind."
+        />
+        <KpiKarte
+          icon={<Truck className="w-4 h-4" />}
+          tone="blue"
+          label="Offene Lieferungen"
+          value={offeneLieferungen}
+          hint="Bestellt, aber noch nicht geliefert oder Rechnung erhalten."
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Linke Spalte */}
-        <div className="space-y-4">
-          {/* Kontakt */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Kontakt</h2>
-            <dl className="space-y-3">
-              {partner.ansprechpartner && (
-                <div>
-                  <dt className="text-xs text-gray-400 mb-0.5">Ansprechpartner</dt>
-                  <dd className="text-sm text-gray-800 font-medium">{partner.ansprechpartner}</dd>
-                </div>
-              )}
-              {partner.email && (
-                <div>
-                  <dt className="text-xs text-gray-400 mb-0.5">E-Mail</dt>
-                  <dd>
-                    <a href={`mailto:${partner.email}`} className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
-                      <Mail className="w-3.5 h-3.5 text-gray-400" />{partner.email}
-                    </a>
-                  </dd>
-                </div>
-              )}
-              {partner.telefon && (
-                <div>
-                  <dt className="text-xs text-gray-400 mb-0.5">Telefon</dt>
-                  <dd>
-                    <a href={`tel:${partner.telefon}`} className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
-                      <Phone className="w-3.5 h-3.5 text-gray-400" />{partner.telefon}
-                    </a>
-                  </dd>
-                </div>
-              )}
-              {partner.website && (
-                <div>
-                  <dt className="text-xs text-gray-400 mb-0.5">Website</dt>
-                  <dd>
-                    <a href={partner.website} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
-                      <Globe className="w-3.5 h-3.5 text-gray-400" />
-                      {partner.website.replace(/^https?:\/\/(www\.)?/, '')}
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </dd>
-                </div>
-              )}
-              {partner.ust_id && (
-                <div>
-                  <dt className="text-xs text-gray-400 mb-0.5">USt-IdNr.</dt>
-                  <dd className="text-sm text-gray-700 font-mono">{partner.ust_id}</dd>
-                </div>
-              )}
-              {partner.iban && (
-                <div>
-                  <dt className="text-xs text-gray-400 mb-0.5">IBAN</dt>
-                  <dd className="text-sm text-gray-700 font-mono tracking-wide">{partner.iban}</dd>
-                </div>
-              )}
-              {partner.zahlungsziel_tage != null && (
-                <div>
-                  <dt className="text-xs text-gray-400 mb-0.5">Zahlungsziel</dt>
-                  <dd className="text-sm text-gray-700">{partner.zahlungsziel_tage} Tage</dd>
-                </div>
-              )}
-              {partner.adresse && (
-                <div>
-                  <dt className="text-xs text-gray-400 mb-0.5">Adresse</dt>
-                  <dd className="flex items-start gap-1.5 text-sm text-gray-700 whitespace-pre-line leading-relaxed">
-                    <MapPin className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
-                    <span>{partner.adresse}</span>
-                  </dd>
-                </div>
-              )}
-              {!partner.ansprechpartner && !partner.email && !partner.telefon && !partner.ust_id && !partner.iban && !partner.adresse && (
-                <p className="text-sm text-gray-400">Keine Kontaktdaten hinterlegt.</p>
-              )}
-            </dl>
-          </div>
-
-          {/* Einkaufskonditionen */}
-          {partner.einkaufskonditionen && (
+      {/* Tabs */}
+      <PartnerDetailTabs
+        badgeKonditionen={konditionen.length}
+        badgeVertraege={vertraege.length}
+        badgeProdukte={einsatz.length}
+        uebersicht={
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Kontakt */}
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Einkaufskonditionen</h2>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{partner.einkaufskonditionen}</p>
-            </div>
-          )}
-
-          {/* Alte Notizen (Freitextfeld) */}
-          {partner.notizen && (
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Notizen (alt)</h2>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{partner.notizen}</p>
-            </div>
-          )}
-
-          <NotizBlock typ="partner" referenzId={partner.id} initialNotizen={notizen} />
-        </div>
-
-        {/* Rechte Spalte (2/3) */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Konditionen */}
-          <PartnerKonditionenBlock partnerId={partner.id} initialKonditionen={konditionen} />
-
-          {/* Verträge & Dokumente (Migration 079) */}
-          <PartnerVertraegeBlock partnerId={partner.id} initialVertraege={vertraege} />
-
-          {/* Produkte-Tabelle */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-900">
-                Zugeordnete Produkte <span className="text-gray-400 font-normal">({produktListe.length})</span>
-              </h2>
-              <div className="flex items-center gap-3">
-                {gesamtUmsatz > 0 && (
-                  <span className="text-xs text-gray-500 font-mono">Bestellt: <span className="text-wellbeing-green font-semibold">{eur(gesamtUmsatz)}</span></span>
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Kontakt</h2>
+              <dl className="space-y-3">
+                {partner.ansprechpartner && (
+                  <div>
+                    <dt className="text-xs text-gray-400 mb-0.5">Ansprechpartner</dt>
+                    <dd className="text-sm text-gray-800 font-medium">{partner.ansprechpartner}</dd>
+                  </div>
                 )}
-                <PartnerProduktHinzufuegen partnerId={partner.id} />
-              </div>
+                {partner.email && (
+                  <div>
+                    <dt className="text-xs text-gray-400 mb-0.5">E-Mail</dt>
+                    <dd>
+                      <a href={`mailto:${partner.email}`} className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
+                        <Mail className="w-3.5 h-3.5 text-gray-400" />{partner.email}
+                      </a>
+                    </dd>
+                  </div>
+                )}
+                {partner.telefon && (
+                  <div>
+                    <dt className="text-xs text-gray-400 mb-0.5">Telefon</dt>
+                    <dd>
+                      <a href={`tel:${partner.telefon}`} className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
+                        <Phone className="w-3.5 h-3.5 text-gray-400" />{partner.telefon}
+                      </a>
+                    </dd>
+                  </div>
+                )}
+                {partner.website && (
+                  <div>
+                    <dt className="text-xs text-gray-400 mb-0.5">Website</dt>
+                    <dd>
+                      <a href={partner.website} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
+                        <Globe className="w-3.5 h-3.5 text-gray-400" />
+                        {partner.website.replace(/^https?:\/\/(www\.)?/, '')}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </dd>
+                  </div>
+                )}
+                {partner.ust_id && (
+                  <div>
+                    <dt className="text-xs text-gray-400 mb-0.5">USt-IdNr.</dt>
+                    <dd className="text-sm text-gray-700 font-mono">{partner.ust_id}</dd>
+                  </div>
+                )}
+                {partner.iban && (
+                  <div>
+                    <dt className="text-xs text-gray-400 mb-0.5">IBAN</dt>
+                    <dd className="text-sm text-gray-700 font-mono tracking-wide">{partner.iban}</dd>
+                  </div>
+                )}
+                {partner.zahlungsziel_tage != null && (
+                  <div>
+                    <dt className="text-xs text-gray-400 mb-0.5">Zahlungsziel</dt>
+                    <dd className="text-sm text-gray-700">{partner.zahlungsziel_tage} Tage</dd>
+                  </div>
+                )}
+                {partner.adresse && (
+                  <div>
+                    <dt className="text-xs text-gray-400 mb-0.5">Adresse</dt>
+                    <dd className="flex items-start gap-1.5 text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                      <MapPin className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+                      <span>{partner.adresse}</span>
+                    </dd>
+                  </div>
+                )}
+                {!partner.ansprechpartner && !partner.email && !partner.telefon && !partner.ust_id && !partner.iban && !partner.adresse && (
+                  <p className="text-sm text-gray-400">Keine Kontaktdaten hinterlegt.</p>
+                )}
+              </dl>
             </div>
 
-            {produktListe.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-sm text-gray-400">Noch keine Produkte diesem Partner zugeordnet.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[560px]">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50">
-                      <th className={th + ' text-left'}>Produkt</th>
-                      <th className={th + ' text-left'}>Projekt → Raum</th>
-                      <th className={th}>Menge</th>
-                      <th className={th}>VP netto</th>
-                      <th className={th}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {produktListe.map((p, i) => {
-                      const status = (p.produktstatus as { status: string } | null)?.status ?? 'ausstehend'
-                      return (
-                        <tr key={p.id} className={`hover:bg-gray-50 transition-colors ${i < produktListe.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                          <td className="px-4 py-3.5 font-medium text-gray-900">{p.name}</td>
-                          <td className="px-4 py-3.5 text-xs text-gray-500">
-                            {p.raeume ? (
-                              <>
-                                {p.raeume.projekte && (
-                                  <Link href={`/dashboard/projekte/${p.raeume.projekte.id}`}
-                                    className="hover:text-wellbeing-green transition-colors">
-                                    {p.raeume.projekte.name}
-                                  </Link>
-                                )}
-                                <span className="text-gray-400"> › {p.raeume.name}</span>
-                              </>
-                            ) : (
-                              <span className="inline-block px-2 py-0.5 text-[11px] bg-gray-100 text-gray-500 rounded-full font-medium">Bibliothek</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3.5 text-center text-gray-600">{p.menge} {p.einheit}</td>
-                          <td className="px-4 py-3.5 text-center font-mono text-gray-700">{p.verkaufspreis != null ? eur(p.verkaufspreis) : '–'}</td>
-                          <td className="px-4 py-3.5 text-center">
-                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusBadge[status] ?? 'bg-gray-100 text-gray-500'}`}>
-                              {statusLabel[status] ?? status}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {/* Notizen + Einkaufskonditionen + Alt-Notiz-Banner */}
+            <div className="space-y-4">
+              {partner.einkaufskonditionen && (
+                <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Einkaufskonditionen</h2>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{partner.einkaufskonditionen}</p>
+                </div>
+              )}
+              {partner.notizen && (
+                <PartnerAltNotizBanner partnerId={partner.id} inhalt={partner.notizen} />
+              )}
+              <NotizBlock typ="partner" referenzId={partner.id} initialNotizen={notizen} />
+            </div>
           </div>
-        </div>
-      </div>
+        }
+        konditionen={
+          <PartnerKonditionenBlock partnerId={partner.id} initialKonditionen={konditionen} />
+        }
+        vertraege={
+          <PartnerVertraegeBlock partnerId={partner.id} initialVertraege={vertraege} />
+        }
+        produkte={
+          <PartnerProdukteTab
+            partnerId={partner.id}
+            sortiment={sortiment}
+            einsatz={einsatz}
+          />
+        }
+      />
     </div>
   )
 }
 
-const th = 'px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-widest'
+// ── KPI-Karte ───────────────────────────────────────────────
+type KpiTone = 'emerald' | 'amber' | 'blue'
+const KPI_TONE: Record<KpiTone, { iconBg: string; iconText: string; valueText: string }> = {
+  emerald: { iconBg: 'bg-emerald-50', iconText: 'text-emerald-600', valueText: 'text-wellbeing-green' },
+  amber:   { iconBg: 'bg-amber-50',   iconText: 'text-amber-600',   valueText: 'text-amber-700' },
+  blue:    { iconBg: 'bg-blue-50',    iconText: 'text-blue-600',    valueText: 'text-blue-700' },
+}
+
+function KpiKarte({
+  icon, label, value, hint, tone = 'emerald',
+}: {
+  icon:  React.ReactNode
+  label: string
+  value: string | number
+  hint?: string
+  tone?: KpiTone
+}) {
+  const t = KPI_TONE[tone]
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+      <div className="flex items-start gap-3 mb-2">
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${t.iconBg} ${t.iconText}`}>
+          {icon}
+        </div>
+        <p className="text-xs text-gray-500 uppercase tracking-widest font-medium leading-tight pt-1">
+          {label}
+        </p>
+      </div>
+      <p className={`text-2xl font-semibold font-mono leading-tight ${t.valueText}`}>{value}</p>
+      {hint && <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">{hint}</p>}
+    </div>
+  )
+}
