@@ -855,22 +855,59 @@ function PartnerKapitel() {
   return (
     <div>
       <H2 id="partner-anlegen">Partner anlegen</H2>
-      <P>Partner sind Lieferanten, Hersteller oder Handwerksbetriebe, die einem Produkt zugewiesen werden können.</P>
-      <Ol>
-        <li>Seitenleiste → <strong>Partner</strong> → <strong>+ Neu</strong></li>
-        <li>Name eingeben (Pflicht)</li>
-        <li>Kontaktdaten und Website ergänzen</li>
-        <li>Speichern</li>
-      </Ol>
+      <P>Sidebar → <strong>Partner</strong> → <strong>+ Neuer Partner</strong>. Pflichtfeld ist nur der Name. Optional: Partner-Typ (Lieferant / Hersteller / Handwerker / Planer / Sonstiges), Website, Adresse, USt-IdNr., IBAN, Zahlungsziel, Bewertung (1–5 Sterne), Einkaufskonditionen, Provisionsmodell + -wert.</P>
+      <P>Ansprechpartner werden NICHT mehr im Formular erfasst — siehe Kontakte-Tab unten.</P>
 
       <Divider />
-      <H2 id="partner-provision">Provision</H2>
-      <P>Jedem Partner kann ein Standard-Provisionssatz (%) zugewiesen werden. Dieser Wert wird beim Anlegen eines neuen Produkts automatisch vorausgefüllt, wenn der Partner ausgewählt wird.</P>
-      <P>Die Provision wird berechnet als: <strong>VP netto × Provisions%</strong>. Sie erscheint nur in der internen Admin-Ansicht – nie beim Kunden.</P>
+      <H2 id="partner-tabs">Sub-Tabs</H2>
+      <P>Auf der Partner-Detail-Seite gibt es 5 Tabs (URL merkt sich den aktiven via <code>?tab=…</code>):</P>
+      <Ul>
+        <li><strong>Übersicht</strong> — Hauptkontakt-Mini-Karte, Firma-Karte (Website/USt/IBAN/Adresse), Notizen</li>
+        <li><strong>Kontakte</strong> — Kontaktpersonen-Verwaltung (siehe nächster Abschnitt)</li>
+        <li><strong>Konditionen</strong> — detaillierte Konditionen (siehe unten)</li>
+        <li><strong>Verträge</strong> — Datei-Upload für Rahmenverträge / NDAs</li>
+        <li><strong>Produkte</strong> — Sortiment + Einsatz (siehe unten)</li>
+      </Ul>
+      <P>KPI-Band oben: <strong>Bestellter Umsatz · Aktive Bestellungen · Offene Lieferungen</strong>.</P>
 
       <Divider />
-      <H2 id="partner-logo">Logo</H2>
-      <P>In der Partner-Detailansicht können Sie ein Logo hochladen. Es erscheint in der Produkttabelle neben dem Partnernamen und erleichtert die visuelle Zuordnung.</P>
+      <H2 id="partner-kontakte">Mehrere Kontakte</H2>
+      <P>Wie bei Kunden: beliebig viele Kontaktpersonen mit Name, Rolle (Vertrieb / Innendienst / GF / Buchhaltung / …), eigene E-Mail / Telefon / Mobil, Notizen. <strong>Hauptkontakt</strong> mit Stern-Badge wird in Listen + PDFs verwendet. Backwards-kompatibel über <code>partner.ansprechpartner/email/telefon</code>-Sync.</P>
+
+      <Divider />
+      <H2 id="partner-konditionen">Konditionen</H2>
+      <P>Komplexere Konditionen als der einfache Provisionssatz im Formular:</P>
+      <Ul>
+        <li><strong>Prozent fix</strong> — z. B. 15 % auf alles</li>
+        <li><strong>Prozent gestaffelt</strong> — JSON mit Staffelung (Umsatz X → Y %)</li>
+        <li><strong>Fixbetrag pro Einheit</strong></li>
+        <li><strong>Pro Kategorie</strong> — JSON mit Kategorie-Werten</li>
+        <li><strong>Skonto</strong>, <strong>Zahlungsziel</strong>, <strong>Gültigkeitszeitraum</strong></li>
+      </Ul>
+
+      <Divider />
+      <H2 id="partner-vertraege">Verträge / Dokumente</H2>
+      <P>Datei-Upload (PDF/DOCX, max. 50 MB) für Rahmenverträge, NDAs, Konditionsvereinbarungen. Pro Datei: Titel, Vertragstyp, Gültig-von/bis, Notizen. Storage in privatem Bucket mit Pfad-konvention <code>org/partner/file</code>.</P>
+
+      <Divider />
+      <H2 id="partner-produkte">Sortiment + Einsatz</H2>
+      <P>Im Produkte-Tab gibt es zwei Sub-Ansichten:</P>
+      <Ul>
+        <li><strong>Sortiment</strong> — 1 Zeile pro Bibliotheks-Produkt, aggregiert: &bdquo;In 3 Räumen verbaut · 8 Stk. · 2 bestellt (1 geliefert)&ldquo;. Status / Raum / Menge sind hier weg, weil sie pro Einsatz unterschiedlich sind.</li>
+        <li><strong>Einsatz</strong> — 1 Zeile pro Raum-Produkt-Einsatz mit eigenem Bestell- + Freigabestatus, Projekt + Raum verlinkt, Menge, effektivem VP. Filter nach Projekt + Bestellstatus, Volltextsuche, Summen-Footer.</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="partner-bewertung">Bewertung + Filter</H2>
+      <P>1–5 Sterne pro Partner. In der Partner-Liste:</P>
+      <Ul>
+        <li><strong>Bewertungs-Filter</strong> — Pills &bdquo;Alle / 3+ ⭐ / 4+ ⭐ / 5+ ⭐&ldquo;</li>
+        <li><strong>Sortierung</strong> — Name (A–Z) / Bewertung ↓ / Bewertung ↑</li>
+        <li>Sterne sichtbar in Karten- und Listen-Ansicht</li>
+      </Ul>
+      <InfoBox type="tip" title="Auto-Favicon">
+        Wenn Website hinterlegt + kein Logo: Favicon der Domain wird automatisch via Google-Service als Logo gesetzt. Eigene Uploads werden nie überschrieben.
+      </InfoBox>
     </div>
   )
 }
@@ -1034,7 +1071,78 @@ function VertraegeKapitel() {
     </div>
   )
 }
-function RaumplanerKapitel() { return <P>(folgt)</P> }
+function RaumplanerKapitel() {
+  return (
+    <div>
+      <H2 id="rp-start">Erste Schritte</H2>
+      <P>Der 2D-Raumplaner ist ein eigenständiger Editor, der pro Raum geöffnet wird:</P>
+      <Ol>
+        <li>Sidebar → <strong>Raumplaner</strong> zeigt alle Räume aller Projekte (mit/ohne Grundriss)</li>
+        <li>ODER auf der Raum-Detail-Seite → Button <strong>Raumplaner öffnen</strong></li>
+        <li>Editor öffnet sich vollflächig, NavSidebar wird ausgeblendet</li>
+      </Ol>
+      <P>Beim Erstaufruf gibst du Raumbreite + -länge ein — der Planer zeichnet automatisch die Raum-Kontur (geschützt, nicht löschbar). Auto-Save alle 3s.</P>
+
+      <Divider />
+      <H2 id="rp-tools">Werkzeuge</H2>
+      <P>Toolbar oben mit Tastatur-Shortcuts:</P>
+      <Ul>
+        <li><Kb keys={['V']} /> <strong>Auswählen</strong> — Objekte verschieben, drehen, skalieren</li>
+        <li><Kb keys={['W']} /> <strong>Wand</strong> — Klick-Klick zum Zeichnen, ESC oder Rechtsklick beendet</li>
+        <li><Kb keys={['K']} /> <strong>Kurve</strong> — gebogene Wände via 3-Klick-Bézier</li>
+        <li><Kb keys={['D']} /> <strong>Tür</strong>, <Kb keys={['F']} /> <strong>Fenster</strong> — auf Wand klicken, snappt automatisch</li>
+        <li><Kb keys={['M']} /> <strong>Maß</strong> — Distanzlinie mit Tick-Marken + Label</li>
+        <li><Kb keys={['E']} /> <strong>Radierer</strong>, <Kb keys={['N']} /> <strong>Notiz</strong>, <Kb keys={['S']} /> <strong>Form</strong></li>
+        <li><Kb keys={['?']} /> Shortcut-Overlay einblenden</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="rp-moebel">Möbel &amp; Custom</H2>
+      <P>Sidebar links: <strong>10 Möbel-Kategorien</strong> (Wohnzimmer / Schlafzimmer / Büro / Küche / Bad / Esszimmer / Garten / Wellness / Türen+Fenster / Elektro), 60+ vorgefertigte Symbole mit SVG-Draufsicht. Drag-and-Drop oder Klick zum Platzieren.</P>
+      <Ul>
+        <li>⭐ <strong>Favoriten</strong> — Stern-Icon klicken, erscheinen oben in der Sidebar (per Org gespeichert)</li>
+        <li><strong>Custom Möbel</strong> — eigene Möbel anlegen (Name, Maße, Kategorie, Farbe), erscheinen für deine ganze Org</li>
+        <li><strong>Produkt-Verknüpfung</strong> — Möbel-Objekt mit Bibliotheks-Produkt verknüpfen, Preise erscheinen im Kosten-Panel</li>
+        <li><strong>Snap-to-Grid</strong> (Magnet-Button), Zoom mit Mausrad, Pan mit Space + Maus oder Mittelmaus</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="rp-boden-waende">Boden + Wandfarbe</H2>
+      <P>Im rechten Panel:</P>
+      <Ul>
+        <li><strong>BODEN</strong>: 12 Texturen (Holz hell/dunkel, Parkett Fischgrät, Laminat, Fliesen, Marmor, Beton, Teppich) als Pattern-Fill</li>
+        <li><strong>WÄNDE</strong>: 16 Vorschlags-Farben + Custom Color Picker — alle Wände gleichzeitig</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="rp-etagen">Etagen / Stockwerke</H2>
+      <P>Tabs in der Toolbar: <strong>EG · OG · …</strong>. Pro Etage eigener Plan, Auto-Save schreibt in die aktive Etage. Neue Etage hinzufügen, leere löschen mit ×-Button.</P>
+
+      <Divider />
+      <H2 id="rp-versionen">Versionen</H2>
+      <P>Versions-Knopf öffnet ein Übersichts-Modal:</P>
+      <Ul>
+        <li><strong>Aktuelle Arbeit</strong> als oberste Karte</li>
+        <li>Liste älterer Versionen mit Mini-Vorschau, Datum, Beschreibung, Laden + Löschen</li>
+        <li><strong>Neue Version speichern</strong> via Sub-Modal mit Name + Beschreibung + Live-Vorschau</li>
+        <li><strong>Vergleichs-Ansicht</strong> ab 2 Versionen — V1/V2-Selektor side-by-side</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="rp-export">Export &amp; Freigabe</H2>
+      <Ul>
+        <li><strong>PDF</strong> — A4 Querformat mit grünem Header, Bounding-Box-Zoom (kein Beschnitt)</li>
+        <li><strong>PNG / JPG</strong> — Auflösung 1× / 2× / 4×, transparenter oder weißer Hintergrund</li>
+        <li><strong>Stückliste</strong> — Tabelle aller Möbel mit Maßen, Mengen, Preisen; CSV + XLSX-Export</li>
+        <li><strong>Kunden-Freigabe-Link</strong> — generiert <code>/raumplan/&lt;token&gt;</code>: read-only Vorschau für den Kunden mit Logo, Zoom, Pan, PNG/PDF-Download. Inkl. <strong>QR-Code</strong> zum Teilen.</li>
+        <li><strong>Aus Auswahl Angebot erstellen</strong> — sammelt alle verknüpften Produkte und legt direkt ein Angebot an</li>
+      </Ul>
+      <InfoBox type="tip" title="Bonus-Features">
+        Layer-System (6 Layer mit Sichtbarkeit + Sperre), Kollisionserkennung, automatische Maßketten, Flächen-Berechnung im Panel, Bild-Import als Referenzebene, 6 Raum-Templates, Notizen-Tool, Gruppieren (Strg+G).
+      </InfoBox>
+    </div>
+  )
+}
 
 function KategorienKapitel() {
   return (
@@ -1101,44 +1209,27 @@ function TeamKapitel() {
 function BrandingKapitel() {
   return (
     <div>
-      <H2 id="brand-logo">Logo & Favicon</H2>
-      <P>Das Unternehmens-Logo erscheint auf Freigabe-Links, Konfigurator-Sessions und Onboarding-Formularen, die Sie an Kunden versenden.</P>
-      <Ol>
-        <li>Einstellungen → <strong>Branding</strong></li>
-        <li>Im Bereich <strong>Logo hochladen</strong> eine Datei wählen</li>
-        <li>Auf <strong>Hochladen</strong> klicken</li>
-      </Ol>
-      <InfoBox type="info" title="Empfehlung">
-        Logo: PNG mit transparentem Hintergrund, min. 400 px Breite. Favicon: quadratisches PNG, 32 × 32 px.
-      </InfoBox>
+      <H2 id="brand-logo">Logo &amp; Favicon</H2>
+      <P>Sidebar → <strong>Einstellungen → Branding</strong>. Logo (PNG mit transparentem Hintergrund, min. 400 px) wird auf Freigabe-Links, Onboarding, Portal und PDF-Exporten verwendet. Favicon ist optional separat.</P>
 
       <Divider />
       <H2 id="brand-farben">Farben anpassen</H2>
-      <P>Sechs Farb-Slots stehen zur Verfügung:</P>
-      <Ul>
-        <li><strong>Primärfarbe</strong> – Hauptakzentfarbe (Buttons, aktive Elemente)</li>
-        <li><strong>Sekundärfarbe</strong> – Untergeordnete Akzente</li>
-        <li><strong>Akzentfarbe</strong> – Highlights und Call-to-Action</li>
-        <li><strong>Hintergrundfarbe</strong> – Seitenhintergrund der Kundenansicht</li>
-        <li><strong>Textfarbe</strong> – Haupttextfarbe</li>
-      </Ul>
-      <P>Klicken Sie auf das Farbfeld oder geben Sie einen Hex-Code direkt ein.</P>
+      <P>Sechs Farb-Slots: <strong>Primärfarbe</strong> (Buttons), <strong>Button-Textfarbe</strong>, <strong>Sekundärfarbe</strong>, <strong>Akzentfarbe</strong> (Hintergründe / Hervorhebungen), <strong>Hintergrundfarbe</strong>, <strong>Textfarbe</strong>. Klick auf Farbfeld öffnet Color-Picker, oder direkter Hex-Eingabe. Optionaler <strong>Akzent-Verlauf</strong> (Gradient) mit zwei Stop-Farben.</P>
 
       <Divider />
-      <H2 id="brand-schrift">Schriftart wählen</H2>
-      <P>Wählen Sie aus vordefinierten Google Fonts für die Kundenansicht: Inter, Syne, DM Sans, Playfair Display, Lato, Roboto.</P>
-      <InfoBox type="tip" title="Vorschau">
-        Die Live-Vorschau rechts im Branding-Editor aktualisiert sich sofort – ohne Speichern.
-      </InfoBox>
+      <H2 id="brand-schrift">Schrift &amp; Layout-Stil</H2>
+      <P>10 Google-Fonts wählbar (Inter, Syne, Poppins, Raleway, Lato, Montserrat, Playfair Display, Cormorant Garamond, DM Sans, Nunito). <strong>Layout-Stil</strong>: Kantig (6 px) / Weich (14 px, Standard) / Rundlich (20 px) — bestimmt die Ecken-Rundung im Portal global.</P>
 
       <Divider />
-      <H2 id="brand-kontakt">Kontaktdaten</H2>
-      <P>E-Mail, Telefon, Website und Adresse erscheinen im Footer der Kundenansichten. Impressum-Text und Datenschutz-URL können für rechtliche Angaben hinterlegt werden.</P>
-      <P>Die Option <strong>Powered by Wellbeing Spaces</strong> blendet den Hinweis im Footer ein oder aus.</P>
+      <H2 id="brand-kontakt">Kontakt + Portal-Texte</H2>
+      <P>Support-E-Mail, Footer-Text, Slogan, Welcome-Text, Instagram, Website, Adresse, Impressum-Text, Datenschutz-URL. Toggle &bdquo;Powered by Wellbeing Spaces&ldquo; im Footer. <strong>Custom CSS</strong> für Power-User mit eigenem CSS-Override.</P>
 
       <Divider />
       <H2 id="brand-vorschau">Live-Vorschau</H2>
-      <P>Der Branding-Editor zeigt rechts neben den Einstellungen eine Echtzeit-Vorschau der Kundenansicht. Die Vorschau umfasst Header, Produktkarte und Footer mit allen konfigurierten Werten.</P>
+      <P>Rechte Spalte ist <strong>sticky</strong> — bleibt beim Runterscrollen sichtbar. Zeigt einen kompletten Mini-Portal-Mockup: Header (Logo + Tab-Badge + User-Avatar), Hero (Hero-Bild ODER Gradient mit Welcome-Text + CTA), KPI-Karten, Produkt-Karte mit Freigeben/Ablehnen-Buttons, Farb-Pillen, Footer. Alle Branding-Werte werden live reflektiert.</P>
+      <InfoBox type="tip" title="Hero-Bild">
+        Optional ein Hero-Bild für den Portal-Hero hochladen (16:6, empfohlen 1600×600). Falls kein Bild gesetzt ist, wird der Akzent-Gradient verwendet.
+      </InfoBox>
     </div>
   )
 }
@@ -1146,29 +1237,33 @@ function BrandingKapitel() {
 function EinstellungenKapitel() {
   return (
     <div>
-      <H2 id="eins-allgemein">Allgemein</H2>
-      <P>Unter <strong>Einstellungen → Allgemein</strong> konfigurieren Sie globale Parameter:</P>
+      <H2 id="eins-allgemein">Anwendung &amp; MwSt</H2>
+      <P>Sidebar → <strong>Einstellungen</strong>. Tab <strong>Workspace</strong>:</P>
       <Ul>
-        <li><strong>App-Name</strong> – Wird in der Seitenleiste angezeigt</li>
-        <li><strong>Standardwährung</strong> – EUR, CHF oder USD</li>
-        <li><strong>MwSt.-Satz</strong> – Gilt für alle Preisberechnungen</li>
-        <li><strong>Zeitzone</strong> – Für korrekte Datums-/Zeitanzeigen</li>
-        <li><strong>Datumsformat</strong> – DD.MM.YYYY oder alternatives Format</li>
+        <li><strong>App-Name</strong> — wird in Sidebar + Freigabe-Links angezeigt</li>
+        <li><strong>Standardwährung</strong> — EUR / CHF / USD</li>
+        <li><strong>MwSt-Satz %</strong> — global, gilt für alle Preisberechnungen</li>
+        <li><strong>Firmen-Defaults</strong> für neue Verträge / Angebote (Adresse, Rechtsform, USt-IdNr., Bank-Details)</li>
       </Ul>
-      <InfoBox type="info" title="Sofortige Wirkung">
-        Änderungen am MwSt.-Satz wirken sich sofort auf alle Preisanzeigen aus – bestehende Daten werden nicht verändert, nur die Anzeige neu berechnet.
-      </InfoBox>
 
       <Divider />
-      <H2 id="eins-profil">Profil</H2>
-      <P>Unter <strong>Einstellungen → Profil</strong> können Sie Ihren Anzeigenamen und Ihre E-Mail-Adresse verwalten. Diese Daten werden für Teammitglieder-Anzeigen verwendet.</P>
+      <H2 id="eins-profil">Profil &amp; Avatar</H2>
+      <P>Tab <strong>Profil</strong>: Vor- + Nachname (in Team-Tab + Kommentaren sichtbar), E-Mail-Adresse, Avatar-Upload, Passwort ändern.</P>
 
       <Divider />
-      <H2 id="eins-sicherheit">Sicherheit</H2>
-      <P>Unter <strong>Einstellungen → Sicherheit</strong> ändern Sie Ihr Passwort. Geben Sie das aktuelle Passwort sowie das neue Passwort (2× zur Bestätigung) ein.</P>
-      <InfoBox type="warning" title="Empfehlung">
-        Verwenden Sie ein starkes Passwort mit mindestens 12 Zeichen, Groß-/Kleinbuchstaben, Zahlen und Sonderzeichen.
-      </InfoBox>
+      <H2 id="eins-sicherheit">Aktive Sessions</H2>
+      <P>Im Profil-Tab unter &bdquo;Sicherheit&ldquo; siehst du alle Geräte / Browser, mit denen dein Account aktuell eingeloggt ist:</P>
+      <Ul>
+        <li>Browser + OS aus User-Agent (z. B. &bdquo;Chrome auf macOS&ldquo;)</li>
+        <li>Letzte Aktivität (relativ), Anmeldedatum, IP</li>
+        <li>Aktuelle Sitzung mit grünem Rand markiert (kein Abmelden-Button — kannst dich nicht selbst rauswerfen)</li>
+        <li>Pro fremder Session: roter <strong>Abmelden</strong>-Button mit Bestätigung</li>
+        <li><strong>Alle anderen Geräte abmelden</strong> — invalidiert alle Sitzungen außer dieser</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="eins-team">Team &amp; Vorlagen</H2>
+      <P>Tab <strong>Team</strong>: Mitgliederliste mit Rollen, Einladen via E-Mail, Rolle ändern. Tab <strong>Vorlagen</strong>: HTML-Vorlagen für Verträge / Angebote, mit Platzhalter-Hilfe.</P>
     </div>
   )
 }
@@ -1209,40 +1304,50 @@ function FaqKapitel() {
     <div>
       <H2 id="faq-fragen">Häufige Fragen</H2>
 
-      <H3>Warum erscheint ein Produkt nicht in der Freigabe-Ansicht?</H3>
-      <P>Produkte müssen einem Raum (nicht nur der Bibliothek) zugewiesen sein und dürfen kein <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">deleted_at</code>-Datum haben. Prüfen Sie auch, ob der Freigabe-Link für das richtige Projekt erstellt wurde.</P>
+      <H3>Warum sehe ich auf dem Dashboard 0 laufende Projekte, obwohl ich eins habe?</H3>
+      <P>Bis zu einem bestimmten Update zählte der Zähler nur Status &bdquo;Aktiv&ldquo; / &bdquo;In Bearbeitung&ldquo; — nicht aber &bdquo;Warten auf Kunde&ldquo;. Das ist behoben: jetzt zählen alle Projekte, die nicht &bdquo;Abgeschlossen&ldquo; oder archiviert sind.</P>
 
-      <H3>Können mehrere Konfigurator-Sessions gleichzeitig aktiv sein?</H3>
-      <P>Ja. Pro Projekt können mehrere Sessions existieren. Alle aktiven Sessions sind über eigene Links erreichbar. In der Karte werden sie jeweils mit Status und Datum angezeigt.</P>
+      <H3>Auto-Fill funktioniert auf einer Shop-Seite nicht — was tun?</H3>
+      <P>Der klassische Scraper findet manchmal zu wenig (JavaScript-only-Seite, Cloudflare-Schutz, ungewöhnliches HTML). Lösungen in dieser Reihenfolge:</P>
+      <Ol>
+        <li>System eskaliert automatisch zu Claude Haiku, wenn weniger als 3 Felder gefunden werden</li>
+        <li>Klick stattdessen auf <strong>Screenshot</strong>: lade einen Screenshot der Produktseite hoch — Claude Sonnet Vision liest die Daten aus</li>
+        <li>Manuell ausfüllen wenn beides scheitert</li>
+      </Ol>
 
-      <H3>Wie ändere ich nachträglich den Partner eines Produkts?</H3>
-      <P>Öffnen Sie das Produkt (Stift-Icon in der Tabelle), wählen Sie im Dropdown-Feld <strong>Partner</strong> den neuen Partner aus und speichern Sie. Die Provision wird automatisch mit dem Standard-Provisionssatz des neuen Partners aktualisiert.</P>
+      <H3>Warum erscheint die Vorschau im Branding-Editor nicht?</H3>
+      <P>Sie ist standardmäßig sichtbar (sticky rechts) und scrollt mit. Falls sie ausgeblendet ist, gibt&apos;s rechts oben einen <strong>Eye-Toggle</strong>.</P>
 
-      <H3>Kann ich den Freigabe-Link deaktivieren?</H3>
-      <P>Ja. In der Freigabe-Link-Karte des Projekts gibt es ein Löschen-Icon neben jedem Link. Nach dem Löschen wird der Token ungültig und der Kunde erhält beim Öffnen des Links eine Fehlermeldung.</P>
+      <H3>Ich habe meinen Hauptkontakt geändert — warum steht in alten PDFs noch der alte?</H3>
+      <P>PDFs werden zur Erstell-Zeit generiert. Lade das PDF im Vertrag oder Angebot neu herunter, dann ist der aktuelle Hauptkontakt drin.</P>
 
-      <H3>Was passiert mit dem Konfigurator nach Ablauf des Datums?</H3>
-      <P>Der Link wechselt automatisch auf Status <strong>Abgelaufen</strong>. Kunden erhalten eine entsprechende Meldung. Die bisherigen Auswahlen bleiben gespeichert und sind weiterhin im Dashboard einsehbar.</P>
+      <H3>Kann ich aus einem Konfigurator-Ergebnis direkt ein Angebot erstellen?</H3>
+      <P>Ja. Im Ergebnis-Modal des Konfigurators gibt&apos;s den Button &bdquo;Aus Auswahl Angebot erstellen&ldquo; — alle übernommenen Produkte landen als Positionen im neuen Angebot.</P>
+
+      <H3>Wie funktioniert das Empfänger-Etikett bei Onboarding-Links?</H3>
+      <P>Bei Neukunden-Onboardings hast du noch keinen Kunden-Datensatz. Beim Erstellen kannst du optional ein Etikett (z. B. &bdquo;Frau Müller (Instagram)&ldquo;) + E-Mail hinterlegen — das erscheint nur in deiner Übersicht, der Kunde sieht es nicht. Nachträglich bearbeitbar via Pencil-Button.</P>
 
       <Divider />
       <H2 id="faq-trouble">Troubleshooting</H2>
 
       <H3>Die Seite lädt nicht / zeigt einen Fehler</H3>
-      <P>Häufige Ursachen:</P>
       <Ul>
         <li>Sitzung abgelaufen → erneut einloggen</li>
-        <li>Browser-Cache veraltet → Hard-Reload mit <Kb keys={['CTRL', 'Shift', 'R']} /> (Windows) oder <Kb keys={['CMD', 'Shift', 'R']} /> (Mac)</li>
-        <li>VPN oder Firewall blockiert Supabase (Frankfurt) → Verbindung prüfen</li>
+        <li>Browser-Cache veraltet → Hard-Reload mit <Kb keys={['CTRL', 'Shift', 'R']} /> oder <Kb keys={['CMD', 'Shift', 'R']} /></li>
+        <li>VPN / Firewall blockiert Supabase Frankfurt → Verbindung prüfen</li>
       </Ul>
 
-      <H3>Bilder werden nicht angezeigt</H3>
-      <P>Prüfen Sie ob der Supabase Storage Bucket <strong>branding</strong> existiert und als öffentlich markiert ist. Für Produkt-Bilder ist der Bucket <strong>produkt-bilder</strong> erforderlich.</P>
+      <H3>Auto-Favicon zeigt das Logo nicht</H3>
+      <P>Browser-Cache → Hard-Reload. Die Logo-URL ist <code>https://www.google.com/s2/favicons?domain=…&amp;sz=128</code> — Google muss die Domain erkennen können (manche Custom-Domains haben kein Favicon).</P>
 
-      <H3>Der MwSt.-Satz wird nicht korrekt angezeigt</H3>
-      <P>Stellen Sie sicher, dass in der Datenbank-Tabelle <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">einstellungen</code> ein Eintrag mit dem Schlüssel <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">mwst_satz</code> existiert. Prüfen Sie dies in <strong>Einstellungen → Allgemein</strong> und speichern Sie den Wert einmal neu.</P>
+      <H3>Aktive Session lässt sich nicht beenden</H3>
+      <P>Migration <code>088_meine_sessions.sql</code> muss in Supabase ausgeführt sein. Sie legt die RPC-Funktionen <code>get_meine_sessions</code> + <code>session_beenden</code> als SECURITY DEFINER an.</P>
+
+      <H3>Anthropic-API-Calls funktionieren nicht</H3>
+      <P><code>ANTHROPIC_API_KEY</code> in Vercel Env-Vars + lokal in <code>.env.local</code> setzen. Ohne Key fällt das System still auf den klassischen Scraper zurück; Screenshot-Endpoint zeigt eine klare Fehlermeldung.</P>
 
       <InfoBox type="tip" title="Support">
-        Bei Problemen, die sich nicht selbst lösen lassen, wenden Sie sich an das Entwicklungsteam und beschreiben Sie die Schritte, die zum Fehler geführt haben.
+        Bei Problemen, die sich nicht selbst lösen lassen, schreib im Chat oder Issue-Tracker mit Schritten + Browser + Screenshot.
       </InfoBox>
     </div>
   )

@@ -5,6 +5,24 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Handbuch: Komplett aktualisiert + Wide-Screen-Layout (Teil 2 fertig)
+- Inhalte für **alle 21 Kapitel** auf den aktuellen Stand:
+  - **Räume** (NEU): anlegen, Budget, Produkt-Zuweisung, Grundriss-Vorschau, Drag-and-Drop
+  - **Produkte**: Auto-Fill mit URL + AI-Fallback, Screenshot-Upload via Claude Vision, mehrere Bilder, Status pro Raum-Einsatz, Varianten, Preisberechnung
+  - **Freigaben**: Bulk-Aktionen, Floating Action-Bar, neue Filter / Ansichten
+  - **Kundenfreigabe**: Link-Scopes (gesamt / Raum / Auswahl), PIN-Schutz, mobile Ansicht, Audit-Log
+  - **Kunden-Portal** (NEU): eigener Login, Welcome-Tour, Projektansicht, Chat, Dokumente, Team
+  - **Onboarding**: Empfänger-Etikett, Vorlagen-Editor mit 12+ Feldtypen, Status-Flow inkl. „In Bearbeitung", Übernehmen-Workflow
+  - **Konfigurator**: 4 Aktionen, Budget-Tracking, „Aus Auswahl Angebot erstellen"
+  - **Timeline**: Auto-Sync (Liefertermine, Deadlines, Angebote, Verträge), Gantt mit Bézier-Pfeilen + Kaskaden-Verschieben, Raum-Filter, Kunde-Sichtbar-Toggle
+  - **Angebote** (NEU): Auto-Nummer AG-YYYY-NNN, aus Raum-Produkten generieren, Status-Flow, PDF-Export, → Vertrag
+  - **Verträge** (NEU): Vorlagen mit 12 Platzhaltern, digitale Signatur (Token + Canvas), Anhänge, Meilensteine
+  - **Raumplaner** (NEU): Werkzeuge mit Tastatur-Shortcuts, 60+ Möbel + Custom, Boden-Texturen + Wandfarbe, Etagen, Versionen mit Vergleich, Stückliste, PDF/PNG-Export, Kunden-Freigabe-Link mit QR-Code
+  - **Partner**: Sub-Tabs, Sortiment vs. Einsatz, Mehrere Kontakte, Konditionen, Vertragsdokumente, Bewertungs-Filter, Auto-Favicon
+  - **Branding**: ausführliche Live-Vorschau (sticky), Layout-Stil, Akzent-Gradient, Hero-Bild, Custom CSS
+  - **Einstellungen**: Aktive Sessions verwalten, Workspace, Profil, Vorlagen, Team
+  - **FAQ**: aktualisiert mit aktuellen Themen (Auto-Fill, Empfänger-Etikett, Sessions, AI-Key)
+
 ### Handbuch: Wide-Screen-Layout + neue Struktur (Teil 1)
 - **Größere, ruhigere Typo** im Hauptbereich — `text-[15px]` statt `text-sm`, größere Überschriften, mehr Abstand. Liest sich auf 4K-Monitoren ordentlich statt verquetscht in 600px.
 - **Breitere Spalten**: Inhalt `max-w-3xl` (statt 2xl), auf 2XL-Screens `max-w-4xl`, mit großzügigem Padding (`px-12 / px-16`). Linke Sidebar +4px, rechte Sidebar (Auf dieser Seite) +8px und sticky.
