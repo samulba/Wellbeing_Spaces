@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Onboarding: Live-Updates (kein Refresh mehr nötig)
+- Sobald ein Kunde ein Onboarding-Formular ausfüllt, abschickt oder mit dem Auto-Save den Fortschritt aktualisiert, **erscheint die Änderung sofort in deiner Übersicht** — kein manuelles Reload mehr.
+- Realisiert via **Supabase Realtime**: der Browser subscribed beim Öffnen der Onboarding-Seite einen WebSocket-Channel auf die `onboarding_anfragen`-Tabelle. Bei jedem INSERT/UPDATE/DELETE wird die Page-Daten neu geholt.
+- RLS bleibt aktiv — du siehst nur Events deiner eigenen Organisation.
+- Migration **092** nötig (`ALTER PUBLICATION supabase_realtime ADD TABLE onboarding_anfragen`).
+
 ### Detail-Seiten: einheitliche Tab-Navigation
 - **Partner-Detail** — Tab-Style von Pill-Buttons in Card auf Underline-Tabs umgestellt, identisch zum Projekt-Detail.
 - **Kunden-Detail** war bisher eine endlose Single-Page mit allem auf einmal. Jetzt **6 Tabs**: Übersicht / Kontakte / Projekte / Timeline / Kommunikation / Notizen — gleicher Underline-Style. Tab-State in der URL (`?tab=…`) für Deep-Links. Übersicht zeigt Stats-Band + Firma-Karte + Portal-Block; alle anderen Tabs den jeweils fokussierten Inhalt mit Counter-Badge.

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import {
   ChevronDown, ChevronUp, Check, Plus, User, Mail, Phone, MapPin,
   Home, Euro, Clock, Palette, MessageSquare, ExternalLink, Trash2,
@@ -824,11 +825,29 @@ export default function OnboardingTabelle({
   vorlagen: OnboardingVorlage[]
   kunden?: { id: string; name: string }[]
 }) {
+  const router                          = useRouter()
   const [offeneId, setOffeneId]         = useState<string | null>(null)
   const [modalOffen, setModalOffen]     = useState(false)
   const [loeschenId, setLoeschenId]     = useState<string | null>(null)
   const [filter, setFilter]             = useState<FilterTyp>('alle')
   const [isPendingDel, startDeleteTransition] = useTransition()
+
+  // ── Live-Updates via Supabase Realtime (Migration 092) ──
+  // Sobald ein Kunde ein Onboarding-Formular ausfuellt / aendert /
+  // einreicht, holt der Browser die Page-Daten neu — ohne manuelles
+  // Refresh. Subscribe respektiert RLS, also nur Events der eigenen Org.
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('onboarding-anfragen-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'onboarding_anfragen' },
+        () => router.refresh(),
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [router])
 
   const gesamt             = anfragen.length
   const offenCount         = anfragen.filter((a) => (a.status === 'offen' || a.status === 'in_bearbeitung') && !istEingereicht(a)).length
