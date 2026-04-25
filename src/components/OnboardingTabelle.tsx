@@ -53,12 +53,48 @@ function getTypInfo(typ: string | null | undefined): {
   }
 }
 
+// ── Status-Helfer ─────────────────────────────────────────────
+//
+// `kunde_name` ist KEIN zuverlässiger "ausgefüllt"-Indikator: bei verknüpftem
+// Kunden wird er beim Link-Erstellen bereits vorausgefüllt. Wir prüfen daher:
+// - V2-Flow: `antworten` enthält Daten
+// - Legacy: `kunde_name` gesetzt UND kein Prefill-Kunde verlinkt
+// - Status explizit `abgeschlossen`
+function istEingereicht(a: OnboardingAnfrage): boolean {
+  if (a.status === 'abgeschlossen') return true
+  if (a.antworten && Object.keys(a.antworten as object).length > 0) return true
+  if (a.kunde_name && !a.kunde_id) return true
+  return false
+}
+
+function istBegonnen(a: OnboardingAnfrage): boolean {
+  if (istEingereicht(a)) return false
+  if (a.status === 'in_bearbeitung') return true
+  if (a.auto_save && (a.fortschritt ?? 0) > 0) return true
+  return false
+}
+
 // ── Badge-Konfiguration ───────────────────────────────────────
 function getBadge(a: OnboardingAnfrage): { label: string; cls: string } {
-  if (a.status === 'abgeschlossen') return { label: 'Abgeschlossen', cls: 'bg-blue-100 text-blue-700' }
-  if (a.status === 'abgelehnt')     return { label: 'Abgelehnt',     cls: 'bg-red-100 text-red-600' }
-  if (a.kunde_name)                 return { label: 'Ausgefüllt',    cls: 'bg-emerald-100 text-emerald-700' }
-  return                                   { label: 'Offen',         cls: 'bg-amber-100 text-amber-700' }
+  if (a.status === 'abgeschlossen') return { label: 'Abgeschlossen',    cls: 'bg-blue-100 text-blue-700' }
+  if (a.status === 'abgelehnt')     return { label: 'Abgelehnt',        cls: 'bg-red-100 text-red-600' }
+  if (istEingereicht(a))            return { label: 'Eingereicht',      cls: 'bg-emerald-100 text-emerald-700' }
+  if (istBegonnen(a))               return { label: 'In Bearbeitung',   cls: 'bg-indigo-100 text-indigo-700' }
+  if (a.kunde_id)                   return { label: 'Wartet auf Kunde', cls: 'bg-amber-100 text-amber-700' }
+  return                                   { label: 'Wartet auf Eintrag', cls: 'bg-gray-100 text-gray-600' }
+}
+
+function formatAbstand(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime()
+  const std = Math.floor(ms / 3_600_000)
+  if (std < 1)   return 'gerade eben'
+  if (std < 24)  return `vor ${std} Std.`
+  const tage = Math.floor(std / 24)
+  if (tage === 1) return 'gestern'
+  if (tage < 30)  return `vor ${tage} Tg.`
+  const monate = Math.floor(tage / 30)
+  if (monate < 12) return `vor ${monate} Mon.`
+  return `vor ${Math.floor(monate / 12)} J.`
 }
 
 function formatBudget(min: number | null, max: number | null): string {
@@ -278,17 +314,21 @@ function LoeschenBestaetigung({
 // ── Erweiterte Detailansicht ──────────────────────────────────
 function AnfrageDetail({
   anfrage,
+  vorlageName,
+  verknuepfterKundeName,
   onLoeschenStart,
 }: {
   anfrage: OnboardingAnfrage
+  vorlageName?: string
+  verknuepfterKundeName?: string
   onLoeschenStart: () => void
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [kopiert, setKopiert]        = useState(false)
   const [fehler, setFehler]          = useState<string | null>(null)
-  const offen = anfrage.status === 'offen'
-  const hatDaten = !!anfrage.kunde_name
+  const offen = anfrage.status === 'offen' || anfrage.status === 'in_bearbeitung'
+  const hatDaten = istEingereicht(anfrage)
   const hatProjektName = !!anfrage.projekt_name
 
   function handleStatus(status: OnboardingStatus) {
@@ -398,9 +438,52 @@ function AnfrageDetail({
           ) : null}
         </div>
       ) : (
-        <p className="text-xs text-gray-400 italic mb-4">
-          Der Kunde hat das Formular noch nicht ausgefüllt.
-        </p>
+        <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+            {istBegonnen(anfrage) ? 'Status: In Bearbeitung' : 'Status: Wartet auf Eintrag'}
+          </p>
+          <dl className="space-y-2.5 text-sm">
+            <div className="flex items-start gap-2">
+              <User className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <dt className="text-[11px] text-gray-400">Adressat</dt>
+                <dd className="text-gray-700">
+                  {verknuepfterKundeName
+                    ? <>Verknüpft mit <span className="font-medium">{verknuepfterKundeName}</span></>
+                    : 'Kein Kunde verknüpft – Link wartet auf Eintrag durch einen neuen Interessenten.'}
+                </dd>
+              </div>
+            </div>
+            {vorlageName && (
+              <div className="flex items-start gap-2">
+                <Layers className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <dt className="text-[11px] text-gray-400">Vorlage</dt>
+                  <dd className="text-gray-700">{vorlageName}</dd>
+                </div>
+              </div>
+            )}
+            <div className="flex items-start gap-2">
+              <Clock className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <dt className="text-[11px] text-gray-400">Erstellt</dt>
+                <dd className="text-gray-700">{formatDatum(anfrage.created_at)} ({formatAbstand(anfrage.created_at)})</dd>
+              </div>
+            </div>
+            {istBegonnen(anfrage) && (
+              <div className="flex items-start gap-2">
+                <ChevronRight className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <dt className="text-[11px] text-gray-400">Fortschritt</dt>
+                  <dd className="text-gray-700">{anfrage.fortschritt ?? 0} % · letzte Aktivität {formatAbstand(anfrage.updated_at)}</dd>
+                </div>
+              </div>
+            )}
+          </dl>
+          <p className="text-[11px] text-gray-400 mt-3 leading-relaxed">
+            Tipp: Kopiere den Link unten und schicke ihn per E-Mail / Chat. Sobald der Kunde das Formular einreicht, erscheinen seine Antworten hier.
+          </p>
+        </div>
       )}
 
       {fehler && (
@@ -580,18 +663,19 @@ export default function OnboardingTabelle({
   const [filter, setFilter]             = useState<FilterTyp>('alle')
   const [isPendingDel, startDeleteTransition] = useTransition()
 
-  const gesamt        = anfragen.length
-  const offenCount    = anfragen.filter((a) => a.status === 'offen' && !a.kunde_name).length
-  const ausgefuelltCount = anfragen.filter((a) => a.status === 'offen' && !!a.kunde_name).length
+  const gesamt             = anfragen.length
+  const offenCount         = anfragen.filter((a) => (a.status === 'offen' || a.status === 'in_bearbeitung') && !istEingereicht(a)).length
+  const ausgefuelltCount   = anfragen.filter((a) => istEingereicht(a) && a.status !== 'abgeschlossen').length
   const abgeschlossenCount = anfragen.filter((a) => a.status === 'abgeschlossen').length
   const abgelehntCount     = anfragen.filter((a) => a.status === 'abgelehnt').length
 
   const vorlagenMap = new Map(vorlagen.map((v) => [v.id, v]))
+  const kundenMap   = new Map(kunden.map((k) => [k.id, k.name]))
 
   const anfragenGefiltert = anfragen.filter((a) => {
     if (filter === 'alle')          return true
-    if (filter === 'offen')         return a.status === 'offen' && !a.kunde_name
-    if (filter === 'ausgefuellt')   return a.status === 'offen' && !!a.kunde_name
+    if (filter === 'offen')         return (a.status === 'offen' || a.status === 'in_bearbeitung') && !istEingereicht(a)
+    if (filter === 'ausgefuellt')   return istEingereicht(a) && a.status !== 'abgeschlossen'
     if (filter === 'abgeschlossen') return a.status === 'abgeschlossen'
     if (filter === 'abgelehnt')     return a.status === 'abgelehnt'
     return true
@@ -737,11 +821,21 @@ export default function OnboardingTabelle({
           ) : (
             <div className="space-y-2">
               {anfragenGefiltert.map((anfrage) => {
-                const badge    = getBadge(anfrage)
-                const vorlage  = anfrage.vorlage_id ? vorlagenMap.get(anfrage.vorlage_id) : undefined
-                const typInfo  = getTypInfo(vorlage?.typ)
-                const istOffen = offeneId === anfrage.id
-                const loeschen = loeschenId === anfrage.id
+                const badge       = getBadge(anfrage)
+                const vorlage     = anfrage.vorlage_id ? vorlagenMap.get(anfrage.vorlage_id) : undefined
+                const typInfo     = getTypInfo(vorlage?.typ)
+                const istOffen    = offeneId === anfrage.id
+                const loeschen    = loeschenId === anfrage.id
+                const eingereicht = istEingereicht(anfrage)
+                const begonnen    = istBegonnen(anfrage)
+                const kundeName   = anfrage.kunde_id ? kundenMap.get(anfrage.kunde_id) ?? anfrage.kunde_name : anfrage.kunde_name
+                // Subtitle baut sich je nach Status zusammen, damit der Admin
+                // sofort sieht: für wen ist der Link, was muss noch passieren.
+                const subtitleTeile: string[] = []
+                if (vorlage)              subtitleTeile.push(vorlage.name)
+                if (eingereicht)          subtitleTeile.push(`Eingereicht ${formatAbstand(anfrage.updated_at)}`)
+                else if (begonnen)        subtitleTeile.push(`Begonnen · ${anfrage.fortschritt ?? 0} %`)
+                else                       subtitleTeile.push(`Erstellt ${formatAbstand(anfrage.created_at)}`)
                 return (
                   <div
                     key={anfrage.id}
@@ -768,32 +862,34 @@ export default function OnboardingTabelle({
                         {typInfo.icon}
                       </div>
 
-                      {/* Name + Kontakt */}
+                      {/* Name / Adressat + Subtitle */}
                       <div className="flex-1 min-w-0">
-                        {anfrage.kunde_name ? (
-                          <>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold text-gray-900 truncate">
-                                {anfrage.kunde_name}
-                              </p>
-                              {anfrage.projekt_name && (
-                                <span className="text-[11px] text-gray-400 truncate hidden sm:inline">
-                                  · {anfrage.projekt_name}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-400 truncate mt-0.5">
-                              {anfrage.kunde_email || '—'}
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-sm text-gray-400 italic">Noch nicht ausgefüllt</p>
-                            <p className="text-[11px] text-gray-400 mt-0.5">
-                              Erstellt {formatDatum(anfrage.created_at)}
-                            </p>
-                          </>
-                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {kundeName ?? 'Neuer Onboarding-Link'}
+                          </p>
+                          {anfrage.kunde_id && !eingereicht && (
+                            <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full shrink-0">
+                              Wartet auf Antwort
+                            </span>
+                          )}
+                          {!anfrage.kunde_id && !eingereicht && !begonnen && (
+                            <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full shrink-0">
+                              Noch nicht versendet?
+                            </span>
+                          )}
+                          {anfrage.projekt_name && (
+                            <span className="text-[11px] text-gray-400 truncate hidden sm:inline">
+                              · {anfrage.projekt_name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                          {subtitleTeile.join(' · ')}
+                          {eingereicht && anfrage.kunde_email && (
+                            <span className="text-gray-500"> · {anfrage.kunde_email}</span>
+                          )}
+                        </p>
                       </div>
 
                       {/* Meta rechts: Vorlage-Badge + Status + Datum */}
@@ -808,11 +904,11 @@ export default function OnboardingTabelle({
                             {badge.label}
                           </span>
                         </div>
-                        {anfrage.kunde_name && (
-                          <p className="text-[11px] text-gray-400">
-                            Ausgefüllt {formatDatum(anfrage.updated_at)}
-                          </p>
-                        )}
+                        <p className="text-[11px] text-gray-400">
+                          {eingereicht
+                            ? `Eingereicht ${formatDatum(anfrage.updated_at)}`
+                            : `Erstellt ${formatDatum(anfrage.created_at)}`}
+                        </p>
                       </div>
 
                       {/* Status-Badge nur Mobile */}
@@ -832,6 +928,8 @@ export default function OnboardingTabelle({
                     {istOffen && !loeschen && (
                       <AnfrageDetail
                         anfrage={anfrage}
+                        vorlageName={vorlage?.name}
+                        verknuepfterKundeName={anfrage.kunde_id ? kundenMap.get(anfrage.kunde_id) : undefined}
                         onLoeschenStart={() => setLoeschenId(anfrage.id)}
                       />
                     )}

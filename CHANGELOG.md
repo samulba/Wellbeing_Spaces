@@ -9,6 +9,16 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - KPI-Kachel **„Laufende Projekte"** zählt jetzt auch Projekte mit Status „Warten auf Kunde" — ein Projekt das auf eine Kundenfreigabe wartet ist immer noch ein laufendes Projekt, nicht abgeschlossen.
 - Gleiche Logik bei „Nächste Deadlines" und „Budget-Übersicht": alles außer „Abgeschlossen" und Archiviert wird angezeigt.
 
+### Onboarding-Übersicht: klar erkennen, auf wen man wartet
+- Bei **noch nicht eingereichten Links** stand bisher nur „Noch nicht ausgefüllt" — jetzt zeigt jede Zeile:
+  - den **verknüpften Kunden** (falls einer angegeben wurde) statt anonym, plus Badge „Wartet auf Antwort"
+  - die **Vorlage**, mit der der Link erstellt wurde
+  - **wie lange er schon offen ist** („vor 3 Tg." statt nur Erstellungsdatum)
+- Neuer Status **„In Bearbeitung"** mit Fortschritts-Anzeige (z. B. „Begonnen · 45 %"), wenn der Kunde das Formular angefangen, aber noch nicht abgeschickt hat.
+- Status-Badges erweitert: „Eingereicht" / „In Bearbeitung" / „Wartet auf Kunde" / „Wartet auf Eintrag" / „Abgeschlossen" / „Abgelehnt" — eindeutig welche Aktion als nächstes nötig ist.
+- Detail-Panel zeigt im Wartemodus eine kompakte Status-Karte mit Adressat, Vorlage, Erstellungs-Zeitpunkt und Fortschritt — plus Tipp, dass man den Link unten kopieren und versenden kann.
+- Logik-Fix: Wenn ein Onboarding-Link mit verknüpftem Kunden erstellt wurde, wurden die Kontaktdaten vorausgefüllt — die Übersicht zeigte den Eintrag dadurch fälschlich als „ausgefüllt". Wir prüfen jetzt zuverlässig auf tatsächlich eingereichte Antworten.
+
 ### Partner: Umsatz nur noch aus tatsächlichen Bestellungen + Adress-Feld
 - **Partner-Detailseite** zeigt jetzt **„Bestellter Umsatz"** statt „Gesamtumsatz" — gezählt werden nur Produkte, die einem Raum/Projekt zugeordnet **und** auf Status „bestellt" / „geliefert" / „Rechnung erhalten" gesetzt wurden. Reine Bibliotheks-Produkte (ohne Bestellung) zählen nicht mehr mit.
 - **Adress-Feld** für Partner: einfaches mehrzeiliges Textfeld im Partner-Formular, wird in der Kontakt-Karte mit Pin-Icon angezeigt.
