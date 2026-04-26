@@ -11,7 +11,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Calendar, AlertTriangle, FolderOpen } from 'lucide-react'
+import { Plus, Calendar, AlertTriangle, FolderOpen, Search, X } from 'lucide-react'
 import StickyPageHeader from '@/components/StickyPageHeader'
 import AufgabeAnlegenModal from '@/components/AufgabeAnlegenModal'
 import {
@@ -50,6 +50,7 @@ export default function AufgabenBoardClient({
   const [aufgaben, setAufgaben] = useState<AufgabeMitDetails[]>(initialeAufgaben)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('alle')
+  const [suche, setSuche] = useState('')
   const [neuOffen, setNeuOffen] = useState<AufgabeStatus | null>(null)
   const [neuTitel, setNeuTitel] = useState('')
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -77,23 +78,35 @@ export default function AufgabenBoardClient({
   const heute = new Date().toISOString().slice(0, 10)
   const inEinerWoche = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
   const currentUserId = pickerOptionen?.currentUserId ?? null
+  const sucheNorm = suche.trim().toLowerCase()
   const gefiltert = useMemo(() => {
     return aufgaben.filter((a) => {
+      // Pill-Filter
       if (filter === 'mir') {
         if (!currentUserId) return false
-        return a.assignee_user_id === currentUserId
-      }
-      if (filter === 'heute') return a.faellig_am === heute && a.status !== 'erledigt'
-      if (filter === 'woche') {
+        if (a.assignee_user_id !== currentUserId) return false
+      } else if (filter === 'heute') {
+        if (!(a.faellig_am === heute && a.status !== 'erledigt')) return false
+      } else if (filter === 'woche') {
         if (!a.faellig_am || a.status === 'erledigt') return false
-        return a.faellig_am >= heute && a.faellig_am <= inEinerWoche
+        if (!(a.faellig_am >= heute && a.faellig_am <= inEinerWoche)) return false
+      } else if (filter === 'ueberfaellig') {
+        if (!(a.faellig_am && a.faellig_am < heute && a.status !== 'erledigt')) return false
       }
-      if (filter === 'ueberfaellig') {
-        return !!a.faellig_am && a.faellig_am < heute && a.status !== 'erledigt'
+      // Volltext-Suche ueber Titel + Beschreibung + Tags + Projekt + Kunde
+      if (sucheNorm) {
+        const haystack = [
+          a.titel, a.beschreibung ?? '',
+          ...a.tags,
+          a.projekt?.name ?? '',
+          a.kunde?.name ?? '',
+          a.raum?.name ?? '',
+        ].join(' ').toLowerCase()
+        if (!haystack.includes(sucheNorm)) return false
       }
       return true
     })
-  }, [aufgaben, filter, heute, inEinerWoche, currentUserId])
+  }, [aufgaben, filter, heute, inEinerWoche, currentUserId, sucheNorm])
 
   // Spalten-Mapping
   const spaltenInhalt = useMemo(() => {
@@ -223,31 +236,51 @@ export default function AufgabenBoardClient({
         }
       />
       <div className="px-6 py-6 space-y-4">
-      {/* Filter-Pills */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {([
-          { id: 'alle', label: 'Alle' },
-          { id: 'mir',  label: 'Mir' },
-          { id: 'heute', label: 'Heute' },
-          { id: 'woche', label: 'Diese Woche' },
-          { id: 'ueberfaellig', label: 'Überfällig' },
-        ] as { id: Filter; label: string }[]).map((p) => {
-          const aktiv = filter === p.id
-          return (
+      {/* Filter-Pills + Suche */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          {([
+            { id: 'alle', label: 'Alle' },
+            { id: 'mir',  label: 'Mir' },
+            { id: 'heute', label: 'Heute' },
+            { id: 'woche', label: 'Diese Woche' },
+            { id: 'ueberfaellig', label: 'Überfällig' },
+          ] as { id: Filter; label: string }[]).map((p) => {
+            const aktiv = filter === p.id
+            return (
+              <button
+                key={p.id}
+                onClick={() => setFilter(p.id)}
+                className={
+                  aktiv
+                    ? 'px-3 py-1.5 rounded-full text-sm font-medium bg-wellbeing-green text-white'
+                    : 'px-3 py-1.5 rounded-full text-sm font-medium bg-white text-gray-500 border border-gray-200 hover:border-gray-300'
+                }
+              >
+                {p.label}
+              </button>
+            )
+          })}
+        </div>
+        <div className="relative flex-1 max-w-[340px] ml-auto">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input
+            value={suche}
+            onChange={(e) => setSuche(e.target.value)}
+            placeholder="Aufgaben durchsuchen…"
+            className="w-full text-sm pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light"
+          />
+          {suche && (
             <button
-              key={p.id}
-              onClick={() => setFilter(p.id)}
-              className={
-                aktiv
-                  ? 'px-3 py-1.5 rounded-full text-sm font-medium bg-wellbeing-green text-white'
-                  : 'px-3 py-1.5 rounded-full text-sm font-medium bg-white text-gray-500 border border-gray-200 hover:border-gray-300'
-              }
+              onClick={() => setSuche('')}
+              aria-label="Suche zurücksetzen"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-600 p-1"
             >
-              {p.label}
+              <X size={12} />
             </button>
-          )
-        })}
-        {pending && <span className="text-xs text-gray-400 ml-2">speichert…</span>}
+          )}
+        </div>
+        {pending && <span className="text-xs text-gray-400">speichert…</span>}
       </div>
 
       {/* 4-Spalten-Board */}
