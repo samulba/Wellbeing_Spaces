@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard Step 5a — Sektionen & Element-Sperren
+- **Sektion einfügen**: neuer Toolbar-Button (BoxSelect-Icon) erzeugt eine beschriftete Bereichs-Box mit Header-Streifen (wellbeing-green) + Titel-Label „SEKTION" — landet automatisch im Hintergrund, sodass User Inhalte rein-/raus-ziehen können. Titel ist editierbar.
+- **Element sperren**: Lock-Toggle im Eigenschaften-Panel — gesperrte Elemente lassen sich nicht mehr verschieben, skalieren oder rotieren (lockMovement/lockScaling/lockRotation), Cursor zeigt „not-allowed" an. Button wechselt zu „Gesperrt — Klick zum Entsperren" mit amber-Akzent.
+
 ### Moodboard Step 4 — Smart-Guides, Snap-to-Grid & Auto-Distribute
 - **Smart-Guides** beim Drag: rote gestrichelte Linien erscheinen wenn das Element auf 6 px genau mit Kante/Mitte eines anderen Elements ausgerichtet ist — und es rastet automatisch ein. Toggle-Button (Magnet-Icon) in der Toolbar.
 - **Snap-to-Grid**: zweiter Toggle (⌗-Icon) — Objekte rasten beim Verschieben auf 20-px-Raster ein.

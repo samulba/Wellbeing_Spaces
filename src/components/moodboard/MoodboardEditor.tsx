@@ -18,6 +18,7 @@ import {
   StickyNote, Loader2, Magnet, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter,
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
+  Lock, Unlock, BoxSelect,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -687,6 +688,85 @@ export default function MoodboardEditor({
         pushHistory()
         scheduleSave()
       })
+  }
+
+  // ── Sektion aufs Board ────────────────────────────────────────
+  function addSection() {
+    const canvas = fabricRef.current
+    const fabric = fabricImportRef.current
+    if (!canvas || !fabric) return
+    const cx = canvas.getWidth() / 2
+    const cy = canvas.getHeight() / 2
+    const W = 480, H = 320
+
+    // Sektion = ungesperrtes Rect + Header-Streifen + Titel-Text — als 3 separate Objekte,
+    // damit der User Inhalte rein-/rausziehen kann (kein Group).
+    const headerH = 36
+    const bg = new fabric.Rect({
+      left: cx - W / 2, top: cy - H / 2,
+      width: W, height: H,
+      fill: 'rgba(255,255,255,0.6)',
+      stroke: '#e5e7eb', strokeWidth: 1,
+      strokeDashArray: [6, 4],
+      rx: 12, ry: 12,
+      data: { type: 'section_bg' },
+    })
+    const headerBar = new fabric.Rect({
+      left: cx - W / 2, top: cy - H / 2,
+      width: W, height: headerH,
+      fill: '#445c49',
+      rx: 12, ry: 12,
+      // nur oben rounded — Fabric kann das nicht direkt, daher decken wir mit zweitem Rect ab
+      data: { type: 'section_header' },
+    })
+    const headerCover = new fabric.Rect({
+      left: cx - W / 2, top: cy - H / 2 + headerH - 12,
+      width: W, height: 12,
+      fill: '#445c49',
+      data: { type: 'section_header' },
+    })
+    const titel = new fabric.IText('SEKTION', {
+      left: cx - W / 2 + 14, top: cy - H / 2 + 9,
+      fontSize: 11,
+      fill: '#ffffff',
+      fontFamily: 'Inter, sans-serif',
+      fontWeight: '600',
+      charSpacing: 250,
+      data: { type: 'section_title' },
+    })
+
+    canvas.add(bg)
+    canvas.add(headerBar)
+    canvas.add(headerCover)
+    canvas.add(titel)
+    // Sektion in den Hintergrund (damit andere Objekte drauf liegen können)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.sendObjectToBack(bg as any)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.sendObjectToBack(headerBar as any)
+    canvas.requestRenderAll()
+    pushHistory()
+    scheduleSave()
+    setHintGeschlossen(true)
+  }
+
+  // ── Lock-Toggle ───────────────────────────────────────────────
+  function toggleLockActive() {
+    const c = fabricRef.current
+    if (!c || !activeObj) return
+    const istLocked = activeObj.lockMovementX === true
+    const neu = !istLocked
+    activeObj.lockMovementX = neu
+    activeObj.lockMovementY = neu
+    activeObj.lockScalingX = neu
+    activeObj.lockScalingY = neu
+    activeObj.lockRotation = neu
+    activeObj.hasControls = !neu
+    activeObj.hoverCursor = neu ? 'not-allowed' : 'move'
+    c.requestRenderAll()
+    bumpObjVersion()
+    pushHistory()
+    scheduleSave()
   }
 
   // ── Sticky-Note aufs Board ────────────────────────────────────
@@ -1362,6 +1442,9 @@ export default function MoodboardEditor({
             <ToolBtn onClick={() => setLinkOffen(true)} title="Link einfügen">
               <LinkIcon className="w-[18px] h-[18px]" />
             </ToolBtn>
+            <ToolBtn onClick={addSection} title="Sektion einfügen">
+              <BoxSelect className="w-[18px] h-[18px]" />
+            </ToolBtn>
           </ToolGroup>
 
           <ToolDivider />
@@ -1686,6 +1769,7 @@ export default function MoodboardEditor({
             onBackward={sendBackwards}
             onAlign={alignActive}
             onDistribute={distributeActive}
+            onToggleLock={toggleLockActive}
           />
         )}
       </div>
@@ -2042,11 +2126,12 @@ interface PropPanelProps {
   onBackward: () => void
   onAlign: (dir: 'left' | 'centerH' | 'right' | 'top' | 'centerV' | 'bottom') => void
   onDistribute: (dir: 'h' | 'v') => void
+  onToggleLock: () => void
 }
 
 function PropertiesPanel({
   obj, objVersion, onSet, onDuplicate, onDelete, onForward, onBackward,
-  onAlign, onDistribute,
+  onAlign, onDistribute, onToggleLock,
 }: PropPanelProps) {
   // objVersion erzwingt Re-Render bei Drag/Resize
   void objVersion
@@ -2241,6 +2326,23 @@ function PropertiesPanel({
 
         {/* Layer + Aktionen */}
         <div className="pt-3 border-t border-[#445c49]/30">
+          {/* Lock-Toggle */}
+          <button
+            type="button"
+            onClick={onToggleLock}
+            className={`
+              w-full flex items-center justify-center gap-1.5 px-2 py-2 mb-1.5 text-[11px] rounded transition-colors
+              ${obj.lockMovementX
+                ? 'bg-amber-900/40 text-amber-200 hover:bg-amber-900/60'
+                : 'bg-[#1a2e1e] text-[#c8dbc9] hover:bg-[#3a5240]'}
+            `}
+          >
+            {obj.lockMovementX ? (
+              <><Lock className="w-3.5 h-3.5" /> Gesperrt — Klick zum Entsperren</>
+            ) : (
+              <><Unlock className="w-3.5 h-3.5" /> Sperren</>
+            )}
+          </button>
           <div className="grid grid-cols-2 gap-1.5 mb-1.5">
             <PanelBtn onClick={onForward}>Eine Ebene vor</PanelBtn>
             <PanelBtn onClick={onBackward}>Eine Ebene zurück</PanelBtn>
