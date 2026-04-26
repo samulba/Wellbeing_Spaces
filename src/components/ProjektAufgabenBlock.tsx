@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, ChevronRight, AlertTriangle, Calendar, Check } from 'lucide-react'
-import { aufgabeAnlegen, aufgabeStatusAendern } from '@/app/actions/aufgaben'
+import { aufgabeAnlegen, aufgabeStatusAendern, type AufgabePickerOptionen } from '@/app/actions/aufgaben'
 import AufgabeDetailModal from '@/components/AufgabeDetailModal'
 import type { AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet } from '@/lib/supabase/types'
 
@@ -30,10 +30,12 @@ export default function ProjektAufgabenBlock({
   projektId,
   kundeId,
   initialAufgaben,
+  pickerOptionen,
 }: {
   projektId: string
   kundeId: string | null
   initialAufgaben: AufgabeMitDetails[]
+  pickerOptionen?: AufgabePickerOptionen
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -205,6 +207,7 @@ export default function ProjektAufgabenBlock({
         aufgabe={aufgaben.find((a) => a.id === detailId) ?? null}
         open={!!detailId}
         onClose={() => setDetailId(null)}
+        pickerOptionen={pickerOptionen}
       />
     </div>
   )

@@ -14,6 +14,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Plus, Calendar, AlertTriangle, User, FolderOpen } from 'lucide-react'
 import {
   aufgabeAnlegen, aufgabeReihenfolgeAendern,
+  type AufgabePickerOptionen,
 } from '@/app/actions/aufgaben'
 import AufgabeDetailModal from '@/components/AufgabeDetailModal'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
@@ -37,8 +38,10 @@ type Filter = 'alle' | 'mir' | 'heute' | 'woche' | 'ueberfaellig'
 
 export default function AufgabenBoardClient({
   initialeAufgaben,
+  pickerOptionen,
 }: {
   initialeAufgaben: AufgabeMitDetails[]
+  pickerOptionen?: AufgabePickerOptionen
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -258,6 +261,7 @@ export default function AufgabenBoardClient({
         aufgabe={aufgaben.find((a) => a.id === detailId) ?? null}
         open={!!detailId}
         onClose={() => setDetailId(null)}
+        pickerOptionen={pickerOptionen}
       />
     </div>
   )

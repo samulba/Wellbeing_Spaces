@@ -627,6 +627,53 @@ export async function syncAufgabeAusQuelle(
 // Re-Export Aufgabe-Typ fuer Konsumenten (vermeidet zusaetzliche Imports im Frontend)
 export type { Aufgabe }
 
+// ── Picker-Optionen ───────────────────────────────────────────
+
+export interface AufgabePickerProjekt { id: string; name: string; kunde_id: string | null }
+export interface AufgabePickerKunde   { id: string; name: string }
+export interface AufgabePickerRaum    { id: string; name: string; projekt_id: string }
+
+export interface AufgabePickerOptionen {
+  projekte: AufgabePickerProjekt[]
+  kunden:   AufgabePickerKunde[]
+  raeume:   AufgabePickerRaum[]
+}
+
+/** Listen fuer Projekt-/Kunde-/Raum-Picker im Aufgaben-Formular. */
+export async function getAufgabePickerOptionen(): Promise<AufgabePickerOptionen> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const [projekteRes, kundenRes, raeumeRes] = await Promise.all([
+    supabase
+      .from('projekte')
+      .select('id, name, kunde_id')
+      .eq('organisation_id', orgId)
+      .is('deleted_at', null)
+      .eq('archiviert', false)
+      .neq('status', 'abgeschlossen')
+      .order('name', { ascending: true }),
+    supabase
+      .from('kunden')
+      .select('id, name')
+      .eq('organisation_id', orgId)
+      .is('deleted_at', null)
+      .order('name', { ascending: true }),
+    supabase
+      .from('raeume')
+      .select('id, name, projekt_id')
+      .eq('organisation_id', orgId)
+      .is('deleted_at', null)
+      .order('name', { ascending: true }),
+  ])
+
+  return {
+    projekte: (projekteRes.data ?? []) as AufgabePickerProjekt[],
+    kunden:   (kundenRes.data   ?? []) as AufgabePickerKunde[],
+    raeume:   (raeumeRes.data   ?? []) as AufgabePickerRaum[],
+  }
+}
+
 // ── Admin-Variante (fuer anon-Kontexte wie Onboarding-Submission) ─
 
 /**

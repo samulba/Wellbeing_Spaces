@@ -12,7 +12,9 @@ import {
   aufgabeAktualisieren, aufgabeLoeschen, aufgabeChecklistAktualisieren,
   aufgabeAnhangHochladen, aufgabeAnhangSigniert,
   aufgabenKommentareAbrufen, aufgabenKommentarAnlegen,
+  type AufgabePickerOptionen,
 } from '@/app/actions/aufgaben'
+import AufgabeVerknuepfungenPicker from '@/components/AufgabeVerknuepfungenPicker'
 import type {
   AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet,
   AufgabeChecklistItem, AufgabeAnhang, AufgabeKommentar,
@@ -36,10 +38,12 @@ export default function AufgabeDetailModal({
   aufgabe,
   open,
   onClose,
+  pickerOptionen,
 }: {
   aufgabe: AufgabeMitDetails | null
   open: boolean
   onClose: () => void
+  pickerOptionen?: AufgabePickerOptionen
 }) {
   const router = useRouter()
   const titleId = useId()
@@ -392,6 +396,23 @@ export default function AufgabeDetailModal({
                   className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-wellbeing-green-light"
                 />
               </div>
+
+              {/* Verknuepfungen */}
+              {pickerOptionen && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-2">Verknüpfungen</label>
+                  <AufgabeVerknuepfungenPicker
+                    projektId={aufgabe.projekt_id}
+                    kundeId={aufgabe.kunde_id}
+                    raumId={aufgabe.raum_id}
+                    projekte={pickerOptionen.projekte}
+                    kunden={pickerOptionen.kunden}
+                    raeume={pickerOptionen.raeume}
+                    kompakt
+                    onChange={(patch) => speichern(patch)}
+                  />
+                </div>
+              )}
 
               {/* Sichtbarkeit/Kunde */}
               <div>
