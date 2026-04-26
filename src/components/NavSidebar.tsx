@@ -17,6 +17,7 @@ import {
   Settings,
   LogOut,
   ClipboardList,
+  ShoppingCart,
   PencilRuler,
   Palette,
   MessageCircle,
@@ -59,6 +60,7 @@ export default function NavSidebar({
   offeneFreigaben = 0,
   offeneAnfragen = 0,
   offeneNachrichten = 0,
+  offeneReklamationen = 0,
   neuestesChangelogDatum = null,
 }: {
   userEmail: string
@@ -68,6 +70,7 @@ export default function NavSidebar({
   offeneFreigaben?: number
   offeneAnfragen?: number
   offeneNachrichten?: number
+  offeneReklamationen?: number
   neuestesChangelogDatum?: string | null
 }) {
   const pathname = usePathname()
@@ -100,8 +103,9 @@ export default function NavSidebar({
     { label: 'Projekte',   href: '/dashboard/projekte',   icon: FolderOpen,      badge: 0 },
     { label: 'Partner',    href: '/dashboard/partner',    icon: Handshake,       badge: 0 },
     { label: 'Produkte',   href: '/dashboard/produkte',   icon: Package,         badge: 0 },
-    { label: 'Raumplaner', href: '/dashboard/raumplaner', icon: PencilRuler,     badge: 0 },
-    { label: 'Moodboards', href: '/dashboard/moodboards', icon: Palette,         badge: 0 },
+    { label: 'Raumplaner',   href: '/dashboard/raumplaner',   icon: PencilRuler,    badge: 0 },
+    { label: 'Moodboards',   href: '/dashboard/moodboards',   icon: Palette,        badge: 0 },
+    { label: 'Bestellungen', href: '/dashboard/bestellungen', icon: ShoppingCart,   badge: offeneReklamationen },
     { label: 'Chats',      href: '/dashboard/chats',      icon: MessageCircle,   badge: offeneNachrichten },
     { label: 'Freigaben',  href: '/dashboard/freigaben',  icon: CheckSquare,     badge: offeneFreigaben },
     { label: 'Onboarding', href: '/dashboard/onboarding', icon: ClipboardList,   badge: offeneAnfragen },
