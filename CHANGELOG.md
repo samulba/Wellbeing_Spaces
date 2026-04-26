@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard Step 1 — Welcome-Modal & Templates
+- Beim Öffnen eines leeren Moodboards erscheint jetzt ein **Welcome-Modal** mit 4 Schnellstart-Optionen (**Leer starten / Bild hochladen / Link einfügen / Aus Projekt** — die letzten beiden für spätere Steps vorbereitet) und 6 vordefinierten **Templates** zur Wahl.
+- Templates: **Skandinavisch · Boho/Ethno · Modern Hotel · Bürospace · Wohnen warm · Industrial/Loft**. Jedes liefert eine vorbereitete Farbpalette (5 Swatches), Stichwort-Liste, Material-/Akzent-Box und einen Stil-Header — User kann sofort weiterarbeiten statt auf einer leeren Fläche zu sitzen.
+- Template-Cards zeigen Mini-Streifen mit den 5 Hauptfarben + Emoji + Beschreibung, klickbar → Canvas wird sofort geladen, Hinweis verschwindet.
+
 ### Moodboards-Übersicht: Design-Konsistenz mit Projekte-Seite
 - Übersicht komplett ans Projekte-Dashboard-Pattern angepasst — kein eigenes Hero-Band mit grünem Gradient mehr, sondern derselbe weiße `StickyPageHeader` mit Titel + Count + Subtitle wie auf allen anderen Listen-Seiten.
 - Filter-Pills im Projekte-Toggle-Stil (Alle / Freigegeben / Entwurf) mit Count-Badges, Suchleiste mit 340 px Breite + Eintrags-Counter, Grid/List-Toggle rechts — alles 1:1 wie bei Projekte/Kunden.

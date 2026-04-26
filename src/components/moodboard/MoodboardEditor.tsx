@@ -24,6 +24,8 @@ import {
   moodboardFreigabeAktualisieren,
 } from '@/app/actions/moodboard'
 import type { MoodboardVersion } from '@/lib/supabase/types'
+import MoodboardWelcome from './MoodboardWelcome'
+import type { MoodboardTemplate } from '@/lib/moodboard-templates'
 
 interface Props {
   moodboardId: string
@@ -583,6 +585,21 @@ export default function MoodboardEditor({
     setZoom(1)
   }
 
+  // ── Template laden ─────────────────────────────────────────────
+  function ladeTemplate(template: MoodboardTemplate) {
+    const canvas = fabricRef.current
+    if (!canvas) return
+    skipHistoryRef.current = true
+    canvas.loadFromJSON(template.canvasJson, () => {
+      canvas.requestRenderAll()
+      skipHistoryRef.current = false
+      undoStackRef.current.push(JSON.stringify((canvas as unknown as { toJSON: (props?: string[]) => Record<string, unknown> }).toJSON(['data'])))
+      setIstLeer(false)
+      setHintGeschlossen(true)
+      scheduleSave()
+    })
+  }
+
   // ── Versionen ──────────────────────────────────────────────────
   async function ladeVersionen() {
     setVersionenLaden(true)
@@ -1019,52 +1036,17 @@ export default function MoodboardEditor({
         <div className="flex-1 relative overflow-hidden" ref={containerRef}>
           <canvas ref={canvasElRef} />
 
-          {/* Empty-State Hint (zentriert, dezent) */}
+          {/* Welcome-Modal (Templates + Schnellstart) */}
           {istLeer && !hintGeschlossen && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="pointer-events-auto bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-xl p-6 max-w-md text-center">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-wellbeing-cream flex items-center justify-center">
-                  <Palette className="w-6 h-6 text-wellbeing-green-dark" />
-                </div>
-                <h3 className="text-base font-medium text-gray-900 mb-1">Leeres Moodboard</h3>
-                <p className="text-sm text-gray-500 leading-relaxed mb-4">
-                  Stelle deinem Kunden den Vibe vor — kombiniere Inspirationsbilder, Material- und Farbtöne und Produkte aus deiner Bibliothek.
-                </p>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => { setSidebarTab('upload'); fileInputRef.current?.click() }}
-                    className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-gray-50 hover:bg-wellbeing-cream/60 transition-colors"
-                  >
-                    <Upload className="w-4 h-4 text-wellbeing-green" />
-                    <span className="text-gray-700">Bild hochladen</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSidebarTab('produkte')}
-                    className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-gray-50 hover:bg-wellbeing-cream/60 transition-colors"
-                  >
-                    <Package className="w-4 h-4 text-wellbeing-green" />
-                    <span className="text-gray-700">Produkt hinzufügen</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSidebarTab('farben')}
-                    className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-gray-50 hover:bg-wellbeing-cream/60 transition-colors"
-                  >
-                    <Palette className="w-4 h-4 text-wellbeing-green" />
-                    <span className="text-gray-700">Farbe wählen</span>
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setHintGeschlossen(true)}
-                  className="mt-4 text-[11px] text-gray-400 hover:text-gray-600"
-                >
-                  Hinweis ausblenden
-                </button>
-              </div>
-            </div>
+            <MoodboardWelcome
+              onLeer={() => setHintGeschlossen(true)}
+              onTemplateWaehlen={ladeTemplate}
+              onBildHochladen={() => {
+                setHintGeschlossen(true)
+                fileInputRef.current?.click()
+              }}
+              onSchliessen={() => setHintGeschlossen(true)}
+            />
           )}
 
           {/* Status-Bar (dezenter) */}
