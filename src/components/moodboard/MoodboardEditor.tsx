@@ -90,6 +90,8 @@ export default function MoodboardEditor({
   const [zoom, setZoom] = useState(1)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [uploading, setUploading] = useState(false)
+  const [istLeer, setIstLeer] = useState(true)
+  const [hintGeschlossen, setHintGeschlossen] = useState(false)
 
   // Aktiv ausgewaehltes Objekt fuer Eigenschaften-Panel
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -325,9 +327,12 @@ export default function MoodboardEditor({
       window.addEventListener('keyup', onKeyUp)
 
       // ── Object-Events fuer History + AutoSave ─────────────────
+      function updateLeer() {
+        setIstLeer(canvas.getObjects().length === 0)
+      }
       canvas.on('object:modified', () => { pushHistory(); scheduleSave(); bumpObjVersion() })
-      canvas.on('object:added',    () => { if (!skipHistoryRef.current) { pushHistory(); scheduleSave() } })
-      canvas.on('object:removed',  () => { if (!skipHistoryRef.current) { pushHistory(); scheduleSave() } })
+      canvas.on('object:added',    () => { if (!skipHistoryRef.current) { pushHistory(); scheduleSave() } updateLeer() })
+      canvas.on('object:removed',  () => { if (!skipHistoryRef.current) { pushHistory(); scheduleSave() } updateLeer() })
 
       // ── Selection-Events fuer rechte Sidebar ─────────────────
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -348,10 +353,12 @@ export default function MoodboardEditor({
           // Initial-Snapshot fuer Undo-Stack
           undoStackRef.current.push(JSON.stringify((canvas as unknown as { toJSON: (props?: string[]) => Record<string, unknown> }).toJSON(['data'])))
           initialLoadedRef.current = true
+          updateLeer()
         })
       } else {
         undoStackRef.current.push(JSON.stringify((canvas as unknown as { toJSON: (props?: string[]) => Record<string, unknown> }).toJSON(['data'])))
         initialLoadedRef.current = true
+        updateLeer()
       }
 
       return () => {
@@ -451,20 +458,50 @@ export default function MoodboardEditor({
         scheduleSave()
       })
     } else {
-      // Kein Bild → Text-Platzhalter
+      // Kein Bild → moderne Karte mit Initialen
       const fabric = fabricImportRef.current
       const canvas = fabricRef.current
       if (!fabric || !canvas) return
+      const initialen = p.name
+        .split(/\s+/).filter(Boolean).slice(0, 2)
+        .map((w: string) => w[0]?.toUpperCase() ?? '').join('')
+
       const group = new fabric.Group([
-        new fabric.Rect({ left: 0, top: 0, width: 200, height: 120, fill: '#f6ede2', stroke: '#cba178', strokeWidth: 1, rx: 8, ry: 8 }),
-        new fabric.IText(p.name, {
-          left: 12, top: 50,
-          width: 176,
-          fontSize: 14, fill: '#2d3e31', fontFamily: 'Inter, sans-serif',
+        // Karten-Hintergrund (weiss mit Schatten)
+        new fabric.Rect({
+          left: 0, top: 0, width: 220, height: 140,
+          fill: '#ffffff', stroke: '#e5e7eb', strokeWidth: 1,
+          rx: 10, ry: 10,
+          shadow: new fabric.Shadow({ color: 'rgba(0,0,0,0.08)', blur: 14, offsetX: 0, offsetY: 4 }),
+        }),
+        // Initialen-Tile links
+        new fabric.Rect({
+          left: 12, top: 12, width: 48, height: 48,
+          fill: '#445c49', rx: 8, ry: 8,
+        }),
+        new fabric.IText(initialen || '·', {
+          left: 36, top: 36,
+          fontSize: 18, fill: '#ffffff', fontFamily: 'Inter, sans-serif',
+          fontWeight: '600',
+          originX: 'center', originY: 'center',
+        }),
+        // Produktname
+        new fabric.Textbox(p.name, {
+          left: 72, top: 18,
+          width: 132,
+          fontSize: 13, fill: '#111827', fontFamily: 'Inter, sans-serif',
+          fontWeight: '500',
+          editable: false,
+        }),
+        // Label
+        new fabric.IText('PRODUKT', {
+          left: 72, top: 54,
+          fontSize: 9, fill: '#9ca3af', fontFamily: 'Inter, sans-serif',
+          charSpacing: 200, fontWeight: '600',
         }),
       ], {
-        left: canvas.getWidth() / 2 - 100,
-        top:  canvas.getHeight() / 2 - 60,
+        left: canvas.getWidth() / 2 - 110,
+        top:  canvas.getHeight() / 2 - 70,
         data: { produkt_id: p.id, produkt_name: p.name },
       })
       canvas.add(group)
@@ -697,47 +734,133 @@ export default function MoodboardEditor({
 
   // ── Render ─────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full bg-[#1a2e1e] text-[#c8dbc9]">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 h-12 border-b border-[#445c49]/30 bg-[#2d3e31] shrink-0">
+    <div className="flex flex-col h-full bg-[#0f1f13] text-[#c8dbc9]">
+      {/* Top-Bar: Brand + Titel + Toolbar in einer Reihe (Figma-Style) */}
+      <div className="flex items-center gap-2 px-3 h-14 border-b border-[#1f3a25] bg-[#1a2e1e] shrink-0">
+        {/* Links: Zurueck + Branding */}
         <Link
           href={`/dashboard/projekte/${projektId}/raeume/${raumId}`}
-          className="flex items-center gap-1.5 text-[#94c1a4] hover:text-white text-sm"
+          className="flex items-center gap-1.5 px-2 py-1.5 text-[#94c1a4] hover:text-white hover:bg-white/5 rounded-md text-sm transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Zurück
+          <ArrowLeft className="w-4 h-4" />
+          <span className="hidden sm:inline">Zurück</span>
         </Link>
-        <div className="h-5 w-px bg-[#445c49]/40" />
-        <div>
-          <div className="text-sm font-medium text-white leading-tight">{boardName}</div>
-          <div className="text-[11px] text-[#94c1a4] leading-tight">{raumName}</div>
+        <div className="h-6 w-px bg-[#1f3a25]" />
+        <div className="min-w-0 max-w-[200px]">
+          <div className="text-sm font-medium text-white leading-tight truncate">{boardName}</div>
+          <div className="text-[11px] text-[#94c1a4] leading-tight truncate">{raumName}</div>
         </div>
 
-        <div className="ml-auto flex items-center gap-3 text-xs">
-          {saveStatus === 'saving' && <span className="text-[#94c1a4]">Speichere…</span>}
-          {saveStatus === 'saved'  && <span className="text-emerald-400">Gespeichert</span>}
-          {saveStatus === 'error'  && <span className="text-red-400">Fehler beim Speichern</span>}
-        </div>
-      </div>
+        {/* Mitte: Tools (Hauptaktionen) */}
+        <div className="flex-1 flex items-center justify-center gap-0.5">
+          <ToolGroup>
+            <ToolBtn active={tool === 'select'} onClick={() => setTool('select')} title="Auswahl (V)">
+              <MousePointer2 className="w-[18px] h-[18px]" />
+            </ToolBtn>
+            <ToolBtn active={tool === 'text'}   onClick={() => setTool('text')}   title="Text (T)">
+              <TypeIcon className="w-[18px] h-[18px]" />
+            </ToolBtn>
+            <ToolBtn active={tool === 'rect'}   onClick={() => setTool('rect')}   title="Rechteck (R)">
+              <Square className="w-[18px] h-[18px]" />
+            </ToolBtn>
+            <ToolBtn active={tool === 'circle'} onClick={() => setTool('circle')} title="Kreis (C)">
+              <CircleIcon className="w-[18px] h-[18px]" />
+            </ToolBtn>
+            <ToolBtn onClick={() => fileInputRef.current?.click()} title="Bild hochladen" loading={uploading}>
+              <ImageIcon className="w-[18px] h-[18px]" />
+            </ToolBtn>
+          </ToolGroup>
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-1 px-3 h-12 border-b border-[#445c49]/30 bg-[#2d3e31] shrink-0">
-        <ToolBtn active={tool === 'select'} onClick={() => setTool('select')} title="Auswahl (V)">
-          <MousePointer2 className="w-4 h-4" />
-        </ToolBtn>
-        <div className="w-px h-6 bg-[#445c49]/40 mx-1" />
-        <ToolBtn active={tool === 'text'}   onClick={() => setTool('text')}   title="Text (T)">
-          <TypeIcon className="w-4 h-4" />
-        </ToolBtn>
-        <ToolBtn active={tool === 'rect'}   onClick={() => setTool('rect')}   title="Rechteck (R)">
-          <Square className="w-4 h-4" />
-        </ToolBtn>
-        <ToolBtn active={tool === 'circle'} onClick={() => setTool('circle')} title="Kreis (C)">
-          <CircleIcon className="w-4 h-4" />
-        </ToolBtn>
-        <ToolBtn onClick={() => fileInputRef.current?.click()} title="Bild hochladen">
-          <ImageIcon className="w-4 h-4" />
-          {uploading && <span className="ml-1 text-[10px]">…</span>}
-        </ToolBtn>
+          <ToolDivider />
+
+          <ToolGroup>
+            <ToolBtn onClick={handleUndo} title="Rückgängig (Ctrl+Z)">
+              <Undo2 className="w-[18px] h-[18px]" />
+            </ToolBtn>
+            <ToolBtn onClick={handleRedo} title="Wiederholen (Ctrl+Y)">
+              <Redo2 className="w-[18px] h-[18px]" />
+            </ToolBtn>
+            <ToolBtn onClick={() => {
+              const c = fabricRef.current; if (!c) return
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const active = c.getActiveObjects() as any[]
+              if (active.length === 0) return
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              active.forEach((o: any) => c.remove(o))
+              c.discardActiveObject()
+              c.requestRenderAll()
+              pushHistory()
+              scheduleSave()
+            }} title="Löschen (Entf)">
+              <Trash2 className="w-[18px] h-[18px]" />
+            </ToolBtn>
+          </ToolGroup>
+
+          <ToolDivider />
+
+          <ToolGroup>
+            <ToolBtn onClick={oeffneVersionenModal} title="Versionen">
+              <History className="w-[18px] h-[18px]" />
+            </ToolBtn>
+            <ToolBtn onClick={exportPng} title="Als PNG exportieren">
+              <Download className="w-[18px] h-[18px]" />
+            </ToolBtn>
+          </ToolGroup>
+        </div>
+
+        {/* Rechts: Save-Status + Zoom + Freigabe */}
+        <div className="flex items-center gap-2">
+          <SaveBadge status={saveStatus} />
+
+          <ToolDivider />
+
+          <div className="flex items-center gap-0.5 px-1 bg-black/20 rounded-md">
+            <ToolBtn onClick={handleZoomOut} title="Verkleinern" small>
+              <span className="text-[15px] leading-none">−</span>
+            </ToolBtn>
+            <button
+              onClick={handleZoomReset}
+              className="text-[11px] text-[#c8dbc9] hover:text-white px-1.5 min-w-[42px] tabular-nums"
+              title="Zurücksetzen"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <ToolBtn onClick={handleZoomIn} title="Vergrößern" small>
+              <span className="text-[15px] leading-none">+</span>
+            </ToolBtn>
+            <ToolBtn onClick={handleZoomReset} title="Einpassen" small>
+              <Maximize2 className="w-[14px] h-[14px]" />
+            </ToolBtn>
+          </div>
+
+          <ToolDivider />
+
+          <button
+            type="button"
+            onClick={handleManualSave}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#c8dbc9] hover:bg-white/5 rounded-md transition-colors"
+            title="Speichern (Ctrl+S)"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Speichern</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFreigabeOffen(true)}
+            className={`
+              flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors
+              ${freigabeAktiv
+                ? 'bg-wellbeing-green hover:bg-wellbeing-green/90 text-white'
+                : 'bg-white/10 hover:bg-white/15 text-white border border-white/10'}
+            `}
+            title="Freigabe für Kunden"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            {freigabeAktiv ? 'Freigegeben' : 'Teilen'}
+          </button>
+        </div>
+
         <input
           ref={fileInputRef}
           type="file"
@@ -745,73 +868,14 @@ export default function MoodboardEditor({
           className="hidden"
           onChange={handleFileChange}
         />
-
-        <div className="w-px h-6 bg-[#445c49]/40 mx-1" />
-        <ToolBtn onClick={handleUndo} title="Rückgängig (Ctrl+Z)">
-          <Undo2 className="w-4 h-4" />
-        </ToolBtn>
-        <ToolBtn onClick={handleRedo} title="Wiederholen (Ctrl+Y)">
-          <Redo2 className="w-4 h-4" />
-        </ToolBtn>
-        <ToolBtn onClick={() => {
-          const c = fabricRef.current; if (!c) return
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const active = c.getActiveObjects() as any[]
-          if (active.length === 0) return
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          active.forEach((o: any) => c.remove(o))
-          c.discardActiveObject()
-          c.requestRenderAll()
-          pushHistory()
-          scheduleSave()
-        }} title="Löschen (Entf)">
-          <Trash2 className="w-4 h-4" />
-        </ToolBtn>
-
-        <div className="w-px h-6 bg-[#445c49]/40 mx-1" />
-        <ToolBtn onClick={handleManualSave} title="Speichern (Ctrl+S)">
-          <Save className="w-4 h-4" />
-        </ToolBtn>
-        <ToolBtn onClick={oeffneVersionenModal} title="Versionen">
-          <History className="w-4 h-4" />
-        </ToolBtn>
-        <ToolBtn onClick={exportPng} title="Als PNG exportieren">
-          <Download className="w-4 h-4" />
-        </ToolBtn>
-        <ToolBtn
-          onClick={() => setFreigabeOffen(true)}
-          title="Freigabe für Kunden"
-          active={freigabeAktiv}
-        >
-          <Share2 className="w-4 h-4" />
-        </ToolBtn>
-
-        {/* Rechts: Zoom */}
-        <div className="ml-auto flex items-center gap-1">
-          <ToolBtn onClick={handleZoomOut} title="Verkleinern">
-            <span className="text-sm">−</span>
-          </ToolBtn>
-          <button
-            onClick={handleZoomReset}
-            className="text-xs text-[#94c1a4] hover:text-white px-2 min-w-[48px]"
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-          <ToolBtn onClick={handleZoomIn} title="Vergrößern">
-            <span className="text-sm">+</span>
-          </ToolBtn>
-          <ToolBtn onClick={handleZoomReset} title="Zurücksetzen">
-            <Maximize2 className="w-4 h-4" />
-          </ToolBtn>
-        </div>
       </div>
 
       {/* Hauptbereich: Sidebar + Canvas */}
       <div className="flex-1 flex overflow-hidden">
         {/* Linke Sidebar */}
-        <aside className="w-64 shrink-0 bg-[#2d3e31] border-r border-[#445c49]/30 flex flex-col">
-          {/* Tab-Switcher */}
-          <div className="flex border-b border-[#445c49]/30 shrink-0">
+        <aside className="w-72 shrink-0 bg-[#1a2e1e] border-r border-[#1f3a25] flex flex-col">
+          {/* Tab-Switcher (Underline-Indicator) */}
+          <div className="flex shrink-0 border-b border-[#1f3a25]">
             <SidebarTab active={sidebarTab === 'produkte'} onClick={() => setSidebarTab('produkte')}>
               <Package className="w-3.5 h-3.5" /> Produkte
             </SidebarTab>
@@ -824,46 +888,61 @@ export default function MoodboardEditor({
           </div>
 
           {/* Tab-Inhalt */}
-          <div className="flex-1 overflow-y-auto p-3">
+          <div className="flex-1 overflow-y-auto">
             {sidebarTab === 'produkte' && (
-              <div>
+              <div className="p-4">
                 <div className="relative mb-3">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94c1a4]" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94c1a4]" />
                   <input
                     type="text"
                     value={produktSuche}
                     onChange={(e) => setProduktSuche(e.target.value)}
-                    placeholder="Produkte suchen…"
-                    className="w-full pl-8 pr-2 py-1.5 text-xs bg-[#1a2e1e] border border-[#445c49]/40 rounded text-[#c8dbc9] placeholder-[#94c1a4]/60 focus:outline-none focus:border-[#94c1a4]"
+                    placeholder="Suchen…"
+                    className="w-full pl-8 pr-2 py-2 text-xs bg-black/30 border border-[#1f3a25] rounded-md text-white placeholder-[#94c1a4]/60 focus:outline-none focus:border-wellbeing-green focus:ring-1 focus:ring-wellbeing-green/30 transition-colors"
                   />
                 </div>
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <span className="text-[10px] uppercase tracking-wider text-[#94c1a4]/70 font-medium">
+                    {produkteGefiltert.length} {produkteGefiltert.length === 1 ? 'Produkt' : 'Produkte'}
+                  </span>
+                  <span className="text-[10px] text-[#94c1a4]/50">Klick zum Hinzufügen</span>
+                </div>
                 {produkteGefiltert.length === 0 ? (
-                  <p className="text-[11px] text-[#94c1a4] text-center py-6">
-                    {produkte.length === 0
-                      ? 'Keine Produkte vorhanden.'
-                      : 'Keine Treffer.'}
-                  </p>
+                  <div className="text-center py-10">
+                    <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-black/30 flex items-center justify-center">
+                      <Package className="w-5 h-5 text-[#94c1a4]/40" />
+                    </div>
+                    <p className="text-[11px] text-[#94c1a4]">
+                      {produkte.length === 0
+                        ? 'Keine Produkte vorhanden.'
+                        : 'Keine Treffer.'}
+                    </p>
+                  </div>
                 ) : (
-                  <div className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-2">
                     {produkteGefiltert.map((p) => (
                       <button
                         key={p.id}
                         type="button"
                         onClick={() => addProduktAufBoard(p)}
-                        className="w-full flex items-center gap-2 p-1.5 rounded hover:bg-[#445c49]/40 transition-colors text-left group"
+                        className="group flex flex-col items-stretch bg-black/20 border border-[#1f3a25] rounded-lg overflow-hidden hover:border-wellbeing-green/60 hover:bg-black/30 transition-all text-left"
                       >
-                        <div className="w-10 h-10 shrink-0 rounded bg-[#1a2e1e] border border-[#445c49]/40 overflow-hidden flex items-center justify-center">
+                        <div className="aspect-square bg-black/40 overflow-hidden flex items-center justify-center relative">
                           {p.bild_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.bild_url} alt="" className="w-full h-full object-cover" />
+                            <img
+                              src={p.bild_url}
+                              alt=""
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
                           ) : (
-                            <Package className="w-4 h-4 text-[#94c1a4]/60" />
+                            <ProduktInitial name={p.name} />
                           )}
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs text-white truncate">{p.name}</div>
+                        <div className="px-2 py-1.5 min-w-0">
+                          <div className="text-[11px] text-white truncate font-medium">{p.name}</div>
                           {p.kategorie && (
-                            <div className="text-[10px] text-[#94c1a4] truncate">{p.kategorie}</div>
+                            <div className="text-[9px] text-[#94c1a4] truncate uppercase tracking-wide">{p.kategorie}</div>
                           )}
                         </div>
                       </button>
@@ -874,8 +953,10 @@ export default function MoodboardEditor({
             )}
 
             {sidebarTab === 'farben' && (
-              <div>
-                <p className="text-[11px] text-[#94c1a4] mb-2">Klicke einen Farbton, um einen Swatch aufs Board zu legen.</p>
+              <div className="p-4">
+                <h4 className="text-[10px] uppercase tracking-wider text-[#94c1a4]/70 font-medium mb-3 px-1">
+                  Wellbeing & Designer-Töne
+                </h4>
                 <div className="grid grid-cols-6 gap-1.5">
                   {COLOR_PALETTE.map((hex) => (
                     <button
@@ -883,42 +964,52 @@ export default function MoodboardEditor({
                       type="button"
                       onClick={() => addColorSwatch(hex)}
                       title={hex}
-                      className="aspect-square rounded border border-black/10 hover:scale-110 hover:ring-2 hover:ring-white/40 transition-all"
+                      className="aspect-square rounded-md border border-white/10 hover:scale-110 hover:ring-2 hover:ring-white/40 transition-all shadow-sm"
                       style={{ backgroundColor: hex }}
                     />
                   ))}
                 </div>
-                <div className="mt-4">
-                  <label className="block text-[11px] text-[#94c1a4] mb-1.5">Eigene Farbe</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      onChange={(e) => addColorSwatch(e.target.value)}
-                      className="w-10 h-9 rounded border-0 bg-transparent cursor-pointer"
-                    />
-                    <span className="text-[11px] text-[#94c1a4] self-center">Klick → Swatch hinzufügen</span>
-                  </div>
+                <h4 className="text-[10px] uppercase tracking-wider text-[#94c1a4]/70 font-medium mt-5 mb-2 px-1">
+                  Eigene Farbe
+                </h4>
+                <div className="bg-black/20 border border-[#1f3a25] rounded-lg p-2.5 flex items-center gap-2">
+                  <input
+                    type="color"
+                    onChange={(e) => addColorSwatch(e.target.value)}
+                    className="w-10 h-9 rounded border-0 bg-transparent cursor-pointer shrink-0"
+                  />
+                  <span className="text-[11px] text-[#94c1a4]">
+                    Wähle einen Farbton — wird sofort als Swatch platziert.
+                  </span>
                 </div>
               </div>
             )}
 
             {sidebarTab === 'upload' && (
-              <div>
+              <div className="p-4">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex flex-col items-center gap-2 px-3 py-6 border-2 border-dashed border-[#445c49] rounded-lg text-[#94c1a4] hover:border-[#94c1a4] hover:text-white transition-colors"
+                  className="w-full flex flex-col items-center gap-2 px-3 py-8 border-2 border-dashed border-[#1f3a25] rounded-xl text-[#94c1a4] hover:border-wellbeing-green hover:text-white hover:bg-black/20 transition-colors group"
                 >
-                  <Upload className="w-6 h-6" />
-                  <span className="text-xs">Bild hochladen</span>
-                  <span className="text-[10px] text-[#94c1a4]/70">JPG/PNG, max 50 MB</span>
+                  <div className="w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center group-hover:bg-wellbeing-green/20 transition-colors">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <span className="text-sm font-medium">Bild hochladen</span>
+                  <span className="text-[10px] text-[#94c1a4]/60">JPG / PNG · max 50 MB</span>
                 </button>
                 {uploading && (
-                  <p className="text-[11px] text-[#94c1a4] text-center mt-3">Lädt hoch…</p>
+                  <p className="text-[11px] text-amber-400 text-center mt-3 flex items-center justify-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    Lädt hoch…
+                  </p>
                 )}
-                <p className="text-[11px] text-[#94c1a4] mt-4 leading-relaxed">
-                  Hochgeladene Bilder werden im privaten Storage abgelegt und automatisch aufs Board platziert.
-                </p>
+                <div className="mt-4 p-3 rounded-lg bg-black/20 border border-[#1f3a25]">
+                  <p className="text-[10px] uppercase tracking-wider text-[#94c1a4]/60 font-medium mb-1">Tipp</p>
+                  <p className="text-[11px] text-[#c8dbc9]/80 leading-relaxed">
+                    Lade Inspirationsbilder, Materialfotos oder Stoff-Swatches hoch — alles wird sicher in deinem Workspace abgelegt.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -928,9 +1019,59 @@ export default function MoodboardEditor({
         <div className="flex-1 relative overflow-hidden" ref={containerRef}>
           <canvas ref={canvasElRef} />
 
-          {/* Status-Bar */}
-          <div className="absolute bottom-2 left-2 px-2 py-1 rounded bg-black/40 text-[11px] text-[#c8dbc9] backdrop-blur-sm">
-            Tool: <strong>{tool}</strong> · Pan: Space + Drag oder Mittlere Maustaste · Zoom: Mausrad
+          {/* Empty-State Hint (zentriert, dezent) */}
+          {istLeer && !hintGeschlossen && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="pointer-events-auto bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-xl p-6 max-w-md text-center">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-wellbeing-cream flex items-center justify-center">
+                  <Palette className="w-6 h-6 text-wellbeing-green-dark" />
+                </div>
+                <h3 className="text-base font-medium text-gray-900 mb-1">Leeres Moodboard</h3>
+                <p className="text-sm text-gray-500 leading-relaxed mb-4">
+                  Stelle deinem Kunden den Vibe vor — kombiniere Inspirationsbilder, Material- und Farbtöne und Produkte aus deiner Bibliothek.
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => { setSidebarTab('upload'); fileInputRef.current?.click() }}
+                    className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-gray-50 hover:bg-wellbeing-cream/60 transition-colors"
+                  >
+                    <Upload className="w-4 h-4 text-wellbeing-green" />
+                    <span className="text-gray-700">Bild hochladen</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSidebarTab('produkte')}
+                    className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-gray-50 hover:bg-wellbeing-cream/60 transition-colors"
+                  >
+                    <Package className="w-4 h-4 text-wellbeing-green" />
+                    <span className="text-gray-700">Produkt hinzufügen</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSidebarTab('farben')}
+                    className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-gray-50 hover:bg-wellbeing-cream/60 transition-colors"
+                  >
+                    <Palette className="w-4 h-4 text-wellbeing-green" />
+                    <span className="text-gray-700">Farbe wählen</span>
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setHintGeschlossen(true)}
+                  className="mt-4 text-[11px] text-gray-400 hover:text-gray-600"
+                >
+                  Hinweis ausblenden
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Status-Bar (dezenter) */}
+          <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-black/50 text-[10px] text-[#c8dbc9]/80 backdrop-blur-sm flex items-center gap-2">
+            <span className="uppercase tracking-wider">{tool}</span>
+            <span className="text-[#94c1a4]/40">·</span>
+            <span>Space + Drag zum Verschieben · Mausrad zum Zoomen</span>
           </div>
         </div>
 
@@ -1193,14 +1334,33 @@ function SidebarTab({
       type="button"
       onClick={onClick}
       className={`
-        flex-1 flex items-center justify-center gap-1 px-2 py-2 text-[11px] transition-colors
-        ${active
-          ? 'bg-[#1a2e1e] text-white border-b-2 border-[#94c1a4]'
-          : 'text-[#94c1a4] hover:text-white hover:bg-[#3a5240]'}
+        relative flex-1 flex items-center justify-center gap-1.5 px-2 py-3 text-[11px] font-medium transition-colors
+        ${active ? 'text-white' : 'text-[#94c1a4] hover:text-white'}
       `}
     >
       {children}
+      {active && (
+        <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-wellbeing-green" />
+      )}
     </button>
+  )
+}
+
+function ProduktInitial({ name }: { name: string }) {
+  // Einfacher Hash → konstante Farbe pro Produktname
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) % 360
+  const initialen = name.split(/\s+/).filter(Boolean).slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '').join('') || '·'
+  return (
+    <div
+      className="w-full h-full flex items-center justify-center text-white text-base font-semibold"
+      style={{
+        background: `linear-gradient(135deg, hsl(${hash},35%,38%) 0%, hsl(${(hash + 30) % 360},40%,28%) 100%)`,
+      }}
+    >
+      {initialen}
+    </div>
   )
 }
 
@@ -1457,25 +1617,78 @@ function PanelBtn({
   )
 }
 
+function ToolGroup({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-0.5 bg-black/20 rounded-md p-0.5">
+      {children}
+    </div>
+  )
+}
+
+function ToolDivider() {
+  return <div className="h-6 w-px bg-[#1f3a25]" />
+}
+
+function SaveBadge({ status }: { status: 'idle' | 'saving' | 'saved' | 'error' }) {
+  if (status === 'idle') {
+    return (
+      <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-1 text-[10px] uppercase tracking-wider text-[#94c1a4]">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#94c1a4]/40" />
+        Auto-Save
+      </span>
+    )
+  }
+  if (status === 'saving') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] uppercase tracking-wider text-[#94c1a4]">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+        Speichere
+      </span>
+    )
+  }
+  if (status === 'saved') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] uppercase tracking-wider text-emerald-400">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+        Gespeichert
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] uppercase tracking-wider text-red-400">
+      <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+      Fehler
+    </span>
+  )
+}
+
 function ToolBtn({
-  children, onClick, active, title,
+  children, onClick, active, title, small, loading,
 }: {
   children: React.ReactNode
   onClick?: () => void
   active?: boolean
   title?: string
+  small?: boolean
+  loading?: boolean
 }) {
+  const size = small ? 'w-7 h-7' : 'w-8 h-8'
   return (
     <button
       type="button"
       title={title}
       onClick={onClick}
       className={`
-        flex items-center justify-center w-9 h-9 rounded transition-colors
-        ${active ? 'bg-[#445c49] text-white' : 'text-[#c8dbc9] hover:bg-[#3a5240]'}
+        relative flex items-center justify-center ${size} rounded transition-colors
+        ${active
+          ? 'bg-wellbeing-green text-white shadow-sm'
+          : 'text-[#c8dbc9] hover:bg-white/5 hover:text-white'}
       `}
     >
       {children}
+      {loading && (
+        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+      )}
     </button>
   )
 }

@@ -5,6 +5,13 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboards Polish — Übersicht & Editor auf Premium-Niveau
+- **Übersichtsseite komplett neu**: Hero-Band mit grünem Gradient + 3 Stats-Pills (Gesamt / Freigegeben / Mit Inhalt), Sticky-Toolbar mit Volltextsuche (Name/Raum/Projekt/Kunde) + Projekt-Filter + Status-Filter (Alle/Freigegeben/Entwurf) + Sort + Grid-/List-Toggle. Cards zeigen jetzt eine **echte Mini-Vorschau** des Boards (Auto-Fit Canvas-Render statt Palette-Placeholder), Freigabe-Badge, formatierte Zeitangabe.
+- **Editor-Top-Bar im Figma-Stil**: alles auf eine Reihe (56 px), Tools in 3 Gruppen mit dezenten Trennern, Save-Status als animiertes Pill-Badge (idle/speichere/gespeichert/Fehler), Zoom als Mini-Cluster, separater **Speichern**-Button und prominenter **Teilen**-Button (grün wenn aktiv, sonst neutral).
+- **Linke Sidebar neu**: schickerer Underline-Tab-Indicator, **Produkt-Bibliothek als 2-spaltiges Grid** mit Aspect-Ratio-Thumbnails + Hover-Zoom statt karger Listenzeilen. Produkte ohne Bild zeigen jetzt einen **Farb-Gradient mit Initialen** (kein billiges Cream-Rect mehr) — sowohl in der Sidebar als auch beim Platzieren auf dem Board (moderne weiße Karte mit Initialen-Tile, Schatten, Label „PRODUKT").
+- **Empty-State im Editor**: leeres Board zeigt jetzt einen freundlichen Hint mit 3 Quick-Action-Buttons (Bild hochladen / Produkt hinzufügen / Farbe wählen) und „Hinweis ausblenden"-Option.
+- **Status-Bar dezenter** mit Großbuchstaben-Tool-Indikator und feiner Tipp-Zeile.
+
 ### Moodboards (Phase 1 · Schritt 1+2: Datenmodell + Editor-Grundgerüst)
 - Grundlage für das neue **Moodboard-Feature** — pro Raum genau ein Moodboard, mit Versionen-Historie und Freigabe-Link für Kunden.
 - Migration **096** legt die Tabellen `moodboards` (UNIQUE-Constraint auf `raum_id`) und `moodboard_versionen` an, dazu einen privaten Storage-Bucket `moodboard-bilder` (50 MB Upload-Limit) und Realtime-Publication für Live-Co-Editing.
