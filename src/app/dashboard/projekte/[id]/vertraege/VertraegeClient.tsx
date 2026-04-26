@@ -4,12 +4,13 @@ import { useState, useTransition } from 'react'
 import {
   Plus, FileText, ChevronDown, Eye, Trash2, CheckCircle,
   Send, XCircle, Clock, PenLine, Download, Link2, Copy, Check,
-  PenSquare, AlertCircle, ShieldCheck, Archive, Ban,
+  PenSquare, AlertCircle, ShieldCheck, Archive, Ban, Flag,
 } from 'lucide-react'
 import type { Vertrag, VertragStatus, VertragsVorlage } from '@/lib/supabase/types'
 import { vertragErstellen, vertragStatusAendern, vertragLoeschen } from '@/app/actions/vertraege'
 import { signaturTokenErstellen, firmaUnterschreiben } from '@/app/actions/signatur'
 import SignaturCanvas from '@/components/SignaturCanvas'
+import VertragMeilensteineModal from '@/components/VertragMeilensteineModal'
 
 // ── Status-Konfiguration ──────────────────────────────────────
 
@@ -367,6 +368,7 @@ export default function VertraegeClient({ projektId, kundeId, initialVertraege, 
   const [neuerVertragOffen, setNeuerVertragOffen] = useState(false)
   const [vorschau, setVorschau] = useState<Vertrag | null>(null)
   const [signaturLink, setSignaturLink] = useState<Vertrag | null>(null)
+  const [meilensteineFuer, setMeilensteineFuer] = useState<Vertrag | null>(null)
   const [firmaSignatur, setFirmaSignatur] = useState<Vertrag | null>(null)
   const [fehler, setFehler] = useState<string | null>(null)
   const [, startTransition] = useTransition()
@@ -542,6 +544,14 @@ export default function VertraegeClient({ projektId, kundeId, initialVertraege, 
                   </button>
                   <button
                     type="button"
+                    onClick={() => setMeilensteineFuer(v)}
+                    title="Meilensteine"
+                    className="p-1.5 text-gray-400 hover:text-wellbeing-green hover:bg-gray-50 rounded-lg transition-all"
+                  >
+                    <Flag className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setSignaturLink(v)}
                     title="Signatur-Link"
                     className="p-1.5 text-gray-400 hover:text-wellbeing-green hover:bg-gray-50 rounded-lg transition-all"
@@ -604,6 +614,14 @@ export default function VertraegeClient({ projektId, kundeId, initialVertraege, 
           vertrag={firmaSignatur}
           onUnterschrieben={handleFirmaUnterschrieben}
           onClose={() => setFirmaSignatur(null)}
+        />
+      )}
+      {meilensteineFuer && (
+        <VertragMeilensteineModal
+          open={!!meilensteineFuer}
+          vertragId={meilensteineFuer.id}
+          vertragTitel={meilensteineFuer.titel}
+          onClose={() => setMeilensteineFuer(null)}
         />
       )}
     </>
