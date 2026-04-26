@@ -5,11 +5,17 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
-### Aufgaben-/ToDo-System (Trello-Style Kanban) — IN ARBEIT
+### Aufgaben-/ToDo-System (Trello-Style Kanban) — KOMPLETT (10 Sub-Commits)
 - **Neuer Sidebar-Eintrag „Aufgaben"** (ListChecks-Icon) mit Badge für überfällige offene Aufgaben des aktuellen Users.
 - **Globales Kanban-Board** unter `/dashboard/aufgaben`: 4 feste Spalten (Backlog · In Arbeit · Review · Erledigt) mit Drag&Drop zwischen und innerhalb der Spalten, optimistisches UI, Quick-Add je Spalte (Enter zum Speichern), Filter-Pills (Alle · Mir · Heute · Diese Woche · Überfällig). Cards zeigen Prioritäts-Punkt, Fälligkeits-Datum (rot wenn überfällig), Projekt/Kunden-Verknüpfung, Checklisten-Counter und Auto-Quelle-Indikator.
+- **Detail-Modal** beim Klick auf eine Card: 2-Spalten-Layout mit Inline-editierbarem Titel/Beschreibung (Auto-Save), Status-Dropdown, Prioritäts-Picker, Fälligkeits-Datepicker, Kunden-Beteiligungs-Toggles, Inline-Checkliste, Datei-Anhänge (Upload + signierte Vorschau), Live-Kommentare per Realtime.
+- **Auto-Sync aus 3 Quellen**: Reklamationen erzeugen automatisch Tasks in „In Arbeit", werden bei Lösung erledigt; Lieferanten-Bestellungen werden bei Bestätigung/Versand zu Lieferungs-Tasks (mit Liefertermin als Fälligkeit), bei Lieferung erledigt; Onboarding-Submissionen erzeugen „Onboarding prüfen"-Task. Alle Hooks failsafe — Sync-Fehler crashen nie die Haupt-Action.
+- **Dashboard-Widget „Meine Aufgaben"** mit Quick-Erledigt-Button und Fälligkeits-Anzeige; ROW 2 nun 3-spaltig (Deadlines · Follow-ups · Aufgaben).
+- **Projekt-Detail-Tab „Aufgaben"** mit Filter (Offen/Erledigt/Alle), Inline-Quick-Add mit auto-verknüpften kunde_id/projekt_id, kompakter Listenansicht und Modal-Detailansicht.
+- **Portal „Was du tun sollst"**: Kunden sehen ihnen zugewiesene Aufgaben (assignee_kunde) und sichtbar markierte Aufgaben (sichtbar_fuer_kunde) im Portal-Dashboard; können erledigen mit Toggle-Button und Kommentare schreiben (`ist_kunde=true`).
+- **Realtime**: Board updated live wenn andere Team-Mitglieder Aufgaben verschieben/anlegen; Modal-Kommentare erscheinen ohne Refresh.
 - Migration **102** (`aufgaben` + `aufgaben_kommentare` Tabellen, Indizes, RLS, Storage-Bucket „aufgaben-anhaenge", Realtime) muss manuell im Supabase SQL-Editor ausgeführt werden.
-- Detail-Modal, Auto-Sync (Reklamation/Bestellung/Meilenstein/Onboarding), Portal-Integration für Kunden-Aufgaben und weitere Polish-Schritte folgen.
+- Offen für Folge-Sessions: Vertrags-Meilenstein-Sync (braucht erst CRUD-UI für vertrag_meilensteine), Tag-Autocomplete, Aufgaben-Templates, Bulk-Aktionen.
 
 ### Bestell-Workflow KOMPLETT überarbeitet (11 Sub-Commits)
 - **Foundation** (Migration 100): Bestellstatus-Enum erweitert um Storniert · Teilgeliefert · Mangel · Retoure unterwegs · Retoure erhalten. Neue Tabellen `produkt_reklamationen` (mit Foto-Upload, 6 Typen, 5 Status, Lösungs-Tracking, Gutschrift-Betrag) und `lieferanten_bestellungen` + Junction für **Sammelbestellungen** über mehrere Räume hinweg. Neue Storage-Buckets, Bestellnummer-Generator `BS-YYYY-NNN`, Realtime, Audit-Log-Aktionen.
