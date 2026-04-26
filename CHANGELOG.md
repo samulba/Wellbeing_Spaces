@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard Step 5b — Layer-Panel (Ebenen-Liste)
+- Neuer Layer-Toggle-Button (Layers-Icon) öffnet rechts ein **Ebenen-Panel** mit allen Top-Level-Elementen, sortiert von der vordersten zur hintersten Ebene.
+- Pro Eintrag: Typ-Icon + Name (Bilder zeigen den Produktnamen falls verknüpft, Links die Domain, Notizen zeigen „Notiz", Sektionen den editierten Titel), Hover-Buttons für **Eine Ebene vor/zurück**, **Sperren/Entsperren** (Lock-Icon wechselt Farbe), **Sichtbarkeit ein/aus** (Eye-Icon).
+- Klick auf Eintrag selektiert das Element auf dem Canvas. Aktives Element wird grün hervorgehoben.
+- Live-Update bei add/remove/modify. Smart-Guides werden im Panel ausgeblendet.
+
 ### Moodboard Step 5a — Sektionen & Element-Sperren
 - **Sektion einfügen**: neuer Toolbar-Button (BoxSelect-Icon) erzeugt eine beschriftete Bereichs-Box mit Header-Streifen (wellbeing-green) + Titel-Label „SEKTION" — landet automatisch im Hintergrund, sodass User Inhalte rein-/raus-ziehen können. Titel ist editierbar.
 - **Element sperren**: Lock-Toggle im Eigenschaften-Panel — gesperrte Elemente lassen sich nicht mehr verschieben, skalieren oder rotieren (lockMovement/lockScaling/lockRotation), Cursor zeigt „not-allowed" an. Button wechselt zu „Gesperrt — Klick zum Entsperren" mit amber-Akzent.

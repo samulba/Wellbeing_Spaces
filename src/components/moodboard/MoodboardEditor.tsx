@@ -18,7 +18,7 @@ import {
   StickyNote, Loader2, Magnet, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter,
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
-  Lock, Unlock, BoxSelect,
+  Lock, Unlock, BoxSelect, Layers,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -29,6 +29,7 @@ import {
 } from '@/app/actions/moodboard'
 import type { MoodboardVersion } from '@/lib/supabase/types'
 import MoodboardWelcome from './MoodboardWelcome'
+import MoodboardLayers from './MoodboardLayers'
 import type { MoodboardTemplate } from '@/lib/moodboard-templates'
 
 interface Props {
@@ -118,6 +119,10 @@ export default function MoodboardEditor({
 
   // Sticky-Note Farb-Picker
   const [notePickerOffen, setNotePickerOffen] = useState(false)
+
+  // Layer-Panel
+  const [layerPanelOffen, setLayerPanelOffen] = useState(false)
+  const [layerReloadKey, setLayerReloadKey] = useState(0)
 
   // Snap & Smart-Guides
   const [snapToGrid, setSnapToGrid] = useState(false)
@@ -371,9 +376,9 @@ export default function MoodboardEditor({
       function updateLeer() {
         setIstLeer(canvas.getObjects().length === 0)
       }
-      canvas.on('object:modified', () => { pushHistory(); scheduleSave(); bumpObjVersion() })
-      canvas.on('object:added',    () => { if (!skipHistoryRef.current) { pushHistory(); scheduleSave() } updateLeer() })
-      canvas.on('object:removed',  () => { if (!skipHistoryRef.current) { pushHistory(); scheduleSave() } updateLeer() })
+      canvas.on('object:modified', () => { pushHistory(); scheduleSave(); bumpObjVersion(); setLayerReloadKey((k) => k + 1) })
+      canvas.on('object:added',    () => { if (!skipHistoryRef.current) { pushHistory(); scheduleSave() } updateLeer(); setLayerReloadKey((k) => k + 1) })
+      canvas.on('object:removed',  () => { if (!skipHistoryRef.current) { pushHistory(); scheduleSave() } updateLeer(); setLayerReloadKey((k) => k + 1) })
 
       // ── Selection-Events fuer rechte Sidebar ─────────────────
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1489,6 +1494,13 @@ export default function MoodboardEditor({
             >
               <span className="text-[10px] font-bold leading-none">⌗</span>
             </ToolBtn>
+            <ToolBtn
+              onClick={() => setLayerPanelOffen((v) => !v)}
+              title={layerPanelOffen ? 'Ebenen schließen' : 'Ebenen anzeigen'}
+              active={layerPanelOffen}
+            >
+              <Layers className="w-[18px] h-[18px]" />
+            </ToolBtn>
           </ToolGroup>
 
           <ToolDivider />
@@ -1755,6 +1767,62 @@ export default function MoodboardEditor({
             </div>
           )}
         </div>
+
+        {/* Layer-Panel */}
+        {layerPanelOffen && fabricRef.current && (
+          <MoodboardLayers
+            objects={fabricRef.current.getObjects()}
+            activeObj={activeObj}
+            reloadKey={layerReloadKey}
+            onSelect={(o) => {
+              const c = fabricRef.current
+              if (!c) return
+              c.setActiveObject(o)
+              c.requestRenderAll()
+              setActiveObj(o)
+            }}
+            onToggleVis={(o) => {
+              const c = fabricRef.current
+              if (!c) return
+              o.visible = !o.visible
+              c.requestRenderAll()
+              setLayerReloadKey((k) => k + 1)
+              scheduleSave()
+            }}
+            onToggleLock={(o) => {
+              const c = fabricRef.current
+              if (!c) return
+              const neu = !(o.lockMovementX === true)
+              o.lockMovementX = neu
+              o.lockMovementY = neu
+              o.lockScalingX  = neu
+              o.lockScalingY  = neu
+              o.lockRotation  = neu
+              o.hasControls   = !neu
+              o.hoverCursor   = neu ? 'not-allowed' : 'move'
+              c.requestRenderAll()
+              setLayerReloadKey((k) => k + 1)
+              scheduleSave()
+            }}
+            onForward={(o) => {
+              const c = fabricRef.current
+              if (!c) return
+              c.bringObjectForward(o)
+              c.requestRenderAll()
+              setLayerReloadKey((k) => k + 1)
+              scheduleSave()
+            }}
+            onBackward={(o) => {
+              const c = fabricRef.current
+              if (!c) return
+              c.sendObjectBackwards(o)
+              c.requestRenderAll()
+              setLayerReloadKey((k) => k + 1)
+              scheduleSave()
+            }}
+            onClose={() => setLayerPanelOffen(false)}
+          />
+        )}
 
         {/* Rechte Sidebar – nur wenn etwas selektiert ist */}
         {activeObj && (
