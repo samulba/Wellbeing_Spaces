@@ -7,17 +7,28 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { ZoomIn, ZoomOut, Maximize2, Download } from 'lucide-react'
+import { ZoomIn, ZoomOut, Maximize2, Download, MessageSquare, X } from 'lucide-react'
+import MoodboardPinOverlay from './MoodboardPinOverlay'
+import { moodboardKundenKommentarAnlegen } from '@/app/actions/moodboard'
+import type { MoodboardKommentar } from '@/lib/supabase/types'
 
 interface Props {
   canvasJson: Record<string, unknown> | null
   name: string
+  freigabeToken?: string
+  kommentareAktiv?: boolean
+  initialPins?: MoodboardKommentar[]
 }
 
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 5
+const KUNDE_NAME_KEY = 'mb-kunde-name'
+const KUNDE_EMAIL_KEY = 'mb-kunde-email'
 
-export default function MoodboardPraesentation({ canvasJson, name }: Props) {
+export default function MoodboardPraesentation({
+  canvasJson, name,
+  freigabeToken, kommentareAktiv = false, initialPins = [],
+}: Props) {
   const canvasElRef  = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,6 +37,125 @@ export default function MoodboardPraesentation({ canvasJson, name }: Props) {
   const fabricImpRef = useRef<any>(null)
   const fitRef       = useRef<() => void>(() => {})
   const [zoom, setZoom] = useState(1)
+
+  // Pins (Kunden-Modus)
+  const [pins, setPins] = useState<MoodboardKommentar[]>(initialPins)
+  const [pinModus, setPinModus] = useState(false)
+  const [aktiverPinId, setAktiverPinId] = useState<string | null>(null)
+  const [pinEntwurf, setPinEntwurf] = useState<{ x: number; y: number } | null>(null)
+  const [pinText, setPinText] = useState('')
+  const [pinAutorName, setPinAutorName] = useState('')
+  const [pinAutorEmail, setPinAutorEmail] = useState('')
+  const [pinSending, setPinSending] = useState(false)
+  const [pinFehler, setPinFehler] = useState<string | null>(null)
+  const [viewportTick, setViewportTick] = useState(0)
+  const viewportPendingRef = useRef(false)
+  const pinModusRef = useRef(false)
+  useEffect(() => { pinModusRef.current = pinModus }, [pinModus])
+
+  // Name aus localStorage laden
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const n = window.localStorage.getItem(KUNDE_NAME_KEY)
+    const e = window.localStorage.getItem(KUNDE_EMAIL_KEY)
+    if (n) setPinAutorName(n)
+    if (e) setPinAutorEmail(e)
+  }, [])
+
+  function worldToScreen(wx: number, wy: number) {
+    const c = fabricRef.current
+    if (!c) return null
+    const vpt = c.viewportTransform
+    return { x: vpt[0] * wx + vpt[4], y: vpt[3] * wy + vpt[5] }
+  }
+
+  async function pinAbsenden() {
+    if (!freigabeToken || !pinEntwurf) return
+    const text = pinText.trim()
+    const nameTrim = pinAutorName.trim()
+    if (!text)     { setPinFehler('Kommentar darf nicht leer sein.'); return }
+    if (!nameTrim) { setPinFehler('Bitte gib deinen Namen ein.'); return }
+
+    setPinSending(true); setPinFehler(null)
+    const r = await moodboardKundenKommentarAnlegen({
+      freigabeToken,
+      posX: pinEntwurf.x,
+      posY: pinEntwurf.y,
+      inhalt: text,
+      autorName: nameTrim,
+      autorEmail: pinAutorEmail.trim() || null,
+    })
+    setPinSending(false)
+    if (r.fehler) { setPinFehler(r.fehler); return }
+
+    // Name/Email speichern für Folge-Pins
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(KUNDE_NAME_KEY, nameTrim)
+      if (pinAutorEmail.trim()) window.localStorage.setItem(KUNDE_EMAIL_KEY, pinAutorEmail.trim())
+    }
+
+    // Pin lokal hinzufügen (optimistic) — Realtime kommt spaeter, fuer jetzt manuell
+    if (r.id) {
+      setPins((prev) => [...prev, {
+        id: r.id!,
+        organisation_id: '',
+        moodboard_id: '',
+        parent_id: null,
+        pos_x: pinEntwurf.x, pos_y: pinEntwurf.y,
+        bezogen_auf: null,
+        autor_user_id: null,
+        autor_name: nameTrim,
+        autor_email: pinAutorEmail.trim() || null,
+        ist_kunde: true,
+        inhalt: text,
+        erledigt: false,
+        erledigt_am: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }])
+    }
+    setPinEntwurf(null)
+    setPinText('')
+    setPinModus(false)
+  }
+
+  async function kundenAntwort(parentId: string, inhalt: string): Promise<boolean> {
+    if (!freigabeToken) return false
+    const nameTrim = pinAutorName.trim()
+    if (!nameTrim) {
+      setPinFehler('Bitte gib zuerst deinen Namen oben ein, bevor du antwortest.')
+      return false
+    }
+    const r = await moodboardKundenKommentarAnlegen({
+      freigabeToken,
+      posX: 0, posY: 0, // wird ignoriert wenn parentId
+      parentId,
+      inhalt,
+      autorName: nameTrim,
+      autorEmail: pinAutorEmail.trim() || null,
+    })
+    if (r.fehler) { setPinFehler(r.fehler); return false }
+    if (r.id) {
+      setPins((prev) => [...prev, {
+        id: r.id!,
+        organisation_id: '',
+        moodboard_id: '',
+        parent_id: parentId,
+        pos_x: null, pos_y: null,
+        bezogen_auf: null,
+        autor_user_id: null,
+        autor_name: nameTrim,
+        autor_email: pinAutorEmail.trim() || null,
+        ist_kunde: true,
+        inhalt,
+        erledigt: false,
+        erledigt_am: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }])
+    }
+    return true
+  }
 
   useEffect(() => {
     if (!canvasElRef.current || !containerRef.current) return
@@ -69,12 +199,39 @@ export default function MoodboardPraesentation({ canvasJson, name }: Props) {
       // Pan via Drag (linke Maustaste, da kein Select)
       let isPanning = false
       let lastX = 0, lastY = 0
+      let mouseDownPos = { x: 0, y: 0 }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       canvas.on('mouse:down', (opt: any) => {
         const e = opt.e as MouseEvent
+        // Im Pin-Modus: kein Pan, sondern Pin-Entwurf (handled via mouse:up wenn nicht gezogen)
+        mouseDownPos = { x: e.clientX, y: e.clientY }
         isPanning = true
         lastX = e.clientX; lastY = e.clientY
         cont.style.cursor = 'grabbing'
+      })
+
+      // after:render → viewportTick (damit HTML-Pins mitfliegen)
+      canvas.on('after:render', () => {
+        if (!viewportPendingRef.current) {
+          viewportPendingRef.current = true
+          requestAnimationFrame(() => {
+            viewportPendingRef.current = false
+            setViewportTick((t) => t + 1)
+          })
+        }
+      })
+
+      // Pin-Modus: Klick (kein Drag) → Pin-Entwurf
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.on('mouse:up:before', () => {})
+      canvas.upperCanvasEl?.addEventListener('click', (ev) => {
+        if (!pinModusRef.current) return
+        const moved = Math.abs(ev.clientX - mouseDownPos.x) + Math.abs(ev.clientY - mouseDownPos.y)
+        if (moved > 4) return
+        const p = canvas.getPointer(ev)
+        setPinEntwurf({ x: p.x, y: p.y })
+        setPinText('')
+        setPinFehler(null)
       })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       canvas.on('mouse:move', (opt: any) => {
@@ -191,8 +348,117 @@ export default function MoodboardPraesentation({ canvasJson, name }: Props) {
 
   return (
     <div className="flex-1 flex flex-col">
-      <div className="flex-1 relative overflow-hidden bg-[#f5f5f0]" ref={containerRef}>
+      <div
+        className="flex-1 relative overflow-hidden bg-[#f5f5f0]"
+        ref={containerRef}
+        style={{ cursor: pinModus ? 'crosshair' : undefined }}
+      >
         <canvas ref={canvasElRef} />
+
+        {/* Pin-Overlay (nur wenn Kommentare aktiv) */}
+        {kommentareAktiv && (
+          <>
+            {/* eslint-disable-next-line @typescript-eslint/no-unused-expressions */}
+            {void viewportTick}
+            <MoodboardPinOverlay
+              pins={pins}
+              worldToScreen={worldToScreen}
+              aktiverPinId={aktiverPinId}
+              setAktiverPinId={setAktiverPinId}
+              onAntworten={kundenAntwort}
+              // Kunden duerfen nicht erledigen/loeschen
+              onErledigen={() => {}}
+              onLoeschen={() => {}}
+              kundenModus
+            />
+
+            {/* Pin-Modus Toggle (Floating-Button oben rechts) */}
+            <button
+              type="button"
+              onClick={() => { setPinModus((v) => !v); setPinEntwurf(null) }}
+              className={`
+                absolute top-3 right-3 z-30 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg shadow-md text-xs font-medium transition-all
+                ${pinModus
+                  ? 'bg-amber-400 text-amber-950 border border-amber-600'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:border-amber-400 hover:text-amber-700'}
+              `}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              {pinModus ? 'Pin-Modus aktiv — klick aufs Board' : 'Kommentar hinzufügen'}
+              {pinModus && <X className="w-3 h-3 ml-0.5" />}
+            </button>
+
+            {/* Pin-Entwurf-Modal */}
+            {pinEntwurf && (() => {
+              const pos = worldToScreen(pinEntwurf.x, pinEntwurf.y)
+              if (!pos) return null
+              return (
+                <div
+                  className="absolute z-40"
+                  style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, -100%)' }}
+                >
+                  <div className="w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
+                    <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 flex items-center gap-1.5">
+                      <MessageSquare className="w-3.5 h-3.5 text-amber-700" />
+                      <span className="text-[11px] font-medium text-amber-900">Dein Kommentar</span>
+                    </div>
+                    <div className="p-3 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={pinAutorName}
+                          onChange={(e) => setPinAutorName(e.target.value)}
+                          placeholder="Dein Name *"
+                          className="px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-wellbeing-green focus:ring-1 focus:ring-wellbeing-green/30"
+                        />
+                        <input
+                          type="email"
+                          value={pinAutorEmail}
+                          onChange={(e) => setPinAutorEmail(e.target.value)}
+                          placeholder="E-Mail (optional)"
+                          className="px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-wellbeing-green focus:ring-1 focus:ring-wellbeing-green/30"
+                        />
+                      </div>
+                      <textarea
+                        autoFocus
+                        value={pinText}
+                        onChange={(e) => setPinText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !pinSending) pinAbsenden()
+                          if (e.key === 'Escape') { setPinEntwurf(null); setPinModus(false) }
+                        }}
+                        placeholder="Was möchtest du anmerken?"
+                        rows={3}
+                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded resize-none focus:outline-none focus:border-wellbeing-green focus:ring-1 focus:ring-wellbeing-green/30"
+                      />
+                      {pinFehler && <p className="text-[11px] text-red-600">{pinFehler}</p>}
+                      <div className="flex justify-between items-center pt-1">
+                        <span className="text-[10px] text-gray-400">⌘/Ctrl + Enter</span>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => { setPinEntwurf(null); setPinModus(false) }}
+                            className="px-2 py-1 text-[11px] text-gray-500 hover:text-gray-700"
+                          >
+                            Abbrechen
+                          </button>
+                          <button
+                            type="button"
+                            onClick={pinAbsenden}
+                            disabled={!pinText.trim() || !pinAutorName.trim() || pinSending}
+                            className="px-2.5 py-1 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-[11px] font-medium rounded disabled:opacity-50"
+                          >
+                            {pinSending ? 'Sende…' : 'Absenden'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </>
+        )}
 
         {/* Zoom-Controls */}
         <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-white border border-gray-200 rounded-lg shadow-sm px-1 py-1">

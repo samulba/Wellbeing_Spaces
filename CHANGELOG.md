@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard Step 6c — Kunden-Pins auf Freigabe-Seite
+- Auf der öffentlichen `/moodboard/[token]`-Seite erscheint bei aktiven Kommentaren ein **„Kommentar hinzufügen"-Button** (oben rechts) + amber Badge im Header (`Kommentare aktiv`).
+- Pin-Modus: Cursor wechselt auf Crosshair, Klick aufs Board öffnet einen Eingabe-Dialog mit Name (Pflichtfeld, wird in localStorage gespeichert), optionale Email, Kommentar-Textarea + ⌘/Ctrl+Enter zum Absenden.
+- Kunden-Pins werden amber angezeigt, mit „Kunde"-Badge im Thread-Header. Kunden können auch auf bestehende Pins antworten (selber Name/Email-Flow).
+- Backend-Schutz: Anon-Insert nur erlaubt wenn `freigabe_aktiv=true` UND `freigabe_kommentare_aktiv=true` (RLS-Policy).
+
 ### Moodboard Step 6 — Kommentar-Pins (intern + Kunden-Freigabe)
 - Migration **097**: neue Tabelle `moodboard_kommentare` mit threaded structure (parent_id self-referencing), World-Koordinaten, Erledigt-Flag, Realtime-Publication. RLS org-scoped + Anon-Select/Insert wenn Moodboard freigegeben + Kommentare erlaubt.
 - **Pin-Tool** in der Toolbar (MessageSquare-Icon) — Klick auf Canvas öffnet Pin-Entwurf mit Textarea + ⌘/Ctrl+Enter zum Speichern.

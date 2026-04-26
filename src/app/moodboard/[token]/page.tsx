@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
-import { Palette } from 'lucide-react'
-import { getMoodboardOeffentlich } from '@/app/actions/moodboard'
+import { Palette, MessageSquare } from 'lucide-react'
+import { getMoodboardOeffentlich, getMoodboardKommentareOeffentlich } from '@/app/actions/moodboard'
 import MoodboardPraesentation from '@/components/moodboard/MoodboardPraesentation'
 
 export const dynamic = 'force-dynamic'
@@ -14,6 +14,9 @@ interface Props {
 export default async function MoodboardOeffentlichPage({ params }: Props) {
   const board = await getMoodboardOeffentlich(params.token)
   if (!board) notFound()
+  const initialPins = board.kommentareAktiv
+    ? await getMoodboardKommentareOeffentlich(params.token)
+    : []
 
   return (
     <div className="min-h-screen bg-wellbeing-cream/30 flex flex-col">
@@ -31,9 +34,17 @@ export default async function MoodboardOeffentlichPage({ params }: Props) {
               </div>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
-            <Palette className="w-3.5 h-3.5" />
-            Moodboard
+          <div className="hidden sm:flex items-center gap-3 text-xs text-gray-400">
+            {board.kommentareAktiv && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[11px] font-medium">
+                <MessageSquare className="w-3 h-3" />
+                Kommentare aktiv
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5">
+              <Palette className="w-3.5 h-3.5" />
+              Moodboard
+            </span>
           </div>
         </div>
       </header>
@@ -52,6 +63,9 @@ export default async function MoodboardOeffentlichPage({ params }: Props) {
         <MoodboardPraesentation
           canvasJson={board.canvasJson}
           name={board.name}
+          freigabeToken={params.token}
+          kommentareAktiv={board.kommentareAktiv}
+          initialPins={initialPins}
         />
       </main>
 
