@@ -17,15 +17,19 @@ async function getProdukte(): Promise<ProduktZeile[]> {
       .is('deleted_at', null)
       .order('name'),
     supabase.from('partner').select('id, name').is('deleted_at', null),
-    supabase.from('raum_produkte').select('produkt_id'),
+    supabase.from('raum_produkte').select('produkt_id, bestellstatus'),
   ])
 
   const partnerMap = Object.fromEntries((partnerData ?? []).map((p) => [p.id, p]))
 
-  // Anzahl Räume pro Produkt zählen
+  // Anzahl Räume + Anzahl erfolgreich gelieferte raum_produkte pro Produkt
   const raumAnzahlMap: Record<string, number> = {}
+  const geliefertMap: Record<string, number> = {}
   for (const rp of raumProdData ?? []) {
     raumAnzahlMap[rp.produkt_id] = (raumAnzahlMap[rp.produkt_id] ?? 0) + 1
+    if (rp.bestellstatus === 'geliefert' || rp.bestellstatus === 'rechnung_erhalten') {
+      geliefertMap[rp.produkt_id] = (geliefertMap[rp.produkt_id] ?? 0) + 1
+    }
   }
 
   return (prodData ?? []).map((p) => {
@@ -47,6 +51,7 @@ async function getProdukte(): Promise<ProduktZeile[]> {
       projektName:        null,
       kundeName:          null,
       verwendetInAnzahl:  raumAnzahlMap[p.id] ?? 0,
+      gelieferteAnzahl:   geliefertMap[p.id] ?? 0,
     }
   })
 }

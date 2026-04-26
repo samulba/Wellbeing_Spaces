@@ -116,6 +116,7 @@ export type ProduktZeile = {
   projektName: string | null
   kundeName: string | null
   verwendetInAnzahl?: number
+  gelieferteAnzahl?:  number
 }
 
 const eur = (n: number) =>
@@ -514,12 +515,22 @@ export default function ProdukteTabelle({
                           )}
                         </td>
 
-                        {/* Verwendung → In X Räumen */}
+                        {/* Verwendung → In X Räumen + Re-Order-Indicator */}
                         <td className="px-4 py-3 max-w-[200px]">
                           {(p.verwendetInAnzahl ?? 0) > 0 ? (
-                            <span className="inline-block px-2 py-0.5 text-[11px] bg-wellbeing-cream text-wellbeing-green-dark rounded-full font-medium whitespace-nowrap">
-                              In {p.verwendetInAnzahl} {p.verwendetInAnzahl === 1 ? 'Raum' : 'Räumen'}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="inline-block px-2 py-0.5 text-[11px] bg-wellbeing-cream text-wellbeing-green-dark rounded-full font-medium whitespace-nowrap">
+                                In {p.verwendetInAnzahl} {p.verwendetInAnzahl === 1 ? 'Raum' : 'Räumen'}
+                              </span>
+                              {(p.gelieferteAnzahl ?? 0) > 0 && (
+                                <span
+                                  className="inline-block px-2 py-0.5 text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-medium whitespace-nowrap"
+                                  title={`Schon ${p.gelieferteAnzahl}× erfolgreich geliefert — bewährtes Produkt`}
+                                >
+                                  ✓ {p.gelieferteAnzahl}× geliefert
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                               <span className="inline-block px-2 py-0.5 text-[11px] bg-gray-100 text-gray-500 rounded-full font-medium whitespace-nowrap">
