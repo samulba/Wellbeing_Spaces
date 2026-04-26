@@ -5,6 +5,21 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Bestell-Workflow KOMPLETT überarbeitet (11 Sub-Commits)
+- **Foundation** (Migration 100): Bestellstatus-Enum erweitert um Storniert · Teilgeliefert · Mangel · Retoure unterwegs · Retoure erhalten. Neue Tabellen `produkt_reklamationen` (mit Foto-Upload, 6 Typen, 5 Status, Lösungs-Tracking, Gutschrift-Betrag) und `lieferanten_bestellungen` + Junction für **Sammelbestellungen** über mehrere Räume hinweg. Neue Storage-Buckets, Bestellnummer-Generator `BS-YYYY-NNN`, Realtime, Audit-Log-Aktionen.
+- **Reklamations-UI im Raum-Detail**: Drei-Punkte-Menü pro Produkt mit Reklamations-Button (orange) → Modal mit Typ-Auswahl, Beschreibung, Multi-Foto-Upload, Optionen für Bestellstatus + Kunden-Sichtbarkeit.
+- **/dashboard/bestellungen Übersicht** (neu in Sidebar): 5 Tabs — Zu bestellen (gruppiert nach Lieferant) · Unterwegs · Diese Woche · Reklamationen (mit Dringlichkeits-Marker bei >7 Tagen offen) · Archiv. Suchfeld, Filter-Pills, Status-Badges, Sammelbestellungs-Vorschlag pro Lieferanten-Gruppe.
+- **Bestellungs-Detail-Seite** + Erstell-Workflow: Bestelldaten editierbar (Bestellnummer, Liefertermin, Tracking-URL, Lieferschein-Nr., Versandkosten), PDF-Upload für Bestellbestätigung, Positions-Liste mit Mengen+Preisen+Zwischensummen, Status-Transitions (Bestätigen/Versandt/Geliefert/Stornieren) synchronisieren raum_produkte automatisch.
+- **Sammelbestellungs-Erstellen**: pro Lieferant aus allen offenen freigegebenen Produkten auswählen, Mengen+Preise editierbar, Vorschlag „Zu existierender Bestellung anhängen" wenn der Lieferant schon einen Entwurf hat.
+- **Dashboard-Widgets**: 4 neue KPI-Karten (Zu bestellen · Unterwegs · Diese Woche · Reklamationen) direkt unter den Haupt-KPIs, mit Direktlinks zu den entsprechenden Tabs.
+- **Kunden-Portal**: neuer Tab „Lieferungen" (Truck-Icon, Badge mit offenen Reklamationen) — Kunde sieht pro Produkt Bestellstatus + Daten (Bestellt/Liefertermin/Erhalten) + verschachtelte Reklamations-Anzeige mit Status + Lösung wenn gelöst. Banner oben bei offenen Reklamationen.
+- **Lieferanten-E-Mail**: Ein-Klick „E-Mail an Lieferant"-Button auf Bestellungs-Detail-Seite — generiert komplette Plain-Text-Vorlage mit nummerierten Produkten + Mengen + Preisen + Gesamtsumme + Liefertermin-Wunsch, öffnet System-Mail-App via mailto.
+- **Re-Order-Indikator** in Produkt-Bibliothek: bewährte Produkte (mind. 1× erfolgreich geliefert) bekommen einen grünen Badge `✓ N× geliefert` als Hinweis fürs schnelle Wieder-Zuweisen.
+- **Garantie-Tracking** (Migration 101): neue Spalten `gewaehrleistung_bis` + `gewaehrleistung_monate` (default 24) auf `raum_produkte` mit auto-Trigger der bei Lieferung das Gewährleistungs-Datum berechnet. Backfill bestehender Datensätze. Index für Cleanup-Jobs.
+- **Kommunikation pro Produkt** (Migration 101): `raum_produkte_id` (optional) auf `kommunikation` — Spalte da, UI-Integration kann später folgen.
+- **Vertrag-Auto-Hook**: wenn Kunde + Firma einen Vertrag unterschrieben haben, werden automatisch pro Lieferant Bestellungs-Entwürfe mit allen freigegebenen+ausstehenden Produkten des Projekts angelegt — Designer findet sie sofort in der Bestellungen-Übersicht „Zu bestellen / Entwürfe".
+- Migrationen **100** + **101** müssen manuell im Supabase SQL-Editor ausgeführt werden.
+
 ### Bestell-Workflow überarbeitet — Foundation (Sub-Commit 1/11)
 - Migration **100** legt das Datenmodell für den vollständigen Bestell-Lifecycle: erweitert das `bestellstatus_enum` um **5 neue Zustände** (Storniert · Teilgeliefert · Mangel gemeldet · Retoure unterwegs · Retoure erhalten), neue Tabellen `produkt_reklamationen` (mit Foto-Upload, Lösungs-Status, Gutschrift-Betrag) und `lieferanten_bestellungen` + Junction `lieferanten_bestellung_positionen` (für Sammelbestellungen über mehrere Räume), Storage-Buckets `reklamation-fotos` und `bestellung-dokumente` (je 25 MB), Bestellnummer-Generator `BS-YYYY-NNN`.
 - Status-Badges in der Produkt-Tabelle erkennen die neuen Zustände visuell (Mangel = orange/Warning, Retoure = indigo/slate, Storno = rot).
