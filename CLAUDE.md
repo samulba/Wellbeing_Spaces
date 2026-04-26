@@ -25,6 +25,17 @@ Letzte Migration: 045 (raumplaner) — noch nicht in Supabase ausgeführt! Migra
 Wellbeing Green (#445c49) aktiv. Sidebar: bg-[#445c49] (forest green), Syne-Font. Desktop-first, ruhig/reduziert.
 Farbpalette: wellbeing-green (#445c49), wellbeing-green-light (#94c1a4), wellbeing-green-dark (#2d3e31), wellbeing-cream (#f6ede2), wellbeing-terracotta (#823509), wellbeing-sand (#cba178).
 
+### Design-Konsistenz (DAUERHAFTE REGEL — wichtig!)
+**Alle Dashboard-Listenseiten MÜSSEN exakt das gleiche Layout verwenden** — kein eigenes Hero-Band, kein Sonderdesign. Referenz: `/dashboard/projekte/page.tsx`. Pattern:
+1. **`<StickyPageHeader>`** oben (weißer BG, Titel + Count + optional Subtitle + Action-Button rechts) — NIE durch Gradient-Hero ersetzen.
+2. **Filter-Pills-Reihe** im Projekte-Stil: `bg-wellbeing-green text-white` für aktiv, `bg-white text-gray-500 border border-gray-200` für inaktiv, mit Count-Badge `bg-white/20` aktiv / `bg-gray-100` inaktiv.
+3. **Toolbar**: 340px Suchfeld (`focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light`), Counter `text-gray-400`, rechts Grid/List-Toggle (`border border-gray-200 rounded-lg overflow-hidden`).
+4. **Cards** auf weißem BG (`bg-white border border-gray-200 rounded-xl shadow-sm`), Hover `hover:shadow-md hover:border-gray-300`. Avatar-Tile links (10×10 rounded-lg, farbig nach `avatarFarbe(seed)` aus pastelligen Tones), Titel + Subtitel mittig, Datum/Status oben rechts. Footer mit Border-Top + Meta-Infos.
+5. **Hintergrund** der Page: hell/neutral (kein dunkles Gradient-Band). Empty-States als weiße Cards mit Border, gleicher Stil.
+6. **Modals/Editor-spezifische Tools** (Raumplaner/Moodboard-Editor) DÜRFEN dunkles UI haben — Listen/Übersichten NICHT.
+
+→ Wenn eine neue Übersichtsseite gebaut wird: erst Projekte-Page anschauen, dann 1:1 dieses Pattern verwenden. Nicht "kreativ werden". User hat ausdrücklich gefordert, dass alle Dashboards einheitlich aussehen müssen.
+
 ## Offen
 - Migrations 038–045 müssen noch manuell in Supabase SQL-Editor ausgeführt werden
 - Migrationen 068/069/070/071/072/073/074/075/086/087/088/089/090/091/092/093/094/095 müssen manuell in Supabase SQL-Editor ausgeführt werden

@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboards-Übersicht: Design-Konsistenz mit Projekte-Seite
+- Übersicht komplett ans Projekte-Dashboard-Pattern angepasst — kein eigenes Hero-Band mit grünem Gradient mehr, sondern derselbe weiße `StickyPageHeader` mit Titel + Count + Subtitle wie auf allen anderen Listen-Seiten.
+- Filter-Pills im Projekte-Toggle-Stil (Alle / Freigegeben / Entwurf) mit Count-Badges, Suchleiste mit 340 px Breite + Eintrags-Counter, Grid/List-Toggle rechts — alles 1:1 wie bei Projekte/Kunden.
+- Cards komplett überarbeitet: Avatar-Tile links (farbig pro Projekt, Initialen), Titel + Projekt-Name mittig, Zeitabstand oben rechts, Footer-Zeile mit Raum + Kunde — gleicher visueller Aufbau wie Projekte-Cards.
+- **CLAUDE.md** um Design-Konsistenz-Regel ergänzt: alle Dashboard-Listenseiten MÜSSEN das `StickyPageHeader`-Pattern, gleiche Filter-Pills, weiße Cards verwenden — kein eigenes Hero-Band oder Sonderdesign mehr.
+
 ### Moodboards Polish — Übersicht & Editor auf Premium-Niveau
 - **Übersichtsseite komplett neu**: Hero-Band mit grünem Gradient + 3 Stats-Pills (Gesamt / Freigegeben / Mit Inhalt), Sticky-Toolbar mit Volltextsuche (Name/Raum/Projekt/Kunde) + Projekt-Filter + Status-Filter (Alle/Freigegeben/Entwurf) + Sort + Grid-/List-Toggle. Cards zeigen jetzt eine **echte Mini-Vorschau** des Boards (Auto-Fit Canvas-Render statt Palette-Placeholder), Freigabe-Badge, formatierte Zeitangabe.
 - **Editor-Top-Bar im Figma-Stil**: alles auf eine Reihe (56 px), Tools in 3 Gruppen mit dezenten Trennern, Save-Status als animiertes Pill-Badge (idle/speichere/gespeichert/Fehler), Zoom als Mini-Cluster, separater **Speichern**-Button und prominenter **Teilen**-Button (grün wenn aktiv, sonst neutral).

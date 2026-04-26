@@ -3,40 +3,37 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
-  Search, Palette, Share2, FolderOpen, ChevronDown, LayoutGrid, List,
-  Calendar, ExternalLink,
+  Search, Palette, Share2, FolderOpen, LayoutGrid, List, ExternalLink, Calendar,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
 import MoodboardVorschau from '@/components/moodboard/MoodboardVorschau'
 import type { MoodboardListEintrag } from '@/app/actions/moodboard'
 
-type SortBy   = 'updated' | 'name' | 'projekt'
-type ViewMode = 'grid' | 'list'
+type FilterStatus = 'alle' | 'freigegeben' | 'entwurf'
+type ViewMode     = 'grid' | 'list'
 
 interface Props {
   eintraege: MoodboardListEintrag[]
 }
 
 export default function MoodboardsUebersichtClient({ eintraege }: Props) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedProjekt, setSelectedProjekt] = useState('')
-  const [filterFreigabe, setFilterFreigabe] = useState<'alle' | 'freigegeben' | 'entwurf'>('alle')
-  const [sortBy, setSortBy] = useState<SortBy>('updated')
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [suche, setSuche] = useState('')
+  const [filter, setFilter] = useState<FilterStatus>('alle')
+  const [ansicht, setAnsicht] = useState<ViewMode>('grid')
 
-  const projekte = useMemo(() => {
-    const map = new Map<string, string>()
-    eintraege.forEach((e) => map.set(e.projekt_id, e.projekt_name))
-    return Array.from(map.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'de'))
-  }, [eintraege])
+  const counts = useMemo(() => ({
+    alle:        eintraege.length,
+    freigegeben: eintraege.filter((e) => e.freigabe_aktiv).length,
+    entwurf:     eintraege.filter((e) => !e.freigabe_aktiv).length,
+  }), [eintraege])
 
   const gefiltert = useMemo(() => {
-    let r = [...eintraege]
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase()
+    let r = eintraege
+    if (filter === 'freigegeben') r = r.filter((e) => e.freigabe_aktiv)
+    if (filter === 'entwurf')     r = r.filter((e) => !e.freigabe_aktiv)
+    if (suche.trim()) {
+      const q = suche.trim().toLowerCase()
       r = r.filter(
         (e) =>
           e.name.toLowerCase().includes(q) ||
@@ -45,204 +42,143 @@ export default function MoodboardsUebersichtClient({ eintraege }: Props) {
           (e.kunde_name?.toLowerCase().includes(q) ?? false),
       )
     }
-    if (selectedProjekt) r = r.filter((e) => e.projekt_id === selectedProjekt)
-    if (filterFreigabe === 'freigegeben') r = r.filter((e) => e.freigabe_aktiv)
-    if (filterFreigabe === 'entwurf')     r = r.filter((e) => !e.freigabe_aktiv)
-
-    if (sortBy === 'name') {
-      r.sort((a, b) => a.name.localeCompare(b.name, 'de'))
-    } else if (sortBy === 'projekt') {
-      r.sort((a, b) =>
-        a.projekt_name.localeCompare(b.projekt_name, 'de') ||
-        a.raum_name.localeCompare(b.raum_name, 'de'),
-      )
-    } else {
-      r.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-    }
     return r
-  }, [eintraege, searchQuery, selectedProjekt, filterFreigabe, sortBy])
-
-  const stats = useMemo(() => ({
-    gesamt:       eintraege.length,
-    freigegeben:  eintraege.filter((e) => e.freigabe_aktiv).length,
-    mitInhalt:    eintraege.filter((e) => e.canvas_json && Object.keys(e.canvas_json).length > 0).length,
-  }), [eintraege])
+  }, [eintraege, filter, suche])
 
   return (
-    <div className="flex-1 overflow-y-auto animate-fadeIn bg-gray-50/30">
-
-      {/* Hero-Band */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-wellbeing-green via-wellbeing-green-dark to-wellbeing-green border-b border-wellbeing-green-dark/20">
-        <div aria-hidden className="absolute -top-20 -right-16 w-80 h-80 rounded-full bg-white/10 blur-3xl" />
-        <div aria-hidden className="absolute -bottom-16 -left-10 w-64 h-64 rounded-full bg-wellbeing-sand/10 blur-2xl" />
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)',
-            backgroundSize: '24px 24px',
-          }}
+    <>
+      {/* Status-Tabs (Aktiv / Archiviert-Style) */}
+      <div className="flex items-center gap-2 mb-4">
+        <FilterTab
+          active={filter === 'alle'}
+          onClick={() => setFilter('alle')}
+          count={counts.alle}
+          label="Alle"
         />
-
-        <div className="relative px-6 lg:px-8 py-8 max-w-[1600px] mx-auto">
-          <div className="flex items-start justify-between gap-6 flex-wrap">
-            <div className="text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70 mb-2">
-                Inspiration & Vibe
-              </p>
-              <h1 className="text-2xl md:text-3xl font-medium tracking-tight">Moodboards</h1>
-              <p className="text-sm text-white/70 mt-1.5 max-w-xl">
-                Stimme den Stil mit deinem Kunden ab — bevor du konkrete Produkte einkaufst.
-              </p>
-            </div>
-
-            {/* Stats-Pills */}
-            <div className="flex items-center gap-3">
-              <StatPill label="Gesamt"      value={stats.gesamt} />
-              <StatPill label="Freigegeben" value={stats.freigegeben} icon={<Share2 className="w-3 h-3" />} />
-              <StatPill label="Mit Inhalt"  value={stats.mitInhalt} />
-            </div>
-          </div>
-        </div>
+        <FilterTab
+          active={filter === 'freigegeben'}
+          onClick={() => setFilter('freigegeben')}
+          count={counts.freigegeben}
+          label="Freigegeben"
+          icon={<Share2 className="w-3.5 h-3.5" />}
+        />
+        <FilterTab
+          active={filter === 'entwurf'}
+          onClick={() => setFilter('entwurf')}
+          count={counts.entwurf}
+          label="Entwurf"
+        />
       </div>
 
-      {/* Sticky Toolbar */}
-      <div className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-gray-100">
-        <div className="px-6 lg:px-8 py-3 max-w-[1600px] mx-auto">
-          <div className="flex flex-wrap gap-2 items-center">
-            {/* Suche */}
-            <div className="relative flex-1 min-w-[220px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Moodboard, Raum, Projekt oder Kunde suchen…"
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/30 focus:border-wellbeing-green transition-colors"
-              />
-            </div>
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 mb-5 flex-wrap">
+        <div className="relative w-[340px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Moodboard, Raum, Projekt oder Kunde suchen…"
+            value={suche}
+            onChange={(e) => setSuche(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition"
+          />
+        </div>
 
-            {/* Projekt-Filter */}
-            <SelectField
-              value={selectedProjekt}
-              onChange={setSelectedProjekt}
-              options={[{ value: '', label: 'Alle Projekte' }, ...projekte.map((p) => ({ value: p.id, label: p.name }))]}
-            />
+        <span className="text-sm text-gray-400">
+          {gefiltert.length} {gefiltert.length === 1 ? 'Eintrag' : 'Einträge'}
+        </span>
 
-            {/* Freigabe-Filter */}
-            <SelectField
-              value={filterFreigabe}
-              onChange={(v) => setFilterFreigabe(v as 'alle' | 'freigegeben' | 'entwurf')}
-              options={[
-                { value: 'alle', label: 'Alle Status' },
-                { value: 'freigegeben', label: 'Freigegeben' },
-                { value: 'entwurf', label: 'Entwurf' },
-              ]}
-            />
-
-            {/* Sortierung */}
-            <SelectField
-              value={sortBy}
-              onChange={(v) => setSortBy(v as SortBy)}
-              options={[
-                { value: 'updated', label: 'Zuletzt bearbeitet' },
-                { value: 'name', label: 'Name A–Z' },
-                { value: 'projekt', label: 'Nach Projekt' },
-              ]}
-            />
-
-            {/* View-Toggle */}
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                title="Kachelansicht"
-                className={`p-1.5 rounded-md transition-all ${
-                  viewMode === 'grid'
-                    ? 'bg-white shadow-sm text-gray-900'
-                    : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                title="Listenansicht"
-                className={`p-1.5 rounded-md transition-all ${
-                  viewMode === 'list'
-                    ? 'bg-white shadow-sm text-gray-900'
-                    : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+        <div className="ml-auto flex items-center border border-gray-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setAnsicht('grid')}
+            title="Kachelansicht"
+            className={`px-3 py-2 transition-colors ${
+              ansicht === 'grid' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setAnsicht('list')}
+            title="Listenansicht"
+            className={`px-3 py-2 border-l border-gray-200 transition-colors ${
+              ansicht === 'list' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <List className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="px-6 lg:px-8 py-8 max-w-[1600px] mx-auto">
-        {eintraege.length === 0 ? (
-          <EmptyState />
-        ) : gefiltert.length === 0 ? (
-          <NoResults onReset={() => { setSearchQuery(''); setSelectedProjekt(''); setFilterFreigabe('alle') }} />
-        ) : viewMode === 'grid' ? (
-          <GridView eintraege={gefiltert} />
-        ) : (
-          <ListView eintraege={gefiltert} />
-        )}
-      </div>
-    </div>
+      {eintraege.length === 0 ? (
+        <EmptyState />
+      ) : gefiltert.length === 0 ? (
+        <NoResults onReset={() => { setSuche(''); setFilter('alle') }} />
+      ) : ansicht === 'grid' ? (
+        <GridView eintraege={gefiltert} />
+      ) : (
+        <ListView eintraege={gefiltert} />
+      )}
+    </>
   )
 }
 
-// ── StatPill ─────────────────────────────────────────────────────
-function StatPill({
-  label, value, icon,
+// ── Filter-Tab (im Projekte-Toggle-Stil) ─────────────────────────
+function FilterTab({
+  active, onClick, count, label, icon,
 }: {
+  active: boolean
+  onClick: () => void
+  count: number
   label: string
-  value: number
   icon?: React.ReactNode
 }) {
   return (
-    <div className="px-4 py-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/15 min-w-[100px]">
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-white/70 font-medium">
-        {icon}
-        {label}
-      </div>
-      <div className="text-xl font-semibold text-white tabular-nums mt-0.5">{value}</div>
-    </div>
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+        active
+          ? 'bg-wellbeing-green text-white'
+          : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300'
+      }`}
+    >
+      {icon}
+      {label}
+      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+        active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+      }`}>
+        {count}
+      </span>
+    </button>
   )
 }
 
-// ── SelectField ──────────────────────────────────────────────────
-function SelectField({
-  value, onChange, options,
-}: {
-  value: string
-  onChange: (v: string) => void
-  options: Array<{ value: string; label: string }>
-}) {
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="appearance-none pl-3 pr-9 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/30 focus:border-wellbeing-green transition-colors"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-    </div>
-  )
+// ── Hilfs-Funktion: Initialen + konstante Farbe ──────────────────
+function projektInitialen(name: string): string {
+  return name
+    .split(/\s+/).filter(Boolean).slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '').join('') || '·'
 }
 
-// ── GridView ─────────────────────────────────────────────────────
+const AVATAR_FARBEN = [
+  'bg-emerald-100 text-emerald-700',
+  'bg-amber-100 text-amber-700',
+  'bg-rose-100 text-rose-700',
+  'bg-violet-100 text-violet-700',
+  'bg-sky-100 text-sky-700',
+  'bg-orange-100 text-orange-700',
+]
+
+function avatarFarbe(seed: string): string {
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % AVATAR_FARBEN.length
+  return AVATAR_FARBEN[hash]
+}
+
+// ── GridView (analog ProjekteGrid Cards) ─────────────────────────
 function GridView({ eintraege }: { eintraege: MoodboardListEintrag[] }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {eintraege.map((e) => (
         <MoodboardCard key={e.id} eintrag={e} />
       ))}
@@ -251,43 +187,53 @@ function GridView({ eintraege }: { eintraege: MoodboardListEintrag[] }) {
 }
 
 function MoodboardCard({ eintrag }: { eintrag: MoodboardListEintrag }) {
+  const farbe = avatarFarbe(eintrag.projekt_id)
+  const initialen = projektInitialen(eintrag.projekt_name)
+
   return (
     <Link
       href={`/dashboard/projekte/${eintrag.projekt_id}/raeume/${eintrag.raum_id}/moodboard`}
-      className="group bg-white rounded-2xl shadow-sm border border-gray-200/80 overflow-hidden hover:border-wellbeing-green/40 hover:shadow-lg transition-all"
+      className="group bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition-all overflow-hidden flex flex-col"
     >
       {/* Vorschau */}
-      <div className="relative">
+      <div className="relative border-b border-gray-100">
         <MoodboardVorschau canvasJson={eintrag.canvas_json} hoehe={180} />
-
-        {/* Freigabe-Badge */}
         {eintrag.freigabe_aktiv && (
-          <div className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2 py-0.5 bg-wellbeing-green text-white text-[10px] font-medium rounded-full shadow-md">
+          <div className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2 py-0.5 bg-wellbeing-green text-white text-[10px] font-medium rounded-full shadow-sm">
             <Share2 className="w-2.5 h-2.5" />
             Freigabe
           </div>
         )}
       </div>
 
-      {/* Info */}
-      <div className="px-3.5 py-3">
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <div className="min-w-0">
-            <div className="text-sm font-medium text-gray-900 truncate">{eintrag.name}</div>
+      {/* Info-Block */}
+      <div className="p-4 flex-1 flex flex-col">
+        {/* Header-Zeile: Avatar + Titel + Datum */}
+        <div className="flex items-start gap-3 mb-2">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-semibold shrink-0 ${farbe}`}>
+            {initialen}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-base font-semibold text-gray-900 truncate">{eintrag.name}</div>
             <div className="text-xs text-gray-500 truncate mt-0.5">
-              <span className="text-gray-400">Raum:</span> {eintrag.raum_name}
+              {eintrag.projekt_name}
             </div>
           </div>
-        </div>
-
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-          <div className="flex items-center gap-1 text-[11px] text-gray-400 min-w-0">
-            <FolderOpen className="w-3 h-3 shrink-0" />
-            <span className="truncate">{eintrag.projekt_name}</span>
-          </div>
-          <span className="text-[11px] text-gray-400 shrink-0 ml-2">
+          <span className="text-[11px] text-gray-400 shrink-0 inline-flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
             {formatDistanceToNow(new Date(eintrag.updated_at), { addSuffix: true, locale: de })}
           </span>
+        </div>
+
+        {/* Footer-Zeile: Raum + Kunde */}
+        <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-100 text-xs">
+          <span className="inline-flex items-center gap-1 text-gray-500">
+            <FolderOpen className="w-3 h-3 text-gray-400" />
+            <span className="truncate">Raum: {eintrag.raum_name}</span>
+          </span>
+          {eintrag.kunde_name && (
+            <span className="text-gray-400 truncate ml-2">{eintrag.kunde_name}</span>
+          )}
         </div>
       </div>
     </Link>
@@ -297,44 +243,49 @@ function MoodboardCard({ eintrag }: { eintrag: MoodboardListEintrag }) {
 // ── ListView ─────────────────────────────────────────────────────
 function ListView({ eintraege }: { eintraege: MoodboardListEintrag[] }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
       <div className="divide-y divide-gray-100">
-        {eintraege.map((e) => (
-          <Link
-            key={e.id}
-            href={`/dashboard/projekte/${e.projekt_id}/raeume/${e.raum_id}/moodboard`}
-            className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors group"
-          >
-            {/* Mini-Vorschau */}
-            <div className="w-20 h-14 shrink-0 rounded-lg border border-gray-200 overflow-hidden">
-              <MoodboardVorschau canvasJson={e.canvas_json} hoehe={56} />
-            </div>
-
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-900 truncate">{e.name}</span>
-                {e.freigabe_aktiv && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-wellbeing-green/10 text-wellbeing-green text-[10px] font-medium rounded-full">
-                    <Share2 className="w-2.5 h-2.5" />
-                    Freigabe
-                  </span>
-                )}
+        {eintraege.map((e) => {
+          const farbe = avatarFarbe(e.projekt_id)
+          return (
+            <Link
+              key={e.id}
+              href={`/dashboard/projekte/${e.projekt_id}/raeume/${e.raum_id}/moodboard`}
+              className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors group"
+            >
+              {/* Mini-Vorschau */}
+              <div className="w-20 h-14 shrink-0 rounded-lg border border-gray-200 overflow-hidden">
+                <MoodboardVorschau canvasJson={e.canvas_json} hoehe={56} />
               </div>
-              <div className="text-xs text-gray-500 truncate mt-0.5">
-                {e.projekt_name} · {e.raum_name}
-                {e.kunde_name && <span className="text-gray-400"> · {e.kunde_name}</span>}
-              </div>
-            </div>
 
-            {/* Datum + Pfeil */}
-            <div className="hidden sm:flex items-center gap-2 text-[11px] text-gray-400 shrink-0">
-              <Calendar className="w-3 h-3" />
-              {formatDistanceToNow(new Date(e.updated_at), { addSuffix: true, locale: de })}
-            </div>
-            <ExternalLink className="w-3.5 h-3.5 text-gray-300 group-hover:text-wellbeing-green transition-colors" />
-          </Link>
-        ))}
+              {/* Avatar + Info */}
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-semibold shrink-0 ${farbe}`}>
+                {projektInitialen(e.projekt_name)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-900 truncate">{e.name}</span>
+                  {e.freigabe_aktiv && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-wellbeing-green/10 text-wellbeing-green text-[10px] font-medium rounded-full">
+                      <Share2 className="w-2.5 h-2.5" />
+                      Freigabe
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-gray-500 truncate mt-0.5">
+                  {e.projekt_name} · {e.raum_name}
+                  {e.kunde_name && <span className="text-gray-400"> · {e.kunde_name}</span>}
+                </div>
+              </div>
+
+              <div className="hidden sm:flex items-center gap-2 text-[11px] text-gray-400 shrink-0">
+                <Calendar className="w-3 h-3" />
+                {formatDistanceToNow(new Date(e.updated_at), { addSuffix: true, locale: de })}
+              </div>
+              <ExternalLink className="w-3.5 h-3.5 text-gray-300 group-hover:text-wellbeing-green transition-colors" />
+            </Link>
+          )
+        })}
       </div>
     </div>
   )
@@ -343,17 +294,17 @@ function ListView({ eintraege }: { eintraege: MoodboardListEintrag[] }) {
 // ── Empty / NoResults ────────────────────────────────────────────
 function EmptyState() {
   return (
-    <div className="bg-white border border-dashed border-gray-300 rounded-2xl px-6 py-20 text-center">
-      <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-wellbeing-cream flex items-center justify-center">
-        <Palette className="w-7 h-7 text-wellbeing-green-dark" />
+    <div className="text-center py-20 bg-white border border-gray-200 rounded-xl shadow-sm">
+      <div className="w-12 h-12 rounded-xl bg-wellbeing-cream flex items-center justify-center mx-auto mb-3">
+        <Palette className="w-6 h-6 text-wellbeing-green-dark" />
       </div>
-      <h2 className="text-base font-medium text-gray-800">Noch kein Moodboard erstellt</h2>
-      <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto leading-relaxed">
-        Öffne einen Raum in einem Projekt und klicke dort auf &bdquo;Moodboard&ldquo;. Pro Raum gibt es genau ein Board — du kannst beliebig viele Versionen speichern.
+      <p className="text-gray-500 text-sm font-medium">Noch kein Moodboard erstellt</p>
+      <p className="text-xs text-gray-400 mt-1">
+        Öffne einen Raum in einem Projekt und klicke dort auf &bdquo;Moodboard&ldquo;.
       </p>
       <Link
         href="/dashboard/projekte"
-        className="inline-flex items-center gap-1.5 mt-5 px-4 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-sm font-medium rounded-lg transition-colors"
+        className="inline-block mt-4 text-sm text-wellbeing-green underline underline-offset-2"
       >
         Zu den Projekten
       </Link>
@@ -363,10 +314,10 @@ function EmptyState() {
 
 function NoResults({ onReset }: { onReset: () => void }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl px-6 py-16 text-center shadow-sm">
+    <div className="text-center py-16 bg-white border border-gray-200 rounded-xl shadow-sm">
       <Search className="w-10 h-10 text-gray-300 mx-auto mb-3" />
       <p className="text-sm text-gray-700 font-medium">Keine Moodboards gefunden</p>
-      <p className="text-xs text-gray-500 mt-1">Versuche es mit anderen Filtern oder Suchbegriffen.</p>
+      <p className="text-xs text-gray-500 mt-1">Versuche es mit einem anderen Suchbegriff oder Filter.</p>
       <button
         type="button"
         onClick={onReset}
