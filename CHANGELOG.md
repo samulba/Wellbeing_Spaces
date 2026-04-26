@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard Step 3 — Link-Preview-Cards & Sticky-Notes
+- **Link-Tool** in der Toolbar: Modal mit URL-Eingabe → Server zieht OG-Tags (Titel, Beschreibung, Hero-Bild, Domain, Favicon) → eine fertige weiße **Karte** wird aufs Board platziert (Vorschaubild oben, Titel + Beschreibung mittig, Domain als Footer). Sicherheit: Auth-Check + SSRF-Schutz, max 500 KB HTML, 8 s Timeout.
+- **Sticky-Note-Tool**: Kleines Farbpicker-Popover (5 Pastelltöne — Gelb, Rosa, Grün, Blau, Cream) → Klick erzeugt eine schiefe Notiz mit Schatten + Eckabriss-Effekt, direkt editierbar.
+- Beide Elemente schließen das Welcome-Modal automatisch und lösen Auto-Save aus.
+
 ### Moodboard Step 2 — Schnelles Sammeln (Drag&Drop · Multi-Upload · Paste)
 - **Drag & Drop**: Bilder aus dem Datei-Explorer können jetzt direkt aufs Canvas gezogen werden — wenn ein File ge-draggt wird, erscheint ein grüner Drop-Overlay mit „Bilder hier ablegen"-Hinweis. Bilder landen exakt an der Drop-Position.
 - **Multi-Upload**: Upload-Button + File-Input akzeptieren mehrere Dateien gleichzeitig — sie werden nacheinander hochgeladen und versetzt aufs Board gestapelt.

@@ -14,7 +14,8 @@ import {
   ArrowLeft, MousePointer2, Type as TypeIcon, Square, Circle as CircleIcon,
   Image as ImageIcon, Trash2, Undo2, Redo2, Save, Maximize2,
   Search, Package, Palette, Upload, History, Download, X, Plus,
-  RotateCcw, Share2, Copy, Check, MessageCircle,
+  RotateCcw, Share2, Copy, Check, MessageCircle, Link as LinkIcon,
+  StickyNote, Loader2,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -47,7 +48,16 @@ interface Props {
   }>
 }
 
-type Tool = 'select' | 'text' | 'rect' | 'circle'
+type Tool = 'select' | 'text' | 'rect' | 'circle' | 'note'
+
+// Sticky-Note Farben (Pastell)
+const NOTE_FARBEN = [
+  { bg: '#fef3c7', border: '#fbbf24', label: 'Gelb' },
+  { bg: '#fef2f2', border: '#fb7185', label: 'Rosa' },
+  { bg: '#dcfce7', border: '#34d399', label: 'Grün' },
+  { bg: '#dbeafe', border: '#60a5fa', label: 'Blau' },
+  { bg: '#f6ede2', border: '#cba178', label: 'Cream' },
+]
 
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 5
@@ -96,6 +106,15 @@ export default function MoodboardEditor({
   const [hintGeschlossen, setHintGeschlossen] = useState(false)
   const [raumAlertMsg, setRaumAlertMsg] = useState<string | null>(null)
   const [dragActive, setDragActive] = useState(false)
+
+  // Link-Modal
+  const [linkOffen, setLinkOffen] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkLaedt, setLinkLaedt] = useState(false)
+  const [linkFehler, setLinkFehler] = useState<string | null>(null)
+
+  // Sticky-Note Farb-Picker
+  const [notePickerOffen, setNotePickerOffen] = useState(false)
 
   // Toast nach 3.5s automatisch ausblenden
   useEffect(() => {
@@ -532,6 +551,183 @@ export default function MoodboardEditor({
       })
   }
 
+  // ── Sticky-Note aufs Board ────────────────────────────────────
+  function addStickyNote(farbeIdx = 0) {
+    const canvas = fabricRef.current
+    const fabric = fabricImportRef.current
+    if (!canvas || !fabric) return
+    const farbe = NOTE_FARBEN[farbeIdx] ?? NOTE_FARBEN[0]
+    const cx = canvas.getWidth() / 2
+    const cy = canvas.getHeight() / 2
+
+    const group = new fabric.Group([
+      new fabric.Rect({
+        left: 0, top: 0, width: 200, height: 200,
+        fill: farbe.bg,
+        stroke: farbe.border,
+        strokeWidth: 1,
+        rx: 4, ry: 4,
+        shadow: new fabric.Shadow({ color: 'rgba(0,0,0,0.10)', blur: 12, offsetX: 2, offsetY: 4 }),
+      }),
+      // Eckabriss-Effekt (Dreieck oben links)
+      new fabric.Polygon(
+        [
+          { x: 0,  y: 0 },
+          { x: 18, y: 0 },
+          { x: 0,  y: 18 },
+        ],
+        {
+          fill: 'rgba(0,0,0,0.06)',
+          left: 0, top: 0,
+          selectable: false,
+        },
+      ),
+      new fabric.Textbox('Notiz hinzufügen…', {
+        left: 14, top: 18,
+        width: 172,
+        fontSize: 14,
+        fill: '#374151',
+        fontFamily: 'Inter, sans-serif',
+        editable: true,
+      }),
+    ], {
+      left: cx - 100, top: cy - 100,
+      data: { type: 'sticky_note', farbe: farbeIdx },
+      angle: Math.random() * 4 - 2, // leicht schief
+    })
+    canvas.add(group)
+    canvas.setActiveObject(group)
+    canvas.requestRenderAll()
+    pushHistory()
+    scheduleSave()
+    setHintGeschlossen(true)
+    setTool('select')
+  }
+
+  // ── Link-Card aufs Board ──────────────────────────────────────
+  async function addLinkCard(url: string) {
+    setLinkFehler(null)
+    setLinkLaedt(true)
+    try {
+      const resp = await fetch('/api/scrape-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      const data = await resp.json()
+      if (!resp.ok) {
+        setLinkFehler(data?.fehler ?? 'URL konnte nicht geladen werden.')
+        setLinkLaedt(false)
+        return
+      }
+      const fabric = fabricImportRef.current
+      const canvas = fabricRef.current
+      if (!fabric || !canvas) { setLinkLaedt(false); return }
+
+      const W = 280, H = 180
+      const cx = canvas.getWidth() / 2 - W / 2
+      const cy = canvas.getHeight() / 2 - H / 2
+
+      const elemente: unknown[] = [
+        // Karten-Hintergrund
+        new fabric.Rect({
+          left: 0, top: 0, width: W, height: H,
+          fill: '#ffffff',
+          stroke: '#e5e7eb', strokeWidth: 1,
+          rx: 10, ry: 10,
+          shadow: new fabric.Shadow({ color: 'rgba(0,0,0,0.10)', blur: 14, offsetX: 0, offsetY: 4 }),
+        }),
+        // Domain-Footer
+        new fabric.Rect({
+          left: 0, top: H - 28, width: W, height: 28,
+          fill: '#f9fafb',
+          rx: 0, ry: 0,
+        }),
+        new fabric.Textbox(data.domain ?? '', {
+          left: 12, top: H - 22,
+          width: W - 24,
+          fontSize: 11,
+          fill: '#6b7280',
+          fontFamily: 'Inter, sans-serif',
+          editable: false,
+        }),
+      ]
+
+      // Bild-Bereich (oben, falls vorhanden)
+      const hasImage = !!data.image
+      const headerH = hasImage ? 100 : 16
+      if (hasImage) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const img: any = await fabric.FabricImage.fromURL(data.image, { crossOrigin: 'anonymous' })
+          const sx = W / (img.width || W)
+          const sy = headerH / (img.height || headerH)
+          const s = Math.max(sx, sy)
+          img.set({
+            left: 0, top: 0,
+            scaleX: s, scaleY: s,
+            clipPath: new fabric.Rect({
+              left: -((img.width || 0) * s) / 2,
+              top:  -((img.height || 0) * s) / 2,
+              width: W, height: headerH,
+              originX: 'center', originY: 'center', absolutePositioned: false,
+            }),
+          })
+          elemente.push(img)
+        } catch { /* Bild-Fehler ignorieren */ }
+      }
+
+      // Titel
+      elemente.push(
+        new fabric.Textbox(data.title ?? data.url, {
+          left: 12,
+          top: hasImage ? headerH + 10 : 14,
+          width: W - 24,
+          fontSize: 14,
+          fontWeight: '600',
+          fill: '#111827',
+          fontFamily: 'Inter, sans-serif',
+          editable: false,
+          splitByGrapheme: false,
+        }),
+      )
+      // Description
+      if (data.description) {
+        elemente.push(
+          new fabric.Textbox(data.description, {
+            left: 12,
+            top: hasImage ? headerH + 32 : 36,
+            width: W - 24,
+            fontSize: 11,
+            fill: '#6b7280',
+            fontFamily: 'Inter, sans-serif',
+            editable: false,
+          }),
+        )
+      }
+
+      const group = new fabric.Group(elemente, {
+        left: cx, top: cy,
+        data: { type: 'link_card', url: data.url, domain: data.domain },
+        subTargetCheck: false,
+      })
+      canvas.add(group)
+      canvas.setActiveObject(group)
+      canvas.requestRenderAll()
+      pushHistory()
+      scheduleSave()
+
+      setLinkLaedt(false)
+      setLinkOffen(false)
+      setLinkUrl('')
+      setHintGeschlossen(true)
+    } catch (e) {
+      setLinkLaedt(false)
+      setLinkFehler('Verbindung fehlgeschlagen.')
+      void e
+    }
+  }
+
   // ── Color-Swatch / Produkt aufs Board ─────────────────────────
   function addColorSwatch(hex: string) {
     const canvas = fabricRef.current
@@ -902,6 +1098,32 @@ export default function MoodboardEditor({
             </ToolBtn>
             <ToolBtn onClick={() => fileInputRef.current?.click()} title="Bild hochladen" loading={uploading}>
               <ImageIcon className="w-[18px] h-[18px]" />
+            </ToolBtn>
+            <div className="relative">
+              <ToolBtn
+                onClick={() => setNotePickerOffen((v) => !v)}
+                title="Notiz hinzufügen"
+                active={notePickerOffen}
+              >
+                <StickyNote className="w-[18px] h-[18px]" />
+              </ToolBtn>
+              {notePickerOffen && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 z-50 bg-[#0f1f13] border border-[#1f3a25] rounded-lg shadow-xl p-1.5 flex gap-1">
+                  {NOTE_FARBEN.map((f, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => { addStickyNote(i); setNotePickerOffen(false) }}
+                      title={f.label}
+                      className="w-7 h-7 rounded border border-white/10 hover:scale-110 hover:ring-2 hover:ring-white/40 transition-all"
+                      style={{ background: f.bg }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+            <ToolBtn onClick={() => setLinkOffen(true)} title="Link einfügen">
+              <LinkIcon className="w-[18px] h-[18px]" />
             </ToolBtn>
           </ToolGroup>
 
@@ -1314,6 +1536,66 @@ export default function MoodboardEditor({
                   </a>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Link-Modal */}
+      {linkOffen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => { setLinkOffen(false); setLinkFehler(null); setLinkUrl('') }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-gray-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <LinkIcon className="w-4 h-4 text-wellbeing-green" />
+                <h2 className="text-base font-medium">Link einfügen</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setLinkOffen(false); setLinkFehler(null); setLinkUrl('') }}
+                className="p-1 hover:bg-gray-100 rounded"
+                aria-label="Schließen"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5">
+              <p className="text-xs text-gray-500 mb-2">
+                URL einfügen — Titel, Beschreibung und Vorschaubild werden automatisch geladen.
+              </p>
+              <input
+                type="url"
+                autoFocus
+                value={linkUrl}
+                onChange={(e) => { setLinkUrl(e.target.value); setLinkFehler(null) }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && linkUrl.trim() && !linkLaedt) addLinkCard(linkUrl.trim())
+                }}
+                placeholder="https://..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-wellbeing-green focus:ring-2 focus:ring-wellbeing-green/20"
+              />
+              {linkFehler && (
+                <p className="text-xs text-red-600 mt-2">{linkFehler}</p>
+              )}
+              <button
+                type="button"
+                onClick={() => addLinkCard(linkUrl.trim())}
+                disabled={!linkUrl.trim() || linkLaedt}
+                className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {linkLaedt ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Lade Vorschau…</>
+                ) : (
+                  <>Link hinzufügen</>
+                )}
+              </button>
             </div>
           </div>
         </div>
