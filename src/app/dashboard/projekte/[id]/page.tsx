@@ -16,6 +16,7 @@ import {
   Archive, CalendarDays, User, Phone, Mail, MapPin, Tag,
   AlertTriangle, FileText, ReceiptText, Pencil, TrendingUp,
   LayoutDashboard, Layers, Share2, Files, MessageSquare, StickyNote,
+  ListChecks,
 } from 'lucide-react'
 import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
 import ProjektStatusButtons from '@/components/ProjektStatusButtons'
@@ -28,6 +29,8 @@ import { getRaumBudgetDetails } from '@/app/actions/raeume'
 import { effektiverVpNetto } from '@/lib/preise'
 import RaumBudgetGrid from '@/components/RaumBudgetGrid'
 import ChatBlock from '@/components/ChatBlock'
+import ProjektAufgabenBlock from '@/components/ProjektAufgabenBlock'
+import { getAufgaben } from '@/app/actions/aufgaben'
 import { getNachrichtenFuerProjekt } from '@/app/actions/nachrichten'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
@@ -155,7 +158,7 @@ export default async function ProjektDetailPage({
   searchParams: Promise<{ tab?: string }>
 }) {
   const { tab: tabParam } = await searchParams
-  const [projekt, raeume, aktiveTokens, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten] = await Promise.all([
+  const [projekt, raeume, aktiveTokens, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten, aufgabenAlle] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktiveTokens(params.id),
@@ -170,6 +173,7 @@ export default async function ProjektDetailPage({
     projektEventsAbrufen(params.id),
     getRaumBudgetDetails(params.id),
     getNachrichtenFuerProjekt(params.id),
+    getAufgaben({ projektId: params.id }),
   ])
 
   if (!projekt) return notFound()
@@ -412,6 +416,7 @@ export default async function ProjektDetailPage({
           { key: 'raeume',     label: 'Räume',      icon: Layers,     badge: raeume.length || undefined },
           { key: 'freigaben',  label: 'Freigaben',  icon: Share2 },
           { key: 'timeline',   label: 'Timeline',   icon: CalendarDays, badge: alleEvents.length || undefined },
+          { key: 'aufgaben',   label: 'Aufgaben',   icon: ListChecks,   badge: aufgabenAlle.filter((a) => a.status !== 'erledigt').length || undefined },
           { key: 'dateien',    label: 'Dateien',    icon: Files,       badge: dateien.length || undefined },
           ...(hatPortal ? [{ key: 'chat' as const, label: 'Chat', icon: MessageSquare, badge: nachrichten.length || undefined }] : []),
           { key: 'notizen',    label: 'Notizen',    icon: StickyNote,  badge: notizen.length || undefined },
@@ -711,6 +716,17 @@ export default async function ProjektDetailPage({
                 alleLink={`/dashboard/projekte/${projekt.id}/timeline`}
               />
             </div>
+          </div>
+        )}
+
+        {/* ── AUFGABEN ──────────────────────────────────────────── */}
+        {tabParam === 'aufgaben' && (
+          <div>
+            <ProjektAufgabenBlock
+              projektId={projekt.id}
+              kundeId={projekt.kunde_id}
+              initialAufgaben={aufgabenAlle}
+            />
           </div>
         )}
 
