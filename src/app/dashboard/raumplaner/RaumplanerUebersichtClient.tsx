@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Search, LayoutDashboard, PenTool, FileDown, LayoutGrid, List, ChevronDown,
-  Download, X, FileText, Image as ImageIcon,
+  Download, X, FileText, Image as ImageIcon, Palette,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
@@ -533,9 +533,12 @@ function bearbeitetText(updatedAt: string) {
 // ── Karten-Ansicht ─────────────────────────────────────────────
 
 function RaumCard({ raum, onExport }: { raum: RaumMitProjekt; onExport: (r: RaumMitProjekt) => void }) {
-  const planerHref = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}/planer`
-  const raumHref   = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}`
-  const projekt    = raum.projekte
+  const planerHref    = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}/planer`
+  const moodboardHref = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}/moodboard`
+  const raumHref      = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}`
+  const projekt       = raum.projekte
+  const hatGrundriss  = !!raum.grundriss_json
+  const hatMoodboard  = !!raum.hat_moodboard
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md hover:border-[#445c49]/30 transition-all duration-200">
@@ -583,25 +586,48 @@ function RaumCard({ raum, onExport }: { raum: RaumMitProjekt; onExport: (r: Raum
             )}
           </div>
 
-          <div className="shrink-0 flex items-center gap-1.5">
+          <div className="shrink-0">
             {raum.grundriss_json && (
               <button
                 onClick={() => onExport(raum)}
                 title="Grundriss exportieren"
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-medium rounded-md transition-colors whitespace-nowrap"
               >
                 <FileDown className="w-3 h-3" />
                 Export
               </button>
             )}
-            <Link
-              href={planerHref}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#445c49] hover:bg-[#354a3a] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
-            >
-              <LayoutDashboard className="w-3 h-3" />
-              Planer
-            </Link>
           </div>
+        </div>
+
+        {/* Tool-Status + Direkt-Buttons */}
+        <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
+          <Link
+            href={planerHref}
+            className={`group flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium rounded-md border transition-colors ${
+              hatGrundriss
+                ? 'bg-[#445c49] hover:bg-[#354a3a] text-white border-[#445c49]'
+                : 'bg-white hover:bg-gray-50 text-gray-600 border-gray-200'
+            }`}
+            title="2D-Raumplaner"
+          >
+            <LayoutDashboard className="w-3 h-3" />
+            <span>Planer</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${hatGrundriss ? 'bg-white/80' : 'bg-gray-300'}`} />
+          </Link>
+          <Link
+            href={moodboardHref}
+            className={`group flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium rounded-md border transition-colors ${
+              hatMoodboard
+                ? 'bg-wellbeing-cream hover:bg-wellbeing-sand/40 text-wellbeing-green-dark border-wellbeing-sand/60'
+                : 'bg-white hover:bg-wellbeing-cream/40 text-gray-600 border-gray-200'
+            }`}
+            title="Moodboard"
+          >
+            <Palette className="w-3 h-3" />
+            <span>Moodboard</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${hatMoodboard ? 'bg-wellbeing-green' : 'bg-gray-300'}`} />
+          </Link>
         </div>
       </div>
     </div>
@@ -611,9 +637,11 @@ function RaumCard({ raum, onExport }: { raum: RaumMitProjekt; onExport: (r: Raum
 // ── Listen-Ansicht ─────────────────────────────────────────────
 
 function RaumListRow({ raum, isLast, onExport }: { raum: RaumMitProjekt; isLast: boolean; onExport: (r: RaumMitProjekt) => void }) {
-  const planerHref = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}/planer`
-  const raumHref   = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}`
-  const projekt    = raum.projekte
+  const planerHref    = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}/planer`
+  const moodboardHref = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}/moodboard`
+  const raumHref      = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}`
+  const projekt       = raum.projekte
+  const hatMoodboard  = !!raum.hat_moodboard
 
   return (
     <div className={`flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors ${!isLast ? 'border-b border-gray-100' : ''}`}>
@@ -672,6 +700,18 @@ function RaumListRow({ raum, isLast, onExport }: { raum: RaumMitProjekt; isLast:
             Export
           </button>
         )}
+        <Link
+          href={moodboardHref}
+          title="Moodboard öffnen"
+          className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap border ${
+            hatMoodboard
+              ? 'bg-wellbeing-cream hover:bg-wellbeing-sand/40 text-wellbeing-green-dark border-wellbeing-sand/60'
+              : 'bg-white hover:bg-wellbeing-cream/40 text-gray-600 border-gray-200'
+          }`}
+        >
+          <Palette className="w-3 h-3" />
+          <span className={`w-1.5 h-1.5 rounded-full ${hatMoodboard ? 'bg-wellbeing-green' : 'bg-gray-300'}`} />
+        </Link>
         <Link
           href={planerHref}
           className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#445c49] hover:bg-[#354a3a] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
