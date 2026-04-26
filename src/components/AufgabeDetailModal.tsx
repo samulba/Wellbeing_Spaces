@@ -21,7 +21,7 @@ import type {
 } from '@/lib/supabase/types'
 
 const STATI: { id: AufgabeStatus; label: string; klasse: string }[] = [
-  { id: 'backlog',   label: 'Backlog',   klasse: 'bg-gray-100 text-gray-700' },
+  { id: 'backlog',   label: 'Offen',     klasse: 'bg-gray-100 text-gray-700' },
   { id: 'in_arbeit', label: 'In Arbeit', klasse: 'bg-blue-50 text-blue-700' },
   { id: 'review',    label: 'Review',    klasse: 'bg-amber-50 text-amber-700' },
   { id: 'erledigt',  label: 'Erledigt',  klasse: 'bg-emerald-50 text-emerald-700' },

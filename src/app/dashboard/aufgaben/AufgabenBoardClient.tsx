@@ -23,7 +23,7 @@ import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import type { AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet } from '@/lib/supabase/types'
 
 const SPALTEN: { id: AufgabeStatus; label: string; farbe: string }[] = [
-  { id: 'backlog',   label: 'Backlog',   farbe: 'bg-gray-100  text-gray-700' },
+  { id: 'backlog',   label: 'Offen',     farbe: 'bg-gray-100  text-gray-700' },
   { id: 'in_arbeit', label: 'In Arbeit', farbe: 'bg-blue-50   text-blue-700' },
   { id: 'review',    label: 'Review',    farbe: 'bg-amber-50  text-amber-700' },
   { id: 'erledigt',  label: 'Erledigt',  farbe: 'bg-emerald-50 text-emerald-700' },

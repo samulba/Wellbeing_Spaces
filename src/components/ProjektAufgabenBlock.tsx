@@ -8,7 +8,7 @@ import AufgabeDetailModal from '@/components/AufgabeDetailModal'
 import type { AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet } from '@/lib/supabase/types'
 
 const STATUS_LABEL: Record<AufgabeStatus, string> = {
-  backlog: 'Backlog',
+  backlog: 'Offen',
   in_arbeit: 'In Arbeit',
   review: 'Review',
   erledigt: 'Erledigt',
@@ -93,7 +93,7 @@ export default function ProjektAufgabenBlock({
           <h2 className="text-sm font-semibold text-gray-900">Aufgaben</h2>
           <div className="flex items-center gap-1">
             {([
-              { id: 'offen' as const,    label: `Offen ${offenCount}` },
+              { id: 'offen' as const,    label: `Aktiv ${offenCount}` },
               { id: 'erledigt' as const, label: `Erledigt ${erledigtCount}` },
               { id: 'alle' as const,     label: 'Alle' },
             ]).map((p) => (
