@@ -3,21 +3,30 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
-  Search, Palette, Share2, FolderOpen, LayoutGrid, List, ExternalLink, Calendar,
+  Search, Palette, Share2, FolderOpen, LayoutGrid, List, ExternalLink, Calendar, Plus,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
 import MoodboardVorschau from '@/components/moodboard/MoodboardVorschau'
 import type { MoodboardListEintrag } from '@/app/actions/moodboard'
 
+export type RaumOhneMoodboard = {
+  id: string
+  name: string
+  projekt_id: string
+  projekt_name: string
+  kunde_name: string | null
+}
+
 type FilterStatus = 'alle' | 'freigegeben' | 'entwurf'
 type ViewMode     = 'grid' | 'list'
 
 interface Props {
   eintraege: MoodboardListEintrag[]
+  raeumeOhneMoodboard: RaumOhneMoodboard[]
 }
 
-export default function MoodboardsUebersichtClient({ eintraege }: Props) {
+export default function MoodboardsUebersichtClient({ eintraege, raeumeOhneMoodboard }: Props) {
   const [suche, setSuche] = useState('')
   const [filter, setFilter] = useState<FilterStatus>('alle')
   const [ansicht, setAnsicht] = useState<ViewMode>('grid')
@@ -110,16 +119,70 @@ export default function MoodboardsUebersichtClient({ eintraege }: Props) {
       </div>
 
       {/* Content */}
-      {eintraege.length === 0 ? (
+      {eintraege.length === 0 && raeumeOhneMoodboard.length === 0 ? (
         <EmptyState />
-      ) : gefiltert.length === 0 ? (
-        <NoResults onReset={() => { setSuche(''); setFilter('alle') }} />
-      ) : ansicht === 'grid' ? (
-        <GridView eintraege={gefiltert} />
       ) : (
-        <ListView eintraege={gefiltert} />
+        <>
+          {gefiltert.length === 0 && eintraege.length > 0 ? (
+            <NoResults onReset={() => { setSuche(''); setFilter('alle') }} />
+          ) : ansicht === 'grid' ? (
+            <GridView eintraege={gefiltert} />
+          ) : (
+            <ListView eintraege={gefiltert} />
+          )}
+
+          {/* Räume ohne Moodboard — analog Raumplaner */}
+          {raeumeOhneMoodboard.length > 0 && (
+            <section className="mt-10">
+              <div className="flex items-center gap-2 mb-3">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Räume ohne Moodboard
+                </h2>
+                <span className="text-xs text-gray-400">({raeumeOhneMoodboard.length})</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">
+                Klick auf einen Raum erstellt automatisch ein leeres Moodboard und öffnet den Editor.
+              </p>
+              <RaeumeOhneMoodboardGrid raeume={raeumeOhneMoodboard} />
+            </section>
+          )}
+        </>
       )}
     </>
+  )
+}
+
+// ── Räume ohne Moodboard Grid ────────────────────────────────────
+function RaeumeOhneMoodboardGrid({ raeume }: { raeume: RaumOhneMoodboard[] }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {raeume.map((r) => (
+        <Link
+          key={r.id}
+          href={`/dashboard/projekte/${r.projekt_id}/raeume/${r.id}/moodboard`}
+          className="group bg-white border border-dashed border-gray-300 rounded-xl p-4 hover:border-wellbeing-green/50 hover:bg-wellbeing-cream/30 transition-all"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gray-50 group-hover:bg-wellbeing-cream flex items-center justify-center shrink-0 transition-colors">
+              <Plus className="w-4 h-4 text-gray-400 group-hover:text-wellbeing-green-dark transition-colors" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-gray-800 group-hover:text-wellbeing-green-dark truncate transition-colors">
+                {r.name}
+              </div>
+              <div className="text-xs text-gray-500 truncate mt-0.5">
+                {r.projekt_name}
+                {r.kunde_name && <span className="text-gray-400"> · {r.kunde_name}</span>}
+              </div>
+              <div className="text-[11px] text-gray-400 mt-1.5 inline-flex items-center gap-1">
+                <Palette className="w-3 h-3" />
+                Moodboard erstellen
+              </div>
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
   )
 }
 
