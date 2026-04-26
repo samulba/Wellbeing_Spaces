@@ -12,6 +12,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Plus, Calendar, AlertTriangle, User, FolderOpen } from 'lucide-react'
+import StickyPageHeader from '@/components/StickyPageHeader'
+import AufgabeAnlegenModal from '@/components/AufgabeAnlegenModal'
 import {
   aufgabeAnlegen, aufgabeReihenfolgeAendern,
   type AufgabePickerOptionen,
@@ -51,6 +53,7 @@ export default function AufgabenBoardClient({
   const [neuOffen, setNeuOffen] = useState<AufgabeStatus | null>(null)
   const [neuTitel, setNeuTitel] = useState('')
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [anlegenStatus, setAnlegenStatus] = useState<AufgabeStatus | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -198,7 +201,24 @@ export default function AufgabenBoardClient({
   }
 
   return (
-    <div className="space-y-4">
+    <>
+      <StickyPageHeader
+        title="Aufgaben"
+        count={aufgaben.length}
+        countLabel={aufgaben.length === 1 ? 'Aufgabe' : 'Aufgaben'}
+        subtitle="Alle Aufgaben deiner Organisation auf einem Brett"
+        action={
+          pickerOptionen ? (
+            <button
+              onClick={() => setAnlegenStatus('backlog')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-wellbeing-green text-white rounded-lg hover:bg-wellbeing-green-dark"
+            >
+              <Plus size={16} /> Neue Aufgabe
+            </button>
+          ) : null
+        }
+      />
+      <div className="px-6 py-6 space-y-4">
       {/* Filter-Pills */}
       <div className="flex items-center gap-2 flex-wrap">
         {([
@@ -263,7 +283,16 @@ export default function AufgabenBoardClient({
         onClose={() => setDetailId(null)}
         pickerOptionen={pickerOptionen}
       />
-    </div>
+      {pickerOptionen && (
+        <AufgabeAnlegenModal
+          open={!!anlegenStatus}
+          onClose={() => setAnlegenStatus(null)}
+          pickerOptionen={pickerOptionen}
+          defaultStatus={anlegenStatus ?? 'backlog'}
+        />
+      )}
+      </div>
+    </>
   )
 }
 
