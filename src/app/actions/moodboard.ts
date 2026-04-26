@@ -245,6 +245,42 @@ export async function moodboardFreigabeAktualisieren(
 }
 
 
+// ── Oeffentliche Freigabe-Ansicht ──────────────────────────────
+
+/** Laedt ein Moodboard via freigabe_token fuer Kunden (Admin-Client, kein Auth). */
+export async function getMoodboardOeffentlich(token: string): Promise<{
+  moodboardId:        string
+  name:               string
+  beschreibung:       string | null
+  canvasJson:         Record<string, unknown> | null
+  raumName:           string
+  projektName:        string
+  kommentareAktiv:    boolean
+  organisationId:     string | null
+} | null> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('moodboards')
+    .select('id, name, beschreibung, canvas_json, freigabe_aktiv, freigabe_kommentare_aktiv, organisation_id, raeume!inner(name, projekte!inner(name))')
+    .eq('freigabe_token', token)
+    .maybeSingle()
+  if (!data || !data.freigabe_aktiv) return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raeume = (data.raeume as any)
+  const projekt = raeume?.projekte
+  return {
+    moodboardId:     data.id,
+    name:            data.name,
+    beschreibung:    data.beschreibung,
+    canvasJson:      data.canvas_json,
+    raumName:        raeume?.name ?? '',
+    projektName:     projekt?.name ?? '',
+    kommentareAktiv: data.freigabe_kommentare_aktiv,
+    organisationId:  data.organisation_id,
+  }
+}
+
+
 // ── Sidebar-Uebersicht (alle Moodboards aller Projekte) ────────
 
 export type MoodboardListEintrag = Moodboard & {
