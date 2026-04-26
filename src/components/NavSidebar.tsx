@@ -18,6 +18,7 @@ import {
   LogOut,
   ClipboardList,
   PencilRuler,
+  Palette,
   MessageCircle,
 } from 'lucide-react'
 import type { Rolle } from '@/lib/supabase/types'
@@ -100,6 +101,7 @@ export default function NavSidebar({
     { label: 'Partner',    href: '/dashboard/partner',    icon: Handshake,       badge: 0 },
     { label: 'Produkte',   href: '/dashboard/produkte',   icon: Package,         badge: 0 },
     { label: 'Raumplaner', href: '/dashboard/raumplaner', icon: PencilRuler,     badge: 0 },
+    { label: 'Moodboards', href: '/dashboard/moodboards', icon: Palette,         badge: 0 },
     { label: 'Chats',      href: '/dashboard/chats',      icon: MessageCircle,   badge: offeneNachrichten },
     { label: 'Freigaben',  href: '/dashboard/freigaben',  icon: CheckSquare,     badge: offeneFreigaben },
     { label: 'Onboarding', href: '/dashboard/onboarding', icon: ClipboardList,   badge: offeneAnfragen },
