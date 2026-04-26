@@ -15,6 +15,7 @@ import {
   type AufgabePickerOptionen,
 } from '@/app/actions/aufgaben'
 import AufgabeVerknuepfungenPicker from '@/components/AufgabeVerknuepfungenPicker'
+import AufgabeAssigneePicker from '@/components/AufgabeAssigneePicker'
 import type {
   AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet,
   AufgabeChecklistItem, AufgabeAnhang, AufgabeKommentar,
@@ -414,18 +415,23 @@ export default function AufgabeDetailModal({
                 </div>
               )}
 
-              {/* Sichtbarkeit/Kunde */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase mb-2">Kunden-Beteiligung</label>
-                <label className="flex items-center gap-2 text-sm text-gray-700 mb-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={aufgabe.assignee_kunde}
-                    onChange={(e) => speichern({ assignee_kunde: e.target.checked })}
-                    className="rounded text-wellbeing-green focus:ring-wellbeing-green/20"
+              {/* Zugewiesen an */}
+              {pickerOptionen && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-2">Zugewiesen an</label>
+                  <AufgabeAssigneePicker
+                    assigneeUserId={aufgabe.assignee_user_id}
+                    assigneeKunde={aufgabe.assignee_kunde}
+                    team={pickerOptionen.team}
+                    currentUserId={pickerOptionen.currentUserId}
+                    hasKunde={!!aufgabe.kunde_id}
+                    onChange={(patch) => speichern(patch)}
                   />
-                  Aufgabe an Kunde zugewiesen
-                </label>
+                </div>
+              )}
+
+              {/* Sichtbarkeit fuer Kunde (auch wenn nicht assignee) */}
+              <div>
                 <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                   <input
                     type="checkbox"
@@ -433,7 +439,7 @@ export default function AufgabeDetailModal({
                     onChange={(e) => speichern({ sichtbar_fuer_kunde: e.target.checked })}
                     className="rounded text-wellbeing-green focus:ring-wellbeing-green/20"
                   />
-                  Im Portal sichtbar
+                  Im Portal sichtbar (zur Info)
                 </label>
               </div>
 

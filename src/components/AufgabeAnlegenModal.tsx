@@ -9,6 +9,7 @@ import {
   type AufgabePickerOptionen,
 } from '@/app/actions/aufgaben'
 import AufgabeVerknuepfungenPicker from '@/components/AufgabeVerknuepfungenPicker'
+import AufgabeAssigneePicker from '@/components/AufgabeAssigneePicker'
 import type { AufgabeStatus, AufgabePrioritaet } from '@/lib/supabase/types'
 
 const STATI: { id: AufgabeStatus; label: string; klasse: string }[] = [
@@ -54,6 +55,7 @@ export default function AufgabeAnlegenModal({
   const [projektId, setProjektId] = useState<string | null>(defaultProjektId)
   const [kundeId, setKundeId] = useState<string | null>(defaultKundeId)
   const [raumId, setRaumId] = useState<string | null>(defaultRaumId)
+  const [assigneeUserId, setAssigneeUserId] = useState<string | null>(null)
   const [assigneeKunde, setAssigneeKunde] = useState(false)
   const [sichtbarKunde, setSichtbarKunde] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
@@ -69,6 +71,7 @@ export default function AufgabeAnlegenModal({
     setProjektId(defaultProjektId)
     setKundeId(defaultKundeId)
     setRaumId(defaultRaumId)
+    setAssigneeUserId(null)
     setAssigneeKunde(false)
     setSichtbarKunde(false)
     setFehler(null)
@@ -88,6 +91,7 @@ export default function AufgabeAnlegenModal({
         projekt_id:  projektId,
         kunde_id:    kundeId,
         raum_id:     raumId,
+        assignee_user_id:    assigneeUserId,
         assignee_kunde:      assigneeKunde,
         sichtbar_fuer_kunde: sichtbarKunde,
       })
@@ -198,27 +202,32 @@ export default function AufgabeAnlegenModal({
               </div>
             </div>
 
-            {/* Kunde-Beteiligung */}
-            <div className="border-t border-gray-100 pt-3 space-y-1.5">
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={assigneeKunde}
-                  onChange={(e) => setAssigneeKunde(e.target.checked)}
-                  className="rounded text-wellbeing-green focus:ring-wellbeing-green/20"
-                />
-                Aufgabe an Kunde zuweisen
-              </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sichtbarKunde}
-                  onChange={(e) => setSichtbarKunde(e.target.checked)}
-                  className="rounded text-wellbeing-green focus:ring-wellbeing-green/20"
-                />
-                Im Portal sichtbar (zur Info)
-              </label>
+            {/* Zugewiesen an */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase mb-1.5">Zugewiesen an</label>
+              <AufgabeAssigneePicker
+                assigneeUserId={assigneeUserId}
+                assigneeKunde={assigneeKunde}
+                team={pickerOptionen.team}
+                currentUserId={pickerOptionen.currentUserId}
+                hasKunde={!!kundeId}
+                onChange={(patch) => {
+                  if (patch.assignee_user_id !== undefined) setAssigneeUserId(patch.assignee_user_id)
+                  if (patch.assignee_kunde   !== undefined) setAssigneeKunde(patch.assignee_kunde)
+                }}
+              />
             </div>
+
+            {/* Sichtbar im Portal (zusaetzlich) */}
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={sichtbarKunde}
+                onChange={(e) => setSichtbarKunde(e.target.checked)}
+                className="rounded text-wellbeing-green focus:ring-wellbeing-green/20"
+              />
+              Im Portal sichtbar (zur Info)
+            </label>
           </div>
 
           {/* Footer */}

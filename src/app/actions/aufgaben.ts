@@ -632,19 +632,29 @@ export type { Aufgabe }
 export interface AufgabePickerProjekt { id: string; name: string; kunde_id: string | null }
 export interface AufgabePickerKunde   { id: string; name: string }
 export interface AufgabePickerRaum    { id: string; name: string; projekt_id: string }
+export interface AufgabePickerTeamMitglied {
+  user_id:  string
+  name:     string
+  email:    string | null
+  avatarUrl: string | null
+}
 
 export interface AufgabePickerOptionen {
   projekte: AufgabePickerProjekt[]
   kunden:   AufgabePickerKunde[]
   raeume:   AufgabePickerRaum[]
+  team:     AufgabePickerTeamMitglied[]
+  /** Aktueller User — fuer 'Mir zuweisen'-Button + Mir-Filter */
+  currentUserId: string | null
 }
 
-/** Listen fuer Projekt-/Kunde-/Raum-Picker im Aufgaben-Formular. */
+/** Listen fuer Projekt-/Kunde-/Raum-/Team-Picker im Aufgaben-Formular. */
 export async function getAufgabePickerOptionen(): Promise<AufgabePickerOptionen> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const [projekteRes, kundenRes, raeumeRes] = await Promise.all([
+  const [projekteRes, kundenRes, raeumeRes, teamRes] = await Promise.all([
     supabase
       .from('projekte')
       .select('id, name, kunde_id')
@@ -665,12 +675,37 @@ export async function getAufgabePickerOptionen(): Promise<AufgabePickerOptionen>
       .eq('organisation_id', orgId)
       .is('deleted_at', null)
       .order('name', { ascending: true }),
+    supabase
+      .from('team_mitglieder')
+      .select('user_id, vorname, nachname, email, avatar_url, status')
+      .eq('organisation_id', orgId)
+      .neq('status', 'deaktiviert')
+      .order('vorname', { ascending: true, nullsFirst: false }),
   ])
+
+  type TeamRow = {
+    user_id: string | null
+    vorname: string | null
+    nachname: string | null
+    email: string | null
+    avatar_url: string | null
+  }
+  const team: AufgabePickerTeamMitglied[] = ((teamRes.data ?? []) as TeamRow[])
+    .filter((t) => !!t.user_id)
+    .map((t) => ({
+      user_id:   t.user_id as string,
+      name:      [t.vorname, t.nachname].filter(Boolean).join(' ').trim()
+                  || (t.email?.split('@')[0] ?? 'Unbenannt'),
+      email:     t.email ?? null,
+      avatarUrl: t.avatar_url ?? null,
+    }))
 
   return {
     projekte: (projekteRes.data ?? []) as AufgabePickerProjekt[],
     kunden:   (kundenRes.data   ?? []) as AufgabePickerKunde[],
     raeume:   (raeumeRes.data   ?? []) as AufgabePickerRaum[],
+    team,
+    currentUserId: user?.id ?? null,
   }
 }
 

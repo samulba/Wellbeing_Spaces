@@ -11,7 +11,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Calendar, AlertTriangle, User, FolderOpen } from 'lucide-react'
+import { Plus, Calendar, AlertTriangle, FolderOpen } from 'lucide-react'
 import StickyPageHeader from '@/components/StickyPageHeader'
 import AufgabeAnlegenModal from '@/components/AufgabeAnlegenModal'
 import {
@@ -76,9 +76,13 @@ export default function AufgabenBoardClient({
   // Filtern (clientseitig fuer schnelle Reaktion)
   const heute = new Date().toISOString().slice(0, 10)
   const inEinerWoche = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+  const currentUserId = pickerOptionen?.currentUserId ?? null
   const gefiltert = useMemo(() => {
     return aufgaben.filter((a) => {
-      if (filter === 'mir') return false  // ohne user_id-Kontext clientseitig nicht moeglich
+      if (filter === 'mir') {
+        if (!currentUserId) return false
+        return a.assignee_user_id === currentUserId
+      }
       if (filter === 'heute') return a.faellig_am === heute && a.status !== 'erledigt'
       if (filter === 'woche') {
         if (!a.faellig_am || a.status === 'erledigt') return false
@@ -89,7 +93,7 @@ export default function AufgabenBoardClient({
       }
       return true
     })
-  }, [aufgaben, filter, heute, inEinerWoche])
+  }, [aufgaben, filter, heute, inEinerWoche, currentUserId])
 
   // Spalten-Mapping
   const spaltenInhalt = useMemo(() => {
@@ -260,6 +264,7 @@ export default function AufgabenBoardClient({
               key={spalte.id}
               spalte={spalte}
               aufgaben={spaltenInhalt[spalte.id]}
+              team={pickerOptionen?.team}
               onCardClick={(id) => setDetailId(id)}
               quickAddOpen={neuOffen === spalte.id}
               onQuickAddOpen={() => { setNeuOffen(spalte.id); setNeuTitel('') }}
@@ -272,7 +277,7 @@ export default function AufgabenBoardClient({
         </div>
         <DragOverlay>
           {activeId ? (
-            <Karte aufgabe={aufgaben.find((a) => a.id === activeId)!} dragging />
+            <Karte aufgabe={aufgaben.find((a) => a.id === activeId)!} dragging team={pickerOptionen?.team} />
           ) : null}
         </DragOverlay>
       </DndContext>
@@ -298,12 +303,13 @@ export default function AufgabenBoardClient({
 
 // ─── Spalte ───────────────────────────────────────────────────
 function Spalte({
-  spalte, aufgaben, onCardClick,
+  spalte, aufgaben, team, onCardClick,
   quickAddOpen, onQuickAddOpen, onQuickAddClose,
   quickAddTitel, onQuickAddTitelChange, onQuickAddSubmit,
 }: {
   spalte: { id: AufgabeStatus; label: string; farbe: string }
   aufgaben: AufgabeMitDetails[]
+  team?: { user_id: string; name: string; avatarUrl: string | null }[]
   onCardClick: (id: string) => void
   quickAddOpen: boolean
   onQuickAddOpen: () => void
@@ -337,7 +343,7 @@ function Spalte({
           id={spalte.id}
           className="flex-1 p-3 space-y-2 min-h-[100px]"
         >
-          {aufgaben.map((a) => (<KarteSortable key={a.id} aufgabe={a} onClick={() => onCardClick(a.id)} />))}
+          {aufgaben.map((a) => (<KarteSortable key={a.id} aufgabe={a} team={team} onClick={() => onCardClick(a.id)} />))}
           {quickAddOpen && (
             <div className="bg-white border border-wellbeing-green/40 rounded-lg p-2 shadow-sm">
               <textarea
@@ -376,7 +382,11 @@ function Spalte({
 }
 
 // ─── Karte ────────────────────────────────────────────────────
-function KarteSortable({ aufgabe, onClick }: { aufgabe: AufgabeMitDetails; onClick: () => void }) {
+function KarteSortable({ aufgabe, team, onClick }: {
+  aufgabe: AufgabeMitDetails
+  team?: { user_id: string; name: string; avatarUrl: string | null }[]
+  onClick: () => void
+}) {
   const sortable = useSortable({ id: aufgabe.id })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(sortable.transform),
@@ -397,17 +407,24 @@ function KarteSortable({ aufgabe, onClick }: { aufgabe: AufgabeMitDetails; onCli
         onClick()
       }}
     >
-      <Karte aufgabe={aufgabe} />
+      <Karte aufgabe={aufgabe} team={team} />
     </div>
   )
 }
 
-function Karte({ aufgabe, dragging }: { aufgabe: AufgabeMitDetails; dragging?: boolean }) {
+function Karte({ aufgabe, dragging, team }: {
+  aufgabe: AufgabeMitDetails
+  dragging?: boolean
+  team?: { user_id: string; name: string; avatarUrl: string | null }[]
+}) {
   const heute = new Date().toISOString().slice(0, 10)
   const ueberfaellig = aufgabe.faellig_am && aufgabe.faellig_am < heute && aufgabe.status !== 'erledigt'
   const istAuto = aufgabe.quelle !== 'manuell' && aufgabe.quelle !== 'kunde_anfrage'
   const checkErledigt = aufgabe.checklist.filter((c) => c.erledigt).length
   const checkGesamt   = aufgabe.checklist.length
+  const assignee = aufgabe.assignee_user_id
+    ? team?.find((t) => t.user_id === aufgabe.assignee_user_id)
+    : null
   return (
     <div className={
       'bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md hover:border-wellbeing-green/40 cursor-grab active:cursor-grabbing transition-shadow ' +
@@ -434,17 +451,23 @@ function Karte({ aufgabe, dragging }: { aufgabe: AufgabeMitDetails; dragging?: b
             {checkGesamt > 0 && (
               <span className="text-gray-400">{checkErledigt}/{checkGesamt}</span>
             )}
-            {aufgabe.assignee_kunde && (
-              <span className="inline-flex items-center gap-1 text-amber-700">
-                <User size={11} /> Kunde
-              </span>
-            )}
             {aufgabe.tags.length > 0 && (
               <span className="text-gray-400 truncate">#{aufgabe.tags[0]}</span>
             )}
             {istAuto && (
               <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">auto</span>
             )}
+            <span className="ml-auto inline-flex items-center gap-1">
+              {aufgabe.assignee_kunde && (
+                <span
+                  title="An Kunde zugewiesen"
+                  className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-medium"
+                >K</span>
+              )}
+              {assignee && (
+                <MiniAvatar name={assignee.name} avatarUrl={assignee.avatarUrl} />
+              )}
+            </span>
           </div>
         </div>
       </div>
@@ -455,6 +478,28 @@ function Karte({ aufgabe, dragging }: { aufgabe: AufgabeMitDetails; dragging?: b
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00Z')
   return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })
+}
+
+function MiniAvatar({ name, avatarUrl, size = 20 }: { name: string; avatarUrl: string | null; size?: number }) {
+  const initialen = name.split(' ').filter(Boolean).map((w) => w[0]).join('').toUpperCase().slice(0, 2)
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl} alt="" title={name}
+        width={size} height={size}
+        className="rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
+    )
+  }
+  return (
+    <span
+      title={name}
+      className="rounded-full bg-wellbeing-green/20 text-wellbeing-green-dark flex items-center justify-center font-medium"
+      style={{ width: size, height: size, fontSize: size * 0.45 }}
+    >{initialen}</span>
+  )
 }
 
 // arrayMove wird durch handleDragEnd manuell verwendet — Re-Export-Workaround,
