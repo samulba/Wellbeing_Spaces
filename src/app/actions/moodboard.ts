@@ -287,6 +287,7 @@ export type MoodboardListEintrag = Moodboard & {
   raum_name:    string
   projekt_id:   string
   projekt_name: string
+  kunde_name:   string | null
 }
 
 export async function getAlleMoodboards(): Promise<MoodboardListEintrag[]> {
@@ -294,7 +295,7 @@ export async function getAlleMoodboards(): Promise<MoodboardListEintrag[]> {
 
   const { data } = await supabase
     .from('moodboards')
-    .select('*, raeume!inner(id, name, projekt_id, projekte!inner(id, name))')
+    .select('*, raeume!inner(id, name, projekt_id, projekte!inner(id, name, kunden(name)))')
     .order('updated_at', { ascending: false })
 
   type Row = Moodboard & {
@@ -302,7 +303,11 @@ export async function getAlleMoodboards(): Promise<MoodboardListEintrag[]> {
       id: string
       name: string
       projekt_id: string
-      projekte: { id: string; name: string } | null
+      projekte: {
+        id: string
+        name: string
+        kunden: { name: string } | null
+      } | null
     } | null
   }
   return ((data ?? []) as unknown as Row[])
@@ -313,6 +318,7 @@ export async function getAlleMoodboards(): Promise<MoodboardListEintrag[]> {
         raum_name:    r.raeume.name,
         projekt_id:   r.raeume.projekte.id,
         projekt_name: r.raeume.projekte.name,
+        kunde_name:   r.raeume.projekte.kunden?.name ?? null,
       } as MoodboardListEintrag
     })
     .filter((x): x is MoodboardListEintrag => !!x)
