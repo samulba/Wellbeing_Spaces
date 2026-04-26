@@ -38,6 +38,7 @@ import MoodboardLayers from './MoodboardLayers'
 import MoodboardPinOverlay from './MoodboardPinOverlay'
 import MoodboardMarkierungOverlay from './MoodboardMarkierungOverlay'
 import MoodboardGridLayer from './MoodboardGridLayer'
+import MoodboardErrorBoundary from './MoodboardErrorBoundary'
 import type { MoodboardTemplate } from '@/lib/moodboard-templates'
 
 interface Props {
@@ -138,8 +139,18 @@ export default function MoodboardEditor({
   const [zoom, setZoom] = useState(1)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [uploading, setUploading] = useState(false)
-  const [istLeer, setIstLeer] = useState(true)
-  const [hintGeschlossen, setHintGeschlossen] = useState(false)
+  // istLeer initial aus initialCanvasJson ableiten — verhindert Welcome-Flash beim Laden
+  const [istLeer, setIstLeer] = useState(() => {
+    if (!initialCanvasJson) return true
+    const objs = (initialCanvasJson as { objects?: unknown }).objects
+    return !Array.isArray(objs) || objs.length === 0
+  })
+  // Hint geschlossen: bei vorhandenem Inhalt sofort, sonst false (zeigt Welcome)
+  const [hintGeschlossen, setHintGeschlossen] = useState(() => {
+    if (!initialCanvasJson) return false
+    const objs = (initialCanvasJson as { objects?: unknown }).objects
+    return Array.isArray(objs) && objs.length > 0
+  })
   const [raumAlertMsg, setRaumAlertMsg] = useState<string | null>(null)
   const [dragActive, setDragActive] = useState(false)
 
@@ -830,7 +841,11 @@ export default function MoodboardEditor({
     const c = fabricRef.current
     if (!c) return null
     const vpt = c.viewportTransform
-    return { x: vpt[0] * wx + vpt[4], y: vpt[3] * wy + vpt[5] }
+    if (!Array.isArray(vpt) || vpt.length < 6) return null
+    const a = Number(vpt[0]); const d = Number(vpt[3])
+    const tx = Number(vpt[4]); const ty = Number(vpt[5])
+    if (!Number.isFinite(a) || !Number.isFinite(d)) return null
+    return { x: a * wx + tx, y: d * wy + ty }
   }
 
   // Pin anlegen (vom Entwurf)
@@ -2135,11 +2150,13 @@ export default function MoodboardEditor({
           style={{ background: '#f5f5f0' }}
         >
           {/* Grid-Layer (hinter Canvas) — folgt Pan/Zoom via viewportTick */}
-          <MoodboardGridLayer
-            gridSize={gridSize}
-            viewportTick={viewportTick}
-            fabricRef={fabricRef}
-          />
+          <MoodboardErrorBoundary name="GridLayer">
+            <MoodboardGridLayer
+              gridSize={gridSize}
+              viewportTick={viewportTick}
+              fabricRef={fabricRef}
+            />
+          </MoodboardErrorBoundary>
 
           <canvas ref={canvasElRef} className="relative" />
 
@@ -2159,24 +2176,36 @@ export default function MoodboardEditor({
           {/* Pin-Overlay (auch fuer viewportTick re-render) */}
           {/* eslint-disable-next-line @typescript-eslint/no-unused-expressions */}
           {void viewportTick}
-          <MoodboardPinOverlay
-            pins={pins}
-            worldToScreen={worldToScreen}
-            aktiverPinId={aktiverPinId}
-            setAktiverPinId={setAktiverPinId}
-            onAntworten={pinAntworten}
-            onErledigen={pinErledigt}
-            onLoeschen={pinLoeschen}
-          />
+          <MoodboardErrorBoundary name="PinOverlay">
+            <MoodboardPinOverlay
+              pins={pins}
+              worldToScreen={worldToScreen}
+              aktiverPinId={aktiverPinId}
+              setAktiverPinId={setAktiverPinId}
+              onAntworten={pinAntworten}
+              onErledigen={pinErledigt}
+              onLoeschen={pinLoeschen}
+            />
+          </MoodboardErrorBoundary>
 
           {/* Markierungs-Overlay */}
-          {fabricRef.current && (
-            <MoodboardMarkierungOverlay
-              objects={fabricRef.current.getObjects()}
-              reloadKey={layerReloadKey + objVersion}
-              worldToScreen={worldToScreen}
-            />
-          )}
+          <MoodboardErrorBoundary name="MarkierungOverlay">
+            {(() => {
+              try {
+                const c = fabricRef.current
+                if (!c || typeof c.getObjects !== 'function') return null
+                return (
+                  <MoodboardMarkierungOverlay
+                    objects={c.getObjects()}
+                    reloadKey={layerReloadKey + objVersion}
+                    worldToScreen={worldToScreen}
+                  />
+                )
+              } catch {
+                return null
+              }
+            })()}
+          </MoodboardErrorBoundary>
 
           {/* Pin-Entwurf-Bubble */}
           {pinEntwurf && (() => {
@@ -2274,7 +2303,8 @@ export default function MoodboardEditor({
         </div>
 
         {/* Layer-Panel */}
-        {!presentationMode && layerPanelOffen && fabricRef.current && (
+        {!presentationMode && layerPanelOffen && fabricRef.current && typeof fabricRef.current.getObjects === 'function' && (
+          <MoodboardErrorBoundary name="LayerPanel">
           <MoodboardLayers
             objects={fabricRef.current.getObjects()}
             activeObj={activeObj}
@@ -2327,24 +2357,27 @@ export default function MoodboardEditor({
             }}
             onClose={() => setLayerPanelOffen(false)}
           />
+          </MoodboardErrorBoundary>
         )}
 
         {/* Rechte Sidebar – nur wenn etwas selektiert ist */}
         {!presentationMode && activeObj && (
-          <PropertiesPanel
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            obj={activeObj as any}
-            objVersion={objVersion}
-            onSet={setObjProp}
-            onDuplicate={duplicateActive}
-            onDelete={deleteActive}
-            onForward={bringForward}
-            onBackward={sendBackwards}
-            onAlign={alignActive}
-            onDistribute={distributeActive}
-            onToggleLock={toggleLockActive}
-            onSetMarkierung={setMarkierung}
-          />
+          <MoodboardErrorBoundary name="PropertiesPanel">
+            <PropertiesPanel
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              obj={activeObj as any}
+              objVersion={objVersion}
+              onSet={setObjProp}
+              onDuplicate={duplicateActive}
+              onDelete={deleteActive}
+              onForward={bringForward}
+              onBackward={sendBackwards}
+              onAlign={alignActive}
+              onDistribute={distributeActive}
+              onToggleLock={toggleLockActive}
+              onSetMarkierung={setMarkierung}
+            />
+          </MoodboardErrorBoundary>
         )}
       </div>
 

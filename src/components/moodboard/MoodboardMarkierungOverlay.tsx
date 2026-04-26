@@ -25,33 +25,40 @@ export default function MoodboardMarkierungOverlay({
 }: Props) {
   void reloadKey
 
+  if (!Array.isArray(objects)) return null
+
   return (
     <>
       {objects.map((obj, i) => {
-        const id = obj?.data?.markierung as string | undefined
-        if (!id) return null
-        const m = MARKIERUNGEN_MAP[id]
-        if (!m) return null
-        // Bounding-Rect des Objekts in Welt-Koordinaten holen
-        const r = obj.getBoundingRect()
-        // Top-Right Ecke
-        const screen = worldToScreen(r.left + r.width, r.top)
-        if (!screen) return null
-        return (
-          <div
-            key={i}
-            className="absolute pointer-events-none z-20"
-            style={{ left: screen.x, top: screen.y, transform: 'translate(-50%, -50%)' }}
-          >
+        try {
+          if (!obj || typeof obj !== 'object') return null
+          const id = obj?.data?.markierung as string | undefined
+          if (!id) return null
+          const m = MARKIERUNGEN_MAP[id]
+          if (!m) return null
+          if (typeof obj.getBoundingRect !== 'function') return null
+          const r = obj.getBoundingRect()
+          if (!r || typeof r.left !== 'number' || typeof r.top !== 'number') return null
+          const screen = worldToScreen(r.left + r.width, r.top)
+          if (!screen) return null
+          return (
             <div
-              className="w-7 h-7 rounded-full shadow-md flex items-center justify-center text-sm border-2 border-white"
-              style={{ background: m.bg, color: m.farbe }}
-              title={id}
+              key={i}
+              className="absolute pointer-events-none z-20"
+              style={{ left: screen.x, top: screen.y, transform: 'translate(-50%, -50%)' }}
             >
-              {m.emoji}
+              <div
+                className="w-7 h-7 rounded-full shadow-md flex items-center justify-center text-sm border-2 border-white"
+                style={{ background: m.bg, color: m.farbe }}
+                title={id}
+              >
+                {m.emoji}
+              </div>
             </div>
-          </div>
-        )
+          )
+        } catch {
+          return null
+        }
       })}
     </>
   )
