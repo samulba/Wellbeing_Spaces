@@ -80,6 +80,12 @@ export default function MoodboardEditor({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [uploading, setUploading] = useState(false)
 
+  // Aktiv ausgewaehltes Objekt fuer Eigenschaften-Panel
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [activeObj, setActiveObj] = useState<any>(null)
+  const [objVersion, setObjVersion] = useState(0)
+  const bumpObjVersion = useCallback(() => setObjVersion((v) => v + 1), [])
+
   // Linke Sidebar: aktiver Tab + Suche
   const [sidebarTab, setSidebarTab] = useState<'produkte' | 'farben' | 'upload'>('produkte')
   const [produktSuche, setProduktSuche] = useState('')
@@ -292,9 +298,19 @@ export default function MoodboardEditor({
       window.addEventListener('keyup', onKeyUp)
 
       // ── Object-Events fuer History + AutoSave ─────────────────
-      canvas.on('object:modified', () => { pushHistory(); scheduleSave() })
+      canvas.on('object:modified', () => { pushHistory(); scheduleSave(); bumpObjVersion() })
       canvas.on('object:added',    () => { if (!skipHistoryRef.current) { pushHistory(); scheduleSave() } })
       canvas.on('object:removed',  () => { if (!skipHistoryRef.current) { pushHistory(); scheduleSave() } })
+
+      // ── Selection-Events fuer rechte Sidebar ─────────────────
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.on('selection:created', (e: any) => setActiveObj(e.selected?.[0] ?? canvas.getActiveObject() ?? null))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.on('selection:updated', (e: any) => setActiveObj(e.selected?.[0] ?? canvas.getActiveObject() ?? null))
+      canvas.on('selection:cleared', () => setActiveObj(null))
+      canvas.on('object:scaling',  () => bumpObjVersion())
+      canvas.on('object:moving',   () => bumpObjVersion())
+      canvas.on('object:rotating', () => bumpObjVersion())
 
       // Initial-State laden
       if (initialCanvasJson && Object.keys(initialCanvasJson).length > 0) {
@@ -430,6 +446,54 @@ export default function MoodboardEditor({
       pushHistory()
       scheduleSave()
     }
+  }
+
+  // ── Objekt-Eigenschaften ────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function setObjProp(prop: string, value: any) {
+    const c = fabricRef.current
+    if (!c || !activeObj) return
+    activeObj.set(prop, value)
+    activeObj.setCoords()
+    c.requestRenderAll()
+    bumpObjVersion()
+    pushHistory()
+    scheduleSave()
+  }
+
+  function bringForward() {
+    const c = fabricRef.current
+    if (!c || !activeObj) return
+    c.bringObjectForward(activeObj)
+    c.requestRenderAll()
+    pushHistory(); scheduleSave()
+  }
+  function sendBackwards() {
+    const c = fabricRef.current
+    if (!c || !activeObj) return
+    c.sendObjectBackwards(activeObj)
+    c.requestRenderAll()
+    pushHistory(); scheduleSave()
+  }
+  async function duplicateActive() {
+    const c = fabricRef.current
+    if (!c || !activeObj) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cloned = await (activeObj as any).clone()
+    cloned.set({ left: (activeObj.left ?? 0) + 20, top: (activeObj.top ?? 0) + 20 })
+    c.add(cloned)
+    c.setActiveObject(cloned)
+    c.requestRenderAll()
+    pushHistory(); scheduleSave()
+  }
+  function deleteActive() {
+    const c = fabricRef.current
+    if (!c || !activeObj) return
+    c.remove(activeObj)
+    c.discardActiveObject()
+    setActiveObj(null)
+    c.requestRenderAll()
+    pushHistory(); scheduleSave()
   }
 
   // ── UI-Aktionen ────────────────────────────────────────────────
@@ -690,6 +754,20 @@ export default function MoodboardEditor({
             Tool: <strong>{tool}</strong> · Pan: Space + Drag oder Mittlere Maustaste · Zoom: Mausrad
           </div>
         </div>
+
+        {/* Rechte Sidebar – nur wenn etwas selektiert ist */}
+        {activeObj && (
+          <PropertiesPanel
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            obj={activeObj as any}
+            objVersion={objVersion}
+            onSet={setObjProp}
+            onDuplicate={duplicateActive}
+            onDelete={deleteActive}
+            onForward={bringForward}
+            onBackward={sendBackwards}
+          />
+        )}
       </div>
     </div>
   )
@@ -712,6 +790,259 @@ function SidebarTab({
         ${active
           ? 'bg-[#1a2e1e] text-white border-b-2 border-[#94c1a4]'
           : 'text-[#94c1a4] hover:text-white hover:bg-[#3a5240]'}
+      `}
+    >
+      {children}
+    </button>
+  )
+}
+
+// ── Properties Panel (rechts) ───────────────────────────────────
+const PROP_SWATCHES = [
+  '#445c49', '#94c1a4', '#2d3e31', '#f6ede2', '#cba178', '#823509',
+  '#ffffff', '#000000', '#9ca3af', '#374151', '#dc2626', '#1d4ed8',
+]
+
+interface PropPanelProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  obj: any
+  objVersion: number
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSet: (prop: string, value: any) => void
+  onDuplicate: () => void
+  onDelete: () => void
+  onForward: () => void
+  onBackward: () => void
+}
+
+function PropertiesPanel({
+  obj, objVersion, onSet, onDuplicate, onDelete, onForward, onBackward,
+}: PropPanelProps) {
+  // objVersion erzwingt Re-Render bei Drag/Resize
+  void objVersion
+
+  const isText = obj.type === 'i-text' || obj.type === 'IText' || obj.type === 'text'
+  const isShape = obj.type === 'rect' || obj.type === 'Rect' || obj.type === 'circle' || obj.type === 'Circle'
+  const isImage = obj.type === 'image' || obj.type === 'Image' || obj.type === 'FabricImage'
+
+  const left = Math.round(obj.left ?? 0)
+  const top  = Math.round(obj.top ?? 0)
+  const width  = Math.round((obj.width ?? 0) * (obj.scaleX ?? 1))
+  const height = Math.round((obj.height ?? 0) * (obj.scaleY ?? 1))
+  const angle = Math.round(obj.angle ?? 0)
+  const opacity = Math.round((obj.opacity ?? 1) * 100)
+
+  return (
+    <aside className="w-64 shrink-0 bg-[#2d3e31] border-l border-[#445c49]/30 flex flex-col overflow-y-auto">
+      <div className="px-3 py-2 border-b border-[#445c49]/30 flex items-center justify-between">
+        <span className="text-xs text-white font-medium">Eigenschaften</span>
+        <span className="text-[10px] text-[#94c1a4] uppercase">{obj.type}</span>
+      </div>
+
+      <div className="p-3 space-y-4">
+        {/* Position + Größe */}
+        <div>
+          <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Position</label>
+          <div className="grid grid-cols-2 gap-2">
+            <NumInput label="X"      value={left}   onChange={(v) => onSet('left', v)} />
+            <NumInput label="Y"      value={top}    onChange={(v) => onSet('top', v)} />
+          </div>
+        </div>
+
+        {!isImage && (
+          <div>
+            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Größe</label>
+            <div className="grid grid-cols-2 gap-2">
+              <NumInput label="B" value={width}  onChange={(v) => {
+                if ((obj.width ?? 0) > 0) onSet('scaleX', v / obj.width)
+              }} />
+              <NumInput label="H" value={height} onChange={(v) => {
+                if ((obj.height ?? 0) > 0) onSet('scaleY', v / obj.height)
+              }} />
+            </div>
+          </div>
+        )}
+
+        {/* Rotation + Deckkraft */}
+        <div>
+          <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Rotation</label>
+          <input
+            type="range" min={-180} max={180} value={angle}
+            onChange={(e) => onSet('angle', Number(e.target.value))}
+            className="w-full accent-[#94c1a4]"
+          />
+          <div className="text-[11px] text-[#c8dbc9] text-right">{angle}°</div>
+        </div>
+
+        <div>
+          <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Deckkraft</label>
+          <input
+            type="range" min={0} max={100} value={opacity}
+            onChange={(e) => onSet('opacity', Number(e.target.value) / 100)}
+            className="w-full accent-[#94c1a4]"
+          />
+          <div className="text-[11px] text-[#c8dbc9] text-right">{opacity}%</div>
+        </div>
+
+        {/* Farbe (Shape oder Text) */}
+        {(isShape || isText) && (
+          <div>
+            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">
+              {isText ? 'Textfarbe' : 'Füllung'}
+            </label>
+            <div className="grid grid-cols-6 gap-1.5 mb-2">
+              {PROP_SWATCHES.map((hex) => (
+                <button
+                  key={hex}
+                  type="button"
+                  onClick={() => onSet('fill', hex)}
+                  title={hex}
+                  className="aspect-square rounded border border-black/10 hover:scale-110 transition-transform"
+                  style={{ backgroundColor: hex }}
+                />
+              ))}
+            </div>
+            <input
+              type="color"
+              value={typeof obj.fill === 'string' ? obj.fill : '#000000'}
+              onChange={(e) => onSet('fill', e.target.value)}
+              className="w-full h-8 rounded border-0 bg-transparent cursor-pointer"
+            />
+          </div>
+        )}
+
+        {/* Text-spezifisch */}
+        {isText && (
+          <>
+            <div>
+              <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Schriftgröße</label>
+              <input
+                type="range" min={10} max={96} value={obj.fontSize ?? 24}
+                onChange={(e) => onSet('fontSize', Number(e.target.value))}
+                className="w-full accent-[#94c1a4]"
+              />
+              <div className="text-[11px] text-[#c8dbc9] text-right">{obj.fontSize ?? 24} px</div>
+            </div>
+            <div>
+              <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Stil</label>
+              <div className="flex gap-1">
+                <StyleBtn active={obj.fontWeight === 'bold'} onClick={() =>
+                  onSet('fontWeight', obj.fontWeight === 'bold' ? 'normal' : 'bold')
+                }>
+                  <strong>B</strong>
+                </StyleBtn>
+                <StyleBtn active={obj.fontStyle === 'italic'} onClick={() =>
+                  onSet('fontStyle', obj.fontStyle === 'italic' ? 'normal' : 'italic')
+                }>
+                  <em>I</em>
+                </StyleBtn>
+                <StyleBtn active={obj.underline === true} onClick={() =>
+                  onSet('underline', !obj.underline)
+                }>
+                  <u>U</u>
+                </StyleBtn>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Shape: Kontur */}
+        {isShape && (
+          <div>
+            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Konturbreite</label>
+            <input
+              type="range" min={0} max={12} value={obj.strokeWidth ?? 0}
+              onChange={(e) => onSet('strokeWidth', Number(e.target.value))}
+              className="w-full accent-[#94c1a4]"
+            />
+            <div className="text-[11px] text-[#c8dbc9] text-right">{obj.strokeWidth ?? 0} px</div>
+          </div>
+        )}
+
+        {/* Layer + Aktionen */}
+        <div className="pt-3 border-t border-[#445c49]/30">
+          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+            <PanelBtn onClick={onForward}>Eine Ebene vor</PanelBtn>
+            <PanelBtn onClick={onBackward}>Eine Ebene zurück</PanelBtn>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <PanelBtn onClick={onDuplicate}>Duplizieren</PanelBtn>
+            <PanelBtn onClick={onDelete} danger>Löschen</PanelBtn>
+          </div>
+        </div>
+
+        {/* Produkt-Info wenn verknuepft */}
+        {obj.data?.produkt_name && (
+          <div className="pt-3 border-t border-[#445c49]/30">
+            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Verknüpftes Produkt</label>
+            <div className="text-xs text-white">{obj.data.produkt_name}</div>
+          </div>
+        )}
+      </div>
+    </aside>
+  )
+}
+
+function NumInput({
+  label, value, onChange,
+}: {
+  label: string
+  value: number
+  onChange: (v: number) => void
+}) {
+  return (
+    <div>
+      <div className="text-[10px] text-[#94c1a4] mb-0.5">{label}</div>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => {
+          const n = Number(e.target.value)
+          if (!Number.isNaN(n)) onChange(n)
+        }}
+        className="w-full px-2 py-1 text-xs bg-[#1a2e1e] border border-[#445c49]/40 rounded text-[#c8dbc9] focus:outline-none focus:border-[#94c1a4]"
+      />
+    </div>
+  )
+}
+
+function StyleBtn({
+  children, onClick, active,
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  active?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        w-9 h-9 rounded text-sm transition-colors
+        ${active ? 'bg-[#445c49] text-white' : 'bg-[#1a2e1e] text-[#c8dbc9] hover:bg-[#3a5240]'}
+      `}
+    >
+      {children}
+    </button>
+  )
+}
+
+function PanelBtn({
+  children, onClick, danger,
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  danger?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        px-2 py-1.5 text-[11px] rounded transition-colors
+        ${danger
+          ? 'bg-red-900/30 text-red-300 hover:bg-red-900/50'
+          : 'bg-[#1a2e1e] text-[#c8dbc9] hover:bg-[#3a5240]'}
       `}
     >
       {children}
