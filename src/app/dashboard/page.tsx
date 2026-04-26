@@ -17,6 +17,7 @@ import {
   type LetzesProjekt,
   type MeineAufgabe,
 } from '@/components/DashboardWidgets'
+import { getAufgabePickerOptionen, type AufgabePickerOptionen } from '@/app/actions/aufgaben'
 
 // ── Hilfsfunktionen ───────────────────────────────────────────
 
@@ -306,6 +307,14 @@ async function getDashboardData() {
   const anstehend7Tage     = anstehendResult.status          === 'fulfilled' ? (anstehendResult.value.count          ?? 0) : 0
   const offeneReklamationen = reklamationenResult.status     === 'fulfilled' ? (reklamationenResult.value.count      ?? 0) : 0
 
+  // ── Picker-Optionen fuer 'Neue Aufgabe' direkt aus Dashboard
+  let aufgabenPickerOptionen: AufgabePickerOptionen | null = null
+  try {
+    aufgabenPickerOptionen = await getAufgabePickerOptionen()
+  } catch {
+    // Migration 102 fehlt -> Button wird ausgeblendet
+  }
+
   // ── Meine Aufgaben (Migration 102) ──────────────────────────
   let meineAufgaben: MeineAufgabe[] = []
   try {
@@ -358,6 +367,7 @@ async function getDashboardData() {
     anstehend7Tage,
     offeneReklamationen,
     meineAufgaben,
+    aufgabenPickerOptionen,
   }
 }
 
@@ -370,7 +380,7 @@ export default async function DashboardPage() {
     budgetProjekte,
     letzteProjekte,
     zuBestellen, unterwegs, anstehend7Tage, offeneReklamationen,
-    meineAufgaben,
+    meineAufgaben, aufgabenPickerOptionen,
   } = await getDashboardData()
 
   return (
@@ -427,7 +437,7 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 min-h-[220px] xl:flex-1 xl:min-h-0">
           <NaechsteDeadlines projekte={naechsteDeadlines} events={anstehendeEvents} />
           <OffeneFollowUps eintraege={followUpEintraege} />
-          <MeineAufgabenWidget aufgaben={meineAufgaben} />
+          <MeineAufgabenWidget aufgaben={meineAufgaben} pickerOptionen={aufgabenPickerOptionen ?? undefined} />
         </div>
 
         {/* ROW 3: Budget + Letzte Projekte (nebeneinander, fluid rest of viewport) */}

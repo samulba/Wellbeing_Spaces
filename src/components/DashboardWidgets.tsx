@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText, Flag, Truck, Layers, Info, ShoppingCart, AlertTriangle, Package, ListChecks, Check } from 'lucide-react'
-import { aufgabeStatusAendern } from '@/app/actions/aufgaben'
+import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText, Flag, Truck, Layers, Info, ShoppingCart, AlertTriangle, Package, ListChecks, Check, Plus } from 'lucide-react'
+import { aufgabeStatusAendern, type AufgabePickerOptionen } from '@/app/actions/aufgaben'
 import { useRouter } from 'next/navigation'
+import AufgabeAnlegenModal from '@/components/AufgabeAnlegenModal'
 
 // ── Typen ─────────────────────────────────────────────────────
 
@@ -640,10 +641,17 @@ const PRIO_PUNKT: Record<MeineAufgabe['prioritaet'], string> = {
   dringend: 'bg-red-500',
 }
 
-export function MeineAufgabenWidget({ aufgaben }: { aufgaben: MeineAufgabe[] }) {
+export function MeineAufgabenWidget({
+  aufgaben,
+  pickerOptionen,
+}: {
+  aufgaben: MeineAufgabe[]
+  pickerOptionen?: AufgabePickerOptionen
+}) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [erledigtIds, setErledigtIds] = useState<Set<string>>(new Set())
+  const [anlegenOffen, setAnlegenOffen] = useState(false)
 
   const sichtbar = aufgaben.filter((a) => !erledigtIds.has(a.id))
 
@@ -678,10 +686,21 @@ export function MeineAufgabenWidget({ aufgaben }: { aufgaben: MeineAufgabe[] }) 
             <span className="text-xs text-gray-400 tabular-nums">({sichtbar.length})</span>
           )}
         </div>
-        <Link
-          href="/dashboard/aufgaben"
-          className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors font-medium"
-        >Alle →</Link>
+        <div className="flex items-center gap-3">
+          {pickerOptionen && (
+            <button
+              onClick={() => setAnlegenOffen(true)}
+              aria-label="Neue Aufgabe"
+              className="text-gray-400 hover:text-wellbeing-green p-1 rounded hover:bg-gray-50"
+            >
+              <Plus size={16} />
+            </button>
+          )}
+          <Link
+            href="/dashboard/aufgaben"
+            className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors font-medium"
+          >Alle →</Link>
+        </div>
       </div>
       {sichtbar.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-2 py-8">
@@ -733,6 +752,13 @@ export function MeineAufgabenWidget({ aufgaben }: { aufgaben: MeineAufgabe[] }) 
             )
           })}
         </ul>
+      )}
+      {pickerOptionen && (
+        <AufgabeAnlegenModal
+          open={anlegenOffen}
+          onClose={() => setAnlegenOffen(false)}
+          pickerOptionen={pickerOptionen}
+        />
       )}
     </div>
   )
