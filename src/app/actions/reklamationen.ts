@@ -10,6 +10,7 @@ import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { auditLog } from '@/lib/audit'
+import { syncAufgabeAusQuelle } from '@/app/actions/aufgaben'
 import crypto from 'crypto'
 import type {
   ProduktReklamation, ReklamationTyp, ReklamationStatus, ReklamationLoesungTyp,
@@ -114,7 +115,41 @@ export async function reklamationAnlegen(input: {
     revalidatePath(`/dashboard/projekte/${projektId}/raeume/${rp.raum_id}`)
   }
   revalidatePath('/dashboard/bestellungen')
+
+  // Auto-Sync: passende Aufgabe in Kanban anlegen
+  // Produktname fuer Titel laden
+  const { data: produkt } = await supabase
+    .from('raum_produkte')
+    .select('produkte:produkt_id(name), raeume:raum_id(projekt_id, projekte:projekt_id(kunde_id))')
+    .eq('id', input.raumProduktId)
+    .maybeSingle()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const produktName = (produkt?.produkte as any)?.name as string | undefined
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const kundeId     = (produkt?.raeume as any)?.projekte?.kunde_id as string | null | undefined
+  const titel = produktName ? `Reklamation: ${produktName}` : `Reklamation (${TYP_LABEL[input.typ]})`
+  await syncAufgabeAusQuelle('reklamation', data.id, {
+    titel,
+    beschreibung:       text,
+    status:             'in_arbeit',
+    prioritaet:         input.typ === 'transportschaden' || input.typ === 'mangel' ? 'hoch' : 'normal',
+    kunde_id:           kundeId ?? null,
+    projekt_id:         projektId ?? null,
+    raum_id:            rp.raum_id ?? null,
+    raum_produkte_id:   input.raumProduktId,
+    sichtbar_fuer_kunde: input.kundeSichtbar ?? true,
+  })
+
   return { id: data.id }
+}
+
+const TYP_LABEL: Record<ReklamationTyp, string> = {
+  mangel:               'Mangel',
+  falsche_lieferung:    'Falsche Lieferung',
+  transportschaden:     'Transportschaden',
+  nicht_wie_bestellt:   'Nicht wie bestellt',
+  kunde_storno:         'Kunden-Storno',
+  sonstiges:            'Sonstiges',
 }
 
 // ── Status / Loesung ──────────────────────────────────────────
@@ -150,6 +185,18 @@ export async function reklamationStatusAendern(
     entitaet_id:   id,
     details:       { von: aktuell.status, zu: neuerStatus },
   })
+
+  // Auto-Sync: bei 'geloest' wird Aufgabe auf erledigt gesetzt
+  if (neuerStatus === 'geloest') {
+    try {
+      await supabase
+        .from('aufgaben')
+        .update({ status: 'erledigt', erledigt_am: new Date().toISOString() })
+        .eq('organisation_id', orgId)
+        .eq('quelle', 'reklamation')
+        .eq('quelle_id', id)
+    } catch (e) { console.error('[syncAufgabe:reklamation:erledigt]', e) }
+  }
 
   revalidatePath('/dashboard/bestellungen')
   return { erfolg: true }
@@ -205,6 +252,16 @@ export async function reklamationLoesen(input: {
     details:       { loesung_typ: input.loesungTyp, betrag_gutschrift: input.betragGutschrift ?? null },
   })
 
+  // Auto-Sync: zugehoerige Aufgabe auf erledigt setzen
+  try {
+    await supabase
+      .from('aufgaben')
+      .update({ status: 'erledigt', erledigt_am: new Date().toISOString() })
+      .eq('organisation_id', orgId)
+      .eq('quelle', 'reklamation')
+      .eq('quelle_id', input.id)
+  } catch (e) { console.error('[syncAufgabe:reklamation:loesen]', e) }
+
   revalidatePath('/dashboard/bestellungen')
   return { erfolg: true }
 }
@@ -226,6 +283,9 @@ export async function reklamationLoeschen(
     entitaet_typ:  'reklamation' as string,
     entitaet_id:   id,
   })
+
+  // Auto-Sync: zugehoerige Aufgabe entfernen
+  await syncAufgabeAusQuelle('reklamation', id, null, { loeschen: true })
 
   revalidatePath('/dashboard/bestellungen')
   return { erfolg: true }
