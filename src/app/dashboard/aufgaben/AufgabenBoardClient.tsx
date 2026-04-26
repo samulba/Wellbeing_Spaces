@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
@@ -16,6 +16,7 @@ import {
   aufgabeAnlegen, aufgabeReihenfolgeAendern,
 } from '@/app/actions/aufgaben'
 import AufgabeDetailModal from '@/components/AufgabeDetailModal'
+import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import type { AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet } from '@/lib/supabase/types'
 
 const SPALTEN: { id: AufgabeStatus; label: string; farbe: string }[] = [
@@ -51,6 +52,20 @@ export default function AufgabenBoardClient({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   )
+
+  // Live-Updates: bei jeder Aenderung an aufgaben (durch andere Team-Mitglieder
+  // oder durch Auto-Sync-Hooks) wird die Server-Component re-rendered.
+  useRealtimeRefresh({
+    channelName: 'aufgaben-board',
+    table:       'aufgaben',
+    debounceMs:  600,
+    onChange:    () => router.refresh(),
+  })
+
+  // Server-Refresh -> neue initialeAufgaben-Props -> State synchronisieren
+  useEffect(() => {
+    setAufgaben(initialeAufgaben)
+  }, [initialeAufgaben])
 
   // Filtern (clientseitig fuer schnelle Reaktion)
   const heute = new Date().toISOString().slice(0, 10)

@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useModal } from '@/lib/hooks/useModal'
+import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import {
   X, Calendar, Trash2, Plus, Check, Square, Paperclip, MessageCircle,
   ChevronDown, AlertCircle, Loader2,
@@ -70,6 +71,18 @@ export default function AufgabeDetailModal({
     setFehler(null)
     void aufgabenKommentareAbrufen(aufgabe.id).then(setKommentare)
   }, [aufgabe, open])
+
+  // Live-Kommentare: Subscribe so lange Modal offen ist
+  useRealtimeRefresh({
+    channelName: `aufgabe-kommentare-${aufgabe?.id ?? 'none'}`,
+    table:       'aufgaben_kommentare',
+    filter:      aufgabe ? `aufgabe_id=eq.${aufgabe.id}` : undefined,
+    debounceMs:  300,
+    enabled:     !!aufgabe && open,
+    onChange:    () => {
+      if (aufgabe) void aufgabenKommentareAbrufen(aufgabe.id).then(setKommentare)
+    },
+  })
 
   if (!open || !aufgabe) return null
 
