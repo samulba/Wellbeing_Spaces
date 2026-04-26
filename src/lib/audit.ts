@@ -39,11 +39,14 @@ export type AuditAktion =
   // Lieferanten-Bestellungen (Migration 100)
   | 'bestellung_angelegt' | 'bestellung_aktualisiert' | 'bestellung_versandt'
   | 'bestellung_geliefert' | 'bestellung_storniert' | 'bestellung_geloescht'
+  // Aufgaben (Migration 102)
+  | 'aufgabe_angelegt' | 'aufgabe_aktualisiert' | 'aufgabe_status_geaendert'
+  | 'aufgabe_kunde_zugewiesen' | 'aufgabe_geloescht'
 
 export type AuditEntitaet =
   | 'kunde' | 'projekt' | 'raum' | 'produkt' | 'partner'
   | 'angebot' | 'vertrag' | 'team_mitglied' | 'onboarding' | 'freigabe'
-  | 'reklamation' | 'bestellung'
+  | 'reklamation' | 'bestellung' | 'aufgabe'
 
 export async function auditLog(params: {
   aktion:        AuditAktion | string
