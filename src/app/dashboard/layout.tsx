@@ -23,13 +23,15 @@ export default async function DashboardLayout({
   let anfragenCount  = 0
   let nachrichtenCount = 0
   let reklamationenCount = 0
+  let aufgabenCount = 0
   let rolle: Rolle   = 'viewer'
   let userAvatarUrl: string | null = null
   let userVorname:   string | null = null
   let userNachname:  string | null = null
 
   try {
-    const [freigabenRes, anfragenRes, rolleRes, meRes, nachrichtenRes, reklamationenRes] = await Promise.allSettled([
+    const heuteIso = new Date().toISOString().slice(0, 10)
+    const [freigabenRes, anfragenRes, rolleRes, meRes, nachrichtenRes, reklamationenRes, aufgabenRes] = await Promise.allSettled([
       supabase
         .from('raum_produkte')
         .select('*', { count: 'exact', head: true })
@@ -51,6 +53,13 @@ export default async function DashboardLayout({
         .from('produkt_reklamationen')
         .select('*', { count: 'exact', head: true })
         .neq('status', 'geloest'),
+      // Ueberfaellige offene Aufgaben des aktuellen Users (Migration 102)
+      supabase
+        .from('aufgaben')
+        .select('*', { count: 'exact', head: true })
+        .eq('assignee_user_id', user.id)
+        .neq('status', 'erledigt')
+        .lt('faellig_am', heuteIso),
     ])
 
     freigabenCount     = freigabenRes.status     === 'fulfilled' ? (freigabenRes.value.count     ?? 0) : 0
@@ -58,6 +67,7 @@ export default async function DashboardLayout({
     rolle              = rolleRes.status         === 'fulfilled' ? rolleRes.value : 'viewer'
     nachrichtenCount   = nachrichtenRes.status   === 'fulfilled' ? nachrichtenRes.value : 0
     reklamationenCount = reklamationenRes.status === 'fulfilled' ? (reklamationenRes.value.count ?? 0) : 0
+    aufgabenCount      = aufgabenRes.status      === 'fulfilled' ? (aufgabenRes.value.count      ?? 0) : 0
     if (meRes.status === 'fulfilled' && meRes.value.data) {
       userAvatarUrl = (meRes.value.data.avatar_url as string | null) ?? null
       userVorname   = (meRes.value.data.vorname    as string | null) ?? null
@@ -90,6 +100,7 @@ export default async function DashboardLayout({
           offeneAnfragen={anfragenCount}
           offeneNachrichten={nachrichtenCount}
           offeneReklamationen={reklamationenCount}
+          offeneAufgaben={aufgabenCount}
           neuestesChangelogDatum={neuestesChangelogDatum}
         />
         <main className="flex-1 overflow-hidden flex flex-col">

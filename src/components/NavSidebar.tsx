@@ -21,6 +21,7 @@ import {
   PencilRuler,
   Palette,
   MessageCircle,
+  ListChecks,
 } from 'lucide-react'
 import type { Rolle } from '@/lib/supabase/types'
 import { ROLLEN_CONFIG } from '@/lib/permissions'
@@ -61,6 +62,7 @@ export default function NavSidebar({
   offeneAnfragen = 0,
   offeneNachrichten = 0,
   offeneReklamationen = 0,
+  offeneAufgaben = 0,
   neuestesChangelogDatum = null,
 }: {
   userEmail: string
@@ -71,6 +73,7 @@ export default function NavSidebar({
   offeneAnfragen?: number
   offeneNachrichten?: number
   offeneReklamationen?: number
+  offeneAufgaben?: number
   neuestesChangelogDatum?: string | null
 }) {
   const pathname = usePathname()
@@ -106,6 +109,7 @@ export default function NavSidebar({
     { label: 'Raumplaner',   href: '/dashboard/raumplaner',   icon: PencilRuler,    badge: 0 },
     { label: 'Moodboards',   href: '/dashboard/moodboards',   icon: Palette,        badge: 0 },
     { label: 'Bestellungen', href: '/dashboard/bestellungen', icon: ShoppingCart,   badge: offeneReklamationen },
+    { label: 'Aufgaben',   href: '/dashboard/aufgaben',   icon: ListChecks,      badge: offeneAufgaben },
     { label: 'Chats',      href: '/dashboard/chats',      icon: MessageCircle,   badge: offeneNachrichten },
     { label: 'Freigaben',  href: '/dashboard/freigaben',  icon: CheckSquare,     badge: offeneFreigaben },
     { label: 'Onboarding', href: '/dashboard/onboarding', icon: ClipboardList,   badge: offeneAnfragen },
