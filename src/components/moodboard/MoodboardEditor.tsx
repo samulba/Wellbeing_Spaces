@@ -35,6 +35,7 @@ import type { MoodboardVersion, MoodboardKommentar } from '@/lib/supabase/types'
 import MoodboardWelcome from './MoodboardWelcome'
 import MoodboardLayers from './MoodboardLayers'
 import MoodboardPinOverlay from './MoodboardPinOverlay'
+import MoodboardMarkierungOverlay from './MoodboardMarkierungOverlay'
 import type { MoodboardTemplate } from '@/lib/moodboard-templates'
 
 interface Props {
@@ -60,6 +61,16 @@ interface Props {
 }
 
 type Tool = 'select' | 'text' | 'rect' | 'circle' | 'note' | 'comment'
+
+// Voting-/Markierungs-Optionen pro Element
+type Markierung = 'favorit' | 'gefaellt' | 'passt_nicht' | 'final' | 'unsicher'
+const MARKIERUNGEN: Array<{ id: Markierung; emoji: string; label: string; farbe: string; bg: string }> = [
+  { id: 'favorit',     emoji: '⭐', label: 'Favorit',     farbe: '#d97706', bg: '#fef3c7' },
+  { id: 'gefaellt',    emoji: '👍', label: 'Gefällt mir', farbe: '#059669', bg: '#dcfce7' },
+  { id: 'passt_nicht', emoji: '👎', label: 'Passt nicht', farbe: '#dc2626', bg: '#fee2e2' },
+  { id: 'final',       emoji: '✅', label: 'Final',       farbe: '#0d9488', bg: '#ccfbf1' },
+  { id: 'unsicher',    emoji: '❓', label: 'Unsicher',    farbe: '#9333ea', bg: '#f3e8ff' },
+]
 
 // Sticky-Note Farben (Pastell)
 const NOTE_FARBEN = [
@@ -757,6 +768,18 @@ export default function MoodboardEditor({
         pushHistory()
         scheduleSave()
       })
+  }
+
+  // ── Markierung pro Element ────────────────────────────────────
+  function setMarkierung(id: Markierung | null) {
+    const c = fabricRef.current
+    if (!c || !activeObj) return
+    activeObj.data = { ...(activeObj.data ?? {}), markierung: id ?? undefined }
+    c.requestRenderAll()
+    bumpObjVersion()
+    pushHistory()
+    scheduleSave()
+    setLayerReloadKey((k) => k + 1)
   }
 
   // ── Pins: World → Screen ──────────────────────────────────────
@@ -2008,6 +2031,15 @@ export default function MoodboardEditor({
             onLoeschen={pinLoeschen}
           />
 
+          {/* Markierungs-Overlay */}
+          {fabricRef.current && (
+            <MoodboardMarkierungOverlay
+              objects={fabricRef.current.getObjects()}
+              reloadKey={layerReloadKey + objVersion}
+              worldToScreen={worldToScreen}
+            />
+          )}
+
           {/* Pin-Entwurf-Bubble */}
           {pinEntwurf && (() => {
             const pos = worldToScreen(pinEntwurf.x, pinEntwurf.y)
@@ -2173,6 +2205,7 @@ export default function MoodboardEditor({
             onAlign={alignActive}
             onDistribute={distributeActive}
             onToggleLock={toggleLockActive}
+            onSetMarkierung={setMarkierung}
           />
         )}
       </div>
@@ -2607,11 +2640,12 @@ interface PropPanelProps {
   onAlign: (dir: 'left' | 'centerH' | 'right' | 'top' | 'centerV' | 'bottom') => void
   onDistribute: (dir: 'h' | 'v') => void
   onToggleLock: () => void
+  onSetMarkierung: (m: Markierung | null) => void
 }
 
 function PropertiesPanel({
   obj, objVersion, onSet, onDuplicate, onDelete, onForward, onBackward,
-  onAlign, onDistribute, onToggleLock,
+  onAlign, onDistribute, onToggleLock, onSetMarkierung,
 }: PropPanelProps) {
   // objVersion erzwingt Re-Render bei Drag/Resize
   void objVersion
@@ -2803,6 +2837,42 @@ function PropertiesPanel({
             <div className="text-[11px] text-[#c8dbc9] text-right">{obj.strokeWidth ?? 0} px</div>
           </div>
         )}
+
+        {/* Markierung (Voting) */}
+        <div className="pt-3 border-t border-[#445c49]/30">
+          <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Markierung</label>
+          <div className="grid grid-cols-5 gap-1">
+            {MARKIERUNGEN.map((m) => {
+              const aktiv = obj.data?.markierung === m.id
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => onSetMarkierung(aktiv ? null : m.id)}
+                  title={m.label}
+                  className={`
+                    flex flex-col items-center justify-center py-1.5 rounded transition-colors
+                    ${aktiv
+                      ? 'ring-2 ring-white bg-white/10 text-white'
+                      : 'bg-[#1a2e1e] hover:bg-[#3a5240]'}
+                  `}
+                >
+                  <span className="text-base leading-none">{m.emoji}</span>
+                  <span className="text-[9px] mt-0.5 text-[#94c1a4]">{m.label}</span>
+                </button>
+              )
+            })}
+          </div>
+          {obj.data?.markierung && (
+            <button
+              type="button"
+              onClick={() => onSetMarkierung(null)}
+              className="text-[10px] text-[#94c1a4] hover:text-white mt-1.5 underline"
+            >
+              Markierung entfernen
+            </button>
+          )}
+        </div>
 
         {/* Layer + Aktionen */}
         <div className="pt-3 border-t border-[#445c49]/30">
