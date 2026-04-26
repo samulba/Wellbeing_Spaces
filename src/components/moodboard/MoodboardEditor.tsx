@@ -19,6 +19,7 @@ import {
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   Lock, Unlock, BoxSelect, Layers, MessageSquare, FileText, Presentation, Minimize2,
+  Clock,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -47,6 +48,8 @@ interface Props {
   freigabeAktiv: boolean
   freigabeKommentareAktiv: boolean
   freigabeToken: string | null
+  freigabePasswortGesetzt?: boolean
+  freigabeAblauf?: string | null
   produkte: Array<{
     id: string
     name: string
@@ -90,6 +93,8 @@ export default function MoodboardEditor({
   freigabeAktiv: initialFreigabeAktiv,
   freigabeKommentareAktiv: initialFreigabeKommentareAktiv,
   freigabeToken,
+  freigabePasswortGesetzt = false,
+  freigabeAblauf: initialAblauf = null,
 }: Props) {
   const canvasElRef    = useRef<HTMLCanvasElement | null>(null)
   const containerRef   = useRef<HTMLDivElement | null>(null)
@@ -187,6 +192,10 @@ export default function MoodboardEditor({
   const [freigabeKommentare, setFreigabeKommentare] = useState(initialFreigabeKommentareAktiv)
   const [freigabeSaving, setFreigabeSaving] = useState(false)
   const [linkKopiert, setLinkKopiert] = useState(false)
+  // Erweiterte Freigabe-Optionen (Step 8)
+  const [passwortGesetzt, setPasswortGesetzt] = useState(freigabePasswortGesetzt)
+  const [neuesPasswort, setNeuesPasswort] = useState('')
+  const [ablauf, setAblauf] = useState<string | null>(initialAblauf)
 
   // Versionen-Modal
   const [versionenOffen, setVersionenOffen] = useState(false)
@@ -1400,13 +1409,52 @@ export default function MoodboardEditor({
   }
 
   // ── Freigabe ───────────────────────────────────────────────────
-  async function handleFreigabeSpeichern(neuAktiv: boolean, neuKommentare: boolean) {
+  async function handleFreigabeSpeichern(
+    neuAktiv: boolean,
+    neuKommentare: boolean,
+    options?: { passwort?: string | null; ablauf?: string | null },
+  ) {
     setFreigabeSaving(true)
-    const r = await moodboardFreigabeAktualisieren(moodboardId, neuAktiv, neuKommentare)
+    const r = await moodboardFreigabeAktualisieren(moodboardId, neuAktiv, neuKommentare, options)
     setFreigabeSaving(false)
-    if (r.fehler) { alert(r.fehler); return }
+    if (r.fehler) { setRaumAlertMsg(r.fehler); return }
     setFreigabeAktiv(neuAktiv)
     setFreigabeKommentare(neuKommentare)
+    setRaumAlertMsg('Freigabe-Einstellungen aktualisiert.')
+  }
+
+  async function handlePasswortSetzen() {
+    if (!neuesPasswort.trim()) return
+    setFreigabeSaving(true)
+    const r = await moodboardFreigabeAktualisieren(moodboardId, freigabeAktiv, freigabeKommentare, {
+      passwort: neuesPasswort,
+    })
+    setFreigabeSaving(false)
+    if (r.fehler) { setRaumAlertMsg(r.fehler); return }
+    setPasswortGesetzt(true)
+    setNeuesPasswort('')
+    setRaumAlertMsg('Passwort gesetzt.')
+  }
+
+  async function handlePasswortEntfernen() {
+    setFreigabeSaving(true)
+    const r = await moodboardFreigabeAktualisieren(moodboardId, freigabeAktiv, freigabeKommentare, {
+      passwort: null,
+    })
+    setFreigabeSaving(false)
+    if (r.fehler) { setRaumAlertMsg(r.fehler); return }
+    setPasswortGesetzt(false)
+    setRaumAlertMsg('Passwort entfernt.')
+  }
+
+  async function handleAblaufSetzen(neuerAblauf: string | null) {
+    setFreigabeSaving(true)
+    const r = await moodboardFreigabeAktualisieren(moodboardId, freigabeAktiv, freigabeKommentare, {
+      ablauf: neuerAblauf,
+    })
+    setFreigabeSaving(false)
+    if (r.fehler) { setRaumAlertMsg(r.fehler); return }
+    setAblauf(neuerAblauf)
   }
 
   const freigabeUrl = typeof window !== 'undefined' && freigabeToken
@@ -2231,6 +2279,83 @@ export default function MoodboardEditor({
                   >
                     Vorschau in neuem Tab öffnen ↗
                   </a>
+
+                  {/* Passwort-Schutz */}
+                  <div className="pt-3 border-t border-gray-200">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                      <Lock className="w-3 h-3" /> Passwort-Schutz
+                    </label>
+                    {passwortGesetzt ? (
+                      <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded">
+                        <span className="text-[11px] text-emerald-800 inline-flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Passwort ist aktiv
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handlePasswortEntfernen}
+                          disabled={freigabeSaving}
+                          className="text-[11px] text-red-600 hover:underline"
+                        >
+                          Entfernen
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-1">
+                        <input
+                          type="password"
+                          value={neuesPasswort}
+                          onChange={(e) => setNeuesPasswort(e.target.value)}
+                          placeholder="Optional — Passwort setzen"
+                          className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-wellbeing-green focus:ring-1 focus:ring-wellbeing-green/30"
+                        />
+                        <button
+                          type="button"
+                          onClick={handlePasswortSetzen}
+                          disabled={!neuesPasswort.trim() || freigabeSaving}
+                          className="px-2 py-1 text-[11px] bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded disabled:opacity-50"
+                        >
+                          Setzen
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ablaufdatum */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                      <Clock className="w-3 h-3" /> Ablaufdatum
+                    </label>
+                    <div className="flex gap-1">
+                      <input
+                        type="date"
+                        value={ablauf ? ablauf.slice(0, 10) : ''}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          if (!v) handleAblaufSetzen(null)
+                          else {
+                            // Setze Ende des Tages
+                            const d = new Date(v + 'T23:59:59')
+                            handleAblaufSetzen(d.toISOString())
+                          }
+                        }}
+                        className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-wellbeing-green focus:ring-1 focus:ring-wellbeing-green/30"
+                      />
+                      {ablauf && (
+                        <button
+                          type="button"
+                          onClick={() => handleAblaufSetzen(null)}
+                          className="px-2 py-1 text-[11px] text-red-600 hover:underline"
+                        >
+                          Entfernen
+                        </button>
+                      )}
+                    </div>
+                    {ablauf && (
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        Link läuft am {new Date(ablauf).toLocaleDateString('de-DE')} ab
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

@@ -218,6 +218,12 @@ export async function moodboardFreigabeAktualisieren(
   moodboardId: string,
   aktiv: boolean,
   kommentareAktiv: boolean,
+  options?: {
+    /** Wenn null → Passwort entfernen. Wenn undefined → unverändert lassen. */
+    passwort?: string | null
+    /** ISO-Datum oder null. undefined → unverändert. */
+    ablauf?: string | null
+  },
 ): Promise<{ erfolg?: boolean; fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
@@ -227,6 +233,21 @@ export async function moodboardFreigabeAktualisieren(
     freigabe_kommentare_aktiv: kommentareAktiv,
   }
   if (aktiv) update.freigabe_erstellt_am = new Date().toISOString()
+
+  // Passwort-Handling
+  if (options && 'passwort' in options) {
+    if (options.passwort === null || options.passwort === '') {
+      update.freigabe_passwort_hash = null
+    } else if (typeof options.passwort === 'string' && options.passwort.length > 0) {
+      const bcrypt = await import('bcryptjs')
+      update.freigabe_passwort_hash = await bcrypt.hash(options.passwort, 10)
+    }
+  }
+
+  // Ablaufdatum
+  if (options && 'ablauf' in options) {
+    update.freigabe_ablauf = options.ablauf ?? null
+  }
 
   const { error } = await supabase
     .from('moodboards')
@@ -242,6 +263,27 @@ export async function moodboardFreigabeAktualisieren(
   })
 
   return { erfolg: true }
+}
+
+/** Verifiziert ein Passwort fuer einen Freigabe-Token. Wird von der oeffentlichen Seite genutzt. */
+export async function moodboardPasswortPruefen(
+  token: string,
+  passwort: string,
+): Promise<{ ok: boolean }> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('moodboards')
+    .select('freigabe_passwort_hash, freigabe_aktiv, freigabe_ablauf')
+    .eq('freigabe_token', token)
+    .maybeSingle()
+  if (!data || !data.freigabe_aktiv) return { ok: false }
+  if (data.freigabe_ablauf && new Date(data.freigabe_ablauf).getTime() < Date.now()) {
+    return { ok: false }
+  }
+  if (!data.freigabe_passwort_hash) return { ok: true } // Kein Passwort gesetzt
+  const bcrypt = await import('bcryptjs')
+  const ok = await bcrypt.compare(passwort, data.freigabe_passwort_hash)
+  return { ok }
 }
 
 
@@ -453,27 +495,64 @@ export async function getMoodboardKommentareOeffentlich(
 // ── Oeffentliche Freigabe-Ansicht ──────────────────────────────
 
 /** Laedt ein Moodboard via freigabe_token fuer Kunden (Admin-Client, kein Auth). */
-export async function getMoodboardOeffentlich(token: string): Promise<{
-  moodboardId:        string
-  name:               string
-  beschreibung:       string | null
-  canvasJson:         Record<string, unknown> | null
-  raumName:           string
-  projektName:        string
-  kommentareAktiv:    boolean
-  organisationId:     string | null
-} | null> {
+export type MoodboardOeffentlichResult =
+  | { status: 'ok'
+      moodboardId:        string
+      name:               string
+      beschreibung:       string | null
+      canvasJson:         Record<string, unknown> | null
+      raumName:           string
+      projektName:        string
+      kommentareAktiv:    boolean
+      organisationId:     string | null
+    }
+  | { status: 'passwort_erforderlich'; raumName: string; projektName: string }
+  | { status: 'abgelaufen' }
+  | { status: 'nicht_gefunden' }
+
+export async function getMoodboardOeffentlich(
+  token: string,
+  passwort?: string,
+): Promise<MoodboardOeffentlichResult> {
   const admin = createAdminClient()
   const { data } = await admin
     .from('moodboards')
-    .select('id, name, beschreibung, canvas_json, freigabe_aktiv, freigabe_kommentare_aktiv, organisation_id, raeume!inner(name, projekte!inner(name))')
+    .select('id, name, beschreibung, canvas_json, freigabe_aktiv, freigabe_kommentare_aktiv, freigabe_passwort_hash, freigabe_ablauf, organisation_id, raeume!inner(name, projekte!inner(name))')
     .eq('freigabe_token', token)
     .maybeSingle()
-  if (!data || !data.freigabe_aktiv) return null
+  if (!data || !data.freigabe_aktiv) return { status: 'nicht_gefunden' }
+
+  // Ablaufdatum
+  if (data.freigabe_ablauf && new Date(data.freigabe_ablauf).getTime() < Date.now()) {
+    return { status: 'abgelaufen' }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raeume = (data.raeume as any)
   const projekt = raeume?.projekte
+
+  // Passwort-Check
+  if (data.freigabe_passwort_hash) {
+    if (!passwort) {
+      return {
+        status: 'passwort_erforderlich',
+        raumName: raeume?.name ?? '',
+        projektName: projekt?.name ?? '',
+      }
+    }
+    const bcrypt = await import('bcryptjs')
+    const ok = await bcrypt.compare(passwort, data.freigabe_passwort_hash)
+    if (!ok) {
+      return {
+        status: 'passwort_erforderlich',
+        raumName: raeume?.name ?? '',
+        projektName: projekt?.name ?? '',
+      }
+    }
+  }
+
   return {
+    status:          'ok',
     moodboardId:     data.id,
     name:            data.name,
     beschreibung:    data.beschreibung,

@@ -1,19 +1,53 @@
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
-import { Palette, MessageSquare } from 'lucide-react'
+import { Palette, MessageSquare, Clock } from 'lucide-react'
 import { getMoodboardOeffentlich, getMoodboardKommentareOeffentlich } from '@/app/actions/moodboard'
 import MoodboardPraesentation from '@/components/moodboard/MoodboardPraesentation'
+import MoodboardPasswortGate from '@/components/moodboard/MoodboardPasswortGate'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 interface Props {
   params: { token: string }
+  searchParams: { pw?: string }
 }
 
-export default async function MoodboardOeffentlichPage({ params }: Props) {
-  const board = await getMoodboardOeffentlich(params.token)
-  if (!board) notFound()
+export default async function MoodboardOeffentlichPage({ params, searchParams }: Props) {
+  const result = await getMoodboardOeffentlich(params.token, searchParams.pw)
+
+  if (result.status === 'nicht_gefunden') notFound()
+
+  if (result.status === 'abgelaufen') {
+    return (
+      <div className="min-h-screen bg-wellbeing-cream/30 flex items-center justify-center p-6">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 max-w-md text-center">
+          <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-amber-100 flex items-center justify-center">
+            <Clock className="w-6 h-6 text-amber-700" />
+          </div>
+          <h1 className="text-lg font-semibold text-gray-900">Freigabe-Link abgelaufen</h1>
+          <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+            Der Freigabe-Link für dieses Moodboard ist abgelaufen. Bitte wende dich an deinen Designer für einen neuen Link.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (result.status === 'passwort_erforderlich') {
+    return (
+      <div className="min-h-screen bg-wellbeing-cream/30 flex items-center justify-center p-6">
+        <MoodboardPasswortGate
+          token={params.token}
+          raumName={result.raumName}
+          projektName={result.projektName}
+          fehler={!!searchParams.pw}
+        />
+      </div>
+    )
+  }
+
+  const board = result
   const initialPins = board.kommentareAktiv
     ? await getMoodboardKommentareOeffentlich(params.token)
     : []

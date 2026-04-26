@@ -5,6 +5,16 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard Step 8 — Erweiterte Freigabe (Passwort + Ablaufdatum)
+- Migration **098**: zwei neue Spalten auf `moodboards` — `freigabe_passwort_hash` (bcrypt) und `freigabe_ablauf` (Timestamp).
+- Im Freigabe-Modal des Editors zwei neue Sektionen:
+  - **Passwort-Schutz**: Input + „Setzen"-Button → bcrypt-Hash auf Server. Wenn aktiv: grünes „Passwort ist aktiv"-Banner mit „Entfernen"-Link.
+  - **Ablaufdatum**: Date-Picker (Ende des Tages, ISO), „Entfernen"-Link, Hinweis „Link läuft am … ab".
+- Öffentliche Seite `/moodboard/[token]`:
+  - Wenn Passwort gesetzt → **Passwort-Gate** mit eigenem UI (Logo + Lock-Icon + Input + Fehler-Anzeige bei falschem Passwort, Passwort wird via `?pw=` URL-Parameter weitergegeben).
+  - Wenn Ablauf erreicht → eigene **„Freigabe-Link abgelaufen"-Seite** mit Hinweis Designer zu kontaktieren.
+- Migration **098** muss manuell im Supabase SQL-Editor ausgeführt werden.
+
 ### Moodboard Step 7 — PDF-Export & Präsentations-Modus
 - **PDF-Export-Button** in der Toolbar (FileText-Icon): rendert das Board mit Auto-Bounding-Box und 2×-Auflösung als A4-PDF (auto landscape/portrait je nach Aspect), grüner Header mit Boardname + Raum, mittiges Bild, Footer mit Datum + Branding.
 - **Präsentations-Modus** (Presentation-Icon): blendet Top-Bar, beide Sidebars und Status-Bar aus — nur Canvas + ein „Präsentation beenden (ESC)"-Floating-Button bleibt sichtbar. ESC oder Klick auf den Button verlässt den Modus.

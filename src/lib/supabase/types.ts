@@ -387,6 +387,10 @@ export interface Moodboard {
   freigabe_aktiv: boolean
   freigabe_kommentare_aktiv: boolean
   freigabe_erstellt_am: string | null
+  /** Migration 098: Passwort-Hash (bcrypt) wenn der Freigabe-Link geschuetzt ist. */
+  freigabe_passwort_hash?: string | null
+  /** Migration 098: Ablaufdatum, nach dem der Freigabe-Link nicht mehr geht. */
+  freigabe_ablauf?: string | null
   created_at: string
   updated_at: string
 }
