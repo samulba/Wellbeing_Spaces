@@ -372,3 +372,103 @@ export function lieferantenBestellungMail(opts: {
     }),
   }
 }
+
+
+/** Aufgaben-Zuweisung an Team-Mitglied (intern). */
+export function aufgabeZuweisungInternMail(opts: {
+  empfaengerName:  string
+  zuweiserName:    string | null
+  aufgabeTitel:    string
+  beschreibung?:   string | null
+  faelligAm?:      string | null
+  prioritaet?:     'niedrig' | 'normal' | 'hoch' | 'dringend'
+  projektName?:    string | null
+  kundeName?:      string | null
+  linkUrl:         string
+  branding?:       MailBranding
+}): MailTemplateResult {
+  const firmenname    = opts.branding?.firmenname    ?? DEFAULT_FIRMA
+  const primary_color = opts.branding?.primary_color ?? DEFAULT_PRIMARY
+
+  const prioLabel: Record<NonNullable<typeof opts.prioritaet>, string> = {
+    niedrig: 'Niedrig', normal: 'Normal', hoch: 'Hoch', dringend: 'Dringend',
+  }
+
+  const meta: string[] = []
+  if (opts.faelligAm) {
+    meta.push(`Fällig: <strong>${escapeHtml(new Date(opts.faelligAm + 'T00:00:00Z').toLocaleDateString('de-DE'))}</strong>`)
+  }
+  if (opts.prioritaet) meta.push(`Priorität: <strong>${escapeHtml(prioLabel[opts.prioritaet])}</strong>`)
+  if (opts.projektName) meta.push(`Projekt: <strong>${escapeHtml(opts.projektName)}</strong>`)
+  if (opts.kundeName)   meta.push(`Kunde: <strong>${escapeHtml(opts.kundeName)}</strong>`)
+
+  const body = `
+    <p style="font-size: 15px; color: #4b5563; line-height: 1.55; margin: 0 0 14px;">
+      ${escapeHtml(opts.zuweiserName ?? 'Jemand')} hat dir eine neue Aufgabe zugewiesen:
+    </p>
+    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+      <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 8px;">
+        ${escapeHtml(opts.aufgabeTitel)}
+      </p>
+      ${opts.beschreibung ? `<p style="font-size: 14px; color: #4b5563; margin: 0 0 8px; white-space: pre-wrap;">${escapeHtml(opts.beschreibung)}</p>` : ''}
+      ${meta.length > 0 ? `<p style="font-size: 13px; color: #6b7280; margin: 8px 0 0;">${meta.join(' · ')}</p>` : ''}
+    </div>`.trim()
+
+  return {
+    subject: `Neue Aufgabe: ${opts.aufgabeTitel}`,
+    html: layout({
+      firmenname,
+      primary_color,
+      anrede:   `Hallo ${opts.empfaengerName},`,
+      bodyHtml: body,
+      ctaLabel: 'Aufgabe öffnen',
+      ctaUrl:   opts.linkUrl,
+    }),
+  }
+}
+
+
+/** Aufgaben-Zuweisung an Kunden (Portal). */
+export function aufgabeZuweisungKundeMail(opts: {
+  empfaengerName:  string
+  aufgabeTitel:    string
+  beschreibung?:   string | null
+  faelligAm?:      string | null
+  projektName?:    string | null
+  portalUrl:       string
+  branding?:       MailBranding
+}): MailTemplateResult {
+  const firmenname    = opts.branding?.firmenname    ?? DEFAULT_FIRMA
+  const primary_color = opts.branding?.primary_color ?? DEFAULT_PRIMARY
+
+  const meta: string[] = []
+  if (opts.faelligAm) meta.push(`Fällig: <strong>${escapeHtml(new Date(opts.faelligAm + 'T00:00:00Z').toLocaleDateString('de-DE'))}</strong>`)
+  if (opts.projektName) meta.push(`Projekt: <strong>${escapeHtml(opts.projektName)}</strong>`)
+
+  const body = `
+    <p style="font-size: 15px; color: #4b5563; line-height: 1.55; margin: 0 0 14px;">
+      Wir haben eine kleine Aufgabe für dich vorbereitet:
+    </p>
+    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+      <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 8px;">
+        ${escapeHtml(opts.aufgabeTitel)}
+      </p>
+      ${opts.beschreibung ? `<p style="font-size: 14px; color: #4b5563; margin: 0 0 8px; white-space: pre-wrap;">${escapeHtml(opts.beschreibung)}</p>` : ''}
+      ${meta.length > 0 ? `<p style="font-size: 13px; color: #6b7280; margin: 8px 0 0;">${meta.join(' · ')}</p>` : ''}
+    </div>
+    <p style="font-size: 14px; color: #4b5563; line-height: 1.55; margin: 0 0 14px;">
+      Du findest die Aufgabe in deinem Portal unter "Was du tun sollst".
+    </p>`.trim()
+
+  return {
+    subject: `Neue Aufgabe für dich: ${opts.aufgabeTitel}`,
+    html: layout({
+      firmenname,
+      primary_color,
+      anrede:   `Hallo ${opts.empfaengerName},`,
+      bodyHtml: body,
+      ctaLabel: 'Im Portal öffnen',
+      ctaUrl:   opts.portalUrl,
+    }),
+  }
+}

@@ -12,13 +12,130 @@
  */
 
 import { createClient, getOrganisationId } from '@/lib/supabase/server'
+import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { auditLog } from '@/lib/audit'
+import { sendMail } from '@/lib/mail'
+import { aufgabeZuweisungInternMail, aufgabeZuweisungKundeMail } from '@/lib/mail-templates'
 import crypto from 'crypto'
 import type {
   Aufgabe, AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet,
   AufgabeQuelle, AufgabeChecklistItem, AufgabeAnhang, AufgabeKommentar,
 } from '@/lib/supabase/types'
+
+// ── Helper: App-URL ermitteln ────────────────────────────────
+async function appBaseUrl(): Promise<string> {
+  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (fromEnv) return fromEnv.replace(/\/$/, '')
+  try {
+    const h = await headers()
+    const host  = h.get('x-forwarded-host') ?? h.get('host')
+    const proto = h.get('x-forwarded-proto') ?? 'https'
+    if (host && !host.includes('localhost')) return `${proto}://${host}`
+  } catch { /* nicht im Request-Kontext */ }
+  return 'https://app.wellbeing-spaces.de'
+}
+
+// ── Helper: Notification bei Zuweisung verschicken ───────────
+async function notifyAufgabeZuweisung(
+  aufgabeId: string,
+  kontext: 'erstellt' | 'aktualisiert',
+): Promise<void> {
+  try {
+    const supabase = await createClient()
+    const orgId = await getOrganisationId()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Aufgabe + assignee + Projekt/Kunde laden
+    const { data: a } = await supabase
+      .from('aufgaben')
+      .select(`
+        id, titel, beschreibung, faellig_am, prioritaet, quelle,
+        assignee_user_id, assignee_kunde, kunde_id, projekt_id,
+        projekt:projekte(name),
+        kunde:kunden(name)
+      `)
+      .eq('id', aufgabeId)
+      .eq('organisation_id', orgId)
+      .maybeSingle()
+    if (!a) return
+    // Auto-Tasks loesen keine Mails aus (zu viele bei Status-Wechseln)
+    if (a.quelle !== 'manuell') return
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const projektName = ((a.projekt as any)?.name as string | undefined) ?? null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const kundeName   = ((a.kunde   as any)?.name as string | undefined) ?? null
+
+    // Branding fuer Mail-Layout
+    const { data: branding } = await supabase
+      .from('branding')
+      .select('firmenname, primary_color')
+      .eq('organisation_id', orgId)
+      .maybeSingle()
+
+    const baseUrl = await appBaseUrl()
+    const zuweiserName =
+      (user?.user_metadata?.full_name as string | undefined)
+      ?? (user?.email?.split('@')[0])
+      ?? null
+
+    // Team-Mitglied
+    if (a.assignee_user_id) {
+      // Eigene Zuweisung → keine Mail an sich selbst
+      if (user?.id === a.assignee_user_id) return
+      const { data: tm } = await supabase
+        .from('team_mitglieder')
+        .select('vorname, nachname, email')
+        .eq('user_id', a.assignee_user_id)
+        .eq('organisation_id', orgId)
+        .maybeSingle()
+      if (!tm?.email) return
+      const empfaengerName = [tm.vorname, tm.nachname].filter(Boolean).join(' ').trim()
+                           || (tm.email.split('@')[0] ?? 'dort')
+      const { subject, html } = aufgabeZuweisungInternMail({
+        empfaengerName,
+        zuweiserName,
+        aufgabeTitel: a.titel,
+        beschreibung: a.beschreibung,
+        faelligAm:    a.faellig_am,
+        prioritaet:   a.prioritaet,
+        projektName,
+        kundeName,
+        linkUrl:      `${baseUrl}/dashboard/aufgaben`,
+        branding:     branding ?? undefined,
+      })
+      await sendMail({ to: tm.email, subject, html })
+      void kontext
+      return
+    }
+
+    // Kunde
+    if (a.assignee_kunde && a.kunde_id) {
+      const { data: client } = await supabase
+        .from('client_users')
+        .select('email, vorname')
+        .eq('kunde_id', a.kunde_id)
+        .eq('rolle', 'inhaber')
+        .eq('aktiv', true)
+        .limit(1)
+        .maybeSingle()
+      if (!client?.email) return
+      const { subject, html } = aufgabeZuweisungKundeMail({
+        empfaengerName: (client.vorname as string | null) ?? 'dort',
+        aufgabeTitel:   a.titel,
+        beschreibung:   a.beschreibung,
+        faelligAm:      a.faellig_am,
+        projektName,
+        portalUrl:      `${baseUrl}/portal/dashboard`,
+        branding:       branding ?? undefined,
+      })
+      await sendMail({ to: client.email, subject, html })
+    }
+  } catch (e) {
+    console.error('[notifyAufgabeZuweisung]', e)
+  }
+}
 
 // ── Filter & Read ─────────────────────────────────────────────
 
@@ -201,6 +318,11 @@ export async function aufgabeAnlegen(input: AufgabeInput): Promise<{ id?: string
     details:       { status, projekt_id: input.projekt_id, kunde_id: input.kunde_id },
   })
 
+  // Notification an assignee bei manueller Anlage
+  if (input.assignee_user_id || input.assignee_kunde) {
+    void notifyAufgabeZuweisung(data.id, 'erstellt')
+  }
+
   revalidatePath('/dashboard/aufgaben')
   if (input.projekt_id) revalidatePath(`/dashboard/projekte/${input.projekt_id}`)
   return { id: data.id }
@@ -221,8 +343,15 @@ export async function aufgabeAktualisieren(
     patch.titel = titel
   }
 
+  // Vor-Werte fuer Assignee-Aenderungs-Check laden
+  const { data: vorher } = await supabase
+    .from('aufgaben')
+    .select('assignee_user_id, assignee_kunde')
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+
   const update: Record<string, unknown> = { ...patch }
-  // null-explizit fuer optionale Felder
   const { error } = await supabase
     .from('aufgaben')
     .update(update)
@@ -236,6 +365,15 @@ export async function aufgabeAktualisieren(
     entitaet_id:   id,
     details:       { felder: Object.keys(patch) },
   })
+
+  // Notification: hat sich Assignee geaendert (auf einen NEUEN Wert)?
+  const neuerUser  = patch.assignee_user_id !== undefined
+                  && patch.assignee_user_id !== vorher?.assignee_user_id
+                  && patch.assignee_user_id != null
+  const neuerKunde = patch.assignee_kunde === true && vorher?.assignee_kunde !== true
+  if (neuerUser || neuerKunde) {
+    void notifyAufgabeZuweisung(id, 'aktualisiert')
+  }
 
   revalidatePath('/dashboard/aufgaben')
   return { erfolg: true }
