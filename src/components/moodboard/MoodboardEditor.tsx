@@ -94,6 +94,15 @@ export default function MoodboardEditor({
   const [uploading, setUploading] = useState(false)
   const [istLeer, setIstLeer] = useState(true)
   const [hintGeschlossen, setHintGeschlossen] = useState(false)
+  const [raumAlertMsg, setRaumAlertMsg] = useState<string | null>(null)
+  const [dragActive, setDragActive] = useState(false)
+
+  // Toast nach 3.5s automatisch ausblenden
+  useEffect(() => {
+    if (!raumAlertMsg) return
+    const t = setTimeout(() => setRaumAlertMsg(null), 3500)
+    return () => clearTimeout(t)
+  }, [raumAlertMsg])
 
   // Aktiv ausgewaehltes Objekt fuer Eigenschaften-Panel
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -379,21 +388,117 @@ export default function MoodboardEditor({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Bild-Upload ────────────────────────────────────────────────
+  // ── Drag & Drop + Paste-Listener (Window-Level) ────────────────
+  useEffect(() => {
+    const cont = containerRef.current
+    if (!cont) return
+
+    function isFileDrag(e: DragEvent) {
+      return Array.from(e.dataTransfer?.types ?? []).includes('Files')
+    }
+
+    function onDragEnter(e: DragEvent) {
+      if (!isFileDrag(e)) return
+      e.preventDefault()
+      setDragActive(true)
+    }
+    function onDragOver(e: DragEvent) {
+      if (!isFileDrag(e)) return
+      e.preventDefault()
+      e.dataTransfer!.dropEffect = 'copy'
+    }
+    function onDragLeave(e: DragEvent) {
+      if (!isFileDrag(e)) return
+      // Nur wenn wir den Container wirklich verlassen (nicht nur ein Kind betreten)
+      if (e.relatedTarget && cont!.contains(e.relatedTarget as Node)) return
+      setDragActive(false)
+    }
+    function onDrop(e: DragEvent) {
+      if (!isFileDrag(e)) return
+      e.preventDefault()
+      setDragActive(false)
+      const files = Array.from(e.dataTransfer?.files ?? [])
+      if (files.length === 0) return
+      const rect = cont!.getBoundingClientRect()
+      uploadFiles(files, { x: e.clientX - rect.left, y: e.clientY - rect.top })
+    }
+
+    function onPaste(e: ClipboardEvent) {
+      // Nicht auslosen, wenn User in einem Input/Textarea pasted
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
+      const items = Array.from(e.clipboardData?.items ?? [])
+      const bilder = items
+        .filter((it) => it.type.startsWith('image/'))
+        .map((it) => it.getAsFile())
+        .filter((f): f is File => f !== null)
+      if (bilder.length === 0) return
+      e.preventDefault()
+      uploadFiles(bilder)
+    }
+
+    cont.addEventListener('dragenter', onDragEnter)
+    cont.addEventListener('dragover',  onDragOver)
+    cont.addEventListener('dragleave', onDragLeave)
+    cont.addEventListener('drop',      onDrop)
+    window.addEventListener('paste',   onPaste)
+    return () => {
+      cont.removeEventListener('dragenter', onDragEnter)
+      cont.removeEventListener('dragover',  onDragOver)
+      cont.removeEventListener('dragleave', onDragLeave)
+      cont.removeEventListener('drop',      onDrop)
+      window.removeEventListener('paste',   onPaste)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raumId])
+
+  // ── Bild-Upload (Multi-File + Drag-Drop + Paste) ───────────────
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    const fd = new FormData()
-    fd.append('bild', file)
-    const r = await moodboardBildHochladen(raumId, fd)
-    setUploading(false)
+    const files = Array.from(e.target.files ?? [])
     e.target.value = ''
-    if (r.fehler || !r.url) { alert(r.fehler ?? 'Upload fehlgeschlagen.'); return }
-    addImageToCanvas(r.url)
+    if (files.length === 0) return
+    await uploadFiles(files)
   }
 
-  function addImageToCanvas(url: string) {
+  /**
+   * Laedt eine oder mehrere Dateien hoch und platziert sie versetzt aufs Canvas.
+   * Akzeptiert nur image/* — nicht-Bilder werden uebersprungen.
+   */
+  async function uploadFiles(files: File[], dropPosition?: { x: number; y: number }) {
+    const bilder = files.filter((f) => f.type.startsWith('image/'))
+    if (bilder.length === 0) {
+      if (files.length > 0) setRaumAlertMsg('Nur Bilder werden unterstützt.')
+      return
+    }
+    setUploading(true)
+    setHintGeschlossen(true) // Welcome-Modal schliessen falls noch offen
+    let erfolg = 0
+    let fehler = 0
+    for (let i = 0; i < bilder.length; i++) {
+      const file = bilder[i]
+      const fd = new FormData()
+      fd.append('bild', file)
+      const r = await moodboardBildHochladen(raumId, fd)
+      if (r.fehler || !r.url) { fehler++; continue }
+      erfolg++
+      // Versatz pro Bild im Stack
+      const offset = i * 24
+      addImageToCanvas(r.url, dropPosition ? {
+        x: dropPosition.x + offset,
+        y: dropPosition.y + offset,
+      } : undefined)
+    }
+    setUploading(false)
+    if (fehler > 0) {
+      setRaumAlertMsg(
+        erfolg > 0
+          ? `${erfolg} Bild${erfolg === 1 ? '' : 'er'} hochgeladen, ${fehler} fehlgeschlagen.`
+          : 'Upload fehlgeschlagen.'
+      )
+    }
+  }
+
+  function addImageToCanvas(url: string, position?: { x: number; y: number }) {
     const canvas = fabricRef.current
     const fabric = fabricImportRef.current
     if (!canvas || !fabric) return
@@ -402,11 +507,23 @@ export default function MoodboardEditor({
       .then((img: any) => {
         const max = 320
         const scale = Math.min(max / (img.width || max), max / (img.height || max), 1)
-        img.set({
-          left: -((img.width || 0) * scale) / 2 + canvas.getWidth() / 2,
-          top:  -((img.height || 0) * scale) / 2 + canvas.getHeight() / 2,
-          scaleX: scale, scaleY: scale,
-        })
+        // World-Koordinaten: wenn dropPosition Screen-Punkt → Inverse Viewport
+        if (position) {
+          const vpt = canvas.viewportTransform
+          const wx = (position.x - vpt[4]) / vpt[0]
+          const wy = (position.y - vpt[5]) / vpt[3]
+          img.set({
+            left: wx - ((img.width || 0) * scale) / 2,
+            top:  wy - ((img.height || 0) * scale) / 2,
+            scaleX: scale, scaleY: scale,
+          })
+        } else {
+          img.set({
+            left: -((img.width || 0) * scale) / 2 + canvas.getWidth() / 2,
+            top:  -((img.height || 0) * scale) / 2 + canvas.getHeight() / 2,
+            scaleX: scale, scaleY: scale,
+          })
+        }
         canvas.add(img)
         canvas.setActiveObject(img)
         canvas.requestRenderAll()
@@ -882,6 +999,7 @@ export default function MoodboardEditor({
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           onChange={handleFileChange}
         />
@@ -1053,8 +1171,28 @@ export default function MoodboardEditor({
           <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-black/50 text-[10px] text-[#c8dbc9]/80 backdrop-blur-sm flex items-center gap-2">
             <span className="uppercase tracking-wider">{tool}</span>
             <span className="text-[#94c1a4]/40">·</span>
-            <span>Space + Drag zum Verschieben · Mausrad zum Zoomen</span>
+            <span>Drag&Drop · Strg+V · Space+Drag · Mausrad zoomt</span>
           </div>
+
+          {/* Drop-Overlay (zeigt sich beim File-Hover) */}
+          {dragActive && (
+            <div className="pointer-events-none absolute inset-2 z-40 border-2 border-dashed border-wellbeing-green-light rounded-2xl bg-wellbeing-green/15 backdrop-blur-[1px] flex items-center justify-center">
+              <div className="bg-white/95 px-5 py-3 rounded-xl shadow-lg border border-wellbeing-green/30 flex items-center gap-2.5">
+                <Upload className="w-5 h-5 text-wellbeing-green" />
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Bilder hier ablegen</div>
+                  <div className="text-[11px] text-gray-500">Mehrere gleichzeitig möglich</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Toast (Errors / Status-Meldungen) */}
+          {raumAlertMsg && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 px-4 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg animate-fadeIn">
+              {raumAlertMsg}
+            </div>
+          )}
         </div>
 
         {/* Rechte Sidebar – nur wenn etwas selektiert ist */}

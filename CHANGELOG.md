@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard Step 2 — Schnelles Sammeln (Drag&Drop · Multi-Upload · Paste)
+- **Drag & Drop**: Bilder aus dem Datei-Explorer können jetzt direkt aufs Canvas gezogen werden — wenn ein File ge-draggt wird, erscheint ein grüner Drop-Overlay mit „Bilder hier ablegen"-Hinweis. Bilder landen exakt an der Drop-Position.
+- **Multi-Upload**: Upload-Button + File-Input akzeptieren mehrere Dateien gleichzeitig — sie werden nacheinander hochgeladen und versetzt aufs Board gestapelt.
+- **Paste aus Zwischenablage**: Cmd/Ctrl + V mit kopiertem Bild fügt es direkt ein (z. B. Screenshot oder Bild aus Browser).
+- **Toast-System** für Fehler/Erfolg (oberhalb Canvas, blendet nach 3,5 s aus); Status-Bar zeigt jetzt alle Sammel-Shortcuts.
+
 ### Moodboard Step 1 — Welcome-Modal & Templates
 - Beim Öffnen eines leeren Moodboards erscheint jetzt ein **Welcome-Modal** mit 4 Schnellstart-Optionen (**Leer starten / Bild hochladen / Link einfügen / Aus Projekt** — die letzten beiden für spätere Steps vorbereitet) und 6 vordefinierten **Templates** zur Wahl.
 - Templates: **Skandinavisch · Boho/Ethno · Modern Hotel · Bürospace · Wohnen warm · Industrial/Loft**. Jedes liefert eine vorbereitete Farbpalette (5 Swatches), Stichwort-Liste, Material-/Akzent-Box und einen Stil-Header — User kann sofort weiterarbeiten statt auf einer leeren Fläche zu sitzen.
