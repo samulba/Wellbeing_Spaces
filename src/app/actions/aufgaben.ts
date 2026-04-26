@@ -659,6 +659,65 @@ export async function aufgabenKommentarAnlegen(
   return { id: data.id }
 }
 
+export async function aufgabenKommentarAktualisieren(
+  kommentarId: string,
+  inhalt: string,
+): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const text = inhalt.trim()
+  if (!text) return { fehler: 'Kommentar darf nicht leer sein.' }
+  if (text.length > 4000) return { fehler: 'Kommentar zu lang.' }
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { fehler: 'Nicht angemeldet.' }
+
+  // Nur eigene Kommentare bearbeiten
+  const { data: k } = await supabase
+    .from('aufgaben_kommentare')
+    .select('autor_user_id')
+    .eq('id', kommentarId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!k) return { fehler: 'Kommentar nicht gefunden.' }
+  if (k.autor_user_id !== user.id) return { fehler: 'Nur eigene Kommentare koennen bearbeitet werden.' }
+
+  const { error } = await supabase
+    .from('aufgaben_kommentare')
+    .update({ inhalt: text })
+    .eq('id', kommentarId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Kommentar konnte nicht aktualisiert werden.' }
+  return { erfolg: true }
+}
+
+export async function aufgabenKommentarLoeschen(
+  kommentarId: string,
+): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { fehler: 'Nicht angemeldet.' }
+
+  // Nur eigene Kommentare loeschen
+  const { data: k } = await supabase
+    .from('aufgaben_kommentare')
+    .select('autor_user_id')
+    .eq('id', kommentarId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!k) return { fehler: 'Kommentar nicht gefunden.' }
+  if (k.autor_user_id !== user.id) return { fehler: 'Nur eigene Kommentare koennen geloescht werden.' }
+
+  const { error } = await supabase
+    .from('aufgaben_kommentare')
+    .delete()
+    .eq('id', kommentarId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Kommentar konnte nicht geloescht werden.' }
+  return { erfolg: true }
+}
+
 // ── Auto-Sync ─────────────────────────────────────────────────
 
 export type AufgabeAutoQuelle = Exclude<AufgabeQuelle, 'manuell' | 'kunde_anfrage'>

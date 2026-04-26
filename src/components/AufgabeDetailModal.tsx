@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import { useModal } from '@/lib/hooks/useModal'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import {
-  X, Calendar, Trash2, Plus, Check, Square, Paperclip, MessageCircle,
+  X, Calendar, Trash2, Plus, Check, Square, Paperclip, MessageCircle, Pencil,
   ChevronDown, AlertCircle, Loader2,
 } from 'lucide-react'
 import {
   aufgabeAktualisieren, aufgabeLoeschen, aufgabeChecklistAktualisieren,
   aufgabeAnhangHochladen, aufgabeAnhangSigniert, aufgabeAnhangEntfernen,
   aufgabenKommentareAbrufen, aufgabenKommentarAnlegen,
+  aufgabenKommentarAktualisieren, aufgabenKommentarLoeschen,
   type AufgabePickerOptionen,
 } from '@/app/actions/aufgaben'
 import AufgabeVerknuepfungenPicker from '@/components/AufgabeVerknuepfungenPicker'
@@ -320,22 +321,24 @@ export default function AufgabeDetailModal({
                 </h3>
                 <ul className="space-y-3">
                   {kommentare.map((k) => (
-                    <li key={k.id} className="flex items-start gap-2">
-                      <div className={
-                        'w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ' +
-                        (k.ist_kunde ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700')
-                      }>
-                        {(k.autor_name ?? '?').slice(0, 1).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500">
-                          <span className="font-medium text-gray-700">{k.autor_name ?? 'Unbekannt'}</span>
-                          {k.ist_kunde && <span className="ml-1 text-amber-600">(Kunde)</span>}
-                          <span className="ml-2 text-gray-400">{relativeZeit(k.created_at)}</span>
-                        </p>
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap mt-0.5">{k.inhalt}</p>
-                      </div>
-                    </li>
+                    <KommentarZeile
+                      key={k.id} kommentar={k}
+                      currentUserId={pickerOptionen?.currentUserId ?? null}
+                      onAktualisieren={async (text) => {
+                        const res = await aufgabenKommentarAktualisieren(k.id, text)
+                        if (res.fehler) { setFehler(res.fehler); return false }
+                        const liste = await aufgabenKommentareAbrufen(aufgabe.id)
+                        setKommentare(liste)
+                        return true
+                      }}
+                      onLoeschen={async () => {
+                        if (!confirm('Kommentar wirklich loeschen?')) return
+                        const res = await aufgabenKommentarLoeschen(k.id)
+                        if (res.fehler) { setFehler(res.fehler); return }
+                        const liste = await aufgabenKommentareAbrufen(aufgabe.id)
+                        setKommentare(liste)
+                      }}
+                    />
                   ))}
                   {kommentare.length === 0 && (
                     <li className="text-sm text-gray-400 italic">Noch keine Kommentare.</li>
@@ -513,6 +516,93 @@ function Dropdown({
         </>
       )}
     </div>
+  )
+}
+
+function KommentarZeile({
+  kommentar, currentUserId, onAktualisieren, onLoeschen,
+}: {
+  kommentar: AufgabeKommentar
+  currentUserId: string | null
+  onAktualisieren: (text: string) => Promise<boolean>
+  onLoeschen: () => Promise<void>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState(kommentar.inhalt)
+  const [pending, setPending] = useState(false)
+  const istEigener = !!currentUserId && kommentar.autor_user_id === currentUserId
+
+  async function handleSave() {
+    const t = text.trim()
+    if (!t || t === kommentar.inhalt) { setEditing(false); return }
+    setPending(true)
+    const ok = await onAktualisieren(t)
+    setPending(false)
+    if (ok) setEditing(false)
+  }
+
+  return (
+    <li className="flex items-start gap-2 group">
+      <div className={
+        'w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ' +
+        (kommentar.ist_kunde ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700')
+      }>
+        {(kommentar.autor_name ?? '?').slice(0, 1).toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-gray-500 flex items-center gap-2">
+          <span className="font-medium text-gray-700">{kommentar.autor_name ?? 'Unbekannt'}</span>
+          {kommentar.ist_kunde && <span className="text-amber-600">(Kunde)</span>}
+          <span className="text-gray-400">{relativeZeit(kommentar.created_at)}</span>
+          {istEigener && !editing && (
+            <span className="ml-auto opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+              <button
+                onClick={() => { setText(kommentar.inhalt); setEditing(true) }}
+                aria-label="Bearbeiten"
+                className="text-gray-400 hover:text-wellbeing-green p-0.5"
+              >
+                <Pencil size={11} />
+              </button>
+              <button
+                onClick={onLoeschen}
+                aria-label="Loeschen"
+                className="text-gray-400 hover:text-red-500 p-0.5"
+              >
+                <Trash2 size={11} />
+              </button>
+            </span>
+          )}
+        </p>
+        {editing ? (
+          <div className="mt-1">
+            <textarea
+              rows={2}
+              autoFocus
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setEditing(false)
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSave()
+              }}
+              className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-wellbeing-green-light resize-y"
+            />
+            <div className="flex items-center gap-2 mt-1 text-xs">
+              <button
+                onClick={handleSave}
+                disabled={pending || !text.trim()}
+                className="bg-wellbeing-green text-white px-3 py-1 rounded-md hover:bg-wellbeing-green-dark disabled:opacity-50"
+              >Speichern</button>
+              <button
+                onClick={() => setEditing(false)}
+                className="text-gray-500 hover:text-gray-700 px-2 py-1"
+              >Abbrechen</button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-800 whitespace-pre-wrap mt-0.5">{kommentar.inhalt}</p>
+        )}
+      </div>
+    </li>
   )
 }
 
