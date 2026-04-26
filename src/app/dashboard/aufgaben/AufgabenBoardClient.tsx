@@ -15,6 +15,7 @@ import { Plus, Calendar, AlertTriangle, User, FolderOpen } from 'lucide-react'
 import {
   aufgabeAnlegen, aufgabeReihenfolgeAendern,
 } from '@/app/actions/aufgaben'
+import AufgabeDetailModal from '@/components/AufgabeDetailModal'
 import type { AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet } from '@/lib/supabase/types'
 
 const SPALTEN: { id: AufgabeStatus; label: string; farbe: string }[] = [
@@ -45,6 +46,7 @@ export default function AufgabenBoardClient({
   const [filter, setFilter] = useState<Filter>('alle')
   const [neuOffen, setNeuOffen] = useState<AufgabeStatus | null>(null)
   const [neuTitel, setNeuTitel] = useState('')
+  const [detailId, setDetailId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -220,6 +222,7 @@ export default function AufgabenBoardClient({
               key={spalte.id}
               spalte={spalte}
               aufgaben={spaltenInhalt[spalte.id]}
+              onCardClick={(id) => setDetailId(id)}
               quickAddOpen={neuOffen === spalte.id}
               onQuickAddOpen={() => { setNeuOffen(spalte.id); setNeuTitel('') }}
               onQuickAddClose={() => setNeuOffen(null)}
@@ -235,18 +238,25 @@ export default function AufgabenBoardClient({
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <AufgabeDetailModal
+        aufgabe={aufgaben.find((a) => a.id === detailId) ?? null}
+        open={!!detailId}
+        onClose={() => setDetailId(null)}
+      />
     </div>
   )
 }
 
 // ─── Spalte ───────────────────────────────────────────────────
 function Spalte({
-  spalte, aufgaben,
+  spalte, aufgaben, onCardClick,
   quickAddOpen, onQuickAddOpen, onQuickAddClose,
   quickAddTitel, onQuickAddTitelChange, onQuickAddSubmit,
 }: {
   spalte: { id: AufgabeStatus; label: string; farbe: string }
   aufgaben: AufgabeMitDetails[]
+  onCardClick: (id: string) => void
   quickAddOpen: boolean
   onQuickAddOpen: () => void
   onQuickAddClose: () => void
@@ -279,7 +289,7 @@ function Spalte({
           id={spalte.id}
           className="flex-1 p-3 space-y-2 min-h-[100px]"
         >
-          {aufgaben.map((a) => (<KarteSortable key={a.id} aufgabe={a} />))}
+          {aufgaben.map((a) => (<KarteSortable key={a.id} aufgabe={a} onClick={() => onCardClick(a.id)} />))}
           {quickAddOpen && (
             <div className="bg-white border border-wellbeing-green/40 rounded-lg p-2 shadow-sm">
               <textarea
@@ -318,7 +328,7 @@ function Spalte({
 }
 
 // ─── Karte ────────────────────────────────────────────────────
-function KarteSortable({ aufgabe }: { aufgabe: AufgabeMitDetails }) {
+function KarteSortable({ aufgabe, onClick }: { aufgabe: AufgabeMitDetails; onClick: () => void }) {
   const sortable = useSortable({ id: aufgabe.id })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(sortable.transform),
@@ -326,7 +336,19 @@ function KarteSortable({ aufgabe }: { aufgabe: AufgabeMitDetails }) {
     opacity: sortable.isDragging ? 0.4 : 1,
   }
   return (
-    <div ref={sortable.setNodeRef} style={style} {...sortable.attributes} {...sortable.listeners}>
+    <div
+      ref={sortable.setNodeRef}
+      style={style}
+      {...sortable.attributes}
+      {...sortable.listeners}
+      onClick={(e) => {
+        // Nur Klick (kein Drag-End) oeffnet Modal — Pointer-Sensor mit
+        // distance:6 unterscheidet bereits, sodass click auch bei sortable feuert.
+        if (sortable.isDragging) return
+        e.stopPropagation()
+        onClick()
+      }}
+    >
       <Karte aufgabe={aufgabe} />
     </div>
   )
