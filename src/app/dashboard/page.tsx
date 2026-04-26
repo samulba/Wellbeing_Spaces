@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { ProjektMitKunde } from '@/lib/supabase/types'
 import {
   KpiKartenReihe,
+  BestellKpiReihe,
   NaechsteDeadlines,
   OffeneFollowUps,
   BudgetUebersicht,
@@ -280,6 +281,29 @@ async function getDashboardData() {
     created_at:   p.created_at,
   }))
 
+  // ── Bestell-KPIs (parallel, Fehler-tolerant) ────────────────
+  const heuteStr = new Date().toISOString().split('T')[0]
+  const [
+    zuBestellenResult,
+    unterwegsResult,
+    anstehendResult,
+    reklamationenResult,
+  ] = await Promise.allSettled([
+    supabase.from('raum_produkte').select('*', { count: 'exact', head: true })
+      .eq('freigabe_status', 'freigegeben').eq('bestellstatus', 'ausstehend').is('deleted_at', null),
+    supabase.from('lieferanten_bestellungen').select('*', { count: 'exact', head: true })
+      .in('status', ['bestaetigt', 'versandt']),
+    supabase.from('raum_produkte').select('*', { count: 'exact', head: true })
+      .in('bestellstatus', ['bestellt', 'teilgeliefert'])
+      .gte('liefertermin', heuteStr).lte('liefertermin', in7TagenStr).is('deleted_at', null),
+    supabase.from('produkt_reklamationen').select('*', { count: 'exact', head: true })
+      .neq('status', 'geloest'),
+  ])
+  const zuBestellen        = zuBestellenResult.status        === 'fulfilled' ? (zuBestellenResult.value.count        ?? 0) : 0
+  const unterwegs          = unterwegsResult.status          === 'fulfilled' ? (unterwegsResult.value.count          ?? 0) : 0
+  const anstehend7Tage     = anstehendResult.status          === 'fulfilled' ? (anstehendResult.value.count          ?? 0) : 0
+  const offeneReklamationen = reklamationenResult.status     === 'fulfilled' ? (reklamationenResult.value.count      ?? 0) : 0
+
   return {
     aktiveKunden:     aktiveKundenResult.count     ?? 0,
     laufendeProjekte: laufendeProjekteResult.count ?? 0,
@@ -290,6 +314,10 @@ async function getDashboardData() {
     followUpEintraege,
     budgetProjekte,
     letzteProjekte,
+    zuBestellen,
+    unterwegs,
+    anstehend7Tage,
+    offeneReklamationen,
   }
 }
 
@@ -301,6 +329,7 @@ export default async function DashboardPage() {
     naechsteDeadlines, anstehendeEvents, followUpEintraege,
     budgetProjekte,
     letzteProjekte,
+    zuBestellen, unterwegs, anstehend7Tage, offeneReklamationen,
   } = await getDashboardData()
 
   return (
@@ -340,6 +369,16 @@ export default async function DashboardPage() {
             laufendeProjekte={laufendeProjekte}
             offeneAngebote={offeneAngebote}
             monatsumsatz={monatsumsatz}
+          />
+        </div>
+
+        {/* ROW 1B: Bestell-KPIs */}
+        <div className="shrink-0">
+          <BestellKpiReihe
+            zuBestellen={zuBestellen}
+            unterwegs={unterwegs}
+            anstehend7Tage={anstehend7Tage}
+            offeneReklamationen={offeneReklamationen}
           />
         </div>
 

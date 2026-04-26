@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText, Flag, Truck, Layers, Info } from 'lucide-react'
+import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText, Flag, Truck, Layers, Info, ShoppingCart, AlertTriangle, Package } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
 
@@ -138,6 +138,30 @@ export function KpiKartenReihe({ aktiveKunden, laufendeProjekte, offeneAngebote,
     { label: 'Offene Angebote',    wert: offeneAngebote,                                  href: '/dashboard/projekte', icon: ReceiptText, farbe: 'text-violet-600',      bg: 'bg-violet-50'       },
     { label: 'Monatsumsatz',       wert: monatsumsatz > 0 ? eur(monatsumsatz) : '–',     href: '/dashboard/projekte', icon: TrendingUp,  farbe: 'text-emerald-600',     bg: 'bg-emerald-50',
       subLabel: 'Angenommene Angebote' },
+  ]
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {kpis.map((kpi) => <KpiKarte key={kpi.label} {...kpi} />)}
+    </div>
+  )
+}
+
+// ── Bestell-KPI-Reihe ─────────────────────────────────────────
+export function BestellKpiReihe({ zuBestellen, unterwegs, anstehend7Tage, offeneReklamationen }: {
+  zuBestellen:          number
+  unterwegs:            number
+  anstehend7Tage:       number
+  offeneReklamationen:  number
+}) {
+  const kpis: KpiDaten[] = [
+    { label: 'Zu bestellen',    wert: zuBestellen,    href: '/dashboard/bestellungen?tab=zu_bestellen',  icon: ShoppingCart,   farbe: 'text-blue-600',    bg: 'bg-blue-50',
+      subLabel: 'Freigegeben + ausstehend' },
+    { label: 'Unterwegs',       wert: unterwegs,      href: '/dashboard/bestellungen?tab=unterwegs',     icon: Truck,          farbe: 'text-indigo-600',  bg: 'bg-indigo-50',
+      subLabel: 'Aktive Bestellungen' },
+    { label: 'Diese Woche',     wert: anstehend7Tage, href: '/dashboard/bestellungen?tab=anstehend',     icon: Package,        farbe: 'text-amber-600',   bg: 'bg-amber-50',
+      subLabel: 'Lieferung erwartet' },
+    { label: 'Reklamationen',   wert: offeneReklamationen, href: '/dashboard/bestellungen?tab=reklamationen', icon: AlertTriangle, farbe: 'text-orange-600', bg: 'bg-orange-50',
+      subLabel: offeneReklamationen > 0 ? 'Offen' : 'Keine offenen' },
   ]
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
