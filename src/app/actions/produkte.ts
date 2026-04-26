@@ -672,12 +672,20 @@ export async function bestellstatusAendern(
 
 export type ProduktDatumFeld = 'bestellt_am' | 'liefertermin' | 'lieferung_erhalten_am'
 
-// Bestellstatus-Ranking: nur "nach vorne" bewegen, nie zurück.
+// Bestellstatus-Ranking: alte Werte bleiben "nach-vorne-locked",
+// neue Lifecycle-Werte (Migration 100) werden in Sub-Commit 2 sauber
+// integriert — fuer jetzt rangieren sie hoeher als rechnung_erhalten,
+// damit Compile passt aber alte Logik unveraendert bleibt.
 const STATUS_RANK: Record<BestellStatus, number> = {
   ausstehend: 0,
   bestellt: 1,
-  geliefert: 2,
-  rechnung_erhalten: 3,
+  teilgeliefert: 2,
+  geliefert: 3,
+  mangel_gemeldet: 4,
+  retoure_unterwegs: 5,
+  retoure_erhalten: 6,
+  rechnung_erhalten: 7,
+  storniert: 99,
 }
 
 /**

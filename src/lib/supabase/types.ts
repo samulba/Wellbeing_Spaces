@@ -57,7 +57,17 @@ export interface Kategorie {
 }
 
 export type ProduktStatus = 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung'
-export type BestellStatus = 'ausstehend' | 'bestellt' | 'geliefert' | 'rechnung_erhalten'
+export type BestellStatus =
+  | 'ausstehend'
+  | 'bestellt'
+  | 'geliefert'
+  | 'rechnung_erhalten'
+  // Migration 100 — neue Lifecycle-Werte
+  | 'storniert'
+  | 'teilgeliefert'
+  | 'mangel_gemeldet'
+  | 'retoure_unterwegs'
+  | 'retoure_erhalten'
 export type ProjektStatus = 'offen' | 'in_bearbeitung' | 'freigegeben' | 'abgeschlossen'
 
 export interface ProjektAktivitaet {
@@ -1123,4 +1133,90 @@ export interface ClientNachricht {
   anhang_name: string | null
   anhang_groesse: number | null
   anhang_dauer: number | null
+}
+
+// ── Reklamationen + Lieferanten-Bestellungen (Migration 100) ───────
+
+export type ReklamationTyp =
+  | 'mangel'
+  | 'falsche_lieferung'
+  | 'transportschaden'
+  | 'nicht_wie_bestellt'
+  | 'kunde_storno'
+  | 'sonstiges'
+
+export type ReklamationStatus =
+  | 'offen'
+  | 'lieferant_kontaktiert'
+  | 'loesung_zugesagt'
+  | 'geloest'
+  | 'eskaliert'
+
+export type ReklamationLoesungTyp =
+  | 'ersatz'
+  | 'gutschrift'
+  | 'reparatur'
+  | 'rueckerstattung'
+  | 'keine'
+
+export interface ProduktReklamation {
+  id: string
+  organisation_id: string
+  raum_produkte_id: string
+  typ: ReklamationTyp
+  beschreibung: string
+  foto_urls: string[]
+  status: ReklamationStatus
+  loesung_typ: ReklamationLoesungTyp | null
+  loesung_notiz: string | null
+  betrag_gutschrift: number | null
+  erstellt_von: string | null
+  geloest_am: string | null
+  kunde_sichtbar: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type LieferantenBestellungStatus =
+  | 'entwurf'
+  | 'bestaetigt'
+  | 'versandt'
+  | 'geliefert'
+  | 'storniert'
+  | 'teilretour'
+
+export interface LieferantenBestellung {
+  id: string
+  organisation_id: string
+  partner_id: string
+  projekt_id: string | null
+  bestellnummer: string | null
+  bestellt_am: string | null
+  bestaetigt_am: string | null
+  versandt_am: string | null
+  geliefert_am: string | null
+  liefertermin_geplant: string | null
+  liefertermin_bestaetigt: boolean
+  lieferschein_nr: string | null
+  tracking_url: string | null
+  bestellbestaetigung_url: string | null
+  versandkosten: number
+  gesamtpreis_netto: number
+  status: LieferantenBestellungStatus
+  notizen: string | null
+  erstellt_von: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LieferantenBestellungPosition {
+  id: string
+  organisation_id: string
+  bestellung_id: string
+  raum_produkt_id: string
+  menge: number
+  einzelpreis_netto: number
+  notiz: string | null
+  reihenfolge: number
+  created_at: string
 }

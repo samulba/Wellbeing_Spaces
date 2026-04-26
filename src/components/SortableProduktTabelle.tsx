@@ -22,6 +22,7 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, ChevronDown, ChevronRight, Clock, Package, CheckCircle2,
   Receipt, Trash2, X, CalendarDays, Truck, PackageCheck, Pencil,
+  XCircle, AlertTriangle, Undo2, RotateCcw,
   Tag, ArrowRight, Calendar,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -54,10 +55,15 @@ const statusLabel: Record<string, string> = {
 }
 
 const BESTELL_CONFIG: Record<BestellStatus, { label: string; bg: string; text: string; Icon: React.ComponentType<{ className?: string }> }> = {
-  ausstehend:        { label: 'Offen',    bg: 'bg-gray-100',   text: 'text-gray-600',    Icon: Clock       },
-  bestellt:          { label: 'Bestellt', bg: 'bg-blue-50',    text: 'text-blue-700',    Icon: Package     },
-  geliefert:         { label: 'Geliefert',bg: 'bg-emerald-50', text: 'text-emerald-700', Icon: CheckCircle2},
-  rechnung_erhalten: { label: 'Rechnung', bg: 'bg-violet-50',  text: 'text-violet-700',  Icon: Receipt     },
+  ausstehend:        { label: 'Offen',         bg: 'bg-gray-100',    text: 'text-gray-600',    Icon: Clock         },
+  bestellt:          { label: 'Bestellt',      bg: 'bg-blue-50',     text: 'text-blue-700',    Icon: Package       },
+  teilgeliefert:     { label: 'Teilgeliefert', bg: 'bg-amber-50',    text: 'text-amber-700',   Icon: PackageCheck  },
+  geliefert:         { label: 'Geliefert',     bg: 'bg-emerald-50',  text: 'text-emerald-700', Icon: CheckCircle2  },
+  mangel_gemeldet:   { label: 'Mangel',        bg: 'bg-orange-50',   text: 'text-orange-700',  Icon: AlertTriangle },
+  retoure_unterwegs: { label: 'Retoure unterwegs', bg: 'bg-indigo-50', text: 'text-indigo-700', Icon: Undo2        },
+  retoure_erhalten:  { label: 'Retoure erhalten', bg: 'bg-slate-100', text: 'text-slate-700',  Icon: RotateCcw     },
+  rechnung_erhalten: { label: 'Rechnung',      bg: 'bg-violet-50',   text: 'text-violet-700',  Icon: Receipt       },
+  storniert:         { label: 'Storniert',     bg: 'bg-rose-50',     text: 'text-rose-700',    Icon: XCircle       },
 }
 
 // ── Bestell-Status Dropdown ─────────────────────────────────────

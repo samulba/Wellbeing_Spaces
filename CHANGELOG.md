@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Bestell-Workflow überarbeitet — Foundation (Sub-Commit 1/11)
+- Migration **100** legt das Datenmodell für den vollständigen Bestell-Lifecycle: erweitert das `bestellstatus_enum` um **5 neue Zustände** (Storniert · Teilgeliefert · Mangel gemeldet · Retoure unterwegs · Retoure erhalten), neue Tabellen `produkt_reklamationen` (mit Foto-Upload, Lösungs-Status, Gutschrift-Betrag) und `lieferanten_bestellungen` + Junction `lieferanten_bestellung_positionen` (für Sammelbestellungen über mehrere Räume), Storage-Buckets `reklamation-fotos` und `bestellung-dokumente` (je 25 MB), Bestellnummer-Generator `BS-YYYY-NNN`.
+- Status-Badges in der Produkt-Tabelle erkennen die neuen Zustände visuell (Mangel = orange/Warning, Retoure = indigo/slate, Storno = rot).
+- Backend-Aktionen, UIs für Reklamationen + Bestellungen-Übersicht folgen in den nächsten Commits.
+- Migration **100** muss manuell im Supabase SQL-Editor ausgeführt werden.
+
 ### Moodboard Polish — Raum-Detail & rechtes Properties-Panel modernisiert
 - **Raum-Detailseite** zeigt jetzt **Grundriss + Moodboard nebeneinander** im linken Bereich (3/5), beide mit gleichem Card-Style — Header mit Icon + Status, Vorschau, „Öffnen →"-Button. Falls noch kein Moodboard existiert: gestrichelte Card als Empty-State (analog zum Grundriss-Empty-State).
 - **Properties-Panel** komplett neu gestaltet im Figma-Stil:
