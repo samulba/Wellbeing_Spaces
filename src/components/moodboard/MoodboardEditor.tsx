@@ -15,7 +15,9 @@ import {
   Image as ImageIcon, Trash2, Undo2, Redo2, Save, Maximize2,
   Search, Package, Palette, Upload, History, Download, X, Plus,
   RotateCcw, Share2, Copy, Check, MessageCircle, Link as LinkIcon,
-  StickyNote, Loader2,
+  StickyNote, Loader2, Magnet, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter,
+  AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
+  AlignStartVertical, AlignCenterVertical, AlignEndVertical,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -115,6 +117,14 @@ export default function MoodboardEditor({
 
   // Sticky-Note Farb-Picker
   const [notePickerOffen, setNotePickerOffen] = useState(false)
+
+  // Snap & Smart-Guides
+  const [snapToGrid, setSnapToGrid] = useState(false)
+  const snapToGridRef = useRef(false)
+  useEffect(() => { snapToGridRef.current = snapToGrid }, [snapToGrid])
+  const [snapEnabled, setSnapEnabled] = useState(true)
+  const snapEnabledRef = useRef(true)
+  useEffect(() => { snapEnabledRef.current = snapEnabled }, [snapEnabled])
 
   // Toast nach 3.5s automatisch ausblenden
   useEffect(() => {
@@ -371,8 +381,136 @@ export default function MoodboardEditor({
       canvas.on('selection:updated', (e: any) => setActiveObj(e.selected?.[0] ?? canvas.getActiveObject() ?? null))
       canvas.on('selection:cleared', () => setActiveObj(null))
       canvas.on('object:scaling',  () => bumpObjVersion())
-      canvas.on('object:moving',   () => bumpObjVersion())
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.on('object:moving',   (opt: any) => {
+        bumpObjVersion()
+        handleSnapAndGuides(opt)
+      })
       canvas.on('object:rotating', () => bumpObjVersion())
+      // Smart-Guides nach dem Move ausblenden
+      canvas.on('mouse:up', () => {
+        clearSmartGuides()
+      })
+
+      // ── Smart-Guides + Snap-Logik ─────────────────────────────
+      const SMART_GUIDE_KEY = 'smart_guide'
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      function clearSmartGuides() {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const lines = canvas.getObjects().filter((o: any) => o?.data?.type === SMART_GUIDE_KEY)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        lines.forEach((l: any) => canvas.remove(l))
+        if (lines.length > 0) canvas.requestRenderAll()
+      }
+      function drawSmartLine(x1: number, y1: number, x2: number, y2: number) {
+        const line = new fabric.Line([x1, y1, x2, y2], {
+          stroke: '#ef4444',
+          strokeWidth: 1,
+          strokeDashArray: [4, 3],
+          selectable: false,
+          evented: false,
+          excludeFromExport: true,
+          objectCaching: false,
+        })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(line as any).data = { type: SMART_GUIDE_KEY }
+        canvas.add(line)
+        // Nach vorne bringen
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        canvas.bringObjectToFront(line as any)
+      }
+      const SNAP_TOLERANCE = 6
+      const GRID_SIZE = 20
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      function handleSnapAndGuides(opt: any) {
+        clearSmartGuides()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const obj = opt.target as any
+        if (!obj) return
+
+        // Snap-to-Grid
+        if (snapToGridRef.current) {
+          obj.left = Math.round(obj.left / GRID_SIZE) * GRID_SIZE
+          obj.top  = Math.round(obj.top  / GRID_SIZE) * GRID_SIZE
+        }
+
+        if (!snapEnabledRef.current) return
+
+        // Bounding-Box des aktiven Objekts (Welt-Koordinaten)
+        const objR = obj.getBoundingRect()
+        const objL = objR.left,            objT = objR.top
+        const objR2 = objL + objR.width,   objB = objT + objR.height
+        const objCx = objL + objR.width/2, objCy = objT + objR.height/2
+
+        // Alle anderen Objekte (ohne self, ohne Guides)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const others = canvas.getObjects().filter((o: any) =>
+          o !== obj && o?.data?.type !== SMART_GUIDE_KEY,
+        )
+
+        let bestDxAdjust: number | null = null
+        let bestDxLine: { x: number; y1: number; y2: number } | null = null
+        let bestDyAdjust: number | null = null
+        let bestDyLine: { y: number; x1: number; x2: number } | null = null
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const o of others) {
+          const r = o.getBoundingRect()
+          const oL = r.left,           oT = r.top
+          const oR = oL + r.width,     oB = oT + r.height
+          const oCx = oL + r.width/2,  oCy = oT + r.height/2
+
+          // Vertikale Linien (X-Snap): left/center/right zu left/center/right
+          const xCandidates: Array<[number, number]> = [
+            [objL, oL], [objL, oCx], [objL, oR],
+            [objCx, oL], [objCx, oCx], [objCx, oR],
+            [objR2, oL], [objR2, oCx], [objR2, oR],
+          ]
+          for (const [a, b] of xCandidates) {
+            const diff = b - a
+            if (Math.abs(diff) < SNAP_TOLERANCE) {
+              if (bestDxAdjust === null || Math.abs(diff) < Math.abs(bestDxAdjust)) {
+                bestDxAdjust = diff
+                bestDxLine = {
+                  x: b,
+                  y1: Math.min(objT, oT) - 12,
+                  y2: Math.max(objB, oB) + 12,
+                }
+              }
+            }
+          }
+
+          // Horizontale Linien (Y-Snap)
+          const yCandidates: Array<[number, number]> = [
+            [objT, oT], [objT, oCy], [objT, oB],
+            [objCy, oT], [objCy, oCy], [objCy, oB],
+            [objB, oT], [objB, oCy], [objB, oB],
+          ]
+          for (const [a, b] of yCandidates) {
+            const diff = b - a
+            if (Math.abs(diff) < SNAP_TOLERANCE) {
+              if (bestDyAdjust === null || Math.abs(diff) < Math.abs(bestDyAdjust)) {
+                bestDyAdjust = diff
+                bestDyLine = {
+                  y: b,
+                  x1: Math.min(objL, oL) - 12,
+                  x2: Math.max(objR2, oR) + 12,
+                }
+              }
+            }
+          }
+        }
+
+        if (bestDxAdjust !== null) {
+          obj.left = obj.left + bestDxAdjust
+          if (bestDxLine) drawSmartLine(bestDxLine.x, bestDxLine.y1, bestDxLine.x, bestDxLine.y2)
+        }
+        if (bestDyAdjust !== null) {
+          obj.top = obj.top + bestDyAdjust
+          if (bestDyLine) drawSmartLine(bestDyLine.x1, bestDyLine.y, bestDyLine.x2, bestDyLine.y)
+        }
+        obj.setCoords()
+      }
 
       // Initial-State laden
       if (initialCanvasJson && Object.keys(initialCanvasJson).length > 0) {
@@ -865,6 +1003,105 @@ export default function MoodboardEditor({
     c.requestRenderAll()
     pushHistory(); scheduleSave()
   }
+  // ── Align / Distribute (nur bei Mehrfach-Selektion) ───────────
+  type AlignDir = 'left' | 'centerH' | 'right' | 'top' | 'centerV' | 'bottom'
+  function alignActive(dir: AlignDir) {
+    const c = fabricRef.current
+    if (!c) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sel = c.getActiveObject() as any
+    // ActiveSelection hat _objects-Array
+    if (!sel || !sel._objects || sel._objects.length < 2) return
+
+    // BoundingBox der ActiveSelection
+    const selRect = sel.getBoundingRect()
+    const selL = selRect.left
+    const selR = selRect.left + selRect.width
+    const selT = selRect.top
+    const selB = selRect.top + selRect.height
+    const selCx = selL + selRect.width / 2
+    const selCy = selT + selRect.height / 2
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sel._objects.forEach((o: any) => {
+      const r = o.getBoundingRect()
+      const w = r.width, h = r.height
+      // Position innerhalb der ActiveSelection ist relativ — rechnen mit getBoundingRect (welt)
+      const dx = (() => {
+        if (dir === 'left')    return selL - r.left
+        if (dir === 'right')   return selR - (r.left + w)
+        if (dir === 'centerH') return selCx - (r.left + w / 2)
+        return 0
+      })()
+      const dy = (() => {
+        if (dir === 'top')     return selT - r.top
+        if (dir === 'bottom')  return selB - (r.top + h)
+        if (dir === 'centerV') return selCy - (r.top + h / 2)
+        return 0
+      })()
+      o.left = (o.left ?? 0) + dx
+      o.top  = (o.top  ?? 0) + dy
+      o.setCoords()
+    })
+    // ActiveSelection neu positionieren
+    sel.addWithUpdate?.()
+    c.requestRenderAll()
+    pushHistory()
+    scheduleSave()
+  }
+
+  function distributeActive(dir: 'h' | 'v') {
+    const c = fabricRef.current
+    if (!c) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sel = c.getActiveObject() as any
+    if (!sel || !sel._objects || sel._objects.length < 3) return
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const objs = [...sel._objects] as any[]
+    if (dir === 'h') {
+      objs.sort((a, b) => a.getBoundingRect().left - b.getBoundingRect().left)
+      const first = objs[0].getBoundingRect()
+      const last  = objs[objs.length - 1].getBoundingRect()
+      const start = first.left + first.width
+      const end   = last.left
+      const innerCount = objs.length - 2
+      if (innerCount < 1) return
+      const totalInnerWidth = objs.slice(1, -1).reduce((s, o) => s + o.getBoundingRect().width, 0)
+      const gap = (end - start - totalInnerWidth) / (innerCount + 1)
+      let cursor = start + gap
+      for (let i = 1; i < objs.length - 1; i++) {
+        const r = objs[i].getBoundingRect()
+        const dx = cursor - r.left
+        objs[i].left = (objs[i].left ?? 0) + dx
+        objs[i].setCoords()
+        cursor += r.width + gap
+      }
+    } else {
+      objs.sort((a, b) => a.getBoundingRect().top - b.getBoundingRect().top)
+      const first = objs[0].getBoundingRect()
+      const last  = objs[objs.length - 1].getBoundingRect()
+      const start = first.top + first.height
+      const end   = last.top
+      const innerCount = objs.length - 2
+      if (innerCount < 1) return
+      const totalInnerHeight = objs.slice(1, -1).reduce((s, o) => s + o.getBoundingRect().height, 0)
+      const gap = (end - start - totalInnerHeight) / (innerCount + 1)
+      let cursor = start + gap
+      for (let i = 1; i < objs.length - 1; i++) {
+        const r = objs[i].getBoundingRect()
+        const dy = cursor - r.top
+        objs[i].top = (objs[i].top ?? 0) + dy
+        objs[i].setCoords()
+        cursor += r.height + gap
+      }
+    }
+    sel.addWithUpdate?.()
+    c.requestRenderAll()
+    pushHistory()
+    scheduleSave()
+  }
+
   function deleteActive() {
     const c = fabricRef.current
     if (!c || !activeObj) return
@@ -1155,6 +1392,25 @@ export default function MoodboardEditor({
           <ToolDivider />
 
           <ToolGroup>
+            <ToolBtn
+              onClick={() => setSnapEnabled((v) => !v)}
+              title={snapEnabled ? 'Smart-Guides aktiv (klick zum Deaktivieren)' : 'Smart-Guides aktivieren'}
+              active={snapEnabled}
+            >
+              <Magnet className="w-[18px] h-[18px]" />
+            </ToolBtn>
+            <ToolBtn
+              onClick={() => setSnapToGrid((v) => !v)}
+              title={snapToGrid ? 'Snap-to-Grid aktiv' : 'An Raster ausrichten'}
+              active={snapToGrid}
+            >
+              <span className="text-[10px] font-bold leading-none">⌗</span>
+            </ToolBtn>
+          </ToolGroup>
+
+          <ToolDivider />
+
+          <ToolGroup>
             <ToolBtn onClick={oeffneVersionenModal} title="Versionen">
               <History className="w-[18px] h-[18px]" />
             </ToolBtn>
@@ -1428,6 +1684,8 @@ export default function MoodboardEditor({
             onDelete={deleteActive}
             onForward={bringForward}
             onBackward={sendBackwards}
+            onAlign={alignActive}
+            onDistribute={distributeActive}
           />
         )}
       </div>
@@ -1782,10 +2040,13 @@ interface PropPanelProps {
   onDelete: () => void
   onForward: () => void
   onBackward: () => void
+  onAlign: (dir: 'left' | 'centerH' | 'right' | 'top' | 'centerV' | 'bottom') => void
+  onDistribute: (dir: 'h' | 'v') => void
 }
 
 function PropertiesPanel({
   obj, objVersion, onSet, onDuplicate, onDelete, onForward, onBackward,
+  onAlign, onDistribute,
 }: PropPanelProps) {
   // objVersion erzwingt Re-Render bei Drag/Resize
   void objVersion
@@ -1793,6 +2054,56 @@ function PropertiesPanel({
   const isText = obj.type === 'i-text' || obj.type === 'IText' || obj.type === 'text'
   const isShape = obj.type === 'rect' || obj.type === 'Rect' || obj.type === 'circle' || obj.type === 'Circle'
   const isImage = obj.type === 'image' || obj.type === 'Image' || obj.type === 'FabricImage'
+  const isMulti = obj.type === 'activeselection' || obj.type === 'ActiveSelection'
+  const multiCount = isMulti && Array.isArray(obj._objects) ? obj._objects.length : 0
+
+  // Bei Multi-Selektion zeigen wir ein anderes Panel: Align + Distribute
+  if (isMulti) {
+    return (
+      <aside className="w-64 shrink-0 bg-[#2d3e31] border-l border-[#445c49]/30 flex flex-col overflow-y-auto">
+        <div className="px-3 py-2 border-b border-[#445c49]/30 flex items-center justify-between">
+          <span className="text-xs text-white font-medium">{multiCount} Objekte</span>
+          <span className="text-[10px] text-[#94c1a4] uppercase">Mehrfach</span>
+        </div>
+        <div className="p-3 space-y-4">
+          <div>
+            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Horizontal ausrichten</label>
+            <div className="grid grid-cols-3 gap-1.5">
+              <AlignBtn onClick={() => onAlign('left')}    title="Links"><AlignStartHorizontal className="w-3.5 h-3.5" /></AlignBtn>
+              <AlignBtn onClick={() => onAlign('centerH')} title="Mittig"><AlignCenterHorizontal className="w-3.5 h-3.5" /></AlignBtn>
+              <AlignBtn onClick={() => onAlign('right')}   title="Rechts"><AlignEndHorizontal className="w-3.5 h-3.5" /></AlignBtn>
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Vertikal ausrichten</label>
+            <div className="grid grid-cols-3 gap-1.5">
+              <AlignBtn onClick={() => onAlign('top')}     title="Oben"><AlignStartVertical className="w-3.5 h-3.5" /></AlignBtn>
+              <AlignBtn onClick={() => onAlign('centerV')} title="Mittig"><AlignCenterVertical className="w-3.5 h-3.5" /></AlignBtn>
+              <AlignBtn onClick={() => onAlign('bottom')}  title="Unten"><AlignEndVertical className="w-3.5 h-3.5" /></AlignBtn>
+            </div>
+          </div>
+          {multiCount >= 3 && (
+            <div>
+              <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Gleichmäßig verteilen</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <AlignBtn onClick={() => onDistribute('h')} title="Horizontal verteilen">
+                  <AlignHorizontalDistributeCenter className="w-3.5 h-3.5" />
+                </AlignBtn>
+                <AlignBtn onClick={() => onDistribute('v')} title="Vertikal verteilen">
+                  <AlignVerticalDistributeCenter className="w-3.5 h-3.5" />
+                </AlignBtn>
+              </div>
+            </div>
+          )}
+          <div className="pt-3 border-t border-[#445c49]/30">
+            <PanelBtn onClick={onDuplicate}>Duplizieren</PanelBtn>
+            <div className="h-1.5" />
+            <PanelBtn onClick={onDelete} danger>Alle löschen</PanelBtn>
+          </div>
+        </div>
+      </aside>
+    )
+  }
 
   const left = Math.round(obj.left ?? 0)
   const top  = Math.round(obj.top ?? 0)
@@ -1990,6 +2301,25 @@ function StyleBtn({
         w-9 h-9 rounded text-sm transition-colors
         ${active ? 'bg-[#445c49] text-white' : 'bg-[#1a2e1e] text-[#c8dbc9] hover:bg-[#3a5240]'}
       `}
+    >
+      {children}
+    </button>
+  )
+}
+
+function AlignBtn({
+  children, onClick, title,
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="flex items-center justify-center h-8 rounded bg-[#1a2e1e] text-[#c8dbc9] hover:bg-[#3a5240] hover:text-white transition-colors"
     >
       {children}
     </button>

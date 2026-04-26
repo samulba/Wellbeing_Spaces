@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard Step 4 — Smart-Guides, Snap-to-Grid & Auto-Distribute
+- **Smart-Guides** beim Drag: rote gestrichelte Linien erscheinen wenn das Element auf 6 px genau mit Kante/Mitte eines anderen Elements ausgerichtet ist — und es rastet automatisch ein. Toggle-Button (Magnet-Icon) in der Toolbar.
+- **Snap-to-Grid**: zweiter Toggle (⌗-Icon) — Objekte rasten beim Verschieben auf 20-px-Raster ein.
+- **Auto-Align bei Mehrfach-Selektion**: das Eigenschaften-Panel zeigt bei 2+ markierten Objekten 6 Ausrichtungs-Buttons (Links/Mittig/Rechts horizontal · Oben/Mittig/Unten vertikal). Bei 3+ Objekten zusätzlich „Horizontal/Vertikal verteilen" für gleichmäßigen Abstand.
+- Smart-Guides werden mit `excludeFromExport` markiert — landen also nicht in DB/Versionen/PNG-Export.
+
 ### Moodboard Step 3 — Link-Preview-Cards & Sticky-Notes
 - **Link-Tool** in der Toolbar: Modal mit URL-Eingabe → Server zieht OG-Tags (Titel, Beschreibung, Hero-Bild, Domain, Favicon) → eine fertige weiße **Karte** wird aufs Board platziert (Vorschaubild oben, Titel + Beschreibung mittig, Domain als Footer). Sicherheit: Auth-Check + SSRF-Schutz, max 500 KB HTML, 8 s Timeout.
 - **Sticky-Note-Tool**: Kleines Farbpicker-Popover (5 Pastelltöne — Gelb, Rosa, Grün, Blau, Cream) → Klick erzeugt eine schiefe Notiz mit Schatten + Eckabriss-Effekt, direkt editierbar.
