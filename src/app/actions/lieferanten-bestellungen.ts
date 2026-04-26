@@ -10,6 +10,7 @@ import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { auditLog } from '@/lib/audit'
+import { syncAufgabeAusQuelle } from '@/app/actions/aufgaben'
 import crypto from 'crypto'
 import type {
   LieferantenBestellung, LieferantenBestellungPosition, LieferantenBestellungStatus,
@@ -325,6 +326,48 @@ async function statusUebergang(
     entitaet_id:   id,
     details:       { neuer_status: bestellStatus },
   })
+
+  // Auto-Sync: Aufgabe „Lieferung empfangen" bei Bestaetigung/Versand,
+  // erledigt bei geliefert, loeschen bei storniert
+  try {
+    if (bestellStatus === 'storniert') {
+      await syncAufgabeAusQuelle('bestellung', id, null, { loeschen: true })
+    } else if (bestellStatus === 'geliefert') {
+      await supabase
+        .from('aufgaben')
+        .update({ status: 'erledigt', erledigt_am: new Date().toISOString() })
+        .eq('organisation_id', orgId)
+        .eq('quelle', 'bestellung')
+        .eq('quelle_id', id)
+    } else if (bestellStatus === 'bestaetigt' || bestellStatus === 'versandt') {
+      // Bestellung-Daten + Partner laden fuer Titel
+      const { data: bestellung } = await supabase
+        .from('lieferanten_bestellungen')
+        .select('bestellnummer, liefertermin_geplant, projekt_id, partner:partner_id(name), projekte:projekt_id(kunde_id)')
+        .eq('id', id)
+        .maybeSingle()
+      if (bestellung) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const partnerName = (bestellung.partner as any)?.name as string | undefined
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const kundeId     = (bestellung.projekte as any)?.kunde_id as string | null | undefined
+        const titel = bestellung.bestellnummer
+          ? `Lieferung empfangen: ${bestellung.bestellnummer}${partnerName ? ' (' + partnerName + ')' : ''}`
+          : `Lieferung empfangen${partnerName ? ' von ' + partnerName : ''}`
+        await syncAufgabeAusQuelle('bestellung', id, {
+          titel,
+          status:             'in_arbeit',
+          prioritaet:         'normal',
+          faellig_am:         (bestellung.liefertermin_geplant as string | null) ?? null,
+          projekt_id:         (bestellung.projekt_id as string | null) ?? null,
+          kunde_id:           kundeId ?? null,
+          bestellung_id:      id,
+          sichtbar_fuer_kunde: false,
+        })
+      }
+    }
+  } catch (e) { console.error('[syncAufgabe:bestellung]', e) }
+
   revalidatePath('/dashboard/bestellungen')
   revalidatePath(`/dashboard/bestellungen/${id}`)
   return { erfolg: true }
@@ -345,6 +388,9 @@ export async function bestellungLoeschen(id: string): Promise<{ erfolg?: boolean
     entitaet_typ:  'bestellung' as string,
     entitaet_id:   id,
   })
+  // Auto-Sync: zugehoerige Aufgabe entfernen
+  await syncAufgabeAusQuelle('bestellung', id, null, { loeschen: true })
+
   revalidatePath('/dashboard/bestellungen')
   return { erfolg: true }
 }
