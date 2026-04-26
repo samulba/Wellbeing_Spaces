@@ -135,6 +135,30 @@ export async function onboardingAbsenden(
     .eq('token', token)
 
   if (error) return { erfolg: false, fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
+
+  // Auto-Sync: Aufgabe „Onboarding pruefen" anlegen
+  try {
+    const { data: voll } = await supabase
+      .from('onboarding_anfragen')
+      .select('id, organisation_id, kunde_name, projekt_name, kunde_id, projekt_id')
+      .eq('token', token)
+      .maybeSingle()
+    if (voll?.organisation_id) {
+      const titel = voll.kunde_name
+        ? `Onboarding pruefen: ${voll.kunde_name}${voll.projekt_name ? ' / ' + voll.projekt_name : ''}`
+        : 'Onboarding pruefen'
+      const { syncAufgabeAusQuelleAdmin } = await import('@/app/actions/aufgaben')
+      await syncAufgabeAusQuelleAdmin(voll.organisation_id, 'onboarding', voll.id, {
+        titel,
+        status:             'in_arbeit',
+        prioritaet:         'normal',
+        kunde_id:           (voll.kunde_id as string | null) ?? null,
+        projekt_id:         (voll.projekt_id as string | null) ?? null,
+        sichtbar_fuer_kunde: false,
+      })
+    }
+  } catch (e) { console.error('[syncAufgabe:onboarding:absenden]', e) }
+
   return { erfolg: true }
 }
 
@@ -172,7 +196,13 @@ export async function onboardingLinkLoeschen(id: string): Promise<void> {
     .delete()
     .eq('id', id)
     .eq('organisation_id', orgId)
+  // Auto-Sync: zugehoerige Aufgabe entfernen
+  try {
+    const { syncAufgabeAusQuelle } = await import('@/app/actions/aufgaben')
+    await syncAufgabeAusQuelle('onboarding', id, null, { loeschen: true })
+  } catch (e) { console.error('[syncAufgabe:onboarding:loeschen]', e) }
   revalidatePath('/dashboard/onboarding')
+  revalidatePath('/dashboard/aufgaben')
 }
 
 /**
@@ -229,8 +259,19 @@ export async function kundeAusOnboardingAnlegen(anfrageId: string): Promise<void
     .eq('id', anfrageId)
     .eq('organisation_id', orgId)
 
+  // Auto-Sync: Aufgabe als erledigt markieren
+  try {
+    await supabase
+      .from('aufgaben')
+      .update({ status: 'erledigt', erledigt_am: new Date().toISOString() })
+      .eq('organisation_id', orgId)
+      .eq('quelle', 'onboarding')
+      .eq('quelle_id', anfrageId)
+  } catch (e) { console.error('[syncAufgabe:onboarding:kundeAnlegen]', e) }
+
   revalidatePath('/dashboard/onboarding')
   revalidatePath('/dashboard/kunden')
+  revalidatePath('/dashboard/aufgaben')
   redirect(`/dashboard/kunden/${kunde.id}`)
 }
 

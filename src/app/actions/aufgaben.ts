@@ -626,3 +626,97 @@ export async function syncAufgabeAusQuelle(
 
 // Re-Export Aufgabe-Typ fuer Konsumenten (vermeidet zusaetzliche Imports im Frontend)
 export type { Aufgabe }
+
+// ── Admin-Variante (fuer anon-Kontexte wie Onboarding-Submission) ─
+
+/**
+ * Wie syncAufgabeAusQuelle, aber mit explizitem orgId und createAdminClient.
+ * Wird aus anonymen/Token-basierten Actions aufgerufen, die keinen
+ * Auth-Kontext haben (z.B. Onboarding-Absenden via Public-Token).
+ *
+ * Failsafe — Fehler werden nur geloggt und nie geworfen.
+ */
+export async function syncAufgabeAusQuelleAdmin(
+  orgId: string,
+  quelle:   AufgabeAutoQuelle,
+  quelleId: string,
+  daten:    SyncAufgabeDaten | null,
+  optionen?: { loeschen?: boolean; erledigt?: boolean },
+): Promise<void> {
+  try {
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const admin = createAdminClient()
+
+    if (optionen?.loeschen) {
+      await admin
+        .from('aufgaben')
+        .delete()
+        .eq('organisation_id', orgId)
+        .eq('quelle', quelle)
+        .eq('quelle_id', quelleId)
+      return
+    }
+
+    if (!daten) return
+
+    const { data: existing } = await admin
+      .from('aufgaben')
+      .select('id, status')
+      .eq('organisation_id', orgId)
+      .eq('quelle', quelle)
+      .eq('quelle_id', quelleId)
+      .maybeSingle()
+
+    const status: AufgabeStatus =
+      optionen?.erledigt
+        ? 'erledigt'
+        : (daten.status ?? (existing?.status as AufgabeStatus | undefined) ?? 'backlog')
+
+    const payload: Record<string, unknown> = {
+      titel:                daten.titel,
+      beschreibung:         daten.beschreibung ?? null,
+      status,
+      prioritaet:           daten.prioritaet ?? 'normal',
+      faellig_am:           daten.faellig_am ?? null,
+      kunde_id:             daten.kunde_id ?? null,
+      projekt_id:           daten.projekt_id ?? null,
+      raum_id:              daten.raum_id ?? null,
+      raum_produkte_id:     daten.raum_produkte_id ?? null,
+      bestellung_id:        daten.bestellung_id ?? null,
+      sichtbar_fuer_kunde:  daten.sichtbar_fuer_kunde ?? false,
+      assignee_user_id:     daten.assignee_user_id ?? null,
+    }
+    if (status === 'erledigt' && existing?.status !== 'erledigt') {
+      payload.erledigt_am = new Date().toISOString()
+    } else if (status !== 'erledigt' && existing?.status === 'erledigt') {
+      payload.erledigt_am = null
+    }
+
+    if (existing) {
+      await admin
+        .from('aufgaben')
+        .update(payload)
+        .eq('id', existing.id)
+        .eq('organisation_id', orgId)
+    } else {
+      const { data: maxRow } = await admin
+        .from('aufgaben')
+        .select('reihenfolge')
+        .eq('organisation_id', orgId)
+        .eq('status', status)
+        .order('reihenfolge', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const reihenfolge = (maxRow?.reihenfolge ?? -1) + 1
+      await admin.from('aufgaben').insert({
+        organisation_id: orgId,
+        quelle,
+        quelle_id:       quelleId,
+        reihenfolge,
+        ...payload,
+      })
+    }
+  } catch (e) {
+    console.error(`[syncAufgabeAdmin:${quelle}]`, e)
+  }
+}

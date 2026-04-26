@@ -272,6 +272,30 @@ export async function onboardingAbsendenV2(
     .eq('token', token)
 
   if (error) return { erfolg: false, fehler: 'Fehler beim Speichern: ' + error.message }
+
+  // Auto-Sync: Aufgabe „Onboarding pruefen" anlegen
+  try {
+    const { data: voll } = await supabase
+      .from('onboarding_anfragen')
+      .select('id, organisation_id, kunde_name, projekt_name, kunde_id, projekt_id')
+      .eq('token', token)
+      .maybeSingle()
+    if (voll?.organisation_id) {
+      const titel = voll.kunde_name
+        ? `Onboarding pruefen: ${voll.kunde_name}${voll.projekt_name ? ' / ' + voll.projekt_name : ''}`
+        : 'Onboarding pruefen'
+      const { syncAufgabeAusQuelleAdmin } = await import('@/app/actions/aufgaben')
+      await syncAufgabeAusQuelleAdmin(voll.organisation_id, 'onboarding', voll.id, {
+        titel,
+        status:             'in_arbeit',
+        prioritaet:         'normal',
+        kunde_id:           (voll.kunde_id as string | null) ?? null,
+        projekt_id:         (voll.projekt_id as string | null) ?? null,
+        sichtbar_fuer_kunde: false,
+      })
+    }
+  } catch (e) { console.error('[syncAufgabe:onboardingV2:absenden]', e) }
+
   return { erfolg: true }
 }
 
