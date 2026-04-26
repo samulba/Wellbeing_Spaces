@@ -18,7 +18,7 @@ import {
   StickyNote, Loader2, Magnet, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter,
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
-  Lock, Unlock, BoxSelect, Layers, MessageSquare,
+  Lock, Unlock, BoxSelect, Layers, MessageSquare, FileText, Presentation, Minimize2,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -138,6 +138,9 @@ export default function MoodboardEditor({
   const [viewportTick, setViewportTick] = useState(0)
   const viewportPendingRef = useRef(false)
 
+  // Presentation-Mode (Vollbild ohne UI)
+  const [presentationMode, setPresentationMode] = useState(false)
+
   // Snap & Smart-Guides
   const [snapToGrid, setSnapToGrid] = useState(false)
   const snapToGridRef = useRef(false)
@@ -145,6 +148,16 @@ export default function MoodboardEditor({
   const [snapEnabled, setSnapEnabled] = useState(true)
   const snapEnabledRef = useRef(true)
   useEffect(() => { snapEnabledRef.current = snapEnabled }, [snapEnabled])
+
+  // ESC verlässt Presentation-Mode
+  useEffect(() => {
+    if (!presentationMode) return
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') setPresentationMode(false)
+    }
+    window.addEventListener('keydown', onEsc)
+    return () => window.removeEventListener('keydown', onEsc)
+  }, [presentationMode])
 
   // Pins laden
   useEffect(() => {
@@ -1411,6 +1424,96 @@ export default function MoodboardEditor({
     }
   }
 
+  // ── PDF-Export ────────────────────────────────────────────────
+  async function exportPdf() {
+    const canvas = fabricRef.current
+    if (!canvas) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const objs = canvas.getObjects() as any[]
+    if (objs.length === 0) {
+      setRaumAlertMsg('Das Board ist leer.')
+      return
+    }
+    setRaumAlertMsg('PDF wird erzeugt…')
+
+    // Bounding-Box
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    objs.forEach((o) => {
+      const r = o.getBoundingRect()
+      minX = Math.min(minX, r.left)
+      minY = Math.min(minY, r.top)
+      maxX = Math.max(maxX, r.left + r.width)
+      maxY = Math.max(maxY, r.top + r.height)
+    })
+    const PAD = 40
+    const w = maxX - minX + 2 * PAD
+    const h = maxY - minY + 2 * PAD
+
+    // Viewport temporaer
+    const oldVp = canvas.viewportTransform.slice()
+    const oldZoom = canvas.getZoom()
+    canvas.setViewportTransform([1, 0, 0, 1, -minX + PAD, -minY + PAD])
+    const dataUrl = canvas.toDataURL({
+      format: 'png',
+      multiplier: 2,
+      left: 0, top: 0, width: w, height: h,
+    })
+    canvas.setViewportTransform(oldVp)
+    canvas.setZoom(oldZoom)
+    canvas.requestRenderAll()
+
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const aspect = w / h
+      const isLandscape = aspect > 1
+      const pdf = new jsPDF({
+        orientation: isLandscape ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      })
+      const pageW = pdf.internal.pageSize.getWidth()
+      const pageH = pdf.internal.pageSize.getHeight()
+
+      // Header
+      pdf.setFillColor(68, 92, 73) // wellbeing-green
+      pdf.rect(0, 0, pageW, 18, 'F')
+      pdf.setTextColor(255, 255, 255)
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(boardName, 12, 12)
+      pdf.setFontSize(9)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(`${raumName}`, pageW - 12, 12, { align: 'right' })
+
+      // Bild platzieren
+      const margin = 12
+      const headerH = 22
+      const footerH = 12
+      const availW = pageW - margin * 2
+      const availH = pageH - headerH - footerH
+      const scale = Math.min(availW / (w / 4), availH / (h / 4))  // /4 weil multiplier=2 + 96dpi
+      const imgW = (w / 4) * scale
+      const imgH = (h / 4) * scale
+      const imgX = (pageW - imgW) / 2
+      const imgY = headerH + (availH - imgH) / 2
+      pdf.addImage(dataUrl, 'PNG', imgX, imgY, imgW, imgH)
+
+      // Footer
+      pdf.setFontSize(8)
+      pdf.setTextColor(150, 150, 150)
+      pdf.text(
+        `Erstellt mit Wellbeing Spaces · ${new Date().toLocaleDateString('de-DE')}`,
+        margin, pageH - 6,
+      )
+
+      pdf.save(`moodboard-${raumName.replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`)
+      setRaumAlertMsg('PDF heruntergeladen.')
+    } catch (e) {
+      setRaumAlertMsg('Fehler beim PDF-Export.')
+      void e
+    }
+  }
+
   // ── PNG-Export ────────────────────────────────────────────────
   function exportPng() {
     const canvas = fabricRef.current
@@ -1476,7 +1579,7 @@ export default function MoodboardEditor({
   return (
     <div className="flex flex-col h-full bg-[#0f1f13] text-[#c8dbc9]">
       {/* Top-Bar: Brand + Titel + Toolbar in einer Reihe (Figma-Style) */}
-      <div className="flex items-center gap-2 px-3 h-14 border-b border-[#1f3a25] bg-[#1a2e1e] shrink-0">
+      <div className={`${presentationMode ? 'hidden' : 'flex'} items-center gap-2 px-3 h-14 border-b border-[#1f3a25] bg-[#1a2e1e] shrink-0`}>
         {/* Links: Zurueck + Branding */}
         <Link
           href={`/dashboard/projekte/${projektId}/raeume/${raumId}`}
@@ -1607,6 +1710,15 @@ export default function MoodboardEditor({
             <ToolBtn onClick={exportPng} title="Als PNG exportieren">
               <Download className="w-[18px] h-[18px]" />
             </ToolBtn>
+            <ToolBtn onClick={exportPdf} title="Als PDF exportieren">
+              <FileText className="w-[18px] h-[18px]" />
+            </ToolBtn>
+            <ToolBtn
+              onClick={() => setPresentationMode(true)}
+              title="Präsentations-Modus (Vollbild ohne UI)"
+            >
+              <Presentation className="w-[18px] h-[18px]" />
+            </ToolBtn>
           </ToolGroup>
         </div>
 
@@ -1676,7 +1788,7 @@ export default function MoodboardEditor({
       {/* Hauptbereich: Sidebar + Canvas */}
       <div className="flex-1 flex overflow-hidden">
         {/* Linke Sidebar */}
-        <aside className="w-72 shrink-0 bg-[#1a2e1e] border-r border-[#1f3a25] flex flex-col">
+        <aside className={`${presentationMode ? 'hidden' : 'flex'} w-72 shrink-0 bg-[#1a2e1e] border-r border-[#1f3a25] flex-col`}>
           {/* Tab-Switcher (Underline-Indicator) */}
           <div className="flex shrink-0 border-b border-[#1f3a25]">
             <SidebarTab active={sidebarTab === 'produkte'} onClick={() => setSidebarTab('produkte')}>
@@ -1902,11 +2014,25 @@ export default function MoodboardEditor({
           })()}
 
           {/* Status-Bar (dezenter) */}
-          <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-black/50 text-[10px] text-[#c8dbc9]/80 backdrop-blur-sm flex items-center gap-2">
-            <span className="uppercase tracking-wider">{tool}</span>
-            <span className="text-[#94c1a4]/40">·</span>
-            <span>Drag&Drop · Strg+V · Space+Drag · Mausrad zoomt</span>
-          </div>
+          {!presentationMode && (
+            <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-black/50 text-[10px] text-[#c8dbc9]/80 backdrop-blur-sm flex items-center gap-2">
+              <span className="uppercase tracking-wider">{tool}</span>
+              <span className="text-[#94c1a4]/40">·</span>
+              <span>Drag&Drop · Strg+V · Space+Drag · Mausrad zoomt</span>
+            </div>
+          )}
+
+          {/* Presentation-Mode Exit-Button */}
+          {presentationMode && (
+            <button
+              type="button"
+              onClick={() => setPresentationMode(false)}
+              className="absolute top-4 right-4 z-50 inline-flex items-center gap-1.5 px-3 py-2 bg-white/95 backdrop-blur-sm shadow-lg border border-gray-200 rounded-lg text-gray-700 hover:bg-white text-xs font-medium transition-all"
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
+              Präsentation beenden (ESC)
+            </button>
+          )}
 
           {/* Drop-Overlay (zeigt sich beim File-Hover) */}
           {dragActive && (
@@ -1930,7 +2056,7 @@ export default function MoodboardEditor({
         </div>
 
         {/* Layer-Panel */}
-        {layerPanelOffen && fabricRef.current && (
+        {!presentationMode && layerPanelOffen && fabricRef.current && (
           <MoodboardLayers
             objects={fabricRef.current.getObjects()}
             activeObj={activeObj}
@@ -1986,7 +2112,7 @@ export default function MoodboardEditor({
         )}
 
         {/* Rechte Sidebar – nur wenn etwas selektiert ist */}
-        {activeObj && (
+        {!presentationMode && activeObj && (
           <PropertiesPanel
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             obj={activeObj as any}

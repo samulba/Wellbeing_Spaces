@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard Step 7 — PDF-Export & Präsentations-Modus
+- **PDF-Export-Button** in der Toolbar (FileText-Icon): rendert das Board mit Auto-Bounding-Box und 2×-Auflösung als A4-PDF (auto landscape/portrait je nach Aspect), grüner Header mit Boardname + Raum, mittiges Bild, Footer mit Datum + Branding.
+- **Präsentations-Modus** (Presentation-Icon): blendet Top-Bar, beide Sidebars und Status-Bar aus — nur Canvas + ein „Präsentation beenden (ESC)"-Floating-Button bleibt sichtbar. ESC oder Klick auf den Button verlässt den Modus.
+
 ### Moodboard Step 6c — Kunden-Pins auf Freigabe-Seite
 - Auf der öffentlichen `/moodboard/[token]`-Seite erscheint bei aktiven Kommentaren ein **„Kommentar hinzufügen"-Button** (oben rechts) + amber Badge im Header (`Kommentare aktiv`).
 - Pin-Modus: Cursor wechselt auf Crosshair, Klick aufs Board öffnet einen Eingabe-Dialog mit Name (Pflichtfeld, wird in localStorage gespeichert), optionale Email, Kommentar-Textarea + ⌘/Ctrl+Enter zum Absenden.
