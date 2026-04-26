@@ -37,6 +37,7 @@ import MoodboardWelcome from './MoodboardWelcome'
 import MoodboardLayers from './MoodboardLayers'
 import MoodboardPinOverlay from './MoodboardPinOverlay'
 import MoodboardMarkierungOverlay from './MoodboardMarkierungOverlay'
+import MoodboardGridLayer from './MoodboardGridLayer'
 import type { MoodboardTemplate } from '@/lib/moodboard-templates'
 
 interface Props {
@@ -2134,29 +2135,11 @@ export default function MoodboardEditor({
           style={{ background: '#f5f5f0' }}
         >
           {/* Grid-Layer (hinter Canvas) — folgt Pan/Zoom via viewportTick */}
-          {gridSize > 0 && fabricRef.current && (() => {
-            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-            void viewportTick
-            const vpt = fabricRef.current.viewportTransform
-            const z = vpt[0]
-            const screenSize = gridSize * z
-            // Wenn zu klein → ausblenden (sonst Moiré)
-            if (screenSize < 6) return null
-            const offX = vpt[4] % screenSize
-            const offY = vpt[5] % screenSize
-            return (
-              <div
-                aria-hidden
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  backgroundImage:
-                    'radial-gradient(circle, rgba(0,0,0,0.18) 1px, transparent 1.4px)',
-                  backgroundSize: `${screenSize}px ${screenSize}px`,
-                  backgroundPosition: `${offX}px ${offY}px`,
-                }}
-              />
-            )
-          })()}
+          <MoodboardGridLayer
+            gridSize={gridSize}
+            viewportTick={viewportTick}
+            fabricRef={fabricRef}
+          />
 
           <canvas ref={canvasElRef} className="relative" />
 
