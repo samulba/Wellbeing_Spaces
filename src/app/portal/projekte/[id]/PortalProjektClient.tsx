@@ -6,6 +6,7 @@ import {
   CheckCircle2, MessageSquare, FileText, CalendarDays,
   LayoutGrid, Check, X, ChevronDown, ChevronUp, Download,
   Clock, Flag, Truck, Info, ZoomIn, Palette, ExternalLink,
+  Package as PackageIcon, AlertTriangle,
 } from 'lucide-react'
 import Image from 'next/image'
 import {
@@ -63,6 +64,27 @@ interface PortalMoodboard {
   updated_at: string
 }
 
+// ── Bestell-/Liefer-Status (Migration 100) ──────────────────────
+export type BestellStatusEintrag = {
+  bestellstatus:           string
+  bestellt_am:             string | null
+  liefertermin:            string | null
+  lieferung_erhalten_am:   string | null
+}
+
+export type PortalReklamation = {
+  id:               string
+  raum_produkte_id: string
+  raum_id:          string | null
+  produkt_id:       string | null
+  typ:              string
+  beschreibung:     string
+  status:           string
+  loesung_typ:      string | null
+  geloest_am:       string | null
+  created_at:       string
+}
+
 interface Props {
   projektId: string
   projektName: string
@@ -72,11 +94,13 @@ interface Props {
   nachrichten: Nachricht[]
   events: Event[]
   moodboards: PortalMoodboard[]
+  bestellStatusMap: Record<string, BestellStatusEintrag>
+  reklamationen: PortalReklamation[]
   preiseAnzeigen: boolean
   vorname: string
 }
 
-type Tab = 'freigaben' | 'moodboards' | 'dokumente' | 'nachrichten' | 'timeline'
+type Tab = 'freigaben' | 'lieferungen' | 'moodboards' | 'dokumente' | 'nachrichten' | 'timeline'
 
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
@@ -417,6 +441,155 @@ function DokumenteTab({ dokumente, prim }: { dokumente: Dokument[]; prim: string
 
 const moodboardFmt = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
+// ── LieferungenTab — Bestellstatus + Reklamationen pro Produkt ──
+
+const BESTELL_LABEL: Record<string, { label: string; bg: string; text: string; Icon: React.ComponentType<{ className?: string }> }> = {
+  ausstehend:        { label: 'Ausstehend',     bg: 'bg-gray-100',    text: 'text-gray-600',    Icon: Clock },
+  bestellt:          { label: 'Bestellt',       bg: 'bg-blue-50',     text: 'text-blue-700',    Icon: PackageIcon },
+  teilgeliefert:     { label: 'Teilgeliefert',  bg: 'bg-amber-50',    text: 'text-amber-700',   Icon: Truck },
+  geliefert:         { label: 'Geliefert',      bg: 'bg-emerald-50',  text: 'text-emerald-700', Icon: CheckCircle2 },
+  mangel_gemeldet:   { label: 'Mangel gemeldet', bg: 'bg-orange-50',  text: 'text-orange-700',  Icon: AlertTriangle },
+  retoure_unterwegs: { label: 'Retoure unterwegs', bg: 'bg-indigo-50',text: 'text-indigo-700',  Icon: Truck },
+  retoure_erhalten:  { label: 'Retoure erhalten', bg: 'bg-slate-100', text: 'text-slate-700',   Icon: CheckCircle2 },
+  rechnung_erhalten: { label: 'Rechnung',       bg: 'bg-violet-50',   text: 'text-violet-700',  Icon: CheckCircle2 },
+  storniert:         { label: 'Storniert',      bg: 'bg-rose-50',     text: 'text-rose-700',    Icon: X },
+}
+
+const REK_STATUS_LABEL: Record<string, { label: string; bg: string; text: string }> = {
+  offen:                 { label: 'Offen',                 bg: 'bg-orange-100',  text: 'text-orange-800' },
+  lieferant_kontaktiert: { label: 'Lieferant kontaktiert', bg: 'bg-blue-100',    text: 'text-blue-800' },
+  loesung_zugesagt:      { label: 'Lösung zugesagt',       bg: 'bg-amber-100',   text: 'text-amber-800' },
+  geloest:               { label: 'Gelöst',                bg: 'bg-emerald-100', text: 'text-emerald-800' },
+  eskaliert:             { label: 'Eskaliert',             bg: 'bg-red-100',     text: 'text-red-800' },
+}
+
+function LieferungenTab({
+  raeume, bestellStatusMap, reklamationen, prim,
+}: {
+  raeume: PortalRaum[]
+  bestellStatusMap: Record<string, BestellStatusEintrag>
+  reklamationen: PortalReklamation[]
+  prim: string
+}) {
+  void prim
+  // Reklamationen-Lookup nach raum_produkte_id (in der Map laden wir ueber raum_id+produkt_id)
+  // Da Portal mit produkte+raum_id arbeitet, mappen wir per (raum_id, produkt_id) → Reklamationen
+  const rekByRaumProdukt = new Map<string, PortalReklamation[]>()
+  for (const r of reklamationen) {
+    if (!r.raum_id || !r.produkt_id) continue
+    const k = `${r.raum_id}:${r.produkt_id}`
+    const list = rekByRaumProdukt.get(k) ?? []
+    list.push(r)
+    rekByRaumProdukt.set(k, list)
+  }
+
+  const offeneRek = reklamationen.filter((r) => r.status !== 'geloest')
+
+  return (
+    <div className="space-y-6">
+      {/* Banner mit offenen Reklamationen oben */}
+      {offeneRek.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-orange-900">
+              {offeneRek.length} {offeneRek.length === 1 ? 'offene Reklamation' : 'offene Reklamationen'}
+            </p>
+            <p className="text-xs text-orange-800 mt-0.5">
+              Wir kümmern uns gerade um {offeneRek.length === 1 ? 'das Problem' : 'die Probleme'} — siehe unten bei den Produkten.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {raeume.map((raum) => {
+        const produkteMitStatus = raum.produkte.filter((p) => {
+          const e = bestellStatusMap[`${raum.id}:${p.id}`]
+          return e && e.bestellstatus !== 'ausstehend'
+        })
+        if (produkteMitStatus.length === 0) return null
+        return (
+          <section key={raum.id}>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">{raum.name}</h3>
+            <div className="bg-white border border-black/[0.06] rounded-2xl shadow-sm divide-y divide-gray-100 overflow-hidden">
+              {produkteMitStatus.map((p) => {
+                const e = bestellStatusMap[`${raum.id}:${p.id}`]
+                const cfg = BESTELL_LABEL[e.bestellstatus] ?? BESTELL_LABEL.ausstehend
+                const reks = rekByRaumProdukt.get(`${raum.id}:${p.id}`) ?? []
+                return (
+                  <div key={p.id} className="flex items-start gap-3 px-4 py-3">
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 shrink-0 flex items-center justify-center">
+                      {p.image_url ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={p.image_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <PackageIcon className="w-5 h-5 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-gray-900 truncate">{p.name}</span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${cfg.bg} ${cfg.text}`}>
+                          <cfg.Icon className="w-3 h-3" />
+                          {cfg.label}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5 inline-flex items-center gap-3 flex-wrap">
+                        {e.bestellt_am && <span>Bestellt: {new Date(e.bestellt_am).toLocaleDateString('de-DE')}</span>}
+                        {e.liefertermin && <span>Liefertermin: {new Date(e.liefertermin).toLocaleDateString('de-DE')}</span>}
+                        {e.lieferung_erhalten_am && <span>Erhalten: {new Date(e.lieferung_erhalten_am).toLocaleDateString('de-DE')}</span>}
+                      </div>
+                      {/* Reklamationen */}
+                      {reks.length > 0 && (
+                        <div className="mt-2 space-y-1.5">
+                          {reks.map((r) => {
+                            const rcfg = REK_STATUS_LABEL[r.status] ?? REK_STATUS_LABEL.offen
+                            return (
+                              <div key={r.id} className="bg-orange-50/60 border border-orange-200 rounded-lg p-2">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <AlertTriangle className="w-3 h-3 text-orange-600 shrink-0" />
+                                  <span className="text-xs font-medium text-orange-900 capitalize">
+                                    {r.typ.replace(/_/g, ' ')}
+                                  </span>
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded ${rcfg.bg} ${rcfg.text}`}>
+                                    {rcfg.label}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-700 line-clamp-2">{r.beschreibung}</p>
+                                {r.geloest_am && r.loesung_typ && (
+                                  <p className="text-[11px] text-emerald-700 mt-0.5">
+                                    Lösung: {r.loesung_typ.replace(/_/g, ' ')} ({new Date(r.geloest_am).toLocaleDateString('de-DE')})
+                                  </p>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )
+      })}
+
+      {raeume.every((r) => r.produkte.every((p) => {
+        const e = bestellStatusMap[`${r.id}:${p.id}`]
+        return !e || e.bestellstatus === 'ausstehend'
+      })) && (
+        <EmptyState
+          Icon={Truck}
+          title="Noch keine Lieferungen"
+          text="Sobald die ersten Produkte bestellt sind, erscheinen sie hier mit Status und Liefertermin."
+          prim={prim}
+        />
+      )}
+    </div>
+  )
+}
+
 function MoodboardsTab({ moodboards, prim }: { moodboards: PortalMoodboard[]; prim: string }) {
   if (moodboards.length === 0) {
     return (
@@ -532,7 +705,9 @@ function TimelineTab({ events, prim }: { events: Event[]; prim: string }) {
 // ── Haupt-Komponente ──────────────────────────────────────────
 
 export default function PortalProjektClient({
-  projektId, prim, raeume, dokumente, nachrichten, events, moodboards, preiseAnzeigen, vorname,
+  projektId, prim, raeume, dokumente, nachrichten, events, moodboards,
+  bestellStatusMap, reklamationen,
+  preiseAnzeigen, vorname,
 }: Props) {
   const [aktuellerTab, setAktuellerTab] = useState<Tab>('freigaben')
   const [statusMap, setStatusMap]       = useState<Record<string, string>>({})
@@ -563,8 +738,17 @@ export default function PortalProjektClient({
     })
   }
 
+  // Hat das Projekt überhaupt Bestell-/Liefer-Aktivität?
+  const lieferungenAktiv = Object.values(bestellStatusMap).some(
+    (e) => e && e.bestellstatus !== 'ausstehend',
+  )
+  const offeneRekCount = reklamationen.filter((r) => r.status !== 'geloest').length
+
   const TABS = [
     { id: 'freigaben'   as Tab, label: 'Freigaben',  icon: <CheckCircle2 className="w-3.5 h-3.5" />, badge: ausstehend > 0 ? ausstehend : null },
+    ...(lieferungenAktiv || offeneRekCount > 0 ? [
+      { id: 'lieferungen' as Tab, label: 'Lieferungen', icon: <Truck className="w-3.5 h-3.5" />, badge: offeneRekCount > 0 ? offeneRekCount : null },
+    ] : []),
     ...(moodboards.length > 0 ? [
       { id: 'moodboards' as Tab, label: 'Moodboards', icon: <Palette      className="w-3.5 h-3.5" />, badge: null },
     ] : []),
@@ -652,6 +836,15 @@ export default function PortalProjektClient({
             </>
           )}
         </div>
+      )}
+
+      {aktuellerTab === 'lieferungen' && (
+        <LieferungenTab
+          raeume={raeume}
+          bestellStatusMap={bestellStatusMap}
+          reklamationen={reklamationen}
+          prim={prim}
+        />
       )}
 
       {aktuellerTab === 'moodboards' && (

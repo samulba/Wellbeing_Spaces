@@ -19,7 +19,7 @@ export default async function PortalProjektPage({ params }: Props) {
   if (!daten || !session) redirect('/portal/login')
   if (!daten.projekt) notFound()
 
-  const { projekt, raeume, dokumente, nachrichten, events, moodboards } = daten
+  const { projekt, raeume, dokumente, nachrichten, events, moodboards, bestellStatusMap, reklamationen } = daten
   const prim     = branding?.primary_color  ?? '#445c49'
   const gradFrom = branding?.accent_gradient_from ?? null
   const gradTo   = branding?.accent_gradient_to ?? null
@@ -125,6 +125,8 @@ export default async function PortalProjektPage({ params }: Props) {
           nachrichten={nachrichten}
           events={events}
           moodboards={moodboards}
+          bestellStatusMap={bestellStatusMap}
+          reklamationen={reklamationen}
           preiseAnzeigen={session.preiseAnzeigen}
           vorname={session.vorname}
         />

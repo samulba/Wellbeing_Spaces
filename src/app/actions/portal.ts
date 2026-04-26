@@ -484,6 +484,71 @@ export async function portalProjektAbrufen(projektId: string) {
     .eq('kunde_sichtbar', true)
     .order('start_datum')
 
+  // ── Bestell-/Liefer-Status pro Produkt (Migration 076 + 100) ──
+  // Lookup-Map raum_id:produkt_id → Status
+  const bestellStatusMap: Record<string, {
+    bestellstatus:           string
+    bestellt_am:             string | null
+    liefertermin:            string | null
+    lieferung_erhalten_am:   string | null
+  }> = {}
+  if (raumIds.length > 0) {
+    const { data: rps } = await supabase
+      .from('raum_produkte')
+      .select('raum_id, produkt_id, bestellstatus, bestellt_am, liefertermin, lieferung_erhalten_am')
+      .in('raum_id', raumIds)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const rp of ((rps ?? []) as any[])) {
+      bestellStatusMap[`${rp.raum_id}:${rp.produkt_id}`] = {
+        bestellstatus:         rp.bestellstatus ?? 'ausstehend',
+        bestellt_am:           rp.bestellt_am ?? null,
+        liefertermin:          rp.liefertermin ?? null,
+        lieferung_erhalten_am: rp.lieferung_erhalten_am ?? null,
+      }
+    }
+  }
+
+  // ── Reklamationen (Migration 100) — nur kunde_sichtbar ──────
+  type PortalReklamation = {
+    id:               string
+    raum_produkte_id: string
+    raum_id:          string | null
+    produkt_id:       string | null
+    typ:              string
+    beschreibung:     string
+    status:           string
+    loesung_typ:      string | null
+    geloest_am:       string | null
+    created_at:       string
+  }
+  let reklamationen: PortalReklamation[] = []
+  if (raumIds.length > 0) {
+    const { data: reks } = await supabase
+      .from('produkt_reklamationen')
+      .select(`
+        id, raum_produkte_id, typ, beschreibung, status, loesung_typ, geloest_am, created_at,
+        raum_produkte!inner(raum_id, produkte(id))
+      `)
+      .eq('kunde_sichtbar', true)
+      .in('raum_produkte.raum_id', raumIds)
+      .order('created_at', { ascending: false })
+    if (reks) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reklamationen = (reks as any[]).map((r: any) => ({
+        id:                r.id,
+        raum_produkte_id:  r.raum_produkte_id,
+        raum_id:           r.raum_produkte?.raum_id ?? null,
+        produkt_id:        r.raum_produkte?.produkte?.id ?? null,
+        typ:               r.typ,
+        beschreibung:      r.beschreibung,
+        status:            r.status,
+        loesung_typ:       r.loesung_typ,
+        geloest_am:        r.geloest_am,
+        created_at:        r.created_at,
+      }))
+    }
+  }
+
   // Moodboards (eines pro Raum, falls vorhanden) – nur freigegebene fuer Kunden
   let moodboards: Array<{
     id: string
@@ -533,6 +598,8 @@ export async function portalProjektAbrufen(projektId: string) {
     nachrichten: nachrichten ?? [],
     events: events ?? [],
     moodboards,
+    bestellStatusMap,
+    reklamationen,
   }
 }
 
