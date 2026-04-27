@@ -144,7 +144,7 @@ export default function AuditLogClient({ team }: { team: TeamMitglied[] }) {
   return (
     <div className="space-y-4">
       {/* Sticky Header + Filter-Leiste */}
-      <div className="sticky top-[60px] z-20 -mt-4 pt-4 pb-1 bg-gray-50 space-y-4">
+      <div className="sticky top-[60px] z-20 -mt-4 pt-4 pb-2 bg-white space-y-4">
         {/* Header */}
         <div>
           <h2 className="text-sm font-semibold text-gray-900">Aktivitätslog</h2>
