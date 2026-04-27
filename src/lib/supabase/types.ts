@@ -1335,3 +1335,35 @@ export type AufgabeMitDetails = Aufgabe & {
   assignee?:   { id: string; email: string | null; name: string | null } | null
   kommentare_count?: number
 }
+
+// ─── Feedback (Migration 106) ──────────────────────────────────
+export type FeedbackTyp        = 'bug' | 'feature' | 'frage' | 'lob' | 'sonstiges'
+export type FeedbackStatus     = 'neu' | 'in_arbeit' | 'erledigt' | 'abgelehnt' | 'duplikat'
+export type FeedbackPrioritaet = 'niedrig' | 'normal' | 'hoch' | 'kritisch'
+
+export interface Feedback {
+  id:              string
+  organisation_id: string | null
+  user_id:         string | null
+  user_email:      string | null
+  user_name:       string | null
+  typ:             FeedbackTyp
+  titel:           string
+  beschreibung:    string
+  url:             string | null
+  user_agent:      string | null
+  screenshot_url:  string | null
+  status:          FeedbackStatus
+  prioritaet:      FeedbackPrioritaet
+  interne_notiz:   string | null
+  aufgabe_id:      string | null
+  antwort:         string | null
+  beantwortet_am:  string | null
+  beantwortet_von: string | null
+  created_at:      string
+  updated_at:      string
+}
+
+export type FeedbackMitOrg = Feedback & {
+  organisation?: { id: string; name: string } | null
+}
