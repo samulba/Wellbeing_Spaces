@@ -428,6 +428,47 @@ export function aufgabeZuweisungInternMail(opts: {
 }
 
 
+/** @-Mention in Kommentar einer Aufgabe (intern). */
+export function aufgabeMentionMail(opts: {
+  empfaengerName:  string
+  autorName:       string | null
+  aufgabeTitel:    string
+  kommentarText:   string
+  projektName?:    string | null
+  linkUrl:         string
+  branding?:       MailBranding
+}): MailTemplateResult {
+  const firmenname    = opts.branding?.firmenname    ?? DEFAULT_FIRMA
+  const primary_color = opts.branding?.primary_color ?? DEFAULT_PRIMARY
+
+  const body = `
+    <p style="font-size: 15px; color: #4b5563; line-height: 1.55; margin: 0 0 14px;">
+      ${escapeHtml(opts.autorName ?? 'Jemand')} hat dich in einem Kommentar erwähnt:
+    </p>
+    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+      <p style="font-size: 13px; color: #6b7280; margin: 0 0 6px;">
+        Aufgabe: <strong style="color: #111827;">${escapeHtml(opts.aufgabeTitel)}</strong>
+        ${opts.projektName ? ` · Projekt: <strong style="color: #111827;">${escapeHtml(opts.projektName)}</strong>` : ''}
+      </p>
+      <p style="font-size: 14px; color: #374151; margin: 8px 0 0; white-space: pre-wrap; font-style: italic;">
+        „${escapeHtml(opts.kommentarText)}"
+      </p>
+    </div>`.trim()
+
+  return {
+    subject: `${opts.autorName ?? 'Jemand'} hat dich erwähnt: ${opts.aufgabeTitel}`,
+    html: layout({
+      firmenname,
+      primary_color,
+      anrede:   `Hallo ${opts.empfaengerName},`,
+      bodyHtml: body,
+      ctaLabel: 'Aufgabe öffnen',
+      ctaUrl:   opts.linkUrl,
+    }),
+  }
+}
+
+
 /** Aufgaben-Zuweisung an Kunden (Portal). */
 export function aufgabeZuweisungKundeMail(opts: {
   empfaengerName:  string

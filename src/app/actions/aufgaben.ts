@@ -16,7 +16,7 @@ import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { auditLog } from '@/lib/audit'
 import { sendMail } from '@/lib/mail'
-import { aufgabeZuweisungInternMail, aufgabeZuweisungKundeMail } from '@/lib/mail-templates'
+import { aufgabeZuweisungInternMail, aufgabeZuweisungKundeMail, aufgabeMentionMail } from '@/lib/mail-templates'
 import crypto from 'crypto'
 import type {
   Aufgabe, AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet,
@@ -915,8 +915,104 @@ export async function aufgabenKommentarAnlegen(
     .single()
   if (error || !data) return { fehler: 'Kommentar konnte nicht gespeichert werden.' }
 
+  // @-Mentions extrahieren + Notifications triggern (failsafe)
+  void notifyMentions(aufgabeId, text, autorName, user?.id ?? null)
+
   revalidatePath('/dashboard/aufgaben')
   return { id: data.id }
+}
+
+// ── Mention-Notifications ────────────────────────────────────
+
+const NORM = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '')
+
+async function notifyMentions(
+  aufgabeId:  string,
+  inhalt:     string,
+  autorName:  string | null,
+  autorId:    string | null,
+): Promise<void> {
+  try {
+    // Tokens '@vorname.nachname' extrahieren
+    const matches = Array.from(inhalt.matchAll(/@([\w.\-_äöüß]+)/gi))
+    const tokens = matches.map((m) => m[1].toLowerCase())
+    if (tokens.length === 0) return
+
+    const supabase = await createClient()
+    const orgId = await getOrganisationId()
+
+    // Alle Team-Mitglieder + Aufgabe + Branding parallel
+    const [teamRes, aufgabeRes, brandingRes] = await Promise.all([
+      supabase
+        .from('team_mitglieder')
+        .select('user_id, vorname, nachname, email')
+        .eq('organisation_id', orgId)
+        .neq('status', 'deaktiviert'),
+      supabase
+        .from('aufgaben')
+        .select('id, titel, projekt_id, projekte:projekt_id(name)')
+        .eq('id', aufgabeId)
+        .eq('organisation_id', orgId)
+        .maybeSingle(),
+      supabase
+        .from('branding')
+        .select('firmenname, primary_color')
+        .eq('organisation_id', orgId)
+        .maybeSingle(),
+    ])
+
+    const aufgabe = aufgabeRes.data
+    if (!aufgabe) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const projektName = ((aufgabe.projekte as any)?.name as string | undefined) ?? null
+
+    // tokenToUser-Map bauen analog Frontend nameToken()
+    type Tm = { user_id: string | null; vorname: string | null; nachname: string | null; email: string | null }
+    const teamRows = (teamRes.data ?? []) as Tm[]
+    const tokenIndex = new Map<string, Tm>()
+    for (const t of teamRows) {
+      if (!t.user_id) continue
+      const name = [t.vorname, t.nachname].filter(Boolean).join(' ').trim()
+      const parts = name.split(' ').map(NORM).filter(Boolean)
+      const tok =
+        parts.length >= 2 ? parts.join('.')
+        : parts.length === 1 ? parts[0]
+        : t.email ? NORM(t.email.split('@')[0])
+        : ''
+      if (tok) tokenIndex.set(tok, t)
+    }
+
+    const baseUrl = await appBaseUrl()
+
+    // Eindeutige Empfaenger ermitteln
+    const empfaenger = new Set<string>()
+    for (const tk of tokens) {
+      const tm = tokenIndex.get(tk)
+      if (!tm || !tm.email) continue
+      if (tm.user_id === autorId) continue  // Selbst-Mention skip
+      empfaenger.add(tm.user_id ?? tm.email)
+    }
+    if (empfaenger.size === 0) return
+
+    for (const empf of Array.from(empfaenger)) {
+      const tm = teamRows.find((t) => (t.user_id ?? t.email) === empf)
+      if (!tm?.email) continue
+      const empfaengerName = [tm.vorname, tm.nachname].filter(Boolean).join(' ').trim()
+                          || (tm.email.split('@')[0] ?? 'dort')
+      const { subject, html } = aufgabeMentionMail({
+        empfaengerName,
+        autorName,
+        aufgabeTitel: aufgabe.titel,
+        kommentarText: inhalt,
+        projektName,
+        linkUrl: `${baseUrl}/dashboard/aufgaben`,
+        branding: brandingRes.data ?? undefined,
+      })
+      await sendMail({ to: tm.email, subject, html })
+    }
+  } catch (e) {
+    console.error('[notifyMentions]', e)
+  }
 }
 
 export async function aufgabenKommentarAktualisieren(

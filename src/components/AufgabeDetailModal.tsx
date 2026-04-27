@@ -23,6 +23,7 @@ import {
 import AufgabeVerknuepfungenPicker from '@/components/AufgabeVerknuepfungenPicker'
 import AufgabeAssigneePicker from '@/components/AufgabeAssigneePicker'
 import AufgabeLabelsPicker from '@/components/AufgabeLabelsPicker'
+import AufgabeKommentarInput from '@/components/AufgabeKommentarInput'
 import ConfirmModal from '@/components/ConfirmModal'
 import type {
   AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet,
@@ -472,12 +473,13 @@ export default function AufgabeDetailModal({
                   )}
                 </ul>
                 <form onSubmit={handleKommentarSubmit} className="mt-3 flex items-end gap-2">
-                  <textarea
-                    rows={2}
+                  <AufgabeKommentarInput
                     value={neuerKommentar}
-                    onChange={(e) => setNeuerKommentar(e.target.value)}
-                    placeholder="Kommentar schreiben…"
-                    className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-wellbeing-green-light resize-none"
+                    onChange={setNeuerKommentar}
+                    onSubmit={() => handleKommentarSubmit({ preventDefault: () => {} } as React.FormEvent)}
+                    team={pickerOptionen?.team ?? []}
+                    currentUserId={pickerOptionen?.currentUserId ?? null}
+                    disabled={pending}
                   />
                   <button
                     type="submit"
