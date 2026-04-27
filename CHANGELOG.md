@@ -3,9 +3,41 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-04-27
+
+### Aufgaben-System massiv erweitert (Sub-Commits 11-19h)
+
+**Manuelle Verknüpfung & Zuweisung**
+- **„Neue Aufgabe"-Buttons mit vollem Formular** im Kanban-Board (oben rechts) und im Dashboard-Widget (Plus-Icon). Im Detail-Modal lassen sich Projekt · Kunde · Raum jederzeit nachträglich auswählen oder ändern — Projekt-Wahl filtert die Raum-Liste automatisch und übernimmt den Kunden des Projekts, sofern noch keiner gesetzt war. Inline-Quick-Add per Spalte (+) bleibt für ultraschnelles Anlegen ohne Verknüpfungen.
+- **„Backlog"-Spalte umbenannt** zu „Offen" — verständlicher für Nicht-Tech-User. Filter „Offen" im Projekt-Tab heißt jetzt „Aktiv" (= alles nicht-erledigt).
+- **Assignee-Picker**: jede Aufgabe lässt sich einem Team-Mitglied (oder dem Kunden) zuweisen — mit „Mir zuweisen"-Quick-Action, Avataren und Suche. Karten im Board zeigen den Avatar des Verantwortlichen rechts unten.
+- **„Mir"-Filter im Kanban-Board funktioniert jetzt** — vorher Stub.
+- **Suchfeld im Kanban-Board** sucht clientseitig in Titel, Beschreibung, Tags, Projekt-/Kunden-/Raumnamen. Kombinierbar mit Filter-Pills.
+- **Vertrags-Meilensteine**: pro Vertrag öffnet ein Flag-Icon-Button ein Modal mit Meilenstein-Liste (Anzahlung 30%, Abnahme, Schluss-Rechnung etc.). Pro Meilenstein wird automatisch eine Aufgabe ins Kanban-Board übernommen — Status-Wechsel syncen sich beidseitig. **4. Auto-Sync-Quelle** komplett.
+- **E-Mail-Notification bei Zuweisung**: wer eine Aufgabe an Team-Mitglied oder Kunde zuweist, löst automatisch eine E-Mail an den Empfänger aus mit Titel, Beschreibung, Fälligkeit, Priorität, Projekt/Kunde und CTA-Link. Eigene Selbst-Zuweisungen + Auto-Tasks lösen keine Mail aus. Setzt `RESEND_API_KEY` voraus.
+
+**UX-Polish & Bug-Fixes**
+- **Drag&Drop in leere Spalten**: vorher konnten Karten nur in Spalten gedroppt werden, die schon Karten enthielten. Jetzt sind alle 4 Spalten gleichermaßen Drop-Targets, mit visuellem Feedback (grüner Schimmer + Ring) während des Drags. Empty-State-Text geändert von „Keine Aufgaben" → **„Hierher ziehen"**.
+- **Modal-Position-Glitch behoben**: Aufgaben-Modals sprangen beim Öffnen kurz nach rechts unten und dann erst in die Mitte. Lag an einer CSS-Animation die das Tailwind-Zentrieren überschrieben hat. Jetzt sauberes Flexbox-Layout — kein Springen mehr.
+- **Anhänge entfernen**: Anhänge konnten zwar hochgeladen aber nicht wieder entfernt werden. Jetzt zeigt jede Anhang-Zeile beim Hover einen X-Button.
+- **Kommentare bearbeiten + löschen**: eigene Kommentare können jetzt nachträglich bearbeitet (Inline-Textarea mit Cmd+Enter speichern) oder gelöscht werden. Hover-Aktionen nur bei eigenen Kommentaren — Kunden-Kommentare bleiben unveränderbar.
+- **Kanban-Cards designtechnisch aufgepeppt**: linker Akzent-Streifen in Prio-Farbe, Tags als bunte Pills, Auto-Quelle als ⚡-Badge, Checkliste mit Progress-Bar + Prozent-Anzeige, Hover-Effekt mit subtle Lift, Footer mit Trennlinie. Erledigte Karten mit Strikethrough + dezent.
+- **Keine Browser-Popups mehr**: alle nativen `confirm()`-Dialoge (Aufgabe löschen, Anhang entfernen, Kommentar löschen, Meilenstein löschen) durch das App-eigene `ConfirmModal` ersetzt — konsistent zum Rest der App, mit ESC-Schließen und Loading-State.
+
+**Trello-Parity-Pack**
+- **Labels mit Farbe** (Migration 103): pro Org definierbare Labels mit Name + Farbe (11 Presets oder Custom-HEX). Im Aufgaben-Modal Multi-Select-Picker mit Inline-Anlegen/Bearbeiten/Löschen. Auf den Kanban-Cards prominent oben als bunte Pills (max 4 sichtbar + „+N"-Indikator). Ersetzt das alte Free-Tag-System.
+- **Aufgaben archivieren** (Migration 104): statt direkt löschen kann man Aufgaben jetzt archivieren — verschwinden aus dem Board, sind aber wiederherstellbar. Im Header-Detail-Modal der Standard-Action ist Archivieren (grün), Löschen (rot, „endgültig") als sekundär. Eigene Archiv-Ansicht via `?archiviert=1` mit Toggle-Button.
+- **Activity-Log pro Aufgabe**: im Detail-Modal ausklappbarer Block „Aktivitäten" mit chronologischer Liste (User + lesbare Aktion wie „Status: Offen → In Arbeit" + Zeitstempel).
+- **Listen-Ansicht**: View-Toggle oben rechts mit Board / Liste / Kalender. Listen-Ansicht zeigt alle Aufgaben in sortierbarer Tabelle.
+- **Kalender-Ansicht**: Monatsansicht mit Aufgaben pro Tag als farbige Pills. Heute hervorgehoben, Wochenende dezent, Navigation per Vor/Zurück + „Heute"-Button.
+- **Aufgaben duplizieren + Vorlagen** (Migration 105): Copy-Button im Detail-Header dupliziert eine Aufgabe (mit „(Kopie)"-Suffix). Bookmark-Button speichert sie als wiederverwendbare Vorlage. Im „Neue Aufgabe"-Modal oben Quick-Picker „Aus Vorlage starten".
+- **@-Mentions in Kommentaren**: tipp `@` im Kommentar-Feld → Autocomplete-Dropdown mit Team-Mitgliedern (Suche + Pfeiltasten + Enter). Beim Speichern automatische E-Mail an die genannten User.
+- **Mobile-Optimierung**: Touch-Sensor für Drag&Drop (Long-Press 200ms) — funktioniert jetzt auf Tablet/Phone. Aufgaben-Modals werden auf mobile zu Bottom-Sheets (von unten, fast volle Höhe, top-rounded), kompakteres Padding, Sidebar landet unter dem Body statt rechts.
+- Migrationen **103/104/105** müssen manuell im Supabase SQL-Editor ausgeführt werden.
+
 ## 2026-04-26
 
-### Aufgaben-/ToDo-System (Trello-Style Kanban) — KOMPLETT (10 Sub-Commits)
+### Aufgaben-/ToDo-System (Trello-Style Kanban) — Foundation (10 Sub-Commits)
 - **Neuer Sidebar-Eintrag „Aufgaben"** (ListChecks-Icon) mit Badge für überfällige offene Aufgaben des aktuellen Users.
 - **Globales Kanban-Board** unter `/dashboard/aufgaben`: 4 feste Spalten (Backlog · In Arbeit · Review · Erledigt) mit Drag&Drop zwischen und innerhalb der Spalten, optimistisches UI, Quick-Add je Spalte (Enter zum Speichern), Filter-Pills (Alle · Mir · Heute · Diese Woche · Überfällig). Cards zeigen Prioritäts-Punkt, Fälligkeits-Datum (rot wenn überfällig), Projekt/Kunden-Verknüpfung, Checklisten-Counter und Auto-Quelle-Indikator.
 - **Detail-Modal** beim Klick auf eine Card: 2-Spalten-Layout mit Inline-editierbarem Titel/Beschreibung (Auto-Save), Status-Dropdown, Prioritäts-Picker, Fälligkeits-Datepicker, Kunden-Beteiligungs-Toggles, Inline-Checkliste, Datei-Anhänge (Upload + signierte Vorschau), Live-Kommentare per Realtime.
@@ -15,32 +47,6 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Portal „Was du tun sollst"**: Kunden sehen ihnen zugewiesene Aufgaben (assignee_kunde) und sichtbar markierte Aufgaben (sichtbar_fuer_kunde) im Portal-Dashboard; können erledigen mit Toggle-Button und Kommentare schreiben (`ist_kunde=true`).
 - **Realtime**: Board updated live wenn andere Team-Mitglieder Aufgaben verschieben/anlegen; Modal-Kommentare erscheinen ohne Refresh.
 - Migration **102** (`aufgaben` + `aufgaben_kommentare` Tabellen, Indizes, RLS, Storage-Bucket „aufgaben-anhaenge", Realtime) muss manuell im Supabase SQL-Editor ausgeführt werden.
-- **Manuelle Verknüpfung** (Sub-Commit 11): neue „Neue Aufgabe"-Buttons mit vollem Formular im Kanban-Board (oben rechts) und im Dashboard-Widget (Plus-Icon). Im Detail-Modal der rechten Sidebar lassen sich Projekt · Kunde · Raum jederzeit nachträglich auswählen oder ändern — Projekt-Wahl filtert die Raum-Liste automatisch und übernimmt den Kunden des Projekts, sofern noch keiner gesetzt war. Inline-Quick-Add per Spalte (+) bleibt für ultraschnelles Anlegen ohne Verknüpfungen.
-- **„Backlog"-Spalte umbenannt** zu „Offen" — verständlicher für Nicht-Tech-User. Filter „Offen" im Projekt-Tab heißt jetzt „Aktiv" (= alles nicht-erledigt) um Konflikt mit dem neuen Spalten-Namen zu vermeiden. Datenbank-Wert bleibt unverändert.
-- **Assignee-Picker** (Sub-Commit 12): im Detail- und Anlege-Modal lässt sich jede Aufgabe einem Team-Mitglied (oder dem Kunden) zuweisen — mit „Mir zuweisen"-Quick-Action, Avataren und Suche. Karten im Board zeigen den Avatar des Verantwortlichen rechts unten.
-- **„Mir"-Filter im Kanban-Board funktioniert jetzt** — vorher Stub. Filtert auf Aufgaben mit `assignee_user_id = aktueller User`.
-- **Suchfeld im Kanban-Board** (Sub-Commit 13) — sucht clientseitig in Titel, Beschreibung, Tags, Projekt-/Kunden-/Raumnamen. Kombinierbar mit Filter-Pills.
-- **Vertrags-Meilensteine** (Sub-Commit 14): pro Vertrag öffnet ein Flag-Icon-Button ein Modal mit Meilenstein-Liste (Anzahlung 30%, Abnahme, Schluss-Rechnung etc.). Pro Meilenstein wird automatisch eine Aufgabe ins Kanban-Board übernommen — Status-Wechsel (offen/in_arbeit/erledigt/abgerechnet) syncen sich beidseitig. Damit ist die 4. Auto-Sync-Quelle vollständig.
-- **E-Mail-Notification bei Zuweisung** (Sub-Commit 15): wer eine Aufgabe an Team-Mitglied oder Kunde zuweist (manuell), löst automatisch eine E-Mail an den Empfänger aus mit Titel, Beschreibung, Fälligkeit, Priorität, Projekt/Kunde und CTA-Link zur Aufgabe. Eigene Selbst-Zuweisungen lösen keine Mail aus, Auto-Tasks ebenfalls nicht. Setzt `RESEND_API_KEY` voraus — ohne gibt's nur Log-Output.
-
-### UX-Polish & Bug-Fixes (Sub-Commits 16-18)
-- **Drag&Drop in leere Spalten** (Sub-Commit 16): vorher konnten Karten nur in Spalten gedroppt werden, die schon Karten enthielten — leere Zielspalten wurden nicht erkannt. Jetzt sind alle 4 Spalten gleichermaßen gültige Drop-Targets, mit visuellem Feedback (grüner Schimmer + Ring) während des Drags. Empty-State-Text in leeren Spalten geändert von „Keine Aufgaben" → **„Hierher ziehen"**.
-- **Modal-Position-Glitch behoben**: Aufgaben-Modals sprangen beim Öffnen kurz nach rechts unten und dann erst in die Mitte. Lag an einer CSS-Animation die das Tailwind-Zentrieren überschrieben hat. Modals nutzen jetzt sauberes Flexbox-Layout — kein Springen mehr.
-- **Anhänge entfernen** (Sub-Commit 17a): Anhänge konnten zwar hochgeladen aber nicht wieder entfernt werden. Jetzt zeigt jede Anhang-Zeile beim Hover einen X-Button, mit Confirm-Dialog vor dem Löschen.
-- **Kommentare bearbeiten + löschen** (Sub-Commit 17b): eigene Kommentare können jetzt nachträglich bearbeitet (Inline-Textarea mit Cmd+Enter speichern) oder gelöscht werden. Hover-Aktionen nur bei eigenen Kommentaren — Kunden-Kommentare bleiben unveränderbar für Designer.
-- **Kanban-Cards designtechnisch aufgepeppt** (Sub-Commit 17c): linker Akzent-Streifen in Prio-Farbe (sofort erkennbar), Tags als bunte Pills, Auto-Quelle als ⚡-Badge, Checkliste mit Progress-Bar + Prozent-Anzeige, Hover-Effekt mit subtle Lift, Footer mit Trennlinie. Erledigte Karten erscheinen mit Strikethrough + dezent.
-- **Keine Browser-Popups mehr** (Sub-Commit 18): alle nativen `confirm()`-Dialoge (Aufgabe löschen, Anhang entfernen, Kommentar löschen, Meilenstein löschen) durch das App-eigene `ConfirmModal` ersetzt — konsistent zum Rest der App, mit ESC-Schließen und Loading-State.
-
-### Trello-Parity-Pack (Sub-Commits 19a-h)
-- **Labels mit Farbe** (Migration 103): pro Org definierbare Labels mit Name + Farbe (11 Presets oder Custom-HEX). Im Aufgaben-Modal Multi-Select-Picker mit Inline-Anlegen/Bearbeiten/Löschen. Auf den Kanban-Cards prominent oben als bunte Pills (max 4 sichtbar + „+N"-Indikator). Ersetzt das alte Free-Tag-System.
-- **Aufgaben archivieren** (Migration 104): statt direkt löschen kann man Aufgaben jetzt archivieren — verschwinden aus dem Board, sind aber wiederherstellbar. Im Header-Detail-Modal der Standard-Action ist Archivieren (grün), Löschen (rot, „endgültig") als sekundär. Eigene Archiv-Ansicht via `?archiviert=1` mit Toggle-Button im Header.
-- **Activity-Log pro Aufgabe** (Sub-Commit 19c): im Detail-Modal ausklappbarer Block „Aktivitäten" mit chronologischer Liste aus dem Audit-Log (User + lesbare Aktion wie „Status: Offen → In Arbeit" + Zeitstempel).
-- **Listen-Ansicht** (Sub-Commit 19d): View-Toggle oben rechts mit Board / Liste / Kalender. Listen-Ansicht zeigt alle Aufgaben in sortierbarer Tabelle (Titel, Status, Prio, Fälligkeit, Projekt) — kombinierbar mit Filter-Pills und Suche.
-- **Kalender-Ansicht** (Sub-Commit 19e): Monatsansicht mit Aufgaben pro Tag als farbige Pills. Heute hervorgehoben, Wochenende dezent, Navigation per Vor/Zurück + „Heute"-Button. Klick auf Pill öffnet Detail-Modal.
-- **Aufgaben duplizieren + Vorlagen** (Migration 105): Copy-Button im Detail-Header dupliziert eine Aufgabe (mit „(Kopie)"-Suffix, ohne Anhänge, Checkliste zurückgesetzt). Bookmark-Button speichert sie als wiederverwendbare Vorlage. Im „Neue Aufgabe"-Modal oben Quick-Picker „Aus Vorlage starten" mit Pills aller Vorlagen.
-- **@-Mentions in Kommentaren** (Sub-Commit 19g): tipp `@` im Kommentar-Feld → Autocomplete-Dropdown mit Team-Mitgliedern (Suche + Pfeiltasten + Enter). Beim Speichern wird Auto-E-Mail an die genannten User geschickt mit Aufgaben-Kontext und Komment-Text.
-- **Mobile-Optimierung** (Sub-Commit 19h): Touch-Sensor für Drag&Drop (Long-Press 200ms) — funktioniert jetzt auf Tablet/Phone. Alle Aufgaben-Modals werden auf mobile zu Bottom-Sheets (von unten, fast volle Höhe, top-rounded), kompakteres Padding, Sidebar landet unter dem Body statt rechts.
-- Migrationen **103/104/105** müssen manuell im Supabase SQL-Editor ausgeführt werden.
 
 ### Bestell-Workflow KOMPLETT überarbeitet (11 Sub-Commits)
 - **Foundation** (Migration 100): Bestellstatus-Enum erweitert um Storniert · Teilgeliefert · Mangel · Retoure unterwegs · Retoure erhalten. Neue Tabellen `produkt_reklamationen` (mit Foto-Upload, 6 Typen, 5 Status, Lösungs-Tracking, Gutschrift-Betrag) und `lieferanten_bestellungen` + Junction für **Sammelbestellungen** über mehrere Räume hinweg. Neue Storage-Buckets, Bestellnummer-Generator `BS-YYYY-NNN`, Realtime, Audit-Log-Aktionen.
