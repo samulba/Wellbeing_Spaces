@@ -18,8 +18,22 @@ function hostTyp(hostname: string): HostTyp {
 
 function istGeschuetzt(pathname: string): boolean {
   if (pathname.startsWith('/dashboard')) return true
+  if (pathname.startsWith('/super-admin')) return true
   if (pathname.startsWith('/api/') && !pathname.startsWith('/api/public/')) return true
   return false
+}
+
+function istSuperAdminBereich(pathname: string): boolean {
+  return pathname.startsWith('/super-admin')
+}
+
+/** Prueft ENV-Whitelist im Middleware-Kontext (kein Server-Action-Aufruf). */
+function emailIstSuperAdmin(email: string | null | undefined): boolean {
+  if (!email) return false
+  const raw = process.env.SUPER_ADMIN_EMAILS?.trim() ?? ''
+  if (!raw) return false
+  const liste = raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+  return liste.includes(email.toLowerCase())
 }
 
 // ── Supabase Client für Middleware ────────────────────────────
@@ -126,10 +140,15 @@ export async function middleware(request: NextRequest) {
             { status: 401 }
           )
         }
-        // Dashboard → Login mit Redirect-Param
+        // Dashboard / Super-Admin → Login mit Redirect-Param
         const loginUrl = new URL('/login', request.url)
         loginUrl.searchParams.set('redirect', pathname)
         return NextResponse.redirect(loginUrl)
+      }
+
+      // Super-Admin-Bereich: nur Whitelist-Emails
+      if (istSuperAdminBereich(pathname) && !emailIstSuperAdmin(user.email)) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     }
 
