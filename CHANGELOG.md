@@ -9,6 +9,15 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Aktivitätslog**: Header + Filter-Leiste bleiben jetzt beim Scrollen oben fixiert — Suchfeld und Aktion-/Entitäts-Filter sind so bei langen Logs immer erreichbar.
 - **Branding Live-Vorschau**: rutschte beim Scrollen unter den Page-Header und war oben abgeschnitten. Position um 60 px nach unten angepasst, sodass die Vorschau bündig unter dem Page-Header andockt.
 
+### Feedback-System (Sub-Commits 20a-h)
+- **Floating Feedback-Button** unten rechts auf jeder Dashboard-Seite (rund, wellbeing-green, MessageSquare-Icon). Im Raumplaner-/Moodboard-Editor ausgeblendet, weil dort viel Overlay-UI ist.
+- **Submit-Modal** mit Typ-Auswahl als Karten-Grid (🐛 Bug · 💡 Feature · ❓ Frage · ❤️ Lob · ✏️ Sonstiges), Titel + Beschreibung, optionaler Screenshot-Upload (Drag&Drop oder Klick, max. 10 MB). Aktuelle URL + Browser werden automatisch mitgeschickt — sichtbar als ausklappbarer „Was wird mitgeschickt?"-Block für Transparenz.
+- **„Mein Feedback"-Tab** in den Einstellungen (unter „Persönlich") — User sehen ihre Einreichungen mit Status, eigenem Screenshot und Antwort vom Team.
+- **Super-Admin-Bereich** unter `/super-admin/feedback` — geschützt durch ENV-Variable `SUPER_ADMIN_EMAILS` (Whitelist). Eigenes dunkles Backstage-Layout mit Master-Detail-Ansicht: Liste links mit Filter-Pills (Status/Typ) + Suche, Detail rechts mit Status- und Prioritäts-Toggle, internem Notiz-Feld, Antwort-Textarea und „E-Mail an User"-Toggle (sendet Antwort automatisch).
+- **„Als Aufgabe übernehmen"-Hook**: Bug oder Feature direkt in mein eigenes Kanban-Board ziehen — Titel mit `[Bug]`/`[Feature]`-Präfix, User-Kontext + URL als Beschreibung, Priorität wird übernommen. Feedback bekommt Status „in_arbeit" und einen Link zurück zum Aufgaben-Board.
+- Migration **106** (`feedback`-Tabelle + Storage-Bucket `feedback-screenshots`) muss manuell im Supabase SQL-Editor ausgeführt werden.
+- Vor dem Live-Gehen `SUPER_ADMIN_EMAILS=samuel@…` als ENV-Variable in Vercel setzen.
+
 ### Aufgaben-Board: Trennung Intern / Mit Projekt
 - Zwei neue **Filter-Pills**: „Mit Projekt" (nur Aufgaben mit Projekt-/Kunden-Verknüpfung) und „Intern" (nur Aufgaben ohne) — visuell getrennt von den Zeit-Filtern durch einen kleinen Trenner.
 - Cards ohne Verknüpfung zeigen jetzt einen dezenten **„Intern"-Indikator** mit grauem Punkt — vorher waren sie kontextlos.

@@ -304,6 +304,105 @@ export async function feedbackAufgabeVerknuepfen(
   return { erfolg: true }
 }
 
+/**
+ * Erstellt aus einem Feedback eine Aufgabe in Samuels persoenlichem
+ * Kanban-Board (= Org des Super-Admins) und verknuepft beide.
+ * Prioritaet wird vom Feedback uebernommen, Titel mit Typ-Praefix.
+ */
+export async function feedbackAlsAufgabeUebernehmen(
+  id: string,
+): Promise<{ aufgabeId?: string; fehler?: string }> {
+  if (!await isSuperAdmin()) return { fehler: 'Keine Berechtigung.' }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { fehler: 'Nicht angemeldet.' }
+
+  const admin = createAdminClient()
+  const { data: fb } = await admin
+    .from('feedback')
+    .select('*, organisation:organisationen(name)')
+    .eq('id', id)
+    .maybeSingle()
+  if (!fb) return { fehler: 'Feedback nicht gefunden.' }
+  if (fb.aufgabe_id) return { fehler: 'Bereits als Aufgabe uebernommen.' }
+
+  // Org-ID des Super-Admins ermitteln (sein eigenes Kanban-Board)
+  const { data: tm } = await admin
+    .from('team_mitglieder')
+    .select('organisation_id')
+    .eq('user_id', user.id)
+    .neq('status', 'deaktiviert')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  const ownOrgId = tm?.organisation_id as string | null
+  if (!ownOrgId) return { fehler: 'Eigene Organisation nicht gefunden.' }
+
+  // Naechste Reihenfolge in Backlog
+  const { data: maxRow } = await admin
+    .from('aufgaben')
+    .select('reihenfolge')
+    .eq('organisation_id', ownOrgId)
+    .eq('status', 'backlog')
+    .order('reihenfolge', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const reihenfolge = (maxRow?.reihenfolge ?? -1) + 1
+
+  // Typ-Praefix
+  const praefix =
+    fb.typ === 'bug' ? '[Bug]'
+    : fb.typ === 'feature' ? '[Feature]'
+    : fb.typ === 'frage' ? '[Frage]'
+    : '[Feedback]'
+
+  // Prio-Mapping: Feedback prio -> Aufgaben prio (selbe Skala)
+  const prio = fb.prioritaet === 'kritisch' ? 'dringend'
+             : fb.prioritaet === 'hoch'      ? 'hoch'
+             : fb.prioritaet === 'normal'    ? 'normal'
+             : 'niedrig'
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const orgName = (fb.organisation as any)?.name as string | undefined
+
+  const beschreibung = [
+    fb.beschreibung,
+    '',
+    '— Eingereicht von:',
+    `${fb.user_name ?? fb.user_email ?? 'Anonym'}${orgName ? ' · ' + orgName : ''}`,
+    fb.url ? `URL: ${fb.url}` : null,
+  ].filter((x) => x !== null).join('\n')
+
+  const { data: aufgabe, error: insErr } = await admin
+    .from('aufgaben')
+    .insert({
+      organisation_id: ownOrgId,
+      titel:           `${praefix} ${fb.titel}`,
+      beschreibung,
+      status:          'backlog',
+      reihenfolge,
+      prioritaet:      prio,
+      quelle:          'manuell',
+      erstellt_von:    user.id,
+    })
+    .select('id')
+    .single()
+  if (insErr || !aufgabe) {
+    console.error('[feedbackAlsAufgabe]', insErr?.message)
+    return { fehler: 'Aufgabe konnte nicht angelegt werden.' }
+  }
+
+  // Verknuepfung speichern
+  await admin
+    .from('feedback')
+    .update({ aufgabe_id: aufgabe.id, status: 'in_arbeit' })
+    .eq('id', id)
+
+  revalidatePath('/super-admin/feedback')
+  revalidatePath('/dashboard/aufgaben')
+  return { aufgabeId: aufgabe.id }
+}
+
 // ── Helper ───────────────────────────────────────────────────
 
 function escapeHtml(s: string): string {

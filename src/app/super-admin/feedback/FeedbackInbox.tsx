@@ -5,12 +5,14 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Search, Bug, Lightbulb, HelpCircle, Heart, MoreHorizontal,
   Trash2, Send, Mail, Loader2, AlertCircle, Image as ImageIcon,
-  Globe, Monitor, ListChecks,
+  Globe, Monitor, ListChecks, Plus,
 } from 'lucide-react'
 import {
   feedbackStatusAendern, feedbackPrioritaetAendern, feedbackInterneNotiz,
   feedbackAntworten, feedbackLoeschen, feedbackScreenshotSigniert,
+  feedbackAlsAufgabeUebernehmen,
 } from '@/app/actions/feedback'
+import Link from 'next/link'
 import type { FeedbackMitOrg, FeedbackStatus, FeedbackTyp, FeedbackPrioritaet } from '@/lib/supabase/types'
 
 const TYP_INFO: Record<FeedbackTyp, { label: string; icon: React.ElementType; farbe: string; bg: string }> = {
@@ -260,6 +262,14 @@ function DetailAnsicht({ feedback }: { feedback: FeedbackMitOrg }) {
     })
   }
 
+  function alsAufgabe() {
+    startTransition(async () => {
+      const r = await feedbackAlsAufgabeUebernehmen(feedback.id)
+      if (r.fehler) setFehler(r.fehler)
+      else router.refresh()
+    })
+  }
+
   const typ = TYP_INFO[feedback.typ]
   const TypIcon = typ.icon
 
@@ -339,6 +349,27 @@ function DetailAnsicht({ feedback }: { feedback: FeedbackMitOrg }) {
         <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-800 text-sm text-slate-200 whitespace-pre-wrap">
           {feedback.beschreibung}
         </div>
+      </section>
+
+      {/* Als Aufgabe uebernehmen */}
+      <section>
+        {feedback.aufgabe_id ? (
+          <Link
+            href="/dashboard/aufgaben"
+            className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300"
+          >
+            <ListChecks size={12} /> Als Aufgabe uebernommen — im Kanban oeffnen →
+          </Link>
+        ) : (
+          <button
+            onClick={alsAufgabe}
+            disabled={pending}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg disabled:opacity-50"
+          >
+            {pending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+            Als Aufgabe in mein Kanban uebernehmen
+          </button>
+        )}
       </section>
 
       {/* Screenshot */}
