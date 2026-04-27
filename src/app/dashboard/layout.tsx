@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import NavSidebar from '@/components/NavSidebar'
 import MobileGuard from '@/components/MobileGuard'
+import FeedbackButton from '@/components/FeedbackButton'
 import { RolleProvider } from '@/lib/RolleContext'
 import { meineRolleAbrufen } from '@/app/actions/team'
 import type { Rolle } from '@/lib/supabase/types'
@@ -106,6 +107,7 @@ export default async function DashboardLayout({
         <main className="flex-1 overflow-hidden flex flex-col">
           {children}
         </main>
+        <FeedbackButton />
       </div>
       </RolleProvider>
     </MobileGuard>
