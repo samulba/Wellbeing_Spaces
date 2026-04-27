@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  DndContext, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors,
   useDroppable,
   closestCorners, type DragStartEvent, type DragEndEvent, type DragOverEvent,
 } from '@dnd-kit/core'
@@ -66,6 +66,9 @@ export default function AufgabenBoardClient({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // Touch: Long-press 200ms gegen Scroll-Konflikt; kleinste Toleranz fuer
+    // Scroll-vs-Drag-Disambiguation.
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
   )
 
   // Live-Updates: bei jeder Aenderung an aufgaben (durch andere Team-Mitglieder

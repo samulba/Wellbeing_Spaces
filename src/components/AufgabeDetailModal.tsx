@@ -224,7 +224,7 @@ export default function AufgabeDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
@@ -234,10 +234,10 @@ export default function AufgabeDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-3xl max-h-[88vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-fadeIn"
+        className="relative w-full max-w-3xl max-h-[95vh] md:max-h-[88vh] bg-white rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-fadeIn"
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+        <div className="flex items-start justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 shrink-0">
           <div className="flex-1 min-w-0">
             <input
               id={titleId}
@@ -321,7 +321,7 @@ export default function AufgabeDetailModal({
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
             {/* Linke 2/3 — Beschreibung, Checkliste, Kommentare */}
-            <div className="md:col-span-2 px-6 py-5 space-y-6 border-r border-gray-100">
+            <div className="md:col-span-2 px-4 md:px-6 py-5 space-y-6 md:border-r border-gray-100">
               {/* Beschreibung */}
               <section>
                 <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Beschreibung</h3>
@@ -526,7 +526,7 @@ export default function AufgabeDetailModal({
             </div>
 
             {/* Rechts 1/3 — Status, Prio, Faelligkeit */}
-            <aside className="px-6 py-5 space-y-5 bg-gray-50/40">
+            <aside className="px-4 md:px-6 py-5 space-y-5 bg-gray-50/40 border-t md:border-t-0 border-gray-100">
               {/* Status */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 uppercase mb-2">Status</label>
