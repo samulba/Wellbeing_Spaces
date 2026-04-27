@@ -6,7 +6,7 @@ import { useModal } from '@/lib/hooks/useModal'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import {
   X, Calendar, Trash2, Plus, Check, Square, Paperclip, MessageCircle, Pencil,
-  ChevronDown, AlertCircle, Loader2, Archive, ArchiveRestore,
+  ChevronDown, AlertCircle, Loader2, Archive, ArchiveRestore, Activity,
 } from 'lucide-react'
 import {
   aufgabeAktualisieren, aufgabeLoeschen, aufgabeChecklistAktualisieren,
@@ -15,7 +15,9 @@ import {
   aufgabenKommentarAktualisieren, aufgabenKommentarLoeschen,
   aufgabeLabelsSetzen,
   aufgabeArchivieren, aufgabeWiederherstellen,
+  getAufgabeAktivitaet,
   type AufgabePickerOptionen,
+  type AufgabeAktivitaet,
 } from '@/app/actions/aufgaben'
 import AufgabeVerknuepfungenPicker from '@/components/AufgabeVerknuepfungenPicker'
 import AufgabeAssigneePicker from '@/components/AufgabeAssigneePicker'
@@ -74,9 +76,11 @@ export default function AufgabeDetailModal({
   const [neuesItem, setNeuesItem] = useState('')
   const [kommentare, setKommentare] = useState<AufgabeKommentar[]>([])
   const [neuerKommentar, setNeuerKommentar] = useState('')
+  const [aktivitaeten, setAktivitaeten] = useState<AufgabeAktivitaet[]>([])
+  const [aktivitaetenOffen, setAktivitaetenOffen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Beim Oeffnen: Felder aus Aufgabe befuellen + Kommentare laden
+  // Beim Oeffnen: Felder aus Aufgabe befuellen + Kommentare/Aktivitaet laden
   useEffect(() => {
     if (!aufgabe || !open) return
     setTitel(aufgabe.titel)
@@ -87,6 +91,7 @@ export default function AufgabeDetailModal({
     setChecklist(aufgabe.checklist)
     setFehler(null)
     void aufgabenKommentareAbrufen(aufgabe.id).then(setKommentare)
+    void getAufgabeAktivitaet(aufgabe.id).then(setAktivitaeten)
   }, [aufgabe, open])
 
   // Live-Kommentare: Subscribe so lange Modal offen ist
@@ -431,6 +436,41 @@ export default function AufgabeDetailModal({
                   >Senden</button>
                 </form>
               </section>
+
+              {/* Activity-Log */}
+              <section>
+                <button
+                  type="button"
+                  onClick={() => setAktivitaetenOffen((v) => !v)}
+                  className="text-xs font-medium text-gray-500 uppercase mb-2 flex items-center gap-2 hover:text-gray-700"
+                >
+                  <Activity size={12} /> Aktivitäten
+                  {aktivitaeten.length > 0 && <span className="text-gray-400 normal-case">({aktivitaeten.length})</span>}
+                  <ChevronDown
+                    size={12}
+                    className={'transition-transform ' + (aktivitaetenOffen ? 'rotate-180' : '')}
+                  />
+                </button>
+                {aktivitaetenOffen && (
+                  aktivitaeten.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">Noch keine Aktivität.</p>
+                  ) : (
+                    <ol className="space-y-2 border-l border-gray-200 pl-3">
+                      {aktivitaeten.map((a) => (
+                        <li key={a.id} className="relative">
+                          <span className="absolute -left-[7px] top-1.5 w-2 h-2 rounded-full bg-gray-300 ring-2 ring-white" />
+                          <p className="text-xs text-gray-700">
+                            <span className="font-medium">{a.user_email ?? 'System'}</span>
+                            {' · '}
+                            <span className="text-gray-500">{aktionLabel(a.aktion, a.details)}</span>
+                          </p>
+                          <p className="text-[10px] text-gray-400">{relativeZeit(a.created_at)}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  )
+                )}
+              </section>
             </div>
 
             {/* Rechts 1/3 — Status, Prio, Faelligkeit */}
@@ -747,6 +787,36 @@ function AnhangZeile({ anhang, onLoeschen }: {
 function formatDateTime(iso: string): string {
   const d = new Date(iso)
   return d.toLocaleString('de-DE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+function aktionLabel(aktion: string, details: Record<string, unknown> | null): string {
+  switch (aktion) {
+    case 'aufgabe_angelegt':
+      return 'Aufgabe angelegt'
+    case 'aufgabe_status_geaendert': {
+      const von = details?.von as string | undefined
+      const zu  = details?.zu  as string | undefined
+      const map: Record<string, string> = {
+        backlog: 'Offen', in_arbeit: 'In Arbeit', review: 'Review', erledigt: 'Erledigt',
+      }
+      return `Status: ${map[von ?? ''] ?? von} → ${map[zu ?? ''] ?? zu}`
+    }
+    case 'aufgabe_aktualisiert': {
+      if (details?.archiviert) return 'archiviert'
+      if (details?.wiederhergestellt) return 'wiederhergestellt'
+      const felder = details?.felder as string[] | undefined
+      if (Array.isArray(felder) && felder.length > 0) {
+        return `aktualisiert: ${felder.join(', ')}`
+      }
+      return 'aktualisiert'
+    }
+    case 'aufgabe_kunde_zugewiesen':
+      return 'Kunde zugewiesen'
+    case 'aufgabe_geloescht':
+      return 'gelöscht'
+    default:
+      return aktion
+  }
 }
 
 function relativeZeit(iso: string): string {

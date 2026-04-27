@@ -246,6 +246,30 @@ export async function getAufgabenUeberfaelligCount(): Promise<number> {
   return count ?? 0
 }
 
+// ── Activity-Log ─────────────────────────────────────────────
+
+export interface AufgabeAktivitaet {
+  id:           string
+  user_email:   string | null
+  aktion:       string
+  details:      Record<string, unknown> | null
+  created_at:   string
+}
+
+export async function getAufgabeAktivitaet(aufgabeId: string): Promise<AufgabeAktivitaet[]> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data } = await supabase
+    .from('audit_log')
+    .select('id, user_email, aktion, details, created_at')
+    .eq('organisation_id', orgId)
+    .eq('entitaet_typ', 'aufgabe')
+    .eq('entitaet_id', aufgabeId)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  return (data ?? []) as AufgabeAktivitaet[]
+}
+
 // ── Archivieren ──────────────────────────────────────────────
 
 export async function aufgabeArchivieren(id: string): Promise<{ erfolg?: boolean; fehler?: string }> {
