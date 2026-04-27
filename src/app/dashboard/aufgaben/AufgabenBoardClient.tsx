@@ -13,10 +13,11 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import Link from 'next/link'
-import { Plus, Calendar, AlertTriangle, FolderOpen, Search, X, Check, Archive, ArchiveRestore, LayoutGrid, List } from 'lucide-react'
+import { Plus, Calendar, AlertTriangle, FolderOpen, Search, X, Check, Archive, ArchiveRestore, LayoutGrid, List, CalendarDays } from 'lucide-react'
 import StickyPageHeader from '@/components/StickyPageHeader'
 import AufgabeAnlegenModal from '@/components/AufgabeAnlegenModal'
 import AufgabenListe from '@/components/AufgabenListe'
+import AufgabenKalender from '@/components/AufgabenKalender'
 import {
   aufgabeAnlegen, aufgabeReihenfolgeAendern,
   type AufgabePickerOptionen,
@@ -57,7 +58,7 @@ export default function AufgabenBoardClient({
   const [activeId, setActiveId] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('alle')
   const [suche, setSuche] = useState('')
-  const [view, setView] = useState<'board' | 'liste'>('board')
+  const [view, setView] = useState<'board' | 'liste' | 'kalender'>('board')
   const [neuOffen, setNeuOffen] = useState<AufgabeStatus | null>(null)
   const [neuTitel, setNeuTitel] = useState('')
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -236,7 +237,7 @@ export default function AufgabenBoardClient({
           : 'Alle Aufgaben deiner Organisation auf einem Brett'}
         action={
           <div className="flex items-center gap-2">
-            {/* View-Toggle: Board / Liste */}
+            {/* View-Toggle: Board / Liste / Kalender */}
             <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
               <button
                 onClick={() => setView('board')}
@@ -256,6 +257,15 @@ export default function AufgabenBoardClient({
                   (view === 'liste' ? 'bg-wellbeing-green text-white' : 'text-gray-500 hover:bg-gray-50')
                 }
               ><List size={14} /></button>
+              <button
+                onClick={() => setView('kalender')}
+                title="Kalender"
+                aria-label="Kalender"
+                className={
+                  'px-2.5 py-1.5 text-sm transition-colors border-l border-gray-200 ' +
+                  (view === 'kalender' ? 'bg-wellbeing-green text-white' : 'text-gray-500 hover:bg-gray-50')
+                }
+              ><CalendarDays size={14} /></button>
             </div>
             <Link
               href={zeigeArchiv ? '/dashboard/aufgaben' : '/dashboard/aufgaben?archiviert=1'}
@@ -356,9 +366,12 @@ export default function AufgabenBoardClient({
             ) : null}
           </DragOverlay>
         </DndContext>
-      ) : (
+      ) : view === 'liste' ? (
         /* Listen-Ansicht */
         <AufgabenListe aufgaben={gefiltert} pickerOptionen={pickerOptionen} />
+      ) : (
+        /* Kalender-Ansicht */
+        <AufgabenKalender aufgaben={gefiltert} pickerOptionen={pickerOptionen} />
       )}
 
       <AufgabeDetailModal
