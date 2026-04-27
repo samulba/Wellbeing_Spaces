@@ -143,16 +143,18 @@ export default function AuditLogClient({ team }: { team: TeamMitglied[] }) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-900">Aktivitätslog</h2>
-        <p className="text-xs text-gray-400 mt-0.5">
-          Alle wichtigen Aktionen deiner Organisation — Anlegen, Ändern, Löschen, Status-Wechsel, Team-Änderungen, Vertragsereignisse.
-        </p>
-      </div>
+      {/* Sticky Header + Filter-Leiste */}
+      <div className="sticky top-[60px] z-20 -mt-4 pt-4 pb-1 bg-gray-50 space-y-4">
+        {/* Header */}
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">Aktivitätslog</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Alle wichtigen Aktionen deiner Organisation — Anlegen, Ändern, Löschen, Status-Wechsel, Team-Änderungen, Vertragsereignisse.
+          </p>
+        </div>
 
-      {/* Filter-Leiste */}
-      <div className="bg-white border border-gray-200 rounded-xl p-3 flex flex-wrap items-center gap-2">
+        {/* Filter-Leiste */}
+        <div className="bg-white border border-gray-200 rounded-xl p-3 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
           <input
@@ -207,6 +209,7 @@ export default function AuditLogClient({ team }: { team: TeamMitglied[] }) {
         <span className="ml-auto text-xs text-gray-400 shrink-0">
           {data.total} {data.total === 1 ? 'Eintrag' : 'Einträge'}
         </span>
+        </div>
       </div>
 
       {/* Liste */}

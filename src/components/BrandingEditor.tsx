@@ -917,7 +917,7 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
       </div>
 
       {/* ── Rechte Spalte: Vorschau (sticky beim Scrollen) ── */}
-      <div className="xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-1 self-start space-y-4">
+      <div className="xl:sticky xl:top-[76px] xl:max-h-[calc(100vh-92px)] xl:overflow-y-auto xl:pr-1 self-start space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-700">Live-Vorschau</h2>
           <button
