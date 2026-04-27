@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-27
 
+### Einstellungen Bug-Fixes
+- **Aktivitätslog**: Header + Filter-Leiste bleiben jetzt beim Scrollen oben fixiert — Suchfeld und Aktion-/Entitäts-Filter sind so bei langen Logs immer erreichbar.
+- **Branding Live-Vorschau**: rutschte beim Scrollen unter den Page-Header und war oben abgeschnitten. Position um 60 px nach unten angepasst, sodass die Vorschau bündig unter dem Page-Header andockt.
+
 ### Aufgaben-System massiv erweitert (Sub-Commits 11-19h)
 
 **Manuelle Verknüpfung & Zuweisung**
