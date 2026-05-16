@@ -165,9 +165,11 @@ export async function onboardingAbsenden(
 /** Alle Anfragen für das Dashboard. */
 export async function alleOnboardingAnfragen() {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const { data } = await supabase
     .from('onboarding_anfragen')
     .select('*')
+    .eq('organisation_id', orgId)
     .order('created_at', { ascending: false })
   return data ?? []
 }

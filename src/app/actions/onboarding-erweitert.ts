@@ -121,9 +121,11 @@ export async function getOnboardingAnfragen(filter?: {
   typ?: OnboardingTyp
 }): Promise<(OnboardingAnfrage & { vorlage_name?: string })[]> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   let query = supabase
     .from('onboarding_anfragen')
     .select('*, onboarding_vorlagen(name)')
+    .eq('organisation_id', orgId)
     .order('created_at', { ascending: false })
 
   if (filter?.status) query = query.eq('status', filter.status)
@@ -403,19 +405,51 @@ export async function inventarItemAnlegen(
   return { id: data.id }
 }
 
-/** Inventar-Item aktualisieren. */
+/** Inventar-Item aktualisieren (oeffentlich via Token). */
 export async function inventarItemAktualisieren(
+  token: string,
   id: string,
   updates: Partial<Pick<OnboardingInventarItem, 'bezeichnung' | 'kategorie' | 'raum' | 'zustand' | 'behalten' | 'foto_url' | 'notizen' | 'reihenfolge'>>
-): Promise<void> {
+): Promise<{ fehler?: string }> {
   const supabase = createAdminClient()
-  await supabase.from('onboarding_inventar').update(updates).eq('id', id)
+
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('id')
+    .eq('token', token)
+    .maybeSingle()
+  if (!anfrage) return { fehler: 'Anfrage nicht gefunden.' }
+
+  const { error } = await supabase
+    .from('onboarding_inventar')
+    .update(updates)
+    .eq('id', id)
+    .eq('anfrage_id', anfrage.id)
+  if (error) return { fehler: error.message }
+  return {}
 }
 
-/** Inventar-Item löschen. */
-export async function inventarItemLoeschen(id: string): Promise<void> {
+/** Inventar-Item loeschen (oeffentlich via Token). */
+export async function inventarItemLoeschen(
+  token: string,
+  id: string,
+): Promise<{ fehler?: string }> {
   const supabase = createAdminClient()
-  await supabase.from('onboarding_inventar').delete().eq('id', id)
+
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('id')
+    .eq('token', token)
+    .maybeSingle()
+  if (!anfrage) return { fehler: 'Anfrage nicht gefunden.' }
+
+  const { error } = await supabase
+    .from('onboarding_inventar')
+    .delete()
+    .eq('id', id)
+    .eq('anfrage_id', anfrage.id)
+  if (error) return { fehler: error.message }
+  return {}
 }
 
 /** Alle Inventar-Items einer Anfrage laden. */
@@ -429,16 +463,30 @@ export async function getInventar(anfrageId: string): Promise<OnboardingInventar
   return (data ?? []) as OnboardingInventarItem[]
 }
 
-/** Inventar-Reihenfolge aktualisieren. */
+/** Inventar-Reihenfolge aktualisieren (oeffentlich via Token). */
 export async function inventarReihenfolgeAktualisieren(
+  token: string,
   items: { id: string; reihenfolge: number }[]
-): Promise<void> {
+): Promise<{ fehler?: string }> {
   const supabase = createAdminClient()
+
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('id')
+    .eq('token', token)
+    .maybeSingle()
+  if (!anfrage) return { fehler: 'Anfrage nicht gefunden.' }
+
   await Promise.all(
     items.map(({ id, reihenfolge }) =>
-      supabase.from('onboarding_inventar').update({ reihenfolge }).eq('id', id)
+      supabase
+        .from('onboarding_inventar')
+        .update({ reihenfolge })
+        .eq('id', id)
+        .eq('anfrage_id', anfrage.id)
     )
   )
+  return {}
 }
 
 // ─────────────────────────────────────────────────────────────
