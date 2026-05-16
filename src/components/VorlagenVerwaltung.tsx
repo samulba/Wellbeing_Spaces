@@ -35,7 +35,8 @@ const FRAGE_GRUPPEN: FrageGruppe[] = [
       { wert: 'textarea', label: 'Langer Text',  icon: <AlignLeft className="w-3.5 h-3.5" /> },
       { wert: 'email',    label: 'E-Mail',       icon: <Mail className="w-3.5 h-3.5" /> },
       { wert: 'telefon',  label: 'Telefon',      icon: <Phone className="w-3.5 h-3.5" /> },
-      { wert: 'url',      label: 'Website',      icon: <Globe className="w-3.5 h-3.5" /> },
+      { wert: 'url',        label: 'Website (eine URL)',  icon: <Globe className="w-3.5 h-3.5" /> },
+      { wert: 'link_liste', label: 'Mehrere Links',       icon: <Link className="w-3.5 h-3.5" /> },
     ],
   },
   {
@@ -605,9 +606,9 @@ function FrageEditor({
 
           {/* Upload-Konfiguration */}
           {hatUpload && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-[11px] text-gray-500 mb-1">Dateitypen (leer = alle)</label>
+                <label className="block text-[11px] text-gray-500 mb-1">Dateitypen (leer = Bilder + PDF)</label>
                 <input type="text" placeholder="image/*, application/pdf"
                   value={(frage.upload_typen ?? []).join(', ')}
                   onChange={(e) => onChange({ ...frage, upload_typen: e.target.value ? e.target.value.split(',').map(s => s.trim()) : undefined })}
@@ -615,9 +616,16 @@ function FrageEditor({
               </div>
               <div>
                 <label className="block text-[11px] text-gray-500 mb-1">Max. Größe (MB)</label>
-                <input type="number" min="1" placeholder="10"
+                <input type="number" min="1" placeholder="25"
                   value={frage.upload_max_mb ?? ''}
                   onChange={(e) => onChange({ ...frage, upload_max_mb: e.target.value ? Number(e.target.value) : undefined })}
+                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-1">Max. Anzahl Dateien</label>
+                <input type="number" min="1" max="20" placeholder="5"
+                  value={frage.upload_max_dateien ?? ''}
+                  onChange={(e) => onChange({ ...frage, upload_max_dateien: e.target.value ? Number(e.target.value) : undefined })}
                   className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:outline-none" />
               </div>
             </div>

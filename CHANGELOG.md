@@ -5,6 +5,19 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-16
 
+### Onboarding-Komplettüberarbeitung
+- **Kundenname bleibt sichtbar**: Beim Erstellen eines Onboarding-Links wird jetzt ein dauerhafter Titel (z.B. „Frau Müller") gesetzt, der nach Einreichung NICHT mehr überschrieben wird. Vorher verschwand der Name aus der Übersicht.
+- **E-Mail-Versand entfernt**: Das Erstellen-Modal hat keine Empfänger-Email-Felder mehr. Statt automatischem Versand: nach Klick auf „Anlegen" erscheint ein Erfolgs-Screen mit dem Link, großem „Link kopieren"-Button und „Vorschau"-Link.
+- **Kein Application-Error mehr**: Das Erstellen einer Anfrage zeigt Fehler jetzt im Modal als Toast (kein weißer Crash mehr) und der Link erscheint sofort in der Übersicht.
+- **Datei-Upload funktioniert**: Upload-Felder im Kundenformular sind jetzt echte Drag&Drop-Felder. Mehrere Dateien (Bilder + PDF, max. 25 MB pro Datei, max. 5 standardmäßig) — mit Live-Liste, Entfernen-Button und Fehler-Anzeige. Im Admin-Bereich werden Uploads als anklickbare Download-Links angezeigt.
+- **Mehrere Links erfassen**: Neuer Frage-Typ „Mehrere Links" — Kunde kann beliebig viele URLs mit optionalem Titel angeben, jeweils mit „Hinzufügen"- und „Entfernen"-Button. Im Admin als klickbare Liste.
+- **Conditional Logic aktiv**: Felder mit Bedingung („nur anzeigen wenn X = Y") werden im Kundenformular jetzt korrekt ein-/ausgeblendet. Beispiel: Checkbox „abweichende Rechnungsadresse" zeigt das zusätzliche Adressfeld nur bei Bedarf. Versteckte Felder werden auch NICHT gespeichert.
+- **Slider-Konfiguration respektiert**: Slider-Felder nutzen jetzt die im Editor eingestellten Min/Max/Einheit-Werte (vorher hardcoded 1–10).
+- **Mehrfachauswahl-Limit**: `max_auswahl` wird im Kundenformular durchgesetzt mit Live-Anzeige „3/5".
+- **Echte Renderer für Spezial-Typen**: Inventar, Prioritäten, Budget-Verteilung, Checkliste, Datums-Rechner — alle haben jetzt eigene Renderer statt Textarea-Fallback.
+- **Admin-Detail zeigt alle Antworten**: Eingereichte dynamische Antworten werden gruppiert nach Sektion mit korrektem Renderer pro Frage-Typ (Upload → Download-Link, Links → klickbar, Budget → Tabelle, leere Felder → „—").
+- Migration **108** (`titel`/`vorlage_snapshot` auf onboarding_anfragen, Storage-Bucket `onboarding-uploads`) muss manuell in Supabase ausgeführt werden.
+
 ### Bug-Fixes (Audit-Runde)
 - **Produkt-Tabelle**: Wenn beim Löschen oder Sortieren ein Server-Fehler auftrat, blieb die UI im falschen Zustand stehen (Produkt schien entfernt, war aber noch in der DB). Jetzt erscheint bei Fehlern ein rotes Toast und die Liste setzt sich automatisch in den vorherigen Zustand zurück.
 - **Räume-Sortierung**: Gleiches Problem behoben — Drag&Drop-Reihenfolge wird bei Fehler zurückgerollt mit Toast-Hinweis.

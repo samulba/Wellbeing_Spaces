@@ -10,14 +10,15 @@ import {
   X, ChevronRight, Settings2, Briefcase, Inbox, CheckCircle2,
   UserPlus, Layers, Pencil,
 } from 'lucide-react'
+import { onboardingLinkErstellenV2 } from '@/app/actions/onboarding-erweitert'
 import {
-  onboardingLinkErstellen,
   onboardingStatusAendern,
   onboardingLinkLoeschen,
   kundeAusOnboardingAnlegen,
   onboardingEmpfaengerAktualisieren,
 } from '@/app/actions/onboarding'
 import { kundeUndProjektAusOnboarding } from '@/app/actions/onboarding-erweitert'
+import DynamischeAntwortenAnzeige from '@/components/onboarding/DynamischeAntwortenAnzeige'
 import type { OnboardingAnfrage, OnboardingStatus, OnboardingVorlage } from '@/lib/supabase/types'
 
 // ── Filter-Typ ────────────────────────────────────────────────
@@ -122,18 +123,16 @@ function LinkErstellenModal({
   onClose: () => void
 }) {
   const standard = vorlagen.find((v) => v.ist_standard)
-  const [gewaehlt, setGewaehlt]               = useState<string>(standard?.id ?? vorlagen[0]?.id ?? '')
-  const [kundeId, setKundeId]                 = useState<string>('')
-  const [empfaengerLabel, setEmpfaengerLabel] = useState<string>('')
-  const [empfaengerEmail, setEmpfaengerEmail] = useState<string>('')
-  const [kopiert, setKopiert]                 = useState(false)
-  const [isPending, startTransition]          = useTransition()
+  const [gewaehlt, setGewaehlt]             = useState<string>(standard?.id ?? vorlagen[0]?.id ?? '')
+  const [kundeId, setKundeId]               = useState<string>('')
+  const [titel, setTitel]                   = useState<string>('')
+  const [fehler, setFehler]                 = useState<string | null>(null)
+  const [erstelltUrl, setErstelltUrl]       = useState<string | null>(null)
+  const [kopiert, setKopiert]               = useState(false)
+  const [isPending, startTransition]        = useTransition()
 
   const aktuelleVorlage = vorlagen.find((v) => v.id === gewaehlt)
   const istProjektVorlage = aktuelleVorlage?.typ === 'projekt'
-  // Empfänger-Felder zeigen wir, wenn kein bestehender Kunde ausgewählt ist
-  // (auch bei Projekt-Vorlagen sinnvoll, falls Lead noch nicht angelegt wurde).
-  const zeigeEmpfaengerFelder = !kundeId
 
   // Wenn von Projekt- zu Nicht-Projekt-Vorlage gewechselt wird,
   // die Kunde-Auswahl zurücksetzen.
@@ -147,22 +146,92 @@ function LinkErstellenModal({
 
   function handleErstellen() {
     if (!gewaehlt) return
+    setFehler(null)
     startTransition(async () => {
-      const { pfad } = await onboardingLinkErstellen(
+      const v = vorlagen.find((x) => x.id === gewaehlt)
+      const res = await onboardingLinkErstellenV2(
         gewaehlt || null,
+        v?.typ ?? 'neukunde',
+        null,
         kundeId || null,
-        kundeId
-          ? null
-          : { label: empfaengerLabel.trim() || null, email: empfaengerEmail.trim() || null },
+        titel.trim() || null,
       )
-      const url = window.location.origin + pfad
-      await navigator.clipboard.writeText(url)
-      setKopiert(true)
-      setTimeout(() => {
-        setKopiert(false)
-        onClose()
-      }, 2000)
+      if (!res.erfolg || !res.pfad) {
+        setFehler(res.fehler ?? 'Link konnte nicht erstellt werden.')
+        return
+      }
+      const url = window.location.origin + res.pfad
+      setErstelltUrl(url)
     })
+  }
+
+  async function handleCopy() {
+    if (!erstelltUrl) return
+    try {
+      await navigator.clipboard.writeText(erstelltUrl)
+      setKopiert(true)
+      setTimeout(() => setKopiert(false), 2000)
+    } catch {
+      setFehler('Link konnte nicht in die Zwischenablage kopiert werden.')
+    }
+  }
+
+  // ── Success-State: Link wurde erstellt, kein Email-Versand ──
+  if (erstelltUrl) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="flex items-center justify-between px-6 pt-6 pb-4">
+            <h2 className="text-base font-semibold text-gray-900 inline-flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-wellbeing-green" />
+              Link erstellt
+            </h2>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              aria-label="Schließen"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="px-6 pb-6 space-y-3">
+            <p className="text-sm text-gray-600">
+              Du kannst den Link jetzt deinem Kunden zukommen lassen — egal ob per Mail, WhatsApp oder anders.
+            </p>
+            <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 break-all font-mono">
+              {erstelltUrl}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCopy}
+                className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-wellbeing-green hover:bg-wellbeing-green-dark rounded-xl transition-colors"
+              >
+                {kopiert ? (
+                  <><Check className="w-4 h-4" /> Link kopiert!</>
+                ) : (
+                  <><Plus className="w-4 h-4" /> Link kopieren</>
+                )}
+              </button>
+              <a
+                href={erstelltUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 inline-flex items-center gap-1.5 transition-colors"
+              >
+                <ExternalLink className="w-4 h-4" /> Vorschau
+              </a>
+            </div>
+            {fehler && <p className="text-xs text-red-500">{fehler}</p>}
+            <button
+              onClick={onClose}
+              className="w-full py-2.5 text-xs text-gray-500 hover:text-gray-700"
+            >
+              Schließen
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -262,31 +331,23 @@ function LinkErstellenModal({
             </div>
           )}
 
-          {/* Empfänger-Etikett bei Neukunden / nicht verknüpften Links */}
-          {zeigeEmpfaengerFelder && (
-            <div className="mt-4 p-4 bg-amber-50/50 border border-amber-100 rounded-xl">
+          {/* Kundenname / Titel — wird in der Uebersicht angezeigt */}
+          {!kundeId && (
+            <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Für wen ist der Link?
+                Kundenname
                 <span className="ml-1.5 text-[11px] font-normal text-gray-400">(optional)</span>
               </label>
               <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
-                Hilft dir später in der Übersicht zu sehen, an wen du den Link versendet hast — z. B.
-                {' '}<span className="italic">&bdquo;Frau Müller, Instagram-Anfrage&ldquo;</span>.
-                Wird dem Kunden im Formular nicht angezeigt.
+                Erscheint in der Übersicht als Titel des Links — z.&nbsp;B. &bdquo;Frau Müller&ldquo; oder &bdquo;Familie Schmidt&ldquo;.
+                Bleibt auch nach Einreichung dauerhaft sichtbar.
               </p>
               <input
                 type="text"
-                value={empfaengerLabel}
-                onChange={(e) => setEmpfaengerLabel(e.target.value)}
-                placeholder="z. B. Frau Müller (Empfehlung Lisa)"
+                value={titel}
+                onChange={(e) => setTitel(e.target.value)}
+                placeholder="z. B. Frau Müller"
                 className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-wellbeing-green focus:ring-2 focus:ring-wellbeing-green/20 transition-all"
-              />
-              <input
-                type="email"
-                value={empfaengerEmail}
-                onChange={(e) => setEmpfaengerEmail(e.target.value)}
-                placeholder="empfaenger@beispiel.de (optional)"
-                className="w-full mt-2 px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-wellbeing-green focus:ring-2 focus:ring-wellbeing-green/20 transition-all"
               />
             </div>
           )}
@@ -300,18 +361,19 @@ function LinkErstellenModal({
           </Link>
         </div>
 
-        <div className="px-6 pt-3 pb-6 shrink-0 border-t border-gray-100">
+        <div className="px-6 pt-3 pb-6 shrink-0 border-t border-gray-100 space-y-2">
+          {fehler && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{fehler}</p>
+          )}
           <button
             onClick={handleErstellen}
-            disabled={isPending || kopiert || !gewaehlt}
+            disabled={isPending || !gewaehlt}
             className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 rounded-xl transition-colors"
           >
-            {kopiert ? (
-              <><Check className="w-4 h-4" /> Link kopiert!</>
-            ) : isPending ? (
+            {isPending ? (
               <>Wird erstellt…</>
             ) : (
-              <><Plus className="w-4 h-4" /> Link erstellen & kopieren</>
+              <><Plus className="w-4 h-4" /> Link erstellen</>
             )}
           </button>
         </div>
@@ -353,11 +415,13 @@ function LoeschenBestaetigung({
 // ── Erweiterte Detailansicht ──────────────────────────────────
 function AnfrageDetail({
   anfrage,
+  vorlage,
   vorlageName,
   verknuepfterKundeName,
   onLoeschenStart,
 }: {
   anfrage: OnboardingAnfrage
+  vorlage?: OnboardingVorlage
   vorlageName?: string
   verknuepfterKundeName?: string
   onLoeschenStart: () => void
@@ -545,6 +609,15 @@ function AnfrageDetail({
             Tipp: Kopiere den Link unten und schicke ihn per E-Mail / Chat. Sobald der Kunde das Formular einreicht, erscheinen seine Antworten hier.
           </p>
         </div>
+      )}
+
+      {/* Dynamische Antworten (Custom-Vorlage) */}
+      {hatDaten && anfrage.antworten && (vorlage || anfrage.vorlage_snapshot) && (
+        <DynamischeAntwortenAnzeige
+          anfrageId={anfrage.id}
+          vorlage={anfrage.vorlage_snapshot ?? vorlage}
+          antworten={anfrage.antworten}
+        />
       )}
 
       {fehler && (
@@ -1003,12 +1076,15 @@ export default function OnboardingTabelle({
                 const loeschen    = loeschenId === anfrage.id
                 const eingereicht = istEingereicht(anfrage)
                 const begonnen    = istBegonnen(anfrage)
-                // Anzeige-Priorität: eingereichter Name → Empfänger-Etikett →
-                // verknüpfter Kunde → null (Fallback "Neuer Onboarding-Link")
-                const kundeName   = eingereicht
-                  ? anfrage.kunde_name
-                  : anfrage.empfaenger_label
-                    || (anfrage.kunde_id ? kundenMap.get(anfrage.kunde_id) ?? anfrage.kunde_name : null)
+                // Anzeige-Priorität (Migration 108): persistenter titel →
+                // kunde_name → Empfänger-Etikett → verknüpfter Kunde →
+                // null (Fallback "Neuer Onboarding-Link").
+                // titel wird beim Erstellen vorbelegt und durch Submit
+                // NICHT überschrieben — bleibt also dauerhaft sichtbar.
+                const kundeName   = anfrage.titel
+                  ?? anfrage.kunde_name
+                  ?? anfrage.empfaenger_label
+                  ?? (anfrage.kunde_id ? kundenMap.get(anfrage.kunde_id) ?? null : null)
                 // Subtitle baut sich je nach Status zusammen, damit der Admin
                 // sofort sieht: für wen ist der Link, was muss noch passieren.
                 const subtitleTeile: string[] = []
@@ -1111,6 +1187,7 @@ export default function OnboardingTabelle({
                     {istOffen && !loeschen && (
                       <AnfrageDetail
                         anfrage={anfrage}
+                        vorlage={vorlage}
                         vorlageName={vorlage?.name}
                         verknuepfterKundeName={anfrage.kunde_id ? kundenMap.get(anfrage.kunde_id) : undefined}
                         onLoeschenStart={() => setLoeschenId(anfrage.id)}
