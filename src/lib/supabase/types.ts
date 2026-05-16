@@ -161,19 +161,6 @@ export interface Raum {
   updated_at: string
 }
 
-// ── Möbel-Symbole (Migration 045) ─────────────────────────────
-export interface MoebelSymbol {
-  id: string
-  organisation_id: string | null
-  name: string
-  kategorie_id: string | null
-  svg_path: string
-  breite_cm: number
-  tiefe_cm: number
-  farbe: string
-  ist_system: boolean
-  created_at: string
-}
 
 export type ProvisionsModell = 'Prozent' | 'Fix' | 'Individuell'
 export type PartnerTyp = 'lieferant' | 'hersteller' | 'handwerker' | 'planer' | 'sonstiges'

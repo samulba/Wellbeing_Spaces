@@ -162,7 +162,6 @@ const KAPITEL: Kapitel[] = [
       { id: 'raeume-anlegen',     titel: 'Raum anlegen',             suchtext: 'raum anlegen typ kategorie wohnzimmer büro' },
       { id: 'raeume-budget',      titel: 'Budget pro Raum',          suchtext: 'budget raum fortschritt' },
       { id: 'raeume-produkte',    titel: 'Produkte zuweisen',        suchtext: 'produkt zuweisen menge override preis rabatt' },
-      { id: 'raeume-grundriss',   titel: 'Grundriss-Vorschau',       suchtext: 'grundriss vorschau raumplaner' },
       { id: 'raeume-reihenfolge', titel: 'Reihenfolge per Drag&Drop', suchtext: 'sortieren drag drop reihenfolge' },
     ],
   },
@@ -274,20 +273,6 @@ const KAPITEL: Kapitel[] = [
     ],
   },
   {
-    id: 'raumplaner',
-    icon: <Grid3X3 className="w-4 h-4" />,
-    titel: 'Raumplaner',
-    abschnitte: [
-      { id: 'rp-start',         titel: 'Erste Schritte',           suchtext: 'raumplaner editor öffnen canvas wand' },
-      { id: 'rp-tools',         titel: 'Werkzeuge',                suchtext: 'tools wand tür fenster maß möbel radierer formen' },
-      { id: 'rp-moebel',        titel: 'Möbel & Custom',           suchtext: 'möbel symbole custom favoriten kategorie' },
-      { id: 'rp-boden-waende',  titel: 'Boden + Wandfarbe',        suchtext: 'boden textur wand farbe parkett fliesen' },
-      { id: 'rp-etagen',        titel: 'Etagen / Stockwerke',      suchtext: 'etage stockwerk tab' },
-      { id: 'rp-versionen',     titel: 'Versionen',                suchtext: 'version speichern laden vergleich' },
-      { id: 'rp-export',        titel: 'Export & Freigabe',        suchtext: 'export pdf png screenshot freigabe link qr code kunde' },
-    ],
-  },
-  {
     id: 'partner',
     icon: <UserCircle className="w-4 h-4" />,
     titel: 'Partner',
@@ -381,7 +366,6 @@ function KapitelInhalt({ kapitelId }: { kapitelId: string }) {
     case 'timeline':       return <TimelineKapitel />
     case 'angebote':       return <AngeboteKapitel />
     case 'vertraege':      return <VertraegeKapitel />
-    case 'raumplaner':     return <RaumplanerKapitel />
     case 'partner':        return <PartnerKapitel />
     case 'kategorien':     return <KategorienKapitel />
     case 'team':           return <TeamKapitel />
@@ -947,10 +931,6 @@ function RaeumeKapitel() {
       </InfoBox>
 
       <Divider />
-      <H2 id="raeume-grundriss">Grundriss-Vorschau</H2>
-      <P>Über der Produkttabelle siehst du eine <strong>Mini-Vorschau des Grundrisses</strong>, sobald du im Raumplaner einen Plan gespeichert hast. Klick auf &bdquo;Im Raumplaner bearbeiten&ldquo; öffnet den vollen Editor (siehe Raumplaner-Kapitel).</P>
-
-      <Divider />
       <H2 id="raeume-reihenfolge">Reihenfolge per Drag &amp; Drop</H2>
       <P>Auf der Projekt-Seite kannst du Räume per <strong>⠿-Handle</strong> links neben der Karte umsortieren. Optimistisches UI — sofort sichtbar, im Hintergrund gespeichert. Genauso für Produkte innerhalb eines Raums.</P>
     </div>
@@ -1071,79 +1051,6 @@ function VertraegeKapitel() {
     </div>
   )
 }
-function RaumplanerKapitel() {
-  return (
-    <div>
-      <H2 id="rp-start">Erste Schritte</H2>
-      <P>Der 2D-Raumplaner ist ein eigenständiger Editor, der pro Raum geöffnet wird:</P>
-      <Ol>
-        <li>Sidebar → <strong>Raumplaner</strong> zeigt alle Räume aller Projekte (mit/ohne Grundriss)</li>
-        <li>ODER auf der Raum-Detail-Seite → Button <strong>Raumplaner öffnen</strong></li>
-        <li>Editor öffnet sich vollflächig, NavSidebar wird ausgeblendet</li>
-      </Ol>
-      <P>Beim Erstaufruf gibst du Raumbreite + -länge ein — der Planer zeichnet automatisch die Raum-Kontur (geschützt, nicht löschbar). Auto-Save alle 3s.</P>
-
-      <Divider />
-      <H2 id="rp-tools">Werkzeuge</H2>
-      <P>Toolbar oben mit Tastatur-Shortcuts:</P>
-      <Ul>
-        <li><Kb keys={['V']} /> <strong>Auswählen</strong> — Objekte verschieben, drehen, skalieren</li>
-        <li><Kb keys={['W']} /> <strong>Wand</strong> — Klick-Klick zum Zeichnen, ESC oder Rechtsklick beendet</li>
-        <li><Kb keys={['K']} /> <strong>Kurve</strong> — gebogene Wände via 3-Klick-Bézier</li>
-        <li><Kb keys={['D']} /> <strong>Tür</strong>, <Kb keys={['F']} /> <strong>Fenster</strong> — auf Wand klicken, snappt automatisch</li>
-        <li><Kb keys={['M']} /> <strong>Maß</strong> — Distanzlinie mit Tick-Marken + Label</li>
-        <li><Kb keys={['E']} /> <strong>Radierer</strong>, <Kb keys={['N']} /> <strong>Notiz</strong>, <Kb keys={['S']} /> <strong>Form</strong></li>
-        <li><Kb keys={['?']} /> Shortcut-Overlay einblenden</li>
-      </Ul>
-
-      <Divider />
-      <H2 id="rp-moebel">Möbel &amp; Custom</H2>
-      <P>Sidebar links: <strong>10 Möbel-Kategorien</strong> (Wohnzimmer / Schlafzimmer / Büro / Küche / Bad / Esszimmer / Garten / Wellness / Türen+Fenster / Elektro), 60+ vorgefertigte Symbole mit SVG-Draufsicht. Drag-and-Drop oder Klick zum Platzieren.</P>
-      <Ul>
-        <li>⭐ <strong>Favoriten</strong> — Stern-Icon klicken, erscheinen oben in der Sidebar (per Org gespeichert)</li>
-        <li><strong>Custom Möbel</strong> — eigene Möbel anlegen (Name, Maße, Kategorie, Farbe), erscheinen für deine ganze Org</li>
-        <li><strong>Produkt-Verknüpfung</strong> — Möbel-Objekt mit Bibliotheks-Produkt verknüpfen, Preise erscheinen im Kosten-Panel</li>
-        <li><strong>Snap-to-Grid</strong> (Magnet-Button), Zoom mit Mausrad, Pan mit Space + Maus oder Mittelmaus</li>
-      </Ul>
-
-      <Divider />
-      <H2 id="rp-boden-waende">Boden + Wandfarbe</H2>
-      <P>Im rechten Panel:</P>
-      <Ul>
-        <li><strong>BODEN</strong>: 12 Texturen (Holz hell/dunkel, Parkett Fischgrät, Laminat, Fliesen, Marmor, Beton, Teppich) als Pattern-Fill</li>
-        <li><strong>WÄNDE</strong>: 16 Vorschlags-Farben + Custom Color Picker — alle Wände gleichzeitig</li>
-      </Ul>
-
-      <Divider />
-      <H2 id="rp-etagen">Etagen / Stockwerke</H2>
-      <P>Tabs in der Toolbar: <strong>EG · OG · …</strong>. Pro Etage eigener Plan, Auto-Save schreibt in die aktive Etage. Neue Etage hinzufügen, leere löschen mit ×-Button.</P>
-
-      <Divider />
-      <H2 id="rp-versionen">Versionen</H2>
-      <P>Versions-Knopf öffnet ein Übersichts-Modal:</P>
-      <Ul>
-        <li><strong>Aktuelle Arbeit</strong> als oberste Karte</li>
-        <li>Liste älterer Versionen mit Mini-Vorschau, Datum, Beschreibung, Laden + Löschen</li>
-        <li><strong>Neue Version speichern</strong> via Sub-Modal mit Name + Beschreibung + Live-Vorschau</li>
-        <li><strong>Vergleichs-Ansicht</strong> ab 2 Versionen — V1/V2-Selektor side-by-side</li>
-      </Ul>
-
-      <Divider />
-      <H2 id="rp-export">Export &amp; Freigabe</H2>
-      <Ul>
-        <li><strong>PDF</strong> — A4 Querformat mit grünem Header, Bounding-Box-Zoom (kein Beschnitt)</li>
-        <li><strong>PNG / JPG</strong> — Auflösung 1× / 2× / 4×, transparenter oder weißer Hintergrund</li>
-        <li><strong>Stückliste</strong> — Tabelle aller Möbel mit Maßen, Mengen, Preisen; CSV + XLSX-Export</li>
-        <li><strong>Kunden-Freigabe-Link</strong> — generiert <code>/raumplan/&lt;token&gt;</code>: read-only Vorschau für den Kunden mit Logo, Zoom, Pan, PNG/PDF-Download. Inkl. <strong>QR-Code</strong> zum Teilen.</li>
-        <li><strong>Aus Auswahl Angebot erstellen</strong> — sammelt alle verknüpften Produkte und legt direkt ein Angebot an</li>
-      </Ul>
-      <InfoBox type="tip" title="Bonus-Features">
-        Layer-System (6 Layer mit Sichtbarkeit + Sperre), Kollisionserkennung, automatische Maßketten, Flächen-Berechnung im Panel, Bild-Import als Referenzebene, 6 Raum-Templates, Notizen-Tool, Gruppieren (Strg+G).
-      </InfoBox>
-    </div>
-  )
-}
-
 function KategorienKapitel() {
   return (
     <div>

@@ -14,9 +14,6 @@ import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
 import { Timeline } from '@/components/Timeline'
 import type { Partner, RaumProduktMitDetails } from '@/lib/supabase/types'
-import { LayoutDashboard, Palette, Share2 } from 'lucide-react'
-import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
-import MoodboardVorschau from '@/components/moodboard/MoodboardVorschau'
 import ProduktHinzufuegenModal from '@/components/ProduktHinzufuegenModal'
 import RaumEventButton from '@/components/RaumEventButton'
 import TimelineSyncButton from '@/components/TimelineSyncButton'
@@ -40,8 +37,6 @@ type RaumMitProjekt = {
   id: string; name: string; beschreibung: string | null
   projekt_id: string; reihenfolge: number
   deleted_at: string | null; created_at: string; updated_at: string
-  grundriss_json: Record<string, unknown> | null
-  breite_m: number | null; laenge_m: number | null; hoehe_m: number | null
   projekte: { id: string; name: string; kunden: { id: string; name: string } | null } | null
 }
 
@@ -52,21 +47,6 @@ async function getRaum(raumId: string, projektId: string): Promise<RaumMitProjek
     .select('*, projekte(id, name, kunden(id, name))')
     .eq('id', raumId).eq('projekt_id', projektId).is('deleted_at', null).single()
   return data as RaumMitProjekt | null
-}
-
-async function getMoodboardKurz(raumId: string): Promise<{
-  canvas_json: Record<string, unknown> | null
-  status: string
-  freigabe_aktiv: boolean
-  updated_at: string | null
-} | null> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('moodboards')
-    .select('canvas_json, status, freigabe_aktiv, updated_at')
-    .eq('raum_id', raumId)
-    .maybeSingle()
-  return data
 }
 
 // ── Filter ─────────────────────────────────────────────────────
@@ -91,14 +71,13 @@ export default async function RaumDetailPage({
   params: { id: string; raumId: string }
   searchParams: SearchParams
 }) {
-  const [raum, alleEintraege, MWST, timelineEvents, kategorienDB, partnerListe, moodboard] = await Promise.all([
+  const [raum, alleEintraege, MWST, timelineEvents, kategorienDB, partnerListe] = await Promise.all([
     getRaum(params.raumId, params.id),
     getRaumProdukte(params.raumId),
     getMwstSatz(),
     raumEventsAbrufen(params.raumId),
     getKategorien('produktkategorie'),
     getPartner(),
-    getMoodboardKurz(params.raumId),
   ])
 
   if (!raum) notFound()
@@ -170,103 +149,8 @@ export default async function RaumDetailPage({
         </div>
       </div>
 
-      {/* Tools (Grundriss + Moodboard) + Timeline nebeneinander */}
-      <div className="mb-6 grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Tools-Block (3/5 auf lg+) — Grundriss + Moodboard nebeneinander */}
-        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Grundriss */}
-          {raum.grundriss_json ? (
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 shrink-0">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-gray-800 inline-flex items-center gap-1.5">
-                    <LayoutDashboard className="w-3.5 h-3.5 text-gray-500" />
-                    Grundriss
-                  </p>
-                  {(raum.breite_m || raum.laenge_m) && (
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      {raum.breite_m ?? '?'} × {raum.laenge_m ?? '?'} m
-                      {raum.hoehe_m ? ` · H ${raum.hoehe_m}` : ''}
-                    </p>
-                  )}
-                </div>
-                <Link
-                  href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-[11px] font-medium rounded transition-colors"
-                >
-                  Öffnen →
-                </Link>
-              </div>
-              <div className="flex-1 p-3 bg-gray-50 flex justify-center items-center min-h-[200px]">
-                <GrundrissVorschau
-                  grundrissJson={JSON.stringify(raum.grundriss_json)}
-                  breiteM={raum.breite_m}
-                  laengeM={raum.laenge_m}
-                  vorschauBreite={300}
-                  className="shadow-sm"
-                />
-              </div>
-            </div>
-          ) : (
-            <Link
-              href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
-              className="group bg-white border border-dashed border-gray-300 hover:border-wellbeing-green/50 hover:bg-gray-50 rounded-xl p-5 flex flex-col items-center justify-center text-center min-h-[260px] transition-all"
-            >
-              <div className="w-10 h-10 rounded-lg bg-gray-100 group-hover:bg-wellbeing-green/10 flex items-center justify-center mb-2.5 transition-colors">
-                <LayoutDashboard className="w-5 h-5 text-gray-400 group-hover:text-wellbeing-green transition-colors" />
-              </div>
-              <p className="text-sm font-medium text-gray-700">Noch kein Grundriss</p>
-              <p className="text-xs text-gray-400 mt-1">Klicke um zu starten →</p>
-            </Link>
-          )}
-
-          {/* Moodboard */}
-          {moodboard?.canvas_json && Object.keys(moodboard.canvas_json).length > 0 ? (
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 shrink-0">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-gray-800 inline-flex items-center gap-1.5">
-                    <Palette className="w-3.5 h-3.5 text-wellbeing-green" />
-                    Moodboard
-                  </p>
-                  <p className="text-[11px] text-gray-400 mt-0.5 inline-flex items-center gap-1.5">
-                    {moodboard.status && (
-                      <span className="capitalize">{moodboard.status === 'abstimmung' ? 'In Abstimmung' : moodboard.status}</span>
-                    )}
-                    {moodboard.freigabe_aktiv && (
-                      <span className="inline-flex items-center gap-0.5 text-wellbeing-green">
-                        <Share2 className="w-2.5 h-2.5" /> freigegeben
-                      </span>
-                    )}
-                  </p>
-                </div>
-                <Link
-                  href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/moodboard`}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-wellbeing-cream hover:bg-wellbeing-sand/40 text-wellbeing-green-dark text-[11px] font-medium rounded transition-colors border border-wellbeing-sand/40"
-                >
-                  Öffnen →
-                </Link>
-              </div>
-              <div className="flex-1 bg-gray-50 min-h-[200px] flex">
-                <MoodboardVorschau canvasJson={moodboard.canvas_json} hoehe={200} />
-              </div>
-            </div>
-          ) : (
-            <Link
-              href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/moodboard`}
-              className="group bg-white border border-dashed border-gray-300 hover:border-wellbeing-green/50 hover:bg-wellbeing-cream/30 rounded-xl p-5 flex flex-col items-center justify-center text-center min-h-[260px] transition-all"
-            >
-              <div className="w-10 h-10 rounded-lg bg-gray-100 group-hover:bg-wellbeing-cream flex items-center justify-center mb-2.5 transition-colors">
-                <Palette className="w-5 h-5 text-gray-400 group-hover:text-wellbeing-green-dark transition-colors" />
-              </div>
-              <p className="text-sm font-medium text-gray-700">Noch kein Moodboard</p>
-              <p className="text-xs text-gray-400 mt-1">Klicke um zu starten →</p>
-            </Link>
-          )}
-        </div>
-
-        {/* Raum-Timeline (2/5 auf lg+) */}
-        <div className="lg:col-span-2">
+      {/* Raum-Timeline */}
+      <div className="mb-6">
           <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm h-full flex flex-col">
             <div className="flex items-center justify-between mb-3 gap-2 flex-wrap shrink-0">
               <div className="flex items-center gap-2">
@@ -294,7 +178,6 @@ export default async function RaumDetailPage({
               </Link>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Filter Bar */}

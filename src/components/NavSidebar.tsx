@@ -18,8 +18,6 @@ import {
   LogOut,
   ClipboardList,
   ShoppingCart,
-  PencilRuler,
-  Palette,
   MessageCircle,
   ListChecks,
 } from 'lucide-react'
@@ -95,19 +93,12 @@ export default function NavSidebar({
     return () => window.removeEventListener('changelog:seen', onSeen)
   }, [neuestesChangelogDatum])
 
-  // Im Raumplaner- und Moodboard-Editor Sidebar komplett ausblenden (mehr Platz)
-  const isPlanerEditor = /\/dashboard\/projekte\/[^/]+\/raeume\/[^/]+\/planer/.test(pathname)
-  const isMoodboardEditor = /\/dashboard\/projekte\/[^/]+\/raeume\/[^/]+\/moodboard/.test(pathname)
-  if (isPlanerEditor || isMoodboardEditor) return null
-
   const navLinks = [
     { label: 'Dashboard',  href: '/dashboard',            icon: LayoutDashboard, badge: 0 },
     { label: 'Kunden',     href: '/dashboard/kunden',     icon: Users,           badge: 0 },
     { label: 'Projekte',   href: '/dashboard/projekte',   icon: FolderOpen,      badge: 0 },
     { label: 'Partner',    href: '/dashboard/partner',    icon: Handshake,       badge: 0 },
     { label: 'Produkte',   href: '/dashboard/produkte',   icon: Package,         badge: 0 },
-    { label: 'Raumplaner',   href: '/dashboard/raumplaner',   icon: PencilRuler,    badge: 0 },
-    { label: 'Moodboards',   href: '/dashboard/moodboards',   icon: Palette,        badge: 0 },
     { label: 'Bestellungen', href: '/dashboard/bestellungen', icon: ShoppingCart,   badge: offeneReklamationen },
     { label: 'Aufgaben',   href: '/dashboard/aufgaben',   icon: ListChecks,      badge: offeneAufgaben },
     { label: 'Chats',      href: '/dashboard/chats',      icon: MessageCircle,   badge: offeneNachrichten },
