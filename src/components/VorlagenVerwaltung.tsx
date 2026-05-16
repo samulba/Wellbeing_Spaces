@@ -616,7 +616,7 @@ function FrageEditor({
               </div>
               <div>
                 <label className="block text-[11px] text-gray-500 mb-1">Max. Größe (MB)</label>
-                <input type="number" min="1" placeholder="25"
+                <input type="number" min="1" max="50" placeholder="50"
                   value={frage.upload_max_mb ?? ''}
                   onChange={(e) => onChange({ ...frage, upload_max_mb: e.target.value ? Number(e.target.value) : undefined })}
                   className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:outline-none" />
@@ -1103,6 +1103,7 @@ function VorlageEditorModal({
   const [emailBetreff, setEmailBetreff]     = useState(vorlage?.email_betreff ?? '')
   const [emailText, setEmailText]           = useState(vorlage?.email_text ?? '')
   const [deadlineTage, setDeadlineTage]     = useState<number | ''>(vorlage?.deadline_tage ?? '')
+  const [geschaetzteMinuten, setGeschaetzteMinuten] = useState<number | ''>(vorlage?.geschaetzte_minuten ?? '')
   const [fragen, setFragen]           = useState<OnboardingFrage[]>(vorlage?.fragen ?? [])
   const [sektionen, setSektionen]     = useState<OnboardingSektion[]>(vorlage?.sektionen ?? [])
   const [vorschauOffen, setVorschauOffen] = useState(false)
@@ -1194,6 +1195,7 @@ function VorlageEditorModal({
         email_betreff:   emailBetreff   || null,
         email_text:      emailText      || null,
         deadline_tage:   deadlineTage !== '' ? Number(deadlineTage) : null,
+        geschaetzte_minuten: geschaetzteMinuten !== '' ? Number(geschaetzteMinuten) : null,
       })
     })
   }
@@ -1384,6 +1386,13 @@ function VorlageEditorModal({
                     <input type="number" min="1" placeholder="unbegrenzt" value={deadlineTage}
                       onChange={(e) => setDeadlineTage(e.target.value ? Number(e.target.value) : '')}
                       className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Geschätzte Ausfüllzeit (Min.)</label>
+                    <input type="number" min="1" placeholder="z. B. 10" value={geschaetzteMinuten}
+                      onChange={(e) => setGeschaetzteMinuten(e.target.value ? Number(e.target.value) : '')}
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20" />
+                    <p className="text-[10px] text-gray-400 mt-1">Wird dem Kunden oben angezeigt.</p>
                   </div>
                 </div>
                 <div className="border-t border-gray-100 pt-4">

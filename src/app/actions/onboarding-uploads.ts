@@ -44,24 +44,33 @@ export interface OnboardingUploadResult {
 }
 
 /**
- * Laedt eine einzelne Datei zu Supabase Storage hoch und persistiert
- * die Metadaten. Aufruf aus Client-Komponenten via FormData.
+ * Laedt eine einzelne Datei zu Supabase Storage hoch und persistiert die
+ * Metadaten. Wird vom Customer-Form aufgerufen — FormData-Pattern fuer
+ * zuverlaessige File-Serialisierung ueber Next.js Server-Actions.
+ *
+ * Erwartete FormData-Felder:
+ *  - file:           File (Pflicht)
+ *  - token:          string (Pflicht — Onboarding-Token)
+ *  - frageId:        string | '' (Frage-ID oder leer)
+ *  - erlaubteTypen:  comma-separated MIME-Liste (optional)
+ *  - maxMb:          string (optional, default 50)
  */
 export async function onboardingDateiHochladen(
-  token: string,
-  frageId: string | null,
-  file: File,
-  config?: {
-    erlaubte_typen?: string[]
-    max_mb?: number
-  },
+  formData: FormData,
 ): Promise<OnboardingUploadResult> {
+  const file    = formData.get('file') as File | null
+  const token   = formData.get('token') as string | null
+  const frageId = (formData.get('frageId') as string | null) || null
+  const erlaubteTypenRaw = (formData.get('erlaubteTypen') as string | null) || ''
+  const erlaubteTypen = erlaubteTypenRaw ? erlaubteTypenRaw.split(',').map(s => s.trim()).filter(Boolean) : undefined
+  const maxMb = Math.max(1, Number(formData.get('maxMb')) || 50)
+
+  if (!token) return { erfolg: false, fehler: 'Token fehlt.' }
   if (!file || file.size === 0) return { erfolg: false, fehler: 'Datei ist leer.' }
-  const maxMb = config?.max_mb ?? 25
   if (file.size > maxMb * 1024 * 1024) {
     return { erfolg: false, fehler: `Datei zu groß (max. ${maxMb} MB).` }
   }
-  if (!mimeErlaubt(file.type, config?.erlaubte_typen)) {
+  if (!mimeErlaubt(file.type, erlaubteTypen)) {
     return { erfolg: false, fehler: `Dateityp ${file.type || 'unbekannt'} nicht erlaubt.` }
   }
 

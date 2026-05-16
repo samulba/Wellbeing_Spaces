@@ -146,14 +146,22 @@ export async function onboardingAbsenden(
     .from('onboarding_anfragen')
     .update({
       ...standardDaten,
-      kunde_name:   finalKundeName,
-      projekt_name: finalProjektName,
-      antworten: antworten ?? null,
-      updated_at: new Date().toISOString(),
+      kunde_name:       finalKundeName,
+      projekt_name:     finalProjektName,
+      antworten:        antworten ?? null,
+      status:           'abgeschlossen',
+      fortschritt:      100,
+      abgeschlossen_am: new Date().toISOString(),
+      updated_at:       new Date().toISOString(),
     })
     .eq('token', token)
 
   if (error) return { erfolg: false, fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
+
+  // Cache invalidieren — damit Admin-Liste + Customer-Page sofort den
+  // neuen Status sehen.
+  revalidatePath('/dashboard/onboarding')
+  revalidatePath(`/onboarding/${token}`)
 
   // Auto-Sync: Aufgabe „Onboarding pruefen" anlegen
   try {

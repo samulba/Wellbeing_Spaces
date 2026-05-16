@@ -637,6 +637,9 @@ export interface OnboardingVorlage {
   email_text?: string | null
   // Gültigkeit
   deadline_tage?: number | null
+  // Geschätzte Ausfüllzeit (Migration 109) — wird oben im Customer-Form
+  // gezeigt, damit der Kunde weiss wie lange er einplanen sollte.
+  geschaetzte_minuten?: number | null
   created_at: string
   updated_at: string
 }

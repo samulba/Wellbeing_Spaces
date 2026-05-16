@@ -335,6 +335,11 @@ export async function onboardingAbsendenV2(
 
   if (error) return { erfolg: false, fehler: 'Fehler beim Speichern: ' + error.message }
 
+  // Cache invalidieren — damit Admin-Liste + Customer-Page sofort den
+  // neuen Status sehen.
+  revalidatePath('/dashboard/onboarding')
+  revalidatePath(`/onboarding/${token}`)
+
   // Auto-Sync: Aufgabe „Onboarding pruefen" anlegen
   try {
     const { data: voll } = await supabase
@@ -618,6 +623,7 @@ export async function vorlageErstellenV2(params: {
   email_betreff?: string | null
   email_text?: string | null
   deadline_tage?: number | null
+  geschaetzte_minuten?: number | null
 }): Promise<OnboardingVorlage> {
   const supabase = await createClient()
   const orgId    = await getOrganisationId()
@@ -639,6 +645,7 @@ export async function vorlageErstellenV2(params: {
       email_betreff:   params.email_betreff    ?? null,
       email_text:      params.email_text       ?? null,
       deadline_tage:   params.deadline_tage    ?? null,
+      geschaetzte_minuten: params.geschaetzte_minuten ?? null,
       organisation_id: orgId,
     })
     .select('*')

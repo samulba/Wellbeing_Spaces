@@ -4,6 +4,11 @@ import { brandingFuerToken } from '@/app/actions/branding'
 import OnboardingFormular from './OnboardingFormular'
 import type { OnboardingVorlage, Branding } from '@/lib/supabase/types'
 
+// Erzwingt SSR bei jedem Request — verhindert dass ein bereits eingereichtes
+// Formular dem Kunden dank Cache nochmal als "leer" gerendert wird.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface Props {
   params: { token: string }
 }

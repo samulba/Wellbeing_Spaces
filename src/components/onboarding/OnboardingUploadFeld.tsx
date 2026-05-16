@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useRef, useState } from 'react'
 import { Upload, X, FileText, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { onboardingDateiHochladen, onboardingDateiEntfernen } from '@/app/actions/onboarding-uploads'
 import type { OnboardingDatei } from '@/lib/supabase/types'
@@ -28,12 +28,12 @@ function istBild(mime: string): boolean {
 
 export default function OnboardingUploadFeld({
   token, frageId, wert, onChange,
-  erlaubteTypen, maxMb = 25, maxDateien = 5, fehler,
+  erlaubteTypen, maxMb = 50, maxDateien = 5, fehler,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [fehlerNachricht, setFehlerNachricht] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [isUploading, setIsUploading] = useState(false)
 
   const liste = Array.isArray(wert) ? wert : []
   const accept = erlaubteTypen?.join(',') || 'image/*,application/pdf'
@@ -42,40 +42,53 @@ export default function OnboardingUploadFeld({
   async function dateienHochladen(dateien: FileList | null) {
     if (!dateien || dateien.length === 0) return
     setFehlerNachricht(null)
+    setIsUploading(true)
 
-    // Limit pruefen
-    const noch = limit - liste.length
-    if (noch <= 0) {
-      setFehlerNachricht(`Maximal ${limit} Dateien erlaubt.`)
-      return
-    }
-    const dateienArray = Array.from(dateien).slice(0, noch)
-
-    const neu: OnboardingDatei[] = []
-    for (const file of dateienArray) {
-      const res = await onboardingDateiHochladen(token, frageId, file, {
-        erlaubte_typen: erlaubteTypen,
-        max_mb:         maxMb,
-      })
-      if (!res.erfolg || !res.datei) {
-        setFehlerNachricht(res.fehler ?? `Upload von "${file.name}" fehlgeschlagen.`)
-        continue
+    try {
+      // Limit pruefen
+      const noch = limit - liste.length
+      if (noch <= 0) {
+        setFehlerNachricht(`Maximal ${limit} Dateien erlaubt.`)
+        return
       }
-      neu.push(res.datei)
+      const dateienArray = Array.from(dateien).slice(0, noch)
+
+      const neu: OnboardingDatei[] = []
+      for (const file of dateienArray) {
+        // FormData-Pattern fuer zuverlaessigen File-Transport ueber Server-Action
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('token', token)
+        fd.append('frageId', frageId ?? '')
+        if (erlaubteTypen?.length) fd.append('erlaubteTypen', erlaubteTypen.join(','))
+        fd.append('maxMb', String(maxMb))
+
+        const res = await onboardingDateiHochladen(fd)
+        if (!res.erfolg || !res.datei) {
+          setFehlerNachricht(res.fehler ?? `Upload von "${file.name}" fehlgeschlagen.`)
+          continue
+        }
+        neu.push(res.datei)
+      }
+      if (neu.length > 0) onChange([...liste, ...neu])
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Upload-Fehler.'
+      setFehlerNachricht(msg)
+    } finally {
+      setIsUploading(false)
     }
-    if (neu.length > 0) onChange([...liste, ...neu])
   }
 
-  function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
-    startTransition(() => { dateienHochladen(files) })
+    await dateienHochladen(files)
     if (inputRef.current) inputRef.current.value = ''
   }
 
-  function handleDrop(e: React.DragEvent) {
+  async function handleDrop(e: React.DragEvent) {
     e.preventDefault()
     setDragOver(false)
-    startTransition(() => { dateienHochladen(e.dataTransfer.files) })
+    await dateienHochladen(e.dataTransfer.files)
   }
 
   async function handleEntfernen(datei: OnboardingDatei) {
@@ -99,7 +112,7 @@ export default function OnboardingUploadFeld({
           dragOver
             ? 'border-wellbeing-green bg-wellbeing-green/5'
             : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-        } ${isPending ? 'opacity-60 pointer-events-none' : ''}`}
+        } ${isUploading ? 'opacity-60 pointer-events-none' : ''}`}
       >
         <input
           ref={inputRef}
@@ -109,7 +122,7 @@ export default function OnboardingUploadFeld({
           onChange={handleSelect}
           className="hidden"
         />
-        {isPending ? (
+        {isUploading ? (
           <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
             <Loader2 className="w-4 h-4 animate-spin" /> Wird hochgeladen…
           </div>

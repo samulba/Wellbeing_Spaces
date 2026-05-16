@@ -5,6 +5,13 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-16
 
+### Onboarding Round 2 Bug-Fixes
+- **Re-Open eingereichter Formulare blockt sofort**: Bisher konnte der Kunde nach einer Einreichung den Link nochmal öffnen und das Formular nochmal ausfüllen — erst beim Submit kam ein Fehler. Jetzt blockt die Seite sofort und zeigt direkt „Bereits eingereicht". Status wird ab jetzt zuverlässig auf `abgeschlossen` gesetzt (V1 hat das vorher vergessen). Auch Cache wird invalidiert, damit veraltete Seiten nicht zurückgeliefert werden.
+- **Admin sieht jetzt ALLE Antworten**: Vorher zeigte die Detail-Ansicht oft nur den Namen, weil die dynamischen Antworten an einen Vorlage-Treffer geknüpft waren. Jetzt: auch ohne passende Vorlage werden alle gespeicherten Antworten als Key/Value-Liste gerendert — Uploads, mehrere Links und komplexe Werte werden mit dem passenden Renderer angezeigt.
+- **Datei-Upload funktioniert zuverlässig**: Umstellung auf FormData-Pattern für stabile Datei-Übertragung über Server-Actions. Limit von 25 MB auf **50 MB** pro Datei erhöht. Default Multi-File-Limit bleibt 5.
+- **Ausfüllzeit-Anzeige für Kunden**: Neues Feld „Geschätzte Ausfüllzeit (Min.)" pro Vorlage. Erscheint dem Kunden oben im Formular als „Dauert ca. 10 Minuten".
+- Migration **109** (`geschaetzte_minuten` auf onboarding_vorlagen) muss manuell in Supabase ausgeführt werden.
+
 ### Migrations-Organisation
 - **Migrationen 1-108 ins `applied/`-Unterverzeichnis verschoben** — alle sind in Production eingespielt und liegen jetzt unter `supabase/migrations/applied/`. Neue Migrationen kommen direkt in `supabase/migrations/`. Workflow ist in `supabase/migrations/README.md` dokumentiert: nach erfolgreichem Ausführen in Supabase per `git mv` ins applied-Verzeichnis. So sieht man in GitHub auf einen Blick, welche Migrationen noch offen sind.
 

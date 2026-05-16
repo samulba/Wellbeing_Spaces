@@ -611,11 +611,12 @@ function AnfrageDetail({
         </div>
       )}
 
-      {/* Dynamische Antworten (Custom-Vorlage) */}
-      {hatDaten && anfrage.antworten && (vorlage || anfrage.vorlage_snapshot) && (
+      {/* Dynamische Antworten — laeuft IMMER wenn antworten existiert
+          (auch ohne Vorlage faellt es auf Raw-Key/Value-Anzeige zurueck). */}
+      {hatDaten && anfrage.antworten && (
         <DynamischeAntwortenAnzeige
           anfrageId={anfrage.id}
-          vorlage={anfrage.vorlage_snapshot ?? vorlage}
+          vorlage={anfrage.vorlage_snapshot ?? vorlage ?? null}
           antworten={anfrage.antworten}
         />
       )}

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Image from 'next/image'
-import { Check, ChevronRight, ChevronLeft, CheckCircle2, Plus, X } from 'lucide-react'
+import { Check, ChevronRight, ChevronLeft, CheckCircle2, Plus, X, Clock } from 'lucide-react'
 import { onboardingAbsenden } from '@/app/actions/onboarding'
 import OnboardingUploadFeld from '@/components/onboarding/OnboardingUploadFeld'
 import OnboardingLinkListeFeld from '@/components/onboarding/OnboardingLinkListeFeld'
@@ -410,6 +410,12 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
             <div className="mb-1">
               <h2 className="text-lg font-semibold text-gray-900">{vorlage.name}</h2>
+              {vorlage.geschaetzte_minuten ? (
+                <p className="text-xs text-gray-500 mt-1 inline-flex items-center gap-1.5">
+                  <Clock className="w-3 h-3" />
+                  Dauert ca. {vorlage.geschaetzte_minuten} Minuten
+                </p>
+              ) : null}
               {vorlage.beschreibung && (
                 <p className="text-sm text-gray-500 mt-0.5">{vorlage.beschreibung}</p>
               )}
@@ -654,7 +660,7 @@ function DynamischesFeld({
           wert={(wert as OnboardingDatei[]) ?? []}
           onChange={(next) => onChange(next)}
           erlaubteTypen={frage.upload_typen}
-          maxMb={frage.upload_max_mb ?? 25}
+          maxMb={frage.upload_max_mb ?? 50}
           maxDateien={frage.upload_max_dateien ?? 5}
         />
       </FormFeld>
