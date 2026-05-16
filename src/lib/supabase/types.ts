@@ -569,6 +569,14 @@ export type OnboardingFrageTyp =
   | 'entscheider_matrix' // Wer entscheidet was? (Rollen-Matrix)
   | 'checkliste'         // Smart-Checkliste mit Häkchen
   | 'rangfolge'          // Explizite Sortierung / Ranking
+  // Neuer Typ (Migration 108)
+  | 'link_liste'         // Mehrere benannte URLs erfassen
+
+/** Eintrag in einer link_liste-Antwort: optional Titel + Pflicht-URL. */
+export interface OnboardingLinkEintrag {
+  titel?: string
+  url:    string
+}
 
 export interface OnboardingBedingtVon {
   frage_id: string
@@ -602,6 +610,7 @@ export interface OnboardingFrage {
   // Upload
   upload_typen?: string[]      // z. B. ['image/*']
   upload_max_mb?: number
+  upload_max_dateien?: number  // Default 5
   // Mehrfachauswahl-Limit
   max_auswahl?: number
   // Budget-Verteilung
@@ -1095,6 +1104,12 @@ export interface OnboardingAnfrage {
   auto_save?: Record<string, unknown> | null  // Zwischengespeicherte Antworten
   fortschritt: number                          // 0–100 %
   aktuelle_sektion: number
+  // Persistenter Anzeige-Titel (Migration 108) — beim Erstellen aus
+  // Kundennamen vorbelegt, durch Submit NIE ueberschrieben.
+  titel?: string | null
+  // Snapshot der Vorlage zum Erstell-Zeitpunkt (Migration 108) —
+  // spaetere Vorlage-Aenderungen veraendern bestehende Anfragen nicht.
+  vorlage_snapshot?: OnboardingVorlage | null
   // Stammdaten (ausgefüllt durch Kunden)
   kunde_name: string | null
   kunde_email: string | null

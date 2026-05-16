@@ -56,6 +56,13 @@ export async function onboardingLinkErstellen(
   const empfaengerLabel = empfaenger?.label?.trim() || null
   const empfaengerEmail = empfaenger?.email?.trim() || null
 
+  // Persistenten Titel ableiten (Migration 108) — wird beim Submit
+  // NICHT ueberschrieben, sodass der Kundenname dauerhaft sichtbar bleibt.
+  const titel =
+    (kundePrefill.kunde_name as string | null | undefined)?.trim()
+    || empfaengerLabel
+    || 'Onboarding-Link'
+
   const { data, error } = await supabase
     .from('onboarding_anfragen')
     .insert({
@@ -65,6 +72,7 @@ export async function onboardingLinkErstellen(
       empfaenger_label: empfaengerLabel,
       empfaenger_email: empfaengerEmail,
       organisation_id: orgId,
+      titel,
       ...kundePrefill,
     })
     .select('token')
@@ -110,7 +118,7 @@ export async function onboardingAbsenden(
 
   const { data: anfrage } = await supabase
     .from('onboarding_anfragen')
-    .select('id, status, antworten')
+    .select('id, status, antworten, kunde_name, projekt_name')
     .eq('token', token)
     .single()
 
@@ -124,11 +132,22 @@ export async function onboardingAbsenden(
     return { erfolg: false, fehler: 'Dieses Formular wurde bereits ausgefüllt.' }
   }
 
-  const { antworten, ...standardDaten } = daten
+  const { antworten, kunde_name, projekt_name, ...standardDaten } = daten
+  // Bug 1: Vorausgefuellte kunde_name/projekt_name NIE durch leere
+  // Submit-Werte ueberschreiben. titel wird ohnehin nie geschrieben.
+  const finalKundeName   = (anfrage.kunde_name && anfrage.kunde_name.trim().length > 0)
+    ? anfrage.kunde_name
+    : (kunde_name?.trim() || null)
+  const finalProjektName = (anfrage.projekt_name && anfrage.projekt_name.trim().length > 0)
+    ? anfrage.projekt_name
+    : (projekt_name?.trim() || null)
+
   const { error } = await supabase
     .from('onboarding_anfragen')
     .update({
       ...standardDaten,
+      kunde_name:   finalKundeName,
+      projekt_name: finalProjektName,
       antworten: antworten ?? null,
       updated_at: new Date().toISOString(),
     })

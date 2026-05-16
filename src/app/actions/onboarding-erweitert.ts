@@ -27,44 +27,75 @@ function berechneGueltigBis(deadlineTage: number | null | undefined): string | n
 // ONBOARDING-LINKS ERSTELLEN
 // ─────────────────────────────────────────────────────────────
 
-/** Erstellt einen neuen Onboarding-Link mit Typ und optionaler Vorlage. */
+/**
+ * Erstellt einen neuen Onboarding-Link mit Typ, optionaler Vorlage und
+ * persistentem Titel (Migration 108). Gibt das Resultat als Objekt
+ * zurueck statt zu werfen — verhindert Application-Errors im Modal.
+ */
 export async function onboardingLinkErstellenV2(
   vorlage_id?: string | null,
   typ: OnboardingTyp = 'neukunde',
   projekt_id?: string | null,
   kunde_id?: string | null,
-): Promise<{ token: string; pfad: string }> {
-  const supabase = await createClient()
-  const orgId    = await getOrganisationId()
+  titel?: string | null,
+): Promise<{ erfolg: boolean; token?: string; pfad?: string; fehler?: string }> {
+  try {
+    const supabase = await createClient()
+    const orgId    = await getOrganisationId()
 
-  // Gültigkeitsdatum aus Vorlage berechnen
-  let gueltig_bis: string | null = null
-  if (vorlage_id) {
-    const { data: v } = await supabase
-      .from('onboarding_vorlagen')
-      .select('deadline_tage')
-      .eq('id', vorlage_id)
+    // Vorlage laden — fuer Gueltigkeit + Snapshot
+    let gueltig_bis: string | null = null
+    let snapshot: unknown = null
+    if (vorlage_id) {
+      const { data: v } = await supabase
+        .from('onboarding_vorlagen')
+        .select('*')
+        .eq('id', vorlage_id)
+        .maybeSingle()
+      if (v) {
+        gueltig_bis = berechneGueltigBis((v as { deadline_tage?: number | null }).deadline_tage ?? null)
+        snapshot = v
+      }
+    }
+
+    // Persistenten Titel bestimmen (Bug 1): aus Eingabe oder Kunden-Name
+    let resolvedTitel = titel?.trim() || null
+    if (!resolvedTitel && kunde_id) {
+      const { data: k } = await supabase
+        .from('kunden')
+        .select('name')
+        .eq('id', kunde_id)
+        .maybeSingle()
+      resolvedTitel = k?.name ?? null
+    }
+    if (!resolvedTitel) resolvedTitel = 'Onboarding-Link'
+
+    const { data, error } = await supabase
+      .from('onboarding_anfragen')
+      .insert({
+        status:           'offen',
+        typ,
+        vorlage_id:       vorlage_id ?? null,
+        projekt_id:       projekt_id ?? null,
+        kunde_id:         kunde_id   ?? null,
+        organisation_id:  orgId,
+        gueltig_bis,
+        titel:            resolvedTitel,
+        vorlage_snapshot: snapshot,
+        kunde_name:       resolvedTitel === 'Onboarding-Link' ? null : resolvedTitel,
+      })
+      .select('token')
       .single()
-    gueltig_bis = berechneGueltigBis(v?.deadline_tage)
+
+    if (error || !data) {
+      return { erfolg: false, fehler: error?.message ?? 'Fehler beim Erstellen des Links.' }
+    }
+    revalidatePath('/dashboard/onboarding')
+    return { erfolg: true, token: data.token, pfad: `/onboarding/${data.token}` }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Unbekannter Fehler.'
+    return { erfolg: false, fehler: msg }
   }
-
-  const { data, error } = await supabase
-    .from('onboarding_anfragen')
-    .insert({
-      status:          'offen',
-      typ,
-      vorlage_id:      vorlage_id ?? null,
-      projekt_id:      projekt_id ?? null,
-      kunde_id:        kunde_id   ?? null,
-      organisation_id: orgId,
-      gueltig_bis,
-    })
-    .select('token')
-    .single()
-
-  if (error || !data) throw new Error('Fehler beim Erstellen des Links: ' + error?.message)
-  revalidatePath('/dashboard/onboarding')
-  return { token: data.token, pfad: `/onboarding/${data.token}` }
 }
 
 
@@ -249,9 +280,10 @@ export async function onboardingAbsendenV2(
 ): Promise<{ erfolg: boolean; fehler?: string }> {
   const supabase = createAdminClient()
 
+  // Vollstaendige Anfrage laden, um vorausgefuellte Felder zu erhalten (Bug 1)
   const { data: anfrage } = await supabase
     .from('onboarding_anfragen')
-    .select('id, status')
+    .select('id, status, kunde_name, projekt_name, titel')
     .eq('token', token)
     .single()
 
@@ -260,16 +292,29 @@ export async function onboardingAbsendenV2(
     return { erfolg: false, fehler: 'Dieses Formular wurde bereits abgeschlossen.' }
   }
 
-  const { antworten, ...stammdaten } = daten
+  const { antworten, kunde_name, projekt_name, ...rest } = daten
+
+  // Bug 1: Vorausgefuellte kunde_name/projekt_name NIE durch leere Submit-
+  // Werte ueberschreiben — und wenn DB bereits einen Wert hat, behalten.
+  const finalKundeName   = (anfrage.kunde_name && anfrage.kunde_name.trim().length > 0)
+    ? anfrage.kunde_name
+    : (kunde_name?.trim() || null)
+  const finalProjektName = (anfrage.projekt_name && anfrage.projekt_name.trim().length > 0)
+    ? anfrage.projekt_name
+    : (projekt_name?.trim() || null)
+
   const { error } = await supabase
     .from('onboarding_anfragen')
     .update({
-      ...stammdaten,
+      ...rest,
+      kunde_name:       finalKundeName,
+      projekt_name:     finalProjektName,
       antworten:        antworten ?? null,
       auto_save:        null,         // Entwurf löschen
       status:           'abgeschlossen',
       fortschritt:      100,
       abgeschlossen_am: new Date().toISOString(),
+      // titel wird bewusst NICHT geschrieben — bleibt aus Erstellungszeitpunkt
     })
     .eq('token', token)
 
