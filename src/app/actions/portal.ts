@@ -675,6 +675,23 @@ export async function portalAlleFreigeben(projektId: string): Promise<void> {
 
 const CHAT_BUCKET = 'chat-attachments'
 const CHAT_MAX_SIZE = 50 * 1024 * 1024 // 50 MB
+/**
+ * Whitelist der erlaubten MIME-Typen fuer Chat-Anhaenge. Im Browser
+ * ausfuehrbare Formate (HTML, SVG, JS, EXE) sind absichtlich NICHT
+ * enthalten — sie koennten via Signed-URL Skripte ausliefern.
+ */
+const CHAT_ERLAUBTE_MIMES = new Set<string>([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif',
+  'audio/mpeg', 'audio/mp4', 'audio/webm', 'audio/ogg', 'audio/wav', 'audio/x-m4a', 'audio/aac',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain', 'text/csv',
+])
 
 /**
  * Bestimmt den Typ einer Chat-Nachricht anhand des Datei-Mime-Types.
@@ -706,6 +723,9 @@ async function chatAnhangHochladen(
 }> {
   if (file.size === 0)            return { fehler: 'Datei ist leer.' }
   if (file.size > CHAT_MAX_SIZE)  return { fehler: 'Datei ist zu groß (max. 50 MB).' }
+  if (!CHAT_ERLAUBTE_MIMES.has(file.type)) {
+    return { fehler: 'Dateityp nicht erlaubt. Erlaubt sind Bilder, Audio, PDF und Office-Dokumente.' }
+  }
 
   const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
   const pfad = `${orgId}/${projektId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeName}`

@@ -146,13 +146,16 @@ export async function raumSoftDelete(
 export async function updateRaumPositionen(
   projektId: string,
   positionen: { id: string; reihenfolge: number }[]
-): Promise<void> {
+): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
-  await Promise.all(
+  const ergebnisse = await Promise.all(
     positionen.map(({ id, reihenfolge }) =>
       supabase.from('raeume').update({ reihenfolge }).eq('id', id).eq('organisation_id', orgId)
     )
   )
+  const fehler = ergebnisse.find((r) => r.error)?.error
+  if (fehler) return { fehler: fehler.message }
   revalidatePath(`/dashboard/projekte/${projektId}`)
+  return {}
 }

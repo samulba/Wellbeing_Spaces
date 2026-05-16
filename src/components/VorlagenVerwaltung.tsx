@@ -211,7 +211,7 @@ function OptionenEditor({
       >
         {optionen.map((opt, i) => (
           <span
-            key={i}
+            key={`${i}-${opt}`}
             className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-wellbeing-green/10 text-wellbeing-green-dark rounded-full"
           >
             {opt}

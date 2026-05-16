@@ -178,6 +178,7 @@ function SortableRaumItem({
 
 export default function SortableRaumListe({ projektId, raeume: initialRaeume, raumStats }: Props) {
   const [raeume, setRaeume] = useState(initialRaeume)
+  const [fehlerToast, setFehlerToast] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
   const sensors = useSensors(
@@ -189,12 +190,18 @@ export default function SortableRaumListe({ projektId, raeume: initialRaeume, ra
     const { active, over } = event
     if (!over || active.id === over.id) return
 
+    const vorher = raeume
     setRaeume((prev) => {
       const oldIndex = prev.findIndex((r) => r.id === active.id)
       const newIndex = prev.findIndex((r) => r.id === over.id)
       const next = arrayMove(prev, oldIndex, newIndex)
-      startTransition(() => {
-        updateRaumPositionen(projektId, next.map((r, i) => ({ id: r.id, reihenfolge: i })))
+      startTransition(async () => {
+        const res = await updateRaumPositionen(projektId, next.map((r, i) => ({ id: r.id, reihenfolge: i })))
+        if (res?.fehler) {
+          setRaeume(vorher)
+          setFehlerToast('Sortierung konnte nicht gespeichert werden.')
+          setTimeout(() => setFehlerToast(null), 4000)
+        }
       })
       return next
     })
@@ -214,6 +221,11 @@ export default function SortableRaumListe({ projektId, raeume: initialRaeume, ra
           ))}
         </ul>
       </SortableContext>
+      {fehlerToast && (
+        <div className="fixed bottom-4 right-4 z-50 bg-red-50 border border-red-200 text-red-800 px-4 py-2 rounded-lg shadow-md text-sm">
+          {fehlerToast}
+        </div>
+      )}
     </DndContext>
   )
 }
