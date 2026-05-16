@@ -742,13 +742,23 @@ export default function SortableProduktTabelle({
     const { active, over } = event
     if (!over || active.id === over.id) return
 
+    const vorher = eintraege
     setEintraege((prev) => {
       const oldIndex = prev.findIndex((e) => e.id === active.id)
       const newIndex = prev.findIndex((e) => e.id === over.id)
       const next = arrayMove(prev, oldIndex, newIndex)
 
-      startTransition(() => {
-        updateRaumProduktPositionen(raumId, projektId, next.map((e, i) => ({ id: e.id, reihenfolge: i })))
+      startTransition(async () => {
+        const res = await updateRaumProduktPositionen(
+          raumId,
+          projektId,
+          next.map((e, i) => ({ id: e.id, reihenfolge: i })),
+        )
+        if (res?.fehler) {
+          setEintraege(vorher)
+          setFehlerToast('Sortierung konnte nicht gespeichert werden.')
+          setTimeout(() => setFehlerToast(null), 4000)
+        }
       })
       return next
     })
@@ -838,11 +848,17 @@ export default function SortableProduktTabelle({
   async function handleConfirmDelete() {
     if (!deleteTarget || isDeleting) return
     setIsDeleting(true)
+    const vorher = eintraege
     setEintraege((prev) => prev.filter((e) => e.id !== deleteTarget.id))
-    await produktAusRaumEntfernen(deleteTarget.id, raumId, projektId)
+    const res = await produktAusRaumEntfernen(deleteTarget.id, raumId, projektId)
+    if (res?.fehler) {
+      setEintraege(vorher)
+      setFehlerToast('Produkt konnte nicht entfernt werden.')
+      setTimeout(() => setFehlerToast(null), 4000)
+    }
     setIsDeleting(false)
     setDeleteTarget(null)
-    startTransition(() => router.refresh())
+    if (!res?.fehler) startTransition(() => router.refresh())
   }
 
   return (

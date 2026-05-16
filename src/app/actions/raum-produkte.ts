@@ -41,11 +41,17 @@ export async function produktAusRaumEntfernen(
   raumProduktId: string,
   raumId: string,
   projektId: string
-): Promise<void> {
+): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
-  await supabase.from('raum_produkte').delete().eq('id', raumProduktId).eq('organisation_id', orgId)
+  const { error } = await supabase
+    .from('raum_produkte')
+    .delete()
+    .eq('id', raumProduktId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: error.message }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  return {}
 }
 
 /** Menge, Preis-Override, Rabatt oder Notizen eines Raum-Eintrags aktualisieren. */
@@ -108,15 +114,18 @@ export async function updateRaumProduktPositionen(
   raumId: string,
   projektId: string,
   positionen: { id: string; reihenfolge: number }[]
-): Promise<void> {
+): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
-  await Promise.all(
+  const ergebnisse = await Promise.all(
     positionen.map(({ id, reihenfolge }) =>
       supabase.from('raum_produkte').update({ reihenfolge }).eq('id', id).eq('organisation_id', orgId)
     )
   )
+  const fehler = ergebnisse.find((r) => r.error)?.error
+  if (fehler) return { fehler: fehler.message }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  return {}
 }
 
 /** Alle Produkte eines Raums mit vollständigen Produkt-Daten laden. */

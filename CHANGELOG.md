@@ -3,6 +3,14 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-05-16
+
+### Bug-Fixes (Audit-Runde)
+- **Produkt-Tabelle**: Wenn beim Löschen oder Sortieren ein Server-Fehler auftrat, blieb die UI im falschen Zustand stehen (Produkt schien entfernt, war aber noch in der DB). Jetzt erscheint bei Fehlern ein rotes Toast und die Liste setzt sich automatisch in den vorherigen Zustand zurück.
+- **Räume-Sortierung**: Gleiches Problem behoben — Drag&Drop-Reihenfolge wird bei Fehler zurückgerollt mit Toast-Hinweis.
+- **Chat-Anhänge**: Datei-Upload akzeptiert jetzt nur noch Bilder, Audio, PDFs und Office-Dokumente. Ausführbare Formate (HTML, SVG mit Script, EXE etc.) werden mit einer Fehlermeldung abgewiesen.
+- **Sicherheit Inventar**: Inventar-Items konnten theoretisch von eingeloggten Usern in fremden Workspaces geändert werden (Multi-Tenancy-Lücke). Jetzt nur noch über den jeweiligen Onboarding-Token zugänglich.
+
 ## 2026-04-27
 
 ### Einstellungen Bug-Fixes
