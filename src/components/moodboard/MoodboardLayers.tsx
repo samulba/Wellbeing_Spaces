@@ -92,9 +92,12 @@ export default function MoodboardLayers({
             const istVisible = obj.visible !== false
             const istLocked  = obj.lockMovementX === true
             const { name, icon } = getLabel(obj)
+            // Stabilen Key vergeben (Fabric-Objekte haben keine native ID).
+            // Fallback auf Index nur, wenn Objekt-Ref unerwartet keinen Key liefert.
+            if (!obj.__layerKey) obj.__layerKey = `${obj.type ?? 'obj'}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
             return (
               <div
-                key={i}
+                key={obj.__layerKey ?? i}
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelect(obj)}
