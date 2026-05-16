@@ -549,39 +549,6 @@ export async function portalProjektAbrufen(projektId: string) {
     }
   }
 
-  // Moodboards (eines pro Raum, falls vorhanden) – nur freigegebene fuer Kunden
-  let moodboards: Array<{
-    id: string
-    raum_id: string
-    raum_name: string
-    name: string
-    freigabe_aktiv: boolean
-    freigabe_token: string | null
-    vorschau_bild_url: string | null
-    updated_at: string
-  }> = []
-  if (raumIds.length > 0) {
-    const { data: mbs } = await supabase
-      .from('moodboards')
-      .select('id, raum_id, name, freigabe_aktiv, freigabe_token, vorschau_bild_url, updated_at')
-      .in('raum_id', raumIds)
-      .eq('freigabe_aktiv', true)
-      .order('updated_at', { ascending: false })
-    if (mbs) {
-      const raumLookup = new Map((raeume ?? []).map((r) => [r.id, r.name]))
-      moodboards = mbs.map((m) => ({
-        id: m.id,
-        raum_id: m.raum_id,
-        raum_name: raumLookup.get(m.raum_id) ?? '',
-        name: m.name,
-        freigabe_aktiv: m.freigabe_aktiv,
-        freigabe_token: m.freigabe_token,
-        vorschau_bild_url: m.vorschau_bild_url,
-        updated_at: m.updated_at,
-      }))
-    }
-  }
-
   // Nachrichten als gelesen markieren
   await supabase
     .from('client_nachrichten')
@@ -597,7 +564,6 @@ export async function portalProjektAbrufen(projektId: string) {
     dokumente: dokumente ?? [],
     nachrichten: nachrichten ?? [],
     events: events ?? [],
-    moodboards,
     bestellStatusMap,
     reklamationen,
   }

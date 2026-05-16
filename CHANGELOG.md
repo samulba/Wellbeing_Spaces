@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-16
 
+### Features entfernt
+- **Raumplaner**, **Moodboards** und **Feedback** sind aus der App entfernt. Drei Navigations-Einträge in der Sidebar verschwinden, kein Floating-Feedback-Button mehr, keine zugehörigen Routen, Komponenten oder Server-Actions im Code. Alte Direktlinks liefern jetzt eine saubere 404-Seite. Datenbank-Tabellen + Storage-Buckets bleiben unverändert im Hintergrund — falls ein Feature später wieder gebraucht wird, sind die Daten noch da.
+
 ### Einstellungen archivieren
 - **Branding** und **Abrechnung** sind in den Einstellungen vorerst deaktiviert — die Tabs verschwinden aus der Settings-Sidebar. Direktaufruf der Branding-URL leitet sauber zur Profil-Seite weiter. Datenmodelle, Komponenten und gespeicherte Werte bleiben unverändert; Reaktivierung durch einen einzigen Flag-Wechsel in `src/lib/feature-flags.ts`.
 

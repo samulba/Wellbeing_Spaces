@@ -370,63 +370,6 @@ export type ProduktMitDetails = Produkt & {
   produktstatus: { status: ProduktStatus; kommentar: string | null } | null
 }
 
-// ── Moodboard (Migration 096) ──────────────────────────────────
-// Pro Raum genau eins. canvas_json enthält den Fabric.js-State.
-export type MoodboardStatus = 'entwurf' | 'abstimmung' | 'freigegeben' | 'archiviert'
-
-export interface Moodboard {
-  id: string
-  organisation_id: string
-  raum_id: string
-  name: string
-  beschreibung: string | null
-  canvas_json: Record<string, unknown> | null
-  vorschau_bild_url: string | null
-  freigabe_token: string | null
-  freigabe_aktiv: boolean
-  freigabe_kommentare_aktiv: boolean
-  freigabe_erstellt_am: string | null
-  /** Migration 098: Passwort-Hash (bcrypt) wenn der Freigabe-Link geschuetzt ist. */
-  freigabe_passwort_hash?: string | null
-  /** Migration 098: Ablaufdatum, nach dem der Freigabe-Link nicht mehr geht. */
-  freigabe_ablauf?: string | null
-  /** Migration 099: Workflow-Status (unabhaengig von freigabe_aktiv) */
-  status?: MoodboardStatus
-  created_at: string
-  updated_at: string
-}
-
-export interface MoodboardVersion {
-  id: string
-  organisation_id: string
-  moodboard_id: string
-  name: string
-  beschreibung: string | null
-  canvas_json: Record<string, unknown>
-  erstellt_von: string | null
-  created_at: string
-}
-
-// ── Moodboard-Kommentare (Migration 097) ─────────────────
-export interface MoodboardKommentar {
-  id: string
-  organisation_id: string
-  moodboard_id: string
-  parent_id: string | null
-  pos_x: number | null
-  pos_y: number | null
-  bezogen_auf: string | null
-  autor_user_id: string | null
-  autor_name: string | null
-  autor_email: string | null
-  ist_kunde: boolean
-  inhalt: string
-  erledigt: boolean
-  erledigt_am: string | null
-  created_at: string
-  updated_at: string
-}
-
 // ── Raum-Produkt-Verknüpfung (Migration 038 + 058 Rabatt + 076 Status) ────
 export interface RaumProdukt {
   id: string

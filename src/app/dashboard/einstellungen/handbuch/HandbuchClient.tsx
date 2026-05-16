@@ -7,7 +7,7 @@ import {
   Link2, ClipboardList, Target, CalendarDays, UserCircle,
   Tag, UsersRound, Paintbrush, Settings, FileDown, HelpCircle,
   Lightbulb, AlertTriangle, Info, Keyboard, Command,
-  Home, FileText, FileSignature, Grid3X3, MonitorSmartphone,
+  Home, FileText, FileSignature, MonitorSmartphone,
 } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
