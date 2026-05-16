@@ -1,7 +1,19 @@
+import { redirect } from 'next/navigation'
+import { FEATURE_FLAGS } from '@/lib/feature-flags'
 import { brandingAbrufen } from '@/app/actions/branding'
 import BrandingEditor from '@/components/BrandingEditor'
 
+/**
+ * Branding-Bereich ist derzeit ueber FEATURE_FLAGS.branding deaktiviert.
+ * Bei Aufruf wird auf die Einstellungs-Startseite weitergeleitet. Sobald
+ * das Flag wieder auf `true` steht, ist die alte Seite ohne weitere
+ * Aenderung erreichbar.
+ */
 export default async function BrandingPage() {
+  if (!FEATURE_FLAGS.branding) {
+    redirect('/dashboard/einstellungen?tab=profil')
+  }
+
   const branding = await brandingAbrufen()
 
   return (

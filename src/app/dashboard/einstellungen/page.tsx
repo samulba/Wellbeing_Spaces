@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { getEinstellungen } from '@/app/actions/einstellungen'
 import { createClient } from '@/lib/supabase/server'
 import { teamMitgliederAbrufen, meineRolleAbrufen } from '@/app/actions/team'
@@ -8,6 +9,7 @@ import { getMeineSessions } from '@/app/actions/sessions'
 import EinstellungenTabs from '@/components/EinstellungenTabs'
 import StickyPageHeader from '@/components/StickyPageHeader'
 import { getChangelog } from '@/lib/changelog'
+import { FEATURE_FLAGS } from '@/lib/feature-flags'
 
 export default async function EinstellungenPage({
   searchParams,
@@ -16,6 +18,11 @@ export default async function EinstellungenPage({
 }) {
   const { tab: tabParam } = await searchParams
   const tab = tabParam ?? 'profil'
+
+  // Deaktivierte Bereiche (Feature-Flag): sauber auf den Profil-Tab
+  // weiterleiten, statt einen leeren Tab zu zeigen oder zu crashen.
+  if (tab === 'branding'   && !FEATURE_FLAGS.branding)   redirect('/dashboard/einstellungen?tab=profil')
+  if (tab === 'abrechnung' && !FEATURE_FLAGS.abrechnung) redirect('/dashboard/einstellungen?tab=profil')
 
   const supabase = await createClient()
   const [{ data: { user } }, einstellungen, team, userRolle, branding, vorlagen, organisation, sessions] = await Promise.all([

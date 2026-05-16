@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-16
 
+### Einstellungen archivieren
+- **Branding** und **Abrechnung** sind in den Einstellungen vorerst deaktiviert — die Tabs verschwinden aus der Settings-Sidebar. Direktaufruf der Branding-URL leitet sauber zur Profil-Seite weiter. Datenmodelle, Komponenten und gespeicherte Werte bleiben unverändert; Reaktivierung durch einen einzigen Flag-Wechsel in `src/lib/feature-flags.ts`.
+
 ### Onboarding Round 2 Bug-Fixes
 - **Re-Open eingereichter Formulare blockt sofort**: Bisher konnte der Kunde nach einer Einreichung den Link nochmal öffnen und das Formular nochmal ausfüllen — erst beim Submit kam ein Fehler. Jetzt blockt die Seite sofort und zeigt direkt „Bereits eingereicht". Status wird ab jetzt zuverlässig auf `abgeschlossen` gesetzt (V1 hat das vorher vergessen). Auch Cache wird invalidiert, damit veraltete Seiten nicht zurückgeliefert werden.
 - **Admin sieht jetzt ALLE Antworten**: Vorher zeigte die Detail-Ansicht oft nur den Namen, weil die dynamischen Antworten an einen Vorlage-Treffer geknüpft waren. Jetzt: auch ohne passende Vorlage werden alle gespeicherten Antworten als Key/Value-Liste gerendert — Uploads, mehrere Links und komplexe Werte werden mit dem passenden Renderer angezeigt.

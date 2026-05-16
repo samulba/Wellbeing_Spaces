@@ -46,6 +46,7 @@ import SessionsListe from '@/components/SessionsListe'
 import AuditLogClient from '@/components/AuditLogClient'
 import type { ChangelogEntry } from '@/lib/changelog'
 import type { SessionInfo } from '@/app/actions/sessions'
+import { FEATURE_FLAGS } from '@/lib/feature-flags'
 
 // ── Konstanten ────────────────────────────────────────────────
 
@@ -54,6 +55,8 @@ type TabItem = {
   label:      string
   icon:       LucideIcon
   adminOnly?: boolean
+  /** Wenn false, wird der Tab in der Nav ausgeblendet und sein Content nicht gerendert. */
+  enabled?:   boolean
 }
 
 const TAB_GROUPS: { label: string; items: TabItem[] }[] = [
@@ -69,7 +72,7 @@ const TAB_GROUPS: { label: string; items: TabItem[] }[] = [
     items: [
       { key: 'firma',       label: 'Firma',        icon: Building2 },
       { key: 'rechtliches', label: 'Rechtliches',  icon: Scale },
-      { key: 'branding',    label: 'Branding',     icon: Palette, adminOnly: true },
+      { key: 'branding',    label: 'Branding',     icon: Palette, adminOnly: true, enabled: FEATURE_FLAGS.branding },
     ],
   },
   {
@@ -85,7 +88,7 @@ const TAB_GROUPS: { label: string; items: TabItem[] }[] = [
     label: 'Team & Zugriff',
     items: [
       { key: 'team',       label: 'Team',        icon: Users },
-      { key: 'abrechnung', label: 'Abrechnung',  icon: CreditCard },
+      { key: 'abrechnung', label: 'Abrechnung',  icon: CreditCard, enabled: FEATURE_FLAGS.abrechnung },
     ],
   },
   {
@@ -1555,7 +1558,10 @@ export default function EinstellungenTabs({
       <nav className="w-[210px] shrink-0 sticky top-[60px] self-start py-4">
         <div className="space-y-6">
           {TAB_GROUPS.map((group) => {
-            const items = group.items.filter((i) => !i.adminOnly || istAdmin)
+            const items = group.items
+              // Disabled-Tabs (Feature-Flag) komplett aus der Nav entfernen
+              .filter((i) => i.enabled !== false)
+              .filter((i) => !i.adminOnly || istAdmin)
             if (items.length === 0) return null
             return (
               <div key={group.label}>
@@ -1595,12 +1601,12 @@ export default function EinstellungenTabs({
         {aktuellerTab === 'mein_feedback'      && <MeinFeedbackTab />}
         {aktuellerTab === 'firma'              && <FirmaTab organisation={organisation} istAdmin={istAdmin} />}
         {aktuellerTab === 'workspace'          && <WorkspaceTab einstellungen={einstellungen} organisation={organisation} istAdmin={istAdmin} />}
-        {aktuellerTab === 'branding' && istAdmin && <BrandingTab branding={branding} />}
+        {aktuellerTab === 'branding'           && istAdmin && FEATURE_FLAGS.branding && <BrandingTab branding={branding} />}
         {aktuellerTab === 'team'               && <TeamTab team={team} userRolle={userRolle} userId={userId} userEmail={userEmail} lastSignIn={lastSignIn} />}
         {aktuellerTab === 'vorlagen'            && <VorlagenTab vorlagen={vorlagen} />}
         {aktuellerTab === 'freigaben'          && <FreigabenTab einstellungen={einstellungen} />}
         {aktuellerTab === 'benachrichtigungen' && <BenachrichtigungenTab einstellungen={einstellungen} />}
-        {aktuellerTab === 'abrechnung'         && <AbrechnungTab />}
+        {aktuellerTab === 'abrechnung'         && FEATURE_FLAGS.abrechnung && <AbrechnungTab />}
         {aktuellerTab === 'rechtliches'        && <RechtlichesTab organisation={organisation} istAdmin={istAdmin} />}
         {aktuellerTab === 'handbuch'           && <HandbuchTab />}
         {aktuellerTab === 'aktivitaet' && istAdmin && <AuditLogClient team={team} />}
