@@ -170,6 +170,7 @@ function SortableProduktZeile({
   onReklamationRequest,
   onDatumChange,
   onRabattChange,
+  onMengeChange,
 }: {
   eintrag: RaumProduktMitDetails
   mwst: number
@@ -181,9 +182,25 @@ function SortableProduktZeile({
   onReklamationRequest: (id: string, name: string) => void
   onDatumChange: (raumProduktId: string, feld: ProduktDatumFeld, wert: string | null) => void
   onRabattChange: (raumProduktId: string, rabatt: number | null) => void
+  onMengeChange: (raumProduktId: string, menge: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: eintrag.id })
+
+  // Inline-Edit fuer Menge
+  const [mengeEdit, setMengeEdit]       = useState(false)
+  const [mengeInput, setMengeInput]     = useState(String(eintrag.menge))
+  function mengeSpeichern() {
+    const num = parseInt(mengeInput, 10)
+    if (!Number.isFinite(num) || num < 1) {
+      // Reset auf alten Wert
+      setMengeInput(String(eintrag.menge))
+      setMengeEdit(false)
+      return
+    }
+    if (num !== eintrag.menge) onMengeChange(eintrag.id, num)
+    setMengeEdit(false)
+  }
 
   const p = eintrag.produkte
   const effektivVP = effektiverVpNetto(
@@ -293,10 +310,34 @@ function SortableProduktZeile({
           </div>
         </td>
 
-        {/* Menge */}
+        {/* Menge — inline editierbar */}
         <td className={`${td} text-center whitespace-nowrap`}>
-          <span className="text-gray-900 font-medium">{eintrag.menge}</span>
-          <span className="text-gray-400 ml-1 text-xs">{p.einheit}</span>
+          {mengeEdit ? (
+            <input
+              type="number"
+              min={1}
+              autoFocus
+              value={mengeInput}
+              onChange={(e) => setMengeInput(e.target.value)}
+              onBlur={mengeSpeichern}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur() }
+                if (e.key === 'Escape') { setMengeInput(String(eintrag.menge)); setMengeEdit(false) }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-14 px-1.5 py-0.5 text-sm text-center font-medium border border-wellbeing-green-light rounded focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 bg-white"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setMengeInput(String(eintrag.menge)); setMengeEdit(true) }}
+              className="inline-flex items-baseline gap-1 px-2 py-0.5 rounded hover:bg-gray-100 transition-colors group/menge"
+              title="Klicken zum Bearbeiten"
+            >
+              <span className="text-gray-900 font-medium group-hover/menge:text-wellbeing-green">{eintrag.menge}</span>
+              <span className="text-gray-400 text-xs">{p.einheit}</span>
+            </button>
+          )}
         </td>
 
         {/* VP Brutto (Stück) */}
@@ -865,6 +906,28 @@ export default function SortableProduktTabelle({
     }
   }
 
+  async function handleMengeChange(raumProduktId: string, neueMenge: number) {
+    const eintrag = eintraege.find((e) => e.id === raumProduktId)
+    if (!eintrag) return
+    const alteMenge = eintrag.menge
+    // Optimistic update
+    setEintraege((prev) =>
+      prev.map((e) => (e.id === raumProduktId ? { ...e, menge: neueMenge } : e))
+    )
+    const res = await raumProdukteAktualisieren(
+      raumProduktId,
+      { menge: neueMenge },
+      { projektId, raumId },
+    )
+    if (res?.fehler) {
+      setEintraege((prev) =>
+        prev.map((e) => (e.id === raumProduktId ? { ...e, menge: alteMenge } : e))
+      )
+      setFehlerToast('Menge konnte nicht gespeichert werden.')
+      setTimeout(() => setFehlerToast(null), 4000)
+    }
+  }
+
   async function handleConfirmDelete() {
     if (!deleteTarget || isDeleting) return
     setIsDeleting(true)
@@ -924,6 +987,7 @@ export default function SortableProduktTabelle({
                     onReklamationRequest={(id, name) => setReklamationTarget({ id, name })}
                     onDatumChange={handleDatumChange}
                     onRabattChange={handleRabattChange}
+                    onMengeChange={handleMengeChange}
                   />
                 ))}
               </tbody>
