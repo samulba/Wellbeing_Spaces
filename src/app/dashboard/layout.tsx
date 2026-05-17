@@ -32,10 +32,13 @@ export default async function DashboardLayout({
   try {
     const heuteIso = new Date().toISOString().slice(0, 10)
     const [freigabenRes, anfragenRes, rolleRes, meRes, nachrichtenRes, reklamationenRes, aufgabenRes] = await Promise.allSettled([
+      // Freigaben-Badge: zaehlt PROJEKTE mit mind. einer ausstehenden Freigabe,
+      // nicht jede einzelne Position (sonst wird die Zahl viel zu schnell gross).
       supabase
         .from('raum_produkte')
-        .select('*', { count: 'exact', head: true })
-        .eq('freigabe_status', 'ausstehend'),
+        .select('raeume!inner(projekt_id, deleted_at)')
+        .eq('freigabe_status', 'ausstehend')
+        .is('raeume.deleted_at', null),
       supabase
         .from('onboarding_anfragen')
         .select('*', { count: 'exact', head: true })
@@ -62,7 +65,18 @@ export default async function DashboardLayout({
         .lt('faellig_am', heuteIso),
     ])
 
-    freigabenCount     = freigabenRes.status     === 'fulfilled' ? (freigabenRes.value.count     ?? 0) : 0
+    // Freigaben-Count = Anzahl unique Projekte mit ausstehender Freigabe
+    if (freigabenRes.status === 'fulfilled') {
+      const rows = (freigabenRes.value.data ?? []) as Array<{ raeume: { projekt_id: string | null } | { projekt_id: string | null }[] | null }>
+      const projekte = new Set<string>()
+      for (const r of rows) {
+        const raum = Array.isArray(r.raeume) ? r.raeume[0] : r.raeume
+        if (raum?.projekt_id) projekte.add(raum.projekt_id)
+      }
+      freigabenCount = projekte.size
+    } else {
+      freigabenCount = 0
+    }
     anfragenCount      = anfragenRes.status      === 'fulfilled' ? (anfragenRes.value.count      ?? 0) : 0
     rolle              = rolleRes.status         === 'fulfilled' ? rolleRes.value : 'viewer'
     nachrichtenCount   = nachrichtenRes.status   === 'fulfilled' ? nachrichtenRes.value : 0
