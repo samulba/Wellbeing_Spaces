@@ -8,6 +8,7 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 ### Onboarding-Datei-Upload
 - **Bilder-Upload funktioniert wieder**, auch wenn Migration 111 noch nicht in Supabase eingespielt wurde. Bei einem Foreign-Key-Fehler auf `organisation_id` wird der Datei-Eintrag jetzt als Fallback ohne `organisation_id` gespeichert — der Upload geht durch, statt mit einer roten Fehlermeldung abzubrechen.
 - **Limit erhöht: jetzt bis zu 10 Dateien** pro Upload-Feld (vorher 5). Pro-Vorlage kann das Limit weiterhin im Editor überschrieben werden.
+- **Migration 111 repariert**: Alte Version benutzte `information_schema` und sah den kaputten FK auf `auth.users` nicht (anderes Schema) — Migration brach mit `42710 constraint already exists` ab. Neue Version nutzt `pg_catalog`, dropt den kaputten FK zuverlässig und legt den korrekten FK auf `organisationen(id)` an. Idempotent — kann gefahrlos erneut ausgeführt werden.
 
 ## 2026-05-16
 
