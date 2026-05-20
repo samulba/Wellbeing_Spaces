@@ -6,6 +6,7 @@ import { Check, ChevronRight, ChevronLeft, CheckCircle2, Plus, X, Clock, Copy } 
 import { onboardingAbsenden } from '@/app/actions/onboarding'
 import { onboardingAutoSave } from '@/app/actions/onboarding-erweitert'
 import DynamischesFeld, { FormFeld, inputCls } from '@/components/onboarding/DynamischesFeld'
+import OnboardingReviewModal from '@/components/onboarding/OnboardingReviewModal'
 import { sichtbareFragen, antwortenFiltern } from '@/lib/onboarding-bedingungen'
 import type { OnboardingVorlage, OnboardingFrage, OnboardingSektion, Branding } from '@/lib/supabase/types'
 
@@ -91,6 +92,7 @@ function StandardFormular({ token, branding }: { token: string; branding?: Brand
   const [erfolg, setErfolg]           = useState(false)
   const [fehlerMsg, setFehlerMsg]     = useState<string | null>(null)
   const [isPending, startTransition]  = useTransition()
+  const [reviewOffen, setReviewOffen] = useState(false)
 
   function setField<K extends keyof Daten>(key: K, value: Daten[K]) {
     setDaten((d) => ({ ...d, [key]: value }))
@@ -140,8 +142,13 @@ function StandardFormular({ token, branding }: { token: string; branding?: Brand
     if (schritt > 1) setSchritt((s) => s - 1)
   }
 
-  function absenden() {
+  function oeffneReview() {
     if (!validiereSchritt1()) { setSchritt(1); return }
+    setFehlerMsg(null)
+    setReviewOffen(true)
+  }
+
+  function wirklichAbsenden() {
     setFehlerMsg(null)
     startTransition(async () => {
       const result = await onboardingAbsenden(token, {
@@ -158,6 +165,7 @@ function StandardFormular({ token, branding }: { token: string; branding?: Brand
         notizen:           daten.notizen || null,
       })
       if (result.erfolg) {
+        setReviewOffen(false)
         setErfolg(true)
       } else {
         setFehlerMsg(result.fehler ?? 'Ein Fehler ist aufgetreten.')
@@ -274,13 +282,11 @@ function StandardFormular({ token, branding }: { token: string; branding?: Brand
               </button>
             ) : (
               <button
-                onClick={absenden}
+                onClick={oeffneReview}
                 disabled={isPending}
                 className="flex items-center gap-1.5 px-6 py-3 text-sm font-semibold text-white bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 rounded-xl transition-colors"
               >
-                {isPending ? 'Wird gesendet…' : (
-                  <>Anfrage absenden <Check className="w-4 h-4" /></>
-                )}
+                Anfrage absenden <Check className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -290,6 +296,32 @@ function StandardFormular({ token, branding }: { token: string; branding?: Brand
           </p>
         </div>
       </div>
+
+      {reviewOffen && (
+        <OnboardingReviewModal
+          stammdaten={{
+            kunde_name:        daten.kunde_name,
+            kunde_email:       daten.kunde_email,
+            kunde_telefon:     daten.kunde_telefon || null,
+            projekt_name:      daten.projekt_name  || null,
+            projekt_adresse:   daten.projekt_adresse || null,
+            raumtypen:         daten.raumtypen.length > 0 ? daten.raumtypen : null,
+            budget_min:        daten.budget_min,
+            budget_max:        daten.budget_max,
+            zeitrahmen:        daten.zeitrahmen || null,
+            stil_praeferenzen: daten.stilTags.length > 0 ? daten.stilTags.join(', ') : null,
+            notizen:           daten.notizen || null,
+          }}
+          branding={branding ?? null}
+          isPending={isPending}
+          fehler={fehlerMsg}
+          onZurueck={() => {
+            setReviewOffen(false)
+            if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+          onAbsenden={wirklichAbsenden}
+        />
+      )}
     </div>
   )
 }
@@ -307,6 +339,7 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
   const [feldFehler, setFeldFehler]   = useState<Record<string, string>>({})
   const [isPending, startTransition]  = useTransition()
   const [autoSave, setAutoSave]       = useState<AutoSaveStatus>('idle')
+  const [reviewOffen, setReviewOffen] = useState(false)
   const ersteAenderung                = useRef(false)
 
   function setAntwort(id: string, value: unknown) {
@@ -433,33 +466,47 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
     return Object.keys(e).length === 0
   }
 
-  function absenden() {
+  // Helper: Stammdaten aus bekannten IDs ableiten — wird sowohl im
+  // Review-Modal als auch beim wirklichen Submit benutzt, damit beide
+  // dieselbe Quelle der Wahrheit haben.
+  function stammdatenAusAntworten() {
+    const get = (id: string) => (antworten[id] as string | undefined) ?? null
+    return {
+      kunde_name:        get('kontakt_name'),
+      kunde_email:       get('kontakt_email'),
+      kunde_telefon:     get('kontakt_telefon'),
+      projekt_name:      get('projekt_name'),
+      projekt_adresse:   get('projekt_adresse'),
+      raumtypen:         (antworten['raumtypen'] as string[] | null) ?? null,
+      zeitrahmen:        get('zeitrahmen'),
+      stil_praeferenzen: Array.isArray(antworten['stil'])
+        ? (antworten['stil'] as string[]).join(', ')
+        : get('stil'),
+      notizen:           get('notizen'),
+    }
+  }
+
+  function oeffneReview() {
     if (!validieren()) {
       setFehlerMsg('Bitte füllen Sie alle markierten Pflichtfelder aus.')
       return
     }
     setFehlerMsg(null)
+    setReviewOffen(true)
+  }
+
+  function wirklichAbsenden() {
+    setFehlerMsg(null)
     startTransition(async () => {
-      // Versuche Standard-Felder aus bekannten IDs zu extrahieren
-      const get = (id: string) => (antworten[id] as string | undefined) ?? null
       // Antworten auf sichtbare Fragen reduzieren (versteckte Felder
       // sollen nicht persistiert werden — Bug 6 Conditional Logic).
       const gefiltert = antwortenFiltern(vorlage.fragen, antworten)
       const result = await onboardingAbsenden(token, {
-        kunde_name:        get('kontakt_name'),
-        kunde_email:       get('kontakt_email'),
-        kunde_telefon:     get('kontakt_telefon'),
-        projekt_name:      get('projekt_name'),
-        projekt_adresse:   get('projekt_adresse'),
-        raumtypen:         (antworten['raumtypen'] as string[] | null) ?? null,
-        zeitrahmen:        get('zeitrahmen'),
-        stil_praeferenzen: Array.isArray(antworten['stil'])
-          ? (antworten['stil'] as string[]).join(', ')
-          : get('stil'),
-        notizen:           get('notizen'),
+        ...stammdatenAusAntworten(),
         antworten: gefiltert,
       })
       if (result.erfolg) {
+        setReviewOffen(false)
         setErfolg(true)
       } else {
         setFehlerMsg(result.fehler ?? 'Ein Fehler ist aufgetreten.')
@@ -595,16 +642,30 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
           )}
 
           <button
-            onClick={absenden}
+            onClick={oeffneReview}
             disabled={isPending}
             className="w-full flex items-center justify-center gap-2 py-3.5 text-sm font-semibold text-white bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 rounded-xl transition-colors"
           >
-            {isPending ? 'Wird gesendet…' : (
-              <>Anfrage absenden <Check className="w-4 h-4" /></>
-            )}
+            Anfrage absenden <Check className="w-4 h-4" />
           </button>
         </div>
       </div>
+
+      {reviewOffen && (
+        <OnboardingReviewModal
+          vorlage={vorlage}
+          antworten={antwortenFiltern(vorlage.fragen, antworten)}
+          stammdaten={stammdatenAusAntworten()}
+          branding={branding ?? null}
+          isPending={isPending}
+          fehler={fehlerMsg}
+          onZurueck={() => {
+            setReviewOffen(false)
+            if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+          onAbsenden={wirklichAbsenden}
+        />
+      )}
     </div>
   )
 }
