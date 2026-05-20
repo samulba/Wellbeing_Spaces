@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Check, ChevronRight, ChevronLeft, CheckCircle2, Plus, X, Clock, Copy } from 'lucide-react'
+import { Check, ChevronRight, ChevronLeft, CheckCircle2, Clock, Copy } from 'lucide-react'
 import { onboardingAbsenden } from '@/app/actions/onboarding'
 import { onboardingAutoSave } from '@/app/actions/onboarding-erweitert'
 import DynamischesFeld, { FormFeld, inputCls } from '@/components/onboarding/DynamischesFeld'
