@@ -403,41 +403,11 @@ export async function onboardingDateiSpeichern(
 
   if (!anfrage) return { fehler: 'Anfrage nicht gefunden.' }
 
-  // Erst-Versuch: mit organisation_id (wenn Migration 111 ausgefuehrt wurde,
-  // verweist der FK korrekt auf organisationen(id) und das funktioniert).
-  // Falls Migration 111 noch nicht eingespielt ist, zeigt der FK noch auf
-  // auth.users(id) — dann gibt es einen 23503 / FK-Violation. In dem Fall
-  // fallen wir auf NULL zurueck, damit der Upload trotzdem durchgeht.
-  if (anfrage.organisation_id) {
-    const { data, error } = await supabase
-      .from('onboarding_dateien')
-      .insert({
-        anfrage_id:      anfrage.id,
-        organisation_id: anfrage.organisation_id,
-        ...datei,
-      })
-      .select('id')
-      .single()
-
-    if (!error && data) return { id: data.id }
-
-    const istFkViolation =
-      error?.code === '23503' ||
-      (error?.message ?? '').includes('organisation_id_fkey')
-
-    if (!istFkViolation) {
-      return { fehler: error?.message ?? 'Unbekannter Fehler' }
-    }
-    console.warn(
-      '[onboardingDateiSpeichern] FK-Violation auf organisation_id — '
-        + 'Migration 111 nicht eingespielt? Fallback auf NULL.',
-    )
-  }
-
   const { data, error } = await supabase
     .from('onboarding_dateien')
     .insert({
-      anfrage_id: anfrage.id,
+      anfrage_id:      anfrage.id,
+      organisation_id: anfrage.organisation_id,
       ...datei,
     })
     .select('id')
