@@ -741,6 +741,105 @@ export async function onboardingStatusAendernV2(
   revalidatePath('/dashboard/onboarding')
 }
 
+/**
+ * Anfrage-Daten bearbeiten (vor "Kunde + Projekt anlegen").
+ *
+ * Erlaubt dem Admin, Kundendaten zu korrigieren bevor sie in die
+ * `kunden`/`projekte`-Tabellen uebernommen werden — z.B. Tippfehler
+ * in der Email, falsches Projekt-Adresse, oder konkrete Antworten
+ * im JSONB. Schreibt NUR Felder die im `updates`-Objekt explizit
+ * uebergeben werden (undefined → keine Aenderung). Status wird
+ * NICHT beruehrt — die Anfrage bleibt auf 'eingereicht'.
+ */
+export async function anfrageBearbeiten(
+  anfrageId: string,
+  updates: Partial<{
+    kunde_name: string | null
+    kunde_email: string | null
+    kunde_telefon: string | null
+    projekt_name: string | null
+    projekt_adresse: string | null
+    raumtypen: string[] | null
+    budget_min: number | null
+    budget_max: number | null
+    zeitrahmen: string | null
+    stil_praeferenzen: string | null
+    notizen: string | null
+    antworten: Record<string, unknown> | null
+  }>,
+): Promise<{ erfolg: boolean; fehler?: string }> {
+  try {
+    const supabase = await createClient()
+    const orgId    = await getOrganisationId()
+
+    // Nur explizit uebergebene Keys (undefined ausfiltern) — sonst wuerden
+    // weggelassene Felder als NULL geschrieben und Daten verloren gehen.
+    const clean = Object.fromEntries(
+      Object.entries(updates).filter(([, v]) => v !== undefined),
+    )
+    if (Object.keys(clean).length === 0) {
+      return { erfolg: true }
+    }
+
+    const { error } = await supabase
+      .from('onboarding_anfragen')
+      .update(clean)
+      .eq('id', anfrageId)
+      .eq('organisation_id', orgId)
+
+    if (error) return { erfolg: false, fehler: error.message }
+    revalidatePath('/dashboard/onboarding')
+    return { erfolg: true }
+  } catch (e) {
+    return { erfolg: false, fehler: e instanceof Error ? e.message : 'Unbekannter Fehler.' }
+  }
+}
+
+/**
+ * Admin-seitiges Loeschen einer hochgeladenen Onboarding-Datei.
+ *
+ * Im Gegensatz zur token-basierten `onboardingDateiEntfernen` (im File
+ * `onboarding-uploads.ts`) hat diese Variante keinen Status-Check —
+ * der Admin darf auch in 'eingereicht'-Anfragen aufraeumen. Auth via
+ * Org-Scope: erst Datei laden, dann gegen die Anfrage-Org pruefen.
+ */
+export async function onboardingDateiEntfernenAdmin(
+  dateiId: string,
+): Promise<{ erfolg: boolean; fehler?: string }> {
+  try {
+    const supabase = await createClient()
+    const orgId    = await getOrganisationId()
+    const admin    = createAdminClient()
+
+    // 1) Datei + Org-Pruefung via Anfrage-Join
+    const { data: datei } = await admin
+      .from('onboarding_dateien')
+      .select('id, storage_pfad, anfrage_id, organisation_id, onboarding_anfragen!inner(organisation_id)')
+      .eq('id', dateiId)
+      .maybeSingle()
+    if (!datei) return { erfolg: false, fehler: 'Datei nicht gefunden.' }
+
+    // Org-Check: entweder direkt am Datei-Eintrag ODER ueber die Anfrage
+    const anfrageOrg = (datei.onboarding_anfragen as unknown as { organisation_id: string | null } | null)?.organisation_id
+    const eigeneOrg = datei.organisation_id === orgId || anfrageOrg === orgId
+    if (!eigeneOrg) return { erfolg: false, fehler: 'Keine Berechtigung.' }
+
+    // 2) Storage-Objekt loeschen (Admin-Client wegen RLS auf storage.objects)
+    await admin.storage.from('onboarding-uploads').remove([datei.storage_pfad])
+
+    // 3) DB-Eintrag loeschen
+    await admin
+      .from('onboarding_dateien')
+      .delete()
+      .eq('id', dateiId)
+
+    revalidatePath('/dashboard/onboarding')
+    return { erfolg: true }
+  } catch (e) {
+    return { erfolg: false, fehler: e instanceof Error ? e.message : 'Unbekannter Fehler.' }
+  }
+}
+
 /** Anfrage an ein bestehendes Projekt verknüpfen. */
 export async function anfrageZuProjektVerknuepfen(
   anfrageId: string,
