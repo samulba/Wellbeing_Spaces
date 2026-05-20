@@ -82,6 +82,12 @@ export async function onboardingLinkErstellenV2(
     // Persistenten Titel bestimmen (Bug 1): Eingabe > Kundenname > Fallback
     const resolvedTitel = (titel?.trim() || kundeName || 'Onboarding-Link')
 
+    // empfaenger_label: wenn der User einen Titel im Modal eingegeben
+    // hat (und kein Kunde verknuepft ist), nutzen wir denselben Wert als
+    // Adressat-Label — sonst stuende auf der Detail-Karte 'Kein Empfaenger'
+    // obwohl der User die Person eindeutig benannt hat.
+    const empfaengerLabelAusTitel = (!kunde_id && titel?.trim()) ? titel.trim() : null
+
     const { data, error } = await supabase
       .from('onboarding_anfragen')
       .insert({
@@ -93,6 +99,7 @@ export async function onboardingLinkErstellenV2(
         organisation_id:  orgId,
         gueltig_bis,
         titel:            resolvedTitel,
+        empfaenger_label: empfaengerLabelAusTitel,
         vorlage_snapshot: snapshot,
         // kunde_name NUR aus Prefill setzen — niemals aus dem Titel
         // ableiten, sonst markiert die UI den Link faelschlich als

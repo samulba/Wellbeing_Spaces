@@ -580,6 +580,11 @@ function AnfrageDetail({
                         <span className="text-gray-500 ml-1.5">· {anfrage.empfaenger_email}</span>
                       )}
                     </>
+                  ) : anfrage.titel && anfrage.titel !== 'Onboarding-Link' ? (
+                    // Fallback: User hat im Modal nur 'Kundenname' eingegeben — der
+                    // landet als titel. Hier als Adressat anzeigen, damit das Feld
+                    // nicht 'Kein Empfaenger' meldet obwohl ein Name vergeben wurde.
+                    <span className="font-medium">{anfrage.titel}</span>
                   ) : (
                     'Kein Empfänger hinterlegt – ergänze ihn, damit du später weißt für wen der Link war.'
                   )}
