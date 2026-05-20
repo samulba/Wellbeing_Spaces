@@ -20,27 +20,34 @@ export default async function OnboardingPage({ params, searchParams }: Props) {
 
   const { data: anfrage } = await supabase
     .from('onboarding_anfragen')
-    .select('id, status, antworten, vorlage_id, gueltig_bis')
+    .select('id, status, antworten, vorlage_id, gueltig_bis, auto_save, kunde_name, kunde_email, kunde_telefon, projekt_name, projekt_adresse, raumtypen, budget_min, budget_max, zeitrahmen, stil_praeferenzen, notizen, fortschritt, aktuelle_sektion')
     .eq('token', params.token)
     .maybeSingle()
 
-  if (!anfrage || anfrage.status === 'abgelehnt') {
+  // Token-Branch 1: gar nicht gefunden
+  if (!anfrage) {
     const br = await brandingFuerToken()
-    return <Fehlerseite branding={br} />
+    return <Fehlerseite branding={br} title="Link nicht gefunden" text="Dieser Onboarding-Link existiert nicht oder wurde geloescht." />
   }
 
-  // Abgelaufen
-  if (anfrage.gueltig_bis && new Date(anfrage.gueltig_bis) < new Date()) {
+  // Token-Branch 2: vom Admin abgelehnt
+  if (anfrage.status === 'abgelehnt') {
     const br = await brandingFuerToken()
-    return <Fehlerseite branding={br} title="Link abgelaufen" text="Dieser Onboarding-Link ist nicht mehr gueltig. Bitte wende dich an deinen Innenarchitekten." />
+    return <Fehlerseite branding={br} title="Link deaktiviert" text="Dieser Onboarding-Link wurde deaktiviert. Bitte wende dich an deinen Innenarchitekten fuer einen neuen Link." />
   }
 
-  // Bereits ausgefuellt — Status 'eingereicht' (Kunde hat abgeschickt,
-  // Admin verarbeitet noch) oder 'abgeschlossen' (Admin hat Kunde
-  // angelegt) blockieren das Formular fuer erneuten Submit. kunde_name
-  // allein blockiert nicht (kann Prefill sein, Bug 1).
-  // Im Vorschau-Modus (?vorschau=1) wird das Formular trotzdem gerendert,
-  // damit Admin Anfragen einsehen kann.
+  // Token-Branch 3: abgelaufen
+  if (anfrage.status === 'abgelaufen' || (anfrage.gueltig_bis && new Date(anfrage.gueltig_bis) < new Date())) {
+    const br = await brandingFuerToken()
+    return <Fehlerseite branding={br} title="Link abgelaufen" text="Dieser Onboarding-Link ist nicht mehr gueltig. Bitte wende dich an deinen Innenarchitekten fuer einen neuen Link." />
+  }
+
+  // Token-Branch 4: bereits eingereicht
+  // Status 'eingereicht' (Kunde hat abgeschickt, Admin verarbeitet noch)
+  // oder 'abgeschlossen' (Admin hat Kunde angelegt) blockieren das
+  // Formular fuer erneuten Submit. kunde_name allein blockiert nicht
+  // (kann Prefill sein, Bug 1). Im Vorschau-Modus (?vorschau=1) wird das
+  // Formular trotzdem gerendert, damit Admin Anfragen einsehen kann.
   if (!vorschauModus && (anfrage.status === 'eingereicht' || anfrage.status === 'abgeschlossen' || anfrage.antworten)) {
     const br = await brandingFuerToken()
     return <BereitsAusgefuellt branding={br} />
@@ -52,7 +59,37 @@ export default async function OnboardingPage({ params, searchParams }: Props) {
     brandingFuerToken(),
   ])
 
-  return <OnboardingFormular token={params.token} vorlage={vorlage as OnboardingVorlage | null} branding={branding} />
+  // Auto-Save-State + Stammdaten-Prefill an Customer-Form weiterreichen,
+  // damit der Kunde nach Reload nicht von vorne anfangen muss.
+  const initialAntworten = (anfrage.auto_save as Record<string, unknown> | null) ?? null
+  const initialStammdaten = {
+    kunde_name:        anfrage.kunde_name        ?? null,
+    kunde_email:       anfrage.kunde_email       ?? null,
+    kunde_telefon:     anfrage.kunde_telefon     ?? null,
+    projekt_name:      anfrage.projekt_name      ?? null,
+    projekt_adresse:   anfrage.projekt_adresse   ?? null,
+    raumtypen:         (anfrage.raumtypen as string[] | null) ?? null,
+    budget_min:        anfrage.budget_min        ?? null,
+    budget_max:        anfrage.budget_max        ?? null,
+    zeitrahmen:        anfrage.zeitrahmen        ?? null,
+    stil_praeferenzen: anfrage.stil_praeferenzen ?? null,
+    notizen:           anfrage.notizen           ?? null,
+  }
+  const initialFortschritt = (anfrage.fortschritt as number | null) ?? 0
+  const initialSektion = (anfrage.aktuelle_sektion as number | null) ?? 0
+
+  return (
+    <OnboardingFormular
+      token={params.token}
+      vorlage={vorlage as OnboardingVorlage | null}
+      branding={branding}
+      vorschauModus={vorschauModus}
+      initialAntworten={initialAntworten}
+      initialStammdaten={initialStammdaten}
+      initialFortschritt={initialFortschritt}
+      initialSektion={initialSektion}
+    />
+  )
 }
 
 // ── Fehler-Seite ──────────────────────────────────────────────

@@ -11,6 +11,26 @@ import { sichtbareFragen, antwortenFiltern } from '@/lib/onboarding-bedingungen'
 import { extrahiereStammdatenAusAntworten } from '@/lib/onboarding-stammdaten'
 import type { OnboardingVorlage, OnboardingFrage, OnboardingSektion, Branding } from '@/lib/supabase/types'
 
+// ── Initial-State-Props ───────────────────────────────────────
+// Vom Server geliefert: erlauben Auto-Save-Wiederherstellung beim Reload
+// + Stammdaten-Prefill (bei verknuepftem Kunde).
+export interface InitialStammdaten {
+  kunde_name:        string | null
+  kunde_email:       string | null
+  kunde_telefon:     string | null
+  projekt_name:      string | null
+  projekt_adresse:   string | null
+  raumtypen:         string[] | null
+  budget_min:        number | null
+  budget_max:        number | null
+  zeitrahmen:        string | null
+  stil_praeferenzen: string | null
+  notizen:           string | null
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const TEL_REGEX   = /^[+]?[\d][\d\s\-/().]{4,}$/
+
 // ── Konstanten (Standard-Vorlage) ─────────────────────────────
 const RAUMTYPEN = [
   'Wohnzimmer', 'Schlafzimmer', 'Küche', 'Bad / WC', 'Büro / Arbeitszimmer',
@@ -51,7 +71,7 @@ interface Daten {
   notizen: string
 }
 
-type Fehler = Partial<Record<'kunde_name' | 'kunde_email', string>>
+type Fehler = Partial<Record<'kunde_name' | 'kunde_email' | 'kunde_telefon', string>>
 
 const INITIAL: Daten = {
   kunde_name: '', kunde_email: '', kunde_telefon: '',
@@ -68,36 +88,126 @@ export default function OnboardingFormular({
   token,
   vorlage,
   branding,
+  vorschauModus = false,
+  initialAntworten = null,
+  initialStammdaten,
+  initialFortschritt = 0,
+  initialSektion = 0,
 }: {
   token: string
   vorlage: OnboardingVorlage | null
   branding?: Branding | null
+  vorschauModus?: boolean
+  initialAntworten?: Record<string, unknown> | null
+  initialStammdaten?: InitialStammdaten
+  initialFortschritt?: number
+  initialSektion?: number
 }) {
   // Custom-Vorlage (nicht Standard) → dynamisches Formular
   if (vorlage && !vorlage.ist_standard) {
-    return <DynamischesFormular token={token} vorlage={vorlage} branding={branding} />
+    return (
+      <DynamischesFormular
+        token={token}
+        vorlage={vorlage}
+        branding={branding}
+        vorschauModus={vorschauModus}
+        initialAntworten={initialAntworten}
+        initialFortschritt={initialFortschritt}
+        initialSektion={initialSektion}
+      />
+    )
   }
 
   // Standard (4-Schritt) Formular
-  return <StandardFormular token={token} branding={branding} />
+  return (
+    <StandardFormular
+      token={token}
+      branding={branding}
+      vorschauModus={vorschauModus}
+      initialStammdaten={initialStammdaten}
+    />
+  )
 }
 
 // ── Standard-Formular (4 Schritte) ───────────────────────────
-function StandardFormular({ token, branding }: { token: string; branding?: Branding | null }) {
+function StandardFormular({
+  token, branding, vorschauModus = false, initialStammdaten,
+}: {
+  token: string
+  branding?: Branding | null
+  vorschauModus?: boolean
+  initialStammdaten?: InitialStammdaten
+}) {
   const prim       = branding?.primary_color    ?? '#445c49'
   const bg         = branding?.background_color ?? '#f6ede2'
   const firmenname = branding?.firmenname       ?? 'Wellbeing Spaces'
   const [schritt, setSchritt]         = useState(1)
-  const [daten, setDaten]             = useState<Daten>(INITIAL)
+  const [daten, setDaten]             = useState<Daten>(() => ({
+    ...INITIAL,
+    kunde_name:      initialStammdaten?.kunde_name      ?? '',
+    kunde_email:     initialStammdaten?.kunde_email     ?? '',
+    kunde_telefon:   initialStammdaten?.kunde_telefon   ?? '',
+    projekt_name:    initialStammdaten?.projekt_name    ?? '',
+    projekt_adresse: initialStammdaten?.projekt_adresse ?? '',
+    raumtypen:       initialStammdaten?.raumtypen       ?? [],
+    budget_min:      initialStammdaten?.budget_min      ?? null,
+    budget_max:      initialStammdaten?.budget_max      ?? null,
+    zeitrahmen:      initialStammdaten?.zeitrahmen      ?? '',
+    stilTags:        initialStammdaten?.stil_praeferenzen
+                       ? initialStammdaten.stil_praeferenzen.split(',').map((s) => s.trim()).filter(Boolean)
+                       : [],
+    notizen:         initialStammdaten?.notizen         ?? '',
+  }))
   const [fehler, setFehler]           = useState<Fehler>({})
   const [erfolg, setErfolg]           = useState(false)
   const [fehlerMsg, setFehlerMsg]     = useState<string | null>(null)
   const [isPending, startTransition]  = useTransition()
   const [reviewOffen, setReviewOffen] = useState(false)
+  const [autoSave, setAutoSave]       = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const ersteAenderungStd             = useRef(false)
+
+  // Auto-Save fuer Standard-Form: schreibt die ausgefuellten Stammdaten
+  // direkt in die Top-Level-Spalten via onboardingAbsenden — Nein, wir
+  // koennen onboardingAbsenden nicht missbrauchen weil der Status auf
+  // 'eingereicht' geht. Stattdessen: nur ein synthetisches Antworten-Objekt
+  // in `auto_save` schreiben (kein Status-Change, nur Entwurfsspeicherung).
+  useEffect(() => {
+    if (vorschauModus) return
+    if (!ersteAenderungStd.current) return
+    setAutoSave('saving')
+    const handle = setTimeout(async () => {
+      try {
+        const snapshot: Record<string, unknown> = {
+          kunde_name:      daten.kunde_name,
+          kunde_email:     daten.kunde_email,
+          kunde_telefon:   daten.kunde_telefon,
+          projekt_name:    daten.projekt_name,
+          projekt_adresse: daten.projekt_adresse,
+          raumtypen:       daten.raumtypen,
+          budget_min:      daten.budget_min,
+          budget_max:      daten.budget_max,
+          zeitrahmen:      daten.zeitrahmen,
+          stilTags:        daten.stilTags,
+          notizen:         daten.notizen,
+        }
+        // Fortschritt = Anteil Pflichtfelder ausgefuellt × 100
+        const pflichtFelder = ['kunde_name', 'kunde_email']
+        const erfuellt = pflichtFelder.filter((k) => ((snapshot[k] as string) ?? '').trim().length > 0).length
+        const fortschritt = Math.round((erfuellt / pflichtFelder.length) * 100)
+        const res = await onboardingAutoSave(token, snapshot, fortschritt, schritt)
+        setAutoSave(res.ok ? 'saved' : 'error')
+      } catch {
+        setAutoSave('error')
+      }
+    }, 1500)
+    return () => clearTimeout(handle)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [daten, schritt, token, vorschauModus])
 
   function setField<K extends keyof Daten>(key: K, value: Daten[K]) {
     setDaten((d) => ({ ...d, [key]: value }))
     setFehler((e) => ({ ...e, [key]: undefined }))
+    ersteAenderungStd.current = true
   }
 
   function toggleRaumtyp(rt: string) {
@@ -127,8 +237,12 @@ function StandardFormular({ token, branding }: { token: string; branding?: Brand
     if (!daten.kunde_name.trim()) e.kunde_name = 'Name ist erforderlich.'
     if (!daten.kunde_email.trim()) {
       e.kunde_email = 'E-Mail ist erforderlich.'
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(daten.kunde_email)) {
+    } else if (!EMAIL_REGEX.test(daten.kunde_email)) {
       e.kunde_email = 'Bitte eine gültige E-Mail-Adresse eingeben.'
+    }
+    // Telefon ist optional, aber wenn ausgefuellt, muss es plausibel sein
+    if (daten.kunde_telefon.trim() && !TEL_REGEX.test(daten.kunde_telefon)) {
+      e.kunde_telefon = 'Telefonnummer ungültig (Ziffern, +, -, Leerzeichen).'
     }
     setFehler(e)
     return Object.keys(e).length === 0
@@ -150,6 +264,10 @@ function StandardFormular({ token, branding }: { token: string; branding?: Brand
   }
 
   function wirklichAbsenden() {
+    if (vorschauModus) {
+      setFehlerMsg('Vorschau-Modus aktiv — Absenden ist deaktiviert. Entferne ?vorschau=1 aus der URL fuer echtes Absenden.')
+      return
+    }
     setFehlerMsg(null)
     startTransition(async () => {
       const result = await onboardingAbsenden(token, {
@@ -179,22 +297,27 @@ function StandardFormular({ token, branding }: { token: string; branding?: Brand
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: bg }}>
 
+      {vorschauModus && <VorschauBanner />}
+
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-xl mx-auto flex items-center gap-3">
-          {branding?.logo_url ? (
-            <Image src={branding.logo_url} alt={firmenname} width={24} height={24} className="rounded object-contain" />
-          ) : (
-            <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
-              <rect x="0" y="0" width="10" height="10" rx="2" fill={prim} opacity="0.30" />
-              <rect x="4" y="4" width="10" height="10" rx="2" fill={prim} opacity="0.55" />
-              <rect x="8" y="8" width="10" height="10" rx="2" fill={prim} />
-            </svg>
-          )}
-          <div>
+          <BrandLogo branding={branding} firmenname={firmenname} prim={prim} />
+          <div className="flex-1 min-w-0">
             <p className="text-[11px] text-gray-400 leading-none">Projekt-Anfrage</p>
-            <p className="text-sm font-semibold font-syne leading-tight" style={{ color: prim }}>{firmenname}</p>
+            <p className="text-sm font-semibold font-syne leading-tight truncate" style={{ color: prim }}>{firmenname}</p>
           </div>
+          {autoSave !== 'idle' && (
+            <span className={`text-[10px] font-medium tabular-nums shrink-0 ${
+              autoSave === 'saved' ? 'text-wellbeing-green' :
+              autoSave === 'error' ? 'text-red-500' :
+              'text-gray-400'
+            }`}>
+              {autoSave === 'saving' && 'Speichert …'}
+              {autoSave === 'saved'  && '✓ Gespeichert'}
+              {autoSave === 'error'  && '⚠ Nicht gespeichert'}
+            </span>
+          )}
         </div>
       </header>
 
@@ -330,18 +453,57 @@ function StandardFormular({ token, branding }: { token: string; branding?: Brand
 // ── Dynamisches Formular (custom Vorlage) ─────────────────────
 type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-function DynamischesFormular({ token, vorlage, branding }: { token: string; vorlage: OnboardingVorlage; branding?: Branding | null }) {
+function DynamischesFormular({
+  token, vorlage, branding,
+  vorschauModus = false,
+  initialAntworten = null,
+  initialFortschritt = 0,
+  initialSektion = 0,
+}: {
+  token: string
+  vorlage: OnboardingVorlage
+  branding?: Branding | null
+  vorschauModus?: boolean
+  initialAntworten?: Record<string, unknown> | null
+  initialFortschritt?: number
+  initialSektion?: number
+}) {
   const prim       = branding?.primary_color    ?? '#445c49'
   const bg         = branding?.background_color ?? '#f6ede2'
   const firmenname = branding?.firmenname       ?? 'Wellbeing Spaces'
-  const [antworten, setAntworten]     = useState<Record<string, unknown>>({})
+
+  // Initial-State aus auto_save: nur Keys uebernehmen, die in der
+  // aktuellen Vorlage noch existieren (Vorlage-Edit-Drift-Schutz).
+  const [antworten, setAntworten] = useState<Record<string, unknown>>(() => {
+    if (!initialAntworten) return {}
+    const validIds = new Set(vorlage.fragen?.map((f) => f.id) ?? [])
+    const filtered: Record<string, unknown> = {}
+    for (const k of Object.keys(initialAntworten)) {
+      if (validIds.has(k)) filtered[k] = initialAntworten[k]
+    }
+    return filtered
+  })
+  // Aktuelle Sektion fuer Auto-Save-Tracking (z.Z. nur dokumentarisch in DB)
+  const aktuelleSektionRef = useRef<number>(initialSektion)
   const [erfolg, setErfolg]           = useState(false)
   const [fehlerMsg, setFehlerMsg]     = useState<string | null>(null)
   const [feldFehler, setFeldFehler]   = useState<Record<string, string>>({})
   const [isPending, startTransition]  = useTransition()
-  const [autoSave, setAutoSave]       = useState<AutoSaveStatus>('idle')
+  const [autoSave, setAutoSave]       = useState<AutoSaveStatus>(
+    initialAntworten && Object.keys(initialAntworten).length > 0 ? 'saved' : 'idle',
+  )
   const [reviewOffen, setReviewOffen] = useState(false)
   const ersteAenderung                = useRef(false)
+  // Letzte Auto-Save-Anzeige nach 5 s wieder ausblenden, damit Indikator
+  // nicht dauerhaft sichtbar bleibt.
+  useEffect(() => {
+    if (autoSave !== 'saved') return
+    const h = setTimeout(() => setAutoSave('idle'), 5000)
+    return () => clearTimeout(h)
+  }, [autoSave])
+  // initialFortschritt wird beim ersten Save überschrieben — wir nutzen
+  // den Wert nur als initialen Fallback für die Berechnung.
+  void initialFortschritt
 
   function setAntwort(id: string, value: unknown) {
     setAntworten((a) => ({ ...a, [id]: value }))
@@ -366,20 +528,36 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
 
   // ── Auto-Save (debounced 2s nach letzter Eingabe) ──────────
   useEffect(() => {
+    if (vorschauModus) return
     if (!ersteAenderung.current) return
     setAutoSave('saving')
     const handle = setTimeout(async () => {
       try {
-        const res = await onboardingAutoSave(token, antworten, 0, 0)
+        // Versteckte (conditional) Antworten NICHT in DB persistieren.
+        const gefiltert = antwortenFiltern(vorlage.fragen, antworten)
+        // Fortschritt als Anteil ausgefuellter Pflichtfelder.
+        const alleSichtbar = sichtbareFragen(vorlage.fragen, antworten)
+        const pflichtIds = alleSichtbar.filter((f) => f.pflichtfeld).map((f) => f.id)
+        const erfuellt = pflichtIds.filter((id) => {
+          const v = gefiltert[id]
+          if (v === undefined || v === null || v === '') return false
+          if (Array.isArray(v) && v.length === 0) return false
+          return true
+        }).length
+        const fortschritt = pflichtIds.length === 0 ? 0 : Math.round((erfuellt / pflichtIds.length) * 100)
+        const res = await onboardingAutoSave(token, gefiltert, fortschritt, aktuelleSektionRef.current)
         setAutoSave(res.ok ? 'saved' : 'error')
       } catch {
         setAutoSave('error')
       }
     }, 2000)
     return () => clearTimeout(handle)
-  }, [antworten, token])
+  }, [antworten, token, vorlage, vorschauModus])
 
   // ── Sektion-Gruppierung der sichtbaren Fragen ──────────────
+  // Sektionen mit conditional-bedingten Fragen, die alle versteckt sind,
+  // werden komplett ausgeblendet (D22). Auch `ohneSektion` wird leer
+  // weggefiltert (kein leerer Header oben).
   const sektionen: OnboardingSektion[] = vorlage.sektionen ?? []
   const ohneSektion = sichtbar.filter((f) => !f.sektion_id)
   const sektionenMitFragen: { sektion: OnboardingSektion; fragen: OnboardingFrage[] }[] = []
@@ -389,14 +567,25 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
   }
 
   // ── Hilfsfunktion: Pflichtfeld-Status pro Sektion ──────────
+  // Beachtet feldtyp-spezifische "leer"-Semantik:
+  //  - bewertung: 0 zaehlt als leer (User hat deselected)
+  //  - budget_verteilung: Summe muss 100 ergeben
+  //  - rangfolge/prioritaeten: explizit gespeichert sein (nicht nur Default-Order)
+  function istLeer(f: OnboardingFrage, v: unknown): boolean {
+    if (v === undefined || v === null || v === '') return true
+    if (Array.isArray(v) && v.length === 0) return true
+    if (f.typ === 'bewertung') return Number(v) === 0
+    if (f.typ === 'budget_verteilung') {
+      const obj = v as Record<string, number>
+      const summe = Object.values(obj).reduce((s, n) => s + (Number(n) || 0), 0)
+      return summe === 0
+    }
+    return false
+  }
+
   function pflichtCount(fragen: OnboardingFrage[]): { erfuellt: number; gesamt: number } {
     const pflicht = fragen.filter((f) => f.pflichtfeld)
-    const erfuellt = pflicht.filter((f) => {
-      const v = antworten[f.id]
-      if (v === undefined || v === null || v === '') return false
-      if (Array.isArray(v) && v.length === 0) return false
-      return true
-    }).length
+    const erfuellt = pflicht.filter((f) => !istLeer(f, antworten[f.id])).length
     return { erfuellt, gesamt: pflicht.length }
   }
 
@@ -446,14 +635,27 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
   function validieren(): boolean {
     const e: Record<string, string> = {}
     for (const f of sichtbar) {
-      if (!f.pflichtfeld) continue
       const val = antworten[f.id]
-      const leer =
-        val === undefined ||
-        val === null ||
-        val === '' ||
-        (Array.isArray(val) && val.length === 0)
-      if (leer) e[f.id] = 'Dieses Feld ist erforderlich.'
+      // 1) Pflichtfeld-Check (mit Feldtyp-Semantik)
+      if (f.pflichtfeld && istLeer(f, val)) {
+        e[f.id] = 'Dieses Feld ist erforderlich.'
+        continue
+      }
+      // 2) Format-Checks (nur wenn Wert ausgefuellt ist)
+      if (val === undefined || val === null || val === '') continue
+      if (f.typ === 'email' && typeof val === 'string' && !EMAIL_REGEX.test(val)) {
+        e[f.id] = 'Bitte eine gueltige E-Mail-Adresse eingeben.'
+      } else if (f.typ === 'telefon' && typeof val === 'string' && !TEL_REGEX.test(val)) {
+        e[f.id] = 'Telefonnummer ungueltig (Ziffern, +, -, Leerzeichen).'
+      } else if (f.typ === 'url' && typeof val === 'string') {
+        try { new URL(val) } catch { e[f.id] = 'Bitte eine gueltige URL eingeben (z.B. https://...).' }
+      } else if (f.typ === 'budget_verteilung' && typeof val === 'object') {
+        const obj = val as Record<string, number>
+        const summe = Object.values(obj).reduce((s, n) => s + (Number(n) || 0), 0)
+        if (f.pflichtfeld && summe !== 100) {
+          e[f.id] = `Summe muss 100 % ergeben (aktuell ${summe} %).`
+        }
+      }
     }
     setFeldFehler(e)
     // Scroll zum ersten Fehler, damit klar wird was fehlt
@@ -499,6 +701,10 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
   }
 
   function wirklichAbsenden() {
+    if (vorschauModus) {
+      setFehlerMsg('Vorschau-Modus aktiv — Absenden ist deaktiviert. Entferne ?vorschau=1 aus der URL fuer echtes Absenden.')
+      return
+    }
     setFehlerMsg(null)
     startTransition(async () => {
       // Antworten auf sichtbare Fragen reduzieren (versteckte Felder
@@ -521,17 +727,10 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: bg }}>
+      {vorschauModus && <VorschauBanner />}
       <header className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-xl mx-auto flex items-center gap-3">
-          {branding?.logo_url ? (
-            <Image src={branding.logo_url} alt={firmenname} width={24} height={24} className="rounded object-contain" />
-          ) : (
-          <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
-            <rect x="0" y="0" width="10" height="10" rx="2" fill={prim} opacity="0.30" />
-            <rect x="4" y="4" width="10" height="10" rx="2" fill={prim} opacity="0.55" />
-            <rect x="8" y="8" width="10" height="10" rx="2" fill={prim} />
-          </svg>
-          )}
+          <BrandLogo branding={branding} firmenname={firmenname} prim={prim} />
           <div className="flex-1 min-w-0">
             <p className="text-[11px] text-gray-400 leading-none">Projekt-Anfrage · {vorlage.name}</p>
             <p className="text-sm font-semibold font-syne leading-tight truncate" style={{ color: prim }}>{firmenname}</p>
@@ -711,14 +910,14 @@ function SchrittKontakt({
           />
         </FormFeld>
 
-        <FormFeld label="Telefon (optional)">
+        <FormFeld label="Telefon (optional)" fehler={fehler.kunde_telefon}>
           <input
             type="tel"
             autoComplete="tel"
             placeholder="+49 ..."
             value={daten.kunde_telefon}
             onChange={(e) => onChange('kunde_telefon', e.target.value)}
-            className={inputCls(false)}
+            className={inputCls(!!fehler.kunde_telefon)}
           />
         </FormFeld>
       </div>
@@ -947,3 +1146,47 @@ function ErfolgScreen({ branding }: { branding?: Branding | null }) {
   )
 }
 
+
+// ── Helper: Vorschau-Banner ───────────────────────────────────
+// Sichtbar wenn ?vorschau=1 in der URL — verhindert Verwechslung mit
+// echtem Kunden-Modus und kommuniziert dass Absenden deaktiviert ist.
+function VorschauBanner() {
+  return (
+    <div className="bg-amber-100 border-b border-amber-200 px-4 py-2.5 text-center text-xs font-semibold text-amber-900">
+      ⚙ Vorschau-Modus — Eingaben werden nicht gespeichert und nicht abgesendet.
+    </div>
+  )
+}
+
+// ── Helper: Branding-Logo mit Fallback ────────────────────────
+// Wenn logo_url 404 ist oder onError feuert, wird auf den DepthStack-SVG
+// zurueckgefallen — verhindert dass der Header visuell bricht.
+function BrandLogo({
+  branding, firmenname, prim, size = 24,
+}: {
+  branding: Branding | null | undefined
+  firmenname: string
+  prim: string
+  size?: number
+}) {
+  const [fehlt, setFehlt] = useState(false)
+  if (!branding?.logo_url || fehlt) {
+    return (
+      <svg width={size - 2} height={size - 2} viewBox="0 0 18 18" fill="none" className="shrink-0">
+        <rect x="0" y="0" width="10" height="10" rx="2" fill={prim} opacity="0.30" />
+        <rect x="4" y="4" width="10" height="10" rx="2" fill={prim} opacity="0.55" />
+        <rect x="8" y="8" width="10" height="10" rx="2" fill={prim} />
+      </svg>
+    )
+  }
+  return (
+    <Image
+      src={branding.logo_url}
+      alt={firmenname}
+      width={size}
+      height={size}
+      className="rounded object-contain shrink-0"
+      onError={() => setFehlt(true)}
+    />
+  )
+}
