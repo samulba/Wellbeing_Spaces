@@ -15,16 +15,36 @@ interface Props {
   anfrageId: string
   vorlage:   OnboardingVorlage | null | undefined
   antworten: Record<string, unknown> | null | undefined
+  /**
+   * Optional: vorgeladene Dateien-Liste. Wenn uebergeben, ueberspringt
+   * die Komponente den serverseitigen Fetch (getAnfrageDateien ist
+   * authentifiziert — auf Customer-Seite nicht aufrufbar).
+   */
+  dateien?: OnboardingDatei[]
+  /**
+   * Wenn true, wird der Download-Link fuer Dateien NICHT als Button
+   * gerendert (Signed-URL-Action ist authentifiziert, Customer kann sie
+   * nicht aufrufen). Stattdessen nur Dateiname + Icon als statischer
+   * Eintrag. Default: false (Admin-Verhalten).
+   */
+  ohneDownload?: boolean
 }
 
-export default function DynamischeAntwortenAnzeige({ anfrageId, vorlage, antworten }: Props) {
-  const [dateien, setDateien] = useState<OnboardingDatei[]>([])
+export default function DynamischeAntwortenAnzeige({ anfrageId, vorlage, antworten, dateien: dateienProp, ohneDownload }: Props) {
+  const [dateienState, setDateien] = useState<OnboardingDatei[]>(dateienProp ?? [])
 
   useEffect(() => {
+    if (dateienProp !== undefined) {
+      // Caller hat die Dateien-Liste mitgeliefert — kein Server-Fetch noetig.
+      setDateien(dateienProp)
+      return
+    }
     let aktiv = true
     void getAnfrageDateien(anfrageId).then((d) => { if (aktiv) setDateien(d) })
     return () => { aktiv = false }
-  }, [anfrageId])
+  }, [anfrageId, dateienProp])
+
+  const dateien = dateienState
 
   if (!antworten || Object.keys(antworten).length === 0) {
     // Wenn keine Antworten da sind aber Dateien hochgeladen wurden,
@@ -36,7 +56,7 @@ export default function DynamischeAntwortenAnzeige({ anfrageId, vorlage, antwort
           Hochgeladene Dateien
         </p>
         <ul className="space-y-1">
-          {dateien.map((d) => <li key={d.id}><DateiLink datei={d} /></li>)}
+          {dateien.map((d) => <li key={d.id}><DateiLink datei={d} ohneDownload={ohneDownload} /></li>)}
         </ul>
       </div>
     )
@@ -64,7 +84,7 @@ export default function DynamischeAntwortenAnzeige({ anfrageId, vorlage, antwort
           <div className="mt-4 pt-3 border-t border-gray-100">
             <p className="text-[11px] text-gray-400 mb-2">Hochgeladene Dateien</p>
             <ul className="space-y-1">
-              {dateien.map((d) => <li key={d.id}><DateiLink datei={d} /></li>)}
+              {dateien.map((d) => <li key={d.id}><DateiLink datei={d} ohneDownload={ohneDownload} /></li>)}
             </ul>
           </div>
         )}
@@ -102,7 +122,7 @@ export default function DynamischeAntwortenAnzeige({ anfrageId, vorlage, antwort
                   <div key={f.id} className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-1.5 sm:gap-3">
                     <dt className="text-[11px] text-gray-400 leading-relaxed">{f.titel}</dt>
                     <dd className="text-sm text-gray-700">
-                      <AntwortWert frage={f} wert={wert} dateien={dateien.filter((d) => d.frage_id === f.id)} />
+                      <AntwortWert frage={f} wert={wert} dateien={dateien.filter((d) => d.frage_id === f.id)} ohneDownload={ohneDownload} />
                     </dd>
                   </div>
                 )
@@ -119,10 +139,12 @@ function AntwortWert({
   frage,
   wert,
   dateien,
+  ohneDownload,
 }: {
   frage: OnboardingFrage
   wert: unknown
   dateien: OnboardingDatei[]
+  ohneDownload?: boolean
 }) {
   // Leer-Werte sichtbar machen
   const leer = wert == null || wert === '' || (Array.isArray(wert) && wert.length === 0)
@@ -134,7 +156,7 @@ function AntwortWert({
       <ul className="space-y-1">
         {dateien.map((d) => (
           <li key={d.id}>
-            <DateiLink datei={d} />
+            <DateiLink datei={d} ohneDownload={ohneDownload} />
           </li>
         ))}
       </ul>
@@ -252,7 +274,7 @@ function RawWert({ wert }: { wert: unknown }) {
   return <span>{String(wert)}</span>
 }
 
-function DateiLink({ datei }: { datei: OnboardingDatei }) {
+function DateiLink({ datei, ohneDownload }: { datei: OnboardingDatei; ohneDownload?: boolean }) {
   const [url, setUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -268,6 +290,15 @@ function DateiLink({ datei }: { datei: OnboardingDatei }) {
   }
 
   const istBild = datei.dateityp.startsWith('image/')
+
+  if (ohneDownload) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-gray-700">
+        {istBild ? <ImageIcon className="w-3 h-3 text-gray-400" /> : <FileText className="w-3 h-3 text-gray-400" />}
+        <span>{datei.dateiname}</span>
+      </span>
+    )
+  }
 
   return (
     <button
