@@ -10,6 +10,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Limit erhöht: jetzt bis zu 10 Dateien** pro Upload-Feld (vorher 5). Pro-Vorlage kann das Limit weiterhin im Editor überschrieben werden.
 - **Migration 111 repariert**: Alte Version benutzte `information_schema` und sah den kaputten FK auf `auth.users` nicht (anderes Schema) — Migration brach mit `42710 constraint already exists` ab. Neue Version nutzt `pg_catalog`, dropt den kaputten FK zuverlässig und legt den korrekten FK auf `organisationen(id)` an. Idempotent — kann gefahrlos erneut ausgeführt werden.
 
+### Onboarding-Status-Flow überarbeitet
+- **Neuer Status „Eingereicht"** zwischen „Offen/In Bearbeitung" und „Abgeschlossen". Wenn der Kunde das Formular abschickt, landet die Anfrage auf **Eingereicht** — der Admin muss erst „Als Kunde anlegen" klicken, damit sie auf **Abgeschlossen** wechselt. Damit ergibt der Filter „Offen" wieder Sinn (= noch nichts vom Kunden zurückgekommen).
+- **Bug behoben**: Frisch erstellte Links wurden sofort als „Eingereicht" angezeigt, obwohl noch nichts ausgefüllt war. Ursache: Beim Anlegen ohne verknüpften Kunden wurde der Titel fälschlich als `kunde_name` gespeichert, was die Status-Heuristik getriggert hat. Jetzt bleibt `kunde_name` leer, bis der Kunde wirklich tippt.
+- **Backfill**: Alte Anfragen mit Status „Abgeschlossen", aber ohne verknüpften Kunden werden von Migration 113 automatisch auf „Eingereicht" zurückgesetzt — sie waren ja nie wirklich verarbeitet.
+- Migration **113** (`onboarding_anfragen.status` CHECK + RLS-Policy + Backfill) muss manuell in Supabase ausgeführt werden — komplett additiv, keine bestehenden Daten gehen verloren.
+
 ## 2026-05-16
 
 ### Projekte überarbeitet — Phase 3 (Brutto-Default, Räume-Übersicht, PDF, Formular)

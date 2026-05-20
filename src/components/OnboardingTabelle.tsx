@@ -58,16 +58,18 @@ function getTypInfo(typ: string | null | undefined): {
 
 // ── Status-Helfer ─────────────────────────────────────────────
 //
-// `kunde_name` ist KEIN zuverlässiger "ausgefüllt"-Indikator: bei verknüpftem
-// Kunden wird er beim Link-Erstellen bereits vorausgefüllt. Wir prüfen daher:
-// - V2-Flow: `antworten` enthält Daten
-// - Legacy: `kunde_name` gesetzt UND kein Prefill-Kunde verlinkt
-// - Status explizit `abgeschlossen`
+// Status-Flow (Migration 113):
+//   offen → in_bearbeitung → eingereicht → abgeschlossen
+//
+// 'eingereicht' = Kunde hat das Formular abgeschickt, Admin muss noch
+//                 'Als Kunde anlegen' klicken.
+// 'abgeschlossen' = Admin hat Kunde+Projekt aus der Anfrage angelegt.
+//
+// Backwards-compat: Altdaten mit status='abgeschlossen' ohne kunde_id
+// werden von Mig. 113 auf 'eingereicht' zurueckgesetzt — daher reicht
+// hier ein reiner Status-Check.
 function istEingereicht(a: OnboardingAnfrage): boolean {
-  if (a.status === 'abgeschlossen') return true
-  if (a.antworten && Object.keys(a.antworten as object).length > 0) return true
-  if (a.kunde_name && !a.kunde_id) return true
-  return false
+  return a.status === 'eingereicht' || a.status === 'abgeschlossen'
 }
 
 function istBegonnen(a: OnboardingAnfrage): boolean {
@@ -81,7 +83,7 @@ function istBegonnen(a: OnboardingAnfrage): boolean {
 function getBadge(a: OnboardingAnfrage): { label: string; cls: string } {
   if (a.status === 'abgeschlossen') return { label: 'Abgeschlossen',    cls: 'bg-blue-100 text-blue-700' }
   if (a.status === 'abgelehnt')     return { label: 'Abgelehnt',        cls: 'bg-red-100 text-red-600' }
-  if (istEingereicht(a))            return { label: 'Eingereicht',      cls: 'bg-emerald-100 text-emerald-700' }
+  if (a.status === 'eingereicht')   return { label: 'Eingereicht',      cls: 'bg-emerald-100 text-emerald-700' }
   if (istBegonnen(a))               return { label: 'In Bearbeitung',   cls: 'bg-indigo-100 text-indigo-700' }
   if (a.kunde_id)                   return { label: 'Wartet auf Kunde', cls: 'bg-amber-100 text-amber-700' }
   return                                   { label: 'Wartet auf Eintrag', cls: 'bg-gray-100 text-gray-600' }
@@ -916,8 +918,8 @@ export default function OnboardingTabelle({
   })
 
   const gesamt             = anfragen.length
-  const offenCount         = anfragen.filter((a) => (a.status === 'offen' || a.status === 'in_bearbeitung') && !istEingereicht(a)).length
-  const ausgefuelltCount   = anfragen.filter((a) => istEingereicht(a) && a.status !== 'abgeschlossen').length
+  const offenCount         = anfragen.filter((a) => a.status === 'offen' || a.status === 'in_bearbeitung').length
+  const ausgefuelltCount   = anfragen.filter((a) => a.status === 'eingereicht').length
   const abgeschlossenCount = anfragen.filter((a) => a.status === 'abgeschlossen').length
   const abgelehntCount     = anfragen.filter((a) => a.status === 'abgelehnt').length
 
@@ -926,8 +928,8 @@ export default function OnboardingTabelle({
 
   const anfragenGefiltert = anfragen.filter((a) => {
     if (filter === 'alle')          return true
-    if (filter === 'offen')         return (a.status === 'offen' || a.status === 'in_bearbeitung') && !istEingereicht(a)
-    if (filter === 'ausgefuellt')   return istEingereicht(a) && a.status !== 'abgeschlossen'
+    if (filter === 'offen')         return a.status === 'offen' || a.status === 'in_bearbeitung'
+    if (filter === 'ausgefuellt')   return a.status === 'eingereicht'
     if (filter === 'abgeschlossen') return a.status === 'abgeschlossen'
     if (filter === 'abgelehnt')     return a.status === 'abgelehnt'
     return true

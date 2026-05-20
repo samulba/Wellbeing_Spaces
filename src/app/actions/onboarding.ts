@@ -149,7 +149,9 @@ export async function onboardingAbsenden(
       kunde_name:       finalKundeName,
       projekt_name:     finalProjektName,
       antworten:        antworten ?? null,
-      status:           'abgeschlossen',
+      // 'eingereicht' = Kunde hat abgeschickt; 'abgeschlossen' setzt
+      // erst der Admin, wenn er Kunde+Projekt aus der Anfrage anlegt.
+      status:           'eingereicht',
       fortschritt:      100,
       abgeschlossen_am: new Date().toISOString(),
       updated_at:       new Date().toISOString(),

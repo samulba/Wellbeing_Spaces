@@ -94,8 +94,10 @@ export async function onboardingLinkErstellenV2(
         gueltig_bis,
         titel:            resolvedTitel,
         vorlage_snapshot: snapshot,
-        // kunde_name aus Prefill bevorzugen, sonst aus Titel ableiten
-        kunde_name:       kundePrefill.kunde_name ?? (resolvedTitel === 'Onboarding-Link' ? null : resolvedTitel),
+        // kunde_name NUR aus Prefill setzen — niemals aus dem Titel
+        // ableiten, sonst markiert die UI den Link faelschlich als
+        // 'Eingereicht' (istEingereicht prueft kunde_name).
+        kunde_name:       kundePrefill.kunde_name ?? null,
         kunde_email:      kundePrefill.kunde_email ?? null,
         kunde_telefon:    kundePrefill.kunde_telefon ?? null,
       })
@@ -326,7 +328,9 @@ export async function onboardingAbsendenV2(
       projekt_name:     finalProjektName,
       antworten:        antworten ?? null,
       auto_save:        null,         // Entwurf löschen
-      status:           'abgeschlossen',
+      // 'eingereicht' = Kunde hat abgeschickt; 'abgeschlossen' setzt
+      // erst der Admin, wenn er Kunde+Projekt aus der Anfrage anlegt.
+      status:           'eingereicht',
       fortschritt:      100,
       abgeschlossen_am: new Date().toISOString(),
       // titel wird bewusst NICHT geschrieben — bleibt aus Erstellungszeitpunkt
@@ -725,7 +729,7 @@ export async function getVorlagen(typ?: OnboardingTyp): Promise<OnboardingVorlag
 /** Status einer Anfrage ändern. */
 export async function onboardingStatusAendernV2(
   id: string,
-  status: 'offen' | 'in_bearbeitung' | 'abgeschlossen' | 'abgelehnt' | 'abgelaufen'
+  status: 'offen' | 'in_bearbeitung' | 'eingereicht' | 'abgeschlossen' | 'abgelehnt' | 'abgelaufen'
 ): Promise<void> {
   const supabase = await createClient()
   const orgId    = await getOrganisationId()

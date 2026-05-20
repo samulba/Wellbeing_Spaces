@@ -539,7 +539,7 @@ export interface TeamMitglied {
   updated_at: string
 }
 
-export type OnboardingStatus = 'offen' | 'in_bearbeitung' | 'abgeschlossen' | 'abgelehnt' | 'abgelaufen'
+export type OnboardingStatus = 'offen' | 'in_bearbeitung' | 'eingereicht' | 'abgeschlossen' | 'abgelehnt' | 'abgelaufen'
 export type OnboardingTyp    = 'neukunde' | 'projekt' | 'universal'
 
 export type OnboardingFrageTyp =

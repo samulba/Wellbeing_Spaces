@@ -35,13 +35,13 @@ export default async function OnboardingPage({ params, searchParams }: Props) {
     return <Fehlerseite branding={br} title="Link abgelaufen" text="Dieser Onboarding-Link ist nicht mehr gueltig. Bitte wende dich an deinen Innenarchitekten." />
   }
 
-  // Bereits ausgefuellt — entscheidend ist der Status (gesetzt durch
-  // onboardingAbsendenV2/onboardingAbsenden) bzw. dass antworten gesetzt
-  // wurde. kunde_name allein blockiert hier nicht mehr (kann durch
-  // Prefill bei verknuepftem Kunden gesetzt sein), Bug 1.
+  // Bereits ausgefuellt — Status 'eingereicht' (Kunde hat abgeschickt,
+  // Admin verarbeitet noch) oder 'abgeschlossen' (Admin hat Kunde
+  // angelegt) blockieren das Formular fuer erneuten Submit. kunde_name
+  // allein blockiert nicht (kann Prefill sein, Bug 1).
   // Im Vorschau-Modus (?vorschau=1) wird das Formular trotzdem gerendert,
-  // damit Admin abgeschlossene Anfragen einsehen kann.
-  if (!vorschauModus && (anfrage.status === 'abgeschlossen' || anfrage.antworten)) {
+  // damit Admin Anfragen einsehen kann.
+  if (!vorschauModus && (anfrage.status === 'eingereicht' || anfrage.status === 'abgeschlossen' || anfrage.antworten)) {
     const br = await brandingFuerToken()
     return <BereitsAusgefuellt branding={br} />
   }
