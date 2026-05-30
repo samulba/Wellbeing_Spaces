@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import RaumHinzufuegen from '@/components/RaumHinzufuegen'
 import FreigabeLinkKarte from '@/components/FreigabeLinkKarte'
 import FreigabeUebersicht from '@/components/FreigabeUebersicht'
+import FreigabeRaumPanel from '@/components/FreigabeRaumPanel'
 import { freigabeTokensAbrufenFuerProjekt } from '@/app/actions/freigaben'
 import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
@@ -714,6 +715,14 @@ export default async function ProjektDetailPage({
               initialHatPin={!!projekt.freigabe_pin && projekt.freigabe_pin.toString().trim().length >= 4}
             />
             <FreigabeUebersicht projektId={projekt.id} initialTokens={alleTokens} />
+            {raeume.length > 0 && (
+              <FreigabeRaumPanel
+                projektId={projekt.id}
+                raeume={raeume}
+                raumStats={raumStats}
+                raumGruppen={raumGruppen}
+              />
+            )}
           </div>
         )}
 

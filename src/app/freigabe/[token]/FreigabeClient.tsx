@@ -24,9 +24,13 @@ interface ProduktState {
   kundeFavorit: boolean
 }
 
-// Alle Produkte eines Projekts flach (Auswahl-Gruppen + lose Produkte)
+// Produkte eines Raums flach (Auswahl-Gruppen + lose Produkte)
+function raumProdukte(r: FreigabeRaum): FreigabeProdukt[] {
+  return [...(r.gruppen ?? []).flatMap((g) => g.produkte), ...r.produkte]
+}
+// Alle Produkte eines Projekts flach
 function flacheProdukte(raeume: FreigabeRaum[]): FreigabeProdukt[] {
-  return raeume.flatMap((r) => [...(r.gruppen ?? []).flatMap((g) => g.produkte), ...r.produkte])
+  return raeume.flatMap(raumProdukte)
 }
 
 interface Props {
@@ -312,6 +316,7 @@ export default function FreigabeClient({
   const [abschlussModalOffen, setAbschlussModalOffen] = useState(false)
   const [lokalAbgeschlossen, setLokalAbgeschlossen] = useState(false)
   const [fehlerMeldung, setFehlerMeldung] = useState<string | null>(null)
+  const [aktiverRaumIndex, setAktiverRaumIndex] = useState(0)
 
   // Read-Only-Bestätigungsscreen wenn bereits abgeschlossen
   if (bereitsAbgeschlossen || lokalAbgeschlossen) {
@@ -362,6 +367,13 @@ export default function FreigabeClient({
   const fortschritt       = total > 0 ? Math.round((entschiedenCount / total) * 100) : 0
   const alleDone          = freigegebenCount === total && total > 0
   const alleEntschieden   = entschiedenCount === total && total > 0
+
+  // Räume mit mindestens einem aktiven Produkt (für Tab-Navigation pro Raum)
+  const sichtbareRaeume = raeume.filter((r) => raumProdukte(r).some((p) => state[p.id]))
+  const idx = Math.min(aktiverRaumIndex, Math.max(0, sichtbareRaeume.length - 1))
+  const aktuellerRaum = sichtbareRaeume[idx]
+  const raumOffenCount = (r: FreigabeRaum) =>
+    raumProdukte(r).filter((p) => state[p.id] && state[p.id].status === 'ausstehend').length
 
   function speichereStatus(produktId: string, status: ProduktStatus, kommentar = '') {
     startTransition(async () => {
@@ -493,14 +505,40 @@ export default function FreigabeClient({
           </div>
         )}
 
-        {/* ── Räume + Produkte ───────────────────────────────── */}
-        {raeume.map((raum) => {
+        {/* ── Raum-Navigation (pro Raum eine Ansicht) ─────────── */}
+        {sichtbareRaeume.length > 1 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-2 mb-4 -mx-1 px-1">
+            {sichtbareRaeume.map((r, i) => {
+              const offen = raumOffenCount(r)
+              const aktiv = i === idx
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setAktiverRaumIndex(i)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${aktiv ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
+                  style={aktiv ? { backgroundColor: prim } : undefined}
+                >
+                  {r.name}
+                  {offen > 0 ? (
+                    <span className={`text-[10px] rounded-full px-1.5 py-0.5 ${aktiv ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>{offen}</span>
+                  ) : (
+                    <Check className={`w-3 h-3 ${aktiv ? 'text-white' : 'text-emerald-500'}`} />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* ── Aktiver Raum: Auswahl-Gruppen + lose Produkte ───── */}
+        {aktuellerRaum && (() => {
+          const raum = aktuellerRaum
           const aktiveProdukte = raum.produkte.filter((p) => state[p.id])
           const gruppen = (raum.gruppen ?? []).filter((g) => g.produkte.some((p) => state[p.id]))
-          if (aktiveProdukte.length === 0 && gruppen.length === 0) return null
           const anzahl = gruppen.reduce((s, g) => s + g.produkte.length, 0) + aktiveProdukte.length
           return (
-            <div key={raum.id} className="mb-8">
+            <div className="mb-6">
               <div className="flex items-center gap-3 mb-3 px-1">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{raum.name}</span>
                 <div className="flex-1 h-px bg-gray-200" />
@@ -535,7 +573,30 @@ export default function FreigabeClient({
               </div>
             </div>
           )
-        })}
+        })()}
+
+        {/* ── Raum-Pager ─────────────────────────────────────── */}
+        {sichtbareRaeume.length > 1 && (
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <button
+              type="button"
+              onClick={() => setAktiverRaumIndex((i) => Math.max(0, i - 1))}
+              disabled={idx === 0}
+              className="inline-flex items-center gap-1 text-sm text-gray-600 disabled:opacity-30 disabled:cursor-default hover:text-gray-900 transition-colors"
+            >
+              ← Vorheriger Raum
+            </button>
+            <span className="text-xs text-gray-400">{idx + 1} / {sichtbareRaeume.length}</span>
+            <button
+              type="button"
+              onClick={() => setAktiverRaumIndex((i) => Math.min(sichtbareRaeume.length - 1, i + 1))}
+              disabled={idx === sichtbareRaeume.length - 1}
+              className="inline-flex items-center gap-1 text-sm text-gray-600 disabled:opacity-30 disabled:cursor-default hover:text-gray-900 transition-colors"
+            >
+              Nächster Raum →
+            </button>
+          </div>
+        )}
 
         {/* ── Abschluss-Panel ──────────────────────────────── */}
         {total > 0 && (

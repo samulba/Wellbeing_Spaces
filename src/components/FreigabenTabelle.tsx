@@ -649,7 +649,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
 
           <div className="ml-auto flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
             {([
-              { key: 'gruppen' as const, label: 'Gruppen', Icon: Layers },
+              { key: 'gruppen' as const, label: 'Nach Projekt', Icon: Layers },
               { key: 'tabelle' as const, label: 'Tabelle', Icon: Table2 },
               { key: 'balken'  as const, label: 'Balken',  Icon: BarChart2 },
             ]).map(({ key, label, Icon }) => (

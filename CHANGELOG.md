@@ -16,6 +16,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Auswahl-Gruppen erscheinen im Kunden-Freigabe-Link als Auswahl-Karte**: Der Kunde sieht alle Alternativen einer Gruppe nebeneinander, inkl. eurer **„Empfehlung"-Markierung**, und wählt per Klick seine bevorzugte Option.
 - **Die Kundenwahl gilt automatisch als Freigabe**: Das gewählte Produkt wird „freigegeben", die anderen Alternativen der Gruppe bleiben offen (nicht abgelehnt). Solange in einer Gruppe noch nichts gewählt wurde, bleibt der Abschluss gesperrt. Einzel-Produkte (ohne Gruppe) funktionieren unverändert mit Freigeben/Ablehnen/Alternative.
 
+### Freigabe-Übersicht: pro Raum statt eine lange Liste
+- **Kunden-Freigabe-Link zeigt jetzt einen Raum nach dem anderen**: Oben eine Raum-Leiste (mit Anzahl offener Produkte bzw. ✓ wenn fertig) und „Vorheriger/Nächster Raum"-Navigation — statt einer einzigen langen Liste. Der Gesamt-Fortschritt oben bleibt projektweit.
+- **Projekt-Detail, Tab „Freigaben": neue Raum-Übersicht** mit Fortschrittsbalken „X/Y freigegeben" pro Raum (nach Räume-Gruppen geclustert) und direktem Link in jeden Raum.
+- Globale Freigaben-Seite: View „Gruppen" heißt jetzt „Nach Projekt" (klarere Abgrenzung zu den neuen Auswahl-Gruppen).
+
 ## 2026-05-20
 
 ### Onboarding-Datei-Upload
