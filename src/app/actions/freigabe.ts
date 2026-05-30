@@ -61,6 +61,106 @@ export async function freigabeStatusAendern(
 }
 
 /**
+ * Kunde wählt seinen Favoriten innerhalb einer Auswahl-Gruppe (Migration 114).
+ * Der gewählte Eintrag wird kunde_favorit=true UND freigegeben; die Geschwister
+ * verlieren kunde_favorit und kehren auf 'ausstehend' zurück (NICHT abgelehnt).
+ * Status-Änderungen laufen über freigabeStatusSetzen → Audit-Trail (kanal 'token').
+ * Öffentlicher Pfad via Admin-Client; Tenancy über Token→Projekt-Ownership + Scope.
+ */
+export async function freigabeFavoritWaehlen(
+  token: string,
+  raumProduktId: string,
+): Promise<FreigabeResult> {
+  const supabase = createAdminClient()
+
+  // 1. Token validieren
+  const { data: tokenData } = await supabase
+    .from('freigabe_tokens')
+    .select('id, projekt_id, gueltig_bis, aktiv, scope_typ, scope_ids, abgeschlossen_am, deleted_at')
+    .eq('token', token)
+    .single()
+
+  if (!tokenData || !tokenData.aktiv || tokenData.deleted_at) {
+    return { fehler: 'Ungültiger oder inaktiver Freigabe-Link.' }
+  }
+  if (tokenData.gueltig_bis && new Date(tokenData.gueltig_bis) < new Date()) {
+    return { fehler: 'Dieser Freigabe-Link ist abgelaufen.' }
+  }
+  if (tokenData.abgeschlossen_am) {
+    return { fehler: 'Diese Freigabe wurde bereits abgeschlossen.' }
+  }
+
+  // 2. Zielzeile + Projektzugehörigkeit + Gruppe
+  const { data: ziel } = await supabase
+    .from('raum_produkte')
+    .select('id, raum_id, produkt_gruppe_id, raeume!inner(projekt_id)')
+    .eq('id', raumProduktId)
+    .maybeSingle()
+
+  const zielProjekt = (ziel?.raeume as unknown as { projekt_id: string } | null)?.projekt_id
+  if (!ziel || zielProjekt !== tokenData.projekt_id) {
+    return { fehler: 'Zugriff nicht erlaubt.' }
+  }
+  if (!ziel.produkt_gruppe_id) {
+    return { fehler: 'Dieses Produkt gehört zu keiner Auswahl-Gruppe.' }
+  }
+
+  // 3. Scope-Guard (Migration 081)
+  const scopeTyp = (tokenData.scope_typ as 'projekt' | 'raum' | 'auswahl' | null) ?? 'projekt'
+  const scopeIds = (tokenData.scope_ids as string[] | null) ?? []
+  if (scopeTyp === 'raum' && scopeIds[0] && ziel.raum_id !== scopeIds[0]) {
+    return { fehler: 'Dieses Produkt liegt außerhalb des freigegebenen Bereichs.' }
+  }
+  if (scopeTyp === 'auswahl' && scopeIds.length > 0 && !scopeIds.includes(raumProduktId)) {
+    return { fehler: 'Dieses Produkt liegt außerhalb des freigegebenen Bereichs.' }
+  }
+
+  // 4. Geschwister der Gruppe laden
+  const { data: geschwister } = await supabase
+    .from('raum_produkte')
+    .select('id, freigabe_status')
+    .eq('produkt_gruppe_id', ziel.produkt_gruppe_id)
+
+  // 5. kunde_favorit clear-before-set (Partial-Unique-Index)
+  const { error: clearErr } = await supabase
+    .from('raum_produkte')
+    .update({ kunde_favorit: false })
+    .eq('produkt_gruppe_id', ziel.produkt_gruppe_id)
+  if (clearErr) return { fehler: 'Auswahl konnte nicht gespeichert werden.' }
+
+  const { error: setErr } = await supabase
+    .from('raum_produkte')
+    .update({ kunde_favorit: true })
+    .eq('id', raumProduktId)
+  if (setErr) return { fehler: 'Auswahl konnte nicht gespeichert werden.' }
+
+  // 6. Freigabe-Kopplung via bestehender Infra (schreibt Audit, kanal 'token')
+  const { freigabeStatusSetzen } = await import('./freigaben')
+  await freigabeStatusSetzen({
+    raumProduktId,
+    status: 'freigegeben',
+    kommentar: null,
+    kanal: 'token',
+    kontext: { tokenId: tokenData.id, geaendertVon: 'Kunde (Freigabe-Link)' },
+  })
+
+  // 7. Geschwister auf 'ausstehend' zurücksetzen (nicht auto-abgelehnt)
+  for (const g of (geschwister ?? []) as { id: string; freigabe_status: string }[]) {
+    if (g.id === raumProduktId) continue
+    if (g.freigabe_status === 'ausstehend') continue
+    await freigabeStatusSetzen({
+      raumProduktId: g.id,
+      status: 'ausstehend',
+      kommentar: 'Andere Alternative gewählt',
+      kanal: 'token',
+      kontext: { tokenId: tokenData.id, geaendertVon: 'Kunde (Freigabe-Link)' },
+    })
+  }
+
+  return { erfolg: true }
+}
+
+/**
  * Admin setzt Freigabe für einen einzelnen raum_produkte-Eintrag zurück.
  * (Nimmt jetzt raumProduktId statt produktId.)
  */

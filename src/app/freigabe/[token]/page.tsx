@@ -3,7 +3,7 @@ import { getMwstSatz } from '@/app/actions/einstellungen'
 import { brandingFuerToken } from '@/app/actions/branding'
 import { effektiverVpNetto } from '@/lib/preise'
 import FreigabeClient from './FreigabeClient'
-import type { FreigabeRaum, FreigabeProdukt, ProduktStatus } from '@/lib/supabase/types'
+import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, ProduktStatus } from '@/lib/supabase/types'
 
 interface Props {
   params: { token: string }
@@ -72,6 +72,9 @@ export default async function FreigabePage({ params }: Props) {
       reihenfolge,
       freigabe_status,
       freigabe_kommentar,
+      produkt_gruppe_id,
+      admin_favorit,
+      kunde_favorit,
       produkte!inner(
         id, name, beschreibung, kategorie, einheit, verkaufspreis,
         bild_url, produkt_url, deleted_at,
@@ -88,10 +91,26 @@ export default async function FreigabePage({ params }: Props) {
 
   const { data: rpDaten } = await rpQuery
 
-  // 5. Struktur aufbauen: Räume mit Produkten
+  // 4b. Auswahl-Gruppen der in-scope Räume laden (Migration 114)
+  const { data: gruppenDaten } = await supabase
+    .from('produkt_gruppen')
+    .select('id, raum_id, name, beschreibung, reihenfolge')
+    .in('raum_id', raumFilter)
+    .is('deleted_at', null)
+    .order('reihenfolge')
+    .order('created_at')
+
+  const gruppenProRaum = new Map<string, { id: string; name: string; beschreibung: string | null }[]>()
+  for (const g of (gruppenDaten ?? []) as { id: string; raum_id: string; name: string; beschreibung: string | null }[]) {
+    const arr = gruppenProRaum.get(g.raum_id) ?? []
+    arr.push({ id: g.id, name: g.name, beschreibung: g.beschreibung })
+    gruppenProRaum.set(g.raum_id, arr)
+  }
+
+  // 5. Struktur aufbauen: Räume mit Auswahl-Gruppen + losen Produkten
   const raeume: FreigabeRaum[] = raeumeDaten
     .map((raum) => {
-      const raumpProdukte = (rpDaten ?? [])
+      const alleProdukte = (rpDaten ?? [])
         .filter((rp) => {
           if (rp.raum_id !== raum.id) return false
           // Gelöschte Produkte ausblenden
@@ -129,11 +148,29 @@ export default async function FreigabePage({ params }: Props) {
             kommentar: (rp.freigabe_kommentar as string | null) ?? null,
             hinweis: p.hinweis_extern_sichtbar ? p.hinweis_extern : null,
             rabatt_prozent: (rp.rabatt_prozent as number | null) ?? null,
+            // Auswahl-Gruppe + Favoriten (Migration 114)
+            produkt_gruppe_id: (rp.produkt_gruppe_id as string | null) ?? null,
+            admin_favorit: (rp.admin_favorit as boolean | null) ?? false,
+            kunde_favorit: (rp.kunde_favorit as boolean | null) ?? false,
           }
         })
-      return { id: raum.id, name: raum.name, produkte: raumpProdukte }
+
+      // In Auswahl-Gruppen (mehrere Alternativen) + lose Produkte partitionieren
+      const gruppenDefs = gruppenProRaum.get(raum.id) ?? []
+      const gruppenIdSet = new Set(gruppenDefs.map((g) => g.id))
+      const gruppen: FreigabeProduktGruppe[] = gruppenDefs
+        .map((g) => ({
+          id: g.id,
+          name: g.name,
+          beschreibung: g.beschreibung,
+          produkte: alleProdukte.filter((p) => p.produkt_gruppe_id === g.id),
+        }))
+        .filter((grp) => grp.produkte.length > 0)
+      const lose = alleProdukte.filter((p) => !p.produkt_gruppe_id || !gruppenIdSet.has(p.produkt_gruppe_id))
+
+      return { id: raum.id, name: raum.name, gruppen, produkte: lose }
     })
-    .filter((r) => r.produkte.length > 0)
+    .filter((r) => r.produkte.length > 0 || (r.gruppen?.length ?? 0) > 0)
 
   if (raeume.length === 0) {
     return <Fehlerseite meldung="Für dieses Projekt wurden noch keine Produkte hinterlegt." />
@@ -145,10 +182,12 @@ export default async function FreigabePage({ params }: Props) {
     brandingFuerToken(),
   ])
 
+  const produktAnzahl = (r: FreigabeRaum) =>
+    r.produkte.length + (r.gruppen?.reduce((s, g) => s + g.produkte.length, 0) ?? 0)
   const scopeBeschreibung =
     scopeTyp === 'projekt' ? 'Gesamtes Projekt' :
     scopeTyp === 'raum'    ? `Raum: ${raeume[0]?.name ?? ''}` :
-                              `${raeume.reduce((sum, r) => sum + r.produkte.length, 0)} ausgewählte Produkte`
+                              `${raeume.reduce((sum, r) => sum + produktAnzahl(r), 0)} ausgewählte Produkte`
 
   return (
     <FreigabeClient

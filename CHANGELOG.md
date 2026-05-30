@@ -12,6 +12,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Produkte in einem Raum lassen sich zu „Auswahl-Gruppen" bündeln** (z. B. „Sofa-Auswahl" mit mehreren Alternativen). In der Produkttabelle eines Raums: Button „+ Auswahl-Gruppe" anlegen, Produkte per Auswahlfeld (beim Hovern sichtbar) zuordnen oder per Drag&Drop in eine andere Gruppe ziehen.
 - **Favorit/Empfehlung markieren**: In einer Gruppe kann genau ein Produkt per ⭐-Stern als euer Favorit markiert werden, die übrigen gelten als Alternativen (Badge „Favorit" / „Alternative"). Diese Empfehlung wird dem Kunden später im Freigabe-Link angezeigt.
 
+### Freigabe-Link: Kunde wählt Favorit (= Freigabe)
+- **Auswahl-Gruppen erscheinen im Kunden-Freigabe-Link als Auswahl-Karte**: Der Kunde sieht alle Alternativen einer Gruppe nebeneinander, inkl. eurer **„Empfehlung"-Markierung**, und wählt per Klick seine bevorzugte Option.
+- **Die Kundenwahl gilt automatisch als Freigabe**: Das gewählte Produkt wird „freigegeben", die anderen Alternativen der Gruppe bleiben offen (nicht abgelehnt). Solange in einer Gruppe noch nichts gewählt wurde, bleibt der Abschluss gesperrt. Einzel-Produkte (ohne Gruppe) funktionieren unverändert mit Freigeben/Ablehnen/Alternative.
+
 ## 2026-05-20
 
 ### Onboarding-Datei-Upload

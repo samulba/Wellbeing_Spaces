@@ -2,10 +2,10 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Check, X, RefreshCw, ExternalLink, ChevronDown, Lock, Package } from 'lucide-react'
-import { freigabeStatusAendern } from '@/app/actions/freigabe'
+import { Check, X, RefreshCw, ExternalLink, ChevronDown, Lock, Package, Star } from 'lucide-react'
+import { freigabeStatusAendern, freigabeFavoritWaehlen } from '@/app/actions/freigabe'
 import { pinPruefen } from '@/app/actions/projekte'
-import type { FreigabeRaum, FreigabeProdukt, ProduktStatus, Branding } from '@/lib/supabase/types'
+import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, ProduktStatus, Branding } from '@/lib/supabase/types'
 import HinweisBanner from '@/components/HinweisBanner'
 import FreigabeAbschlussModal from '@/components/FreigabeAbschlussModal'
 
@@ -21,6 +21,12 @@ interface ProduktState {
   kommentar: string
   aktiveAktion: 'ablehnen' | 'alternative' | null
   kommentarEingabe: string
+  kundeFavorit: boolean
+}
+
+// Alle Produkte eines Projekts flach (Auswahl-Gruppen + lose Produkte)
+function flacheProdukte(raeume: FreigabeRaum[]): FreigabeProdukt[] {
+  return raeume.flatMap((r) => [...(r.gruppen ?? []).flatMap((g) => g.produkte), ...r.produkte])
 }
 
 interface Props {
@@ -290,14 +296,13 @@ export default function FreigabeClient({
 
   const [state, setState] = useState<Record<string, ProduktState>>(() => {
     const init: Record<string, ProduktState> = {}
-    for (const raum of raeume) {
-      for (const p of raum.produkte) {
-        init[p.id] = {
-          status: p.status,
-          kommentar: p.kommentar ?? '',
-          aktiveAktion: null,
-          kommentarEingabe: p.kommentar ?? '',
-        }
+    for (const p of flacheProdukte(raeume)) {
+      init[p.id] = {
+        status: p.status,
+        kommentar: p.kommentar ?? '',
+        aktiveAktion: null,
+        kommentarEingabe: p.kommentar ?? '',
+        kundeFavorit: !!p.kunde_favorit,
       }
     }
     return init
@@ -306,6 +311,7 @@ export default function FreigabeClient({
   const [isPending, startTransition] = useTransition()
   const [abschlussModalOffen, setAbschlussModalOffen] = useState(false)
   const [lokalAbgeschlossen, setLokalAbgeschlossen] = useState(false)
+  const [fehlerMeldung, setFehlerMeldung] = useState<string | null>(null)
 
   // Read-Only-Bestätigungsscreen wenn bereits abgeschlossen
   if (bereitsAbgeschlossen || lokalAbgeschlossen) {
@@ -347,7 +353,7 @@ export default function FreigabeClient({
     )
   }
 
-  const alleProdukteFlach = raeume.flatMap((r) => r.produkte)
+  const alleProdukteFlach = flacheProdukte(raeume)
   const total             = alleProdukteFlach.length
   const freigegebenCount  = Object.values(state).filter((s) => s.status === 'freigegeben').length
   const abgelehntCount    = Object.values(state).filter((s) => s.status === 'abgelehnt' || s.status === 'ueberarbeitung').length
@@ -365,6 +371,32 @@ export default function FreigabeClient({
           ...prev,
           [produktId]: { ...prev[produktId], status, kommentar, aktiveAktion: null, kommentarEingabe: kommentar },
         }))
+      }
+    })
+  }
+
+  // Kunde wählt seinen Favoriten in einer Auswahl-Gruppe → wird freigegeben,
+  // die Geschwister kehren auf 'ausstehend' zurück (Migration 114).
+  function waehleFavorit(gruppe: FreigabeProduktGruppe, chosenId: string) {
+    startTransition(async () => {
+      const res = await freigabeFavoritWaehlen(token, chosenId)
+      if ('erfolg' in res) {
+        setState((prev) => {
+          const next = { ...prev }
+          for (const p of gruppe.produkte) {
+            const istChosen = p.id === chosenId
+            next[p.id] = {
+              ...prev[p.id],
+              status: istChosen ? 'freigegeben' : 'ausstehend',
+              kundeFavorit: istChosen,
+              aktiveAktion: null,
+            }
+          }
+          return next
+        })
+      } else {
+        setFehlerMeldung(res.fehler)
+        setTimeout(() => setFehlerMeldung(null), 5000)
       }
     })
   }
@@ -464,15 +496,28 @@ export default function FreigabeClient({
         {/* ── Räume + Produkte ───────────────────────────────── */}
         {raeume.map((raum) => {
           const aktiveProdukte = raum.produkte.filter((p) => state[p.id])
-          if (aktiveProdukte.length === 0) return null
+          const gruppen = (raum.gruppen ?? []).filter((g) => g.produkte.some((p) => state[p.id]))
+          if (aktiveProdukte.length === 0 && gruppen.length === 0) return null
+          const anzahl = gruppen.reduce((s, g) => s + g.produkte.length, 0) + aktiveProdukte.length
           return (
             <div key={raum.id} className="mb-8">
               <div className="flex items-center gap-3 mb-3 px-1">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{raum.name}</span>
                 <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-xs text-gray-400">{aktiveProdukte.length} Produkt{aktiveProdukte.length !== 1 ? 'e' : ''}</span>
+                <span className="text-xs text-gray-400">{anzahl} Produkt{anzahl !== 1 ? 'e' : ''}</span>
               </div>
               <div className="space-y-4">
+                {gruppen.map((g) => (
+                  <ProduktGruppeKarte
+                    key={g.id}
+                    gruppe={g}
+                    states={state}
+                    isPending={isPending}
+                    mwst={mwst}
+                    prim={prim}
+                    onWaehle={(id) => waehleFavorit(g, id)}
+                  />
+                ))}
                 {aktiveProdukte.map((p) => (
                   <ProduktKarte
                     key={p.id}
@@ -569,6 +614,14 @@ export default function FreigabeClient({
           )}
         </div>
       </div>
+
+      {/* Fehler-Toast (z. B. Auswahl außerhalb des Bereichs) */}
+      {fehlerMeldung && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 max-w-sm bg-red-600 text-white text-sm px-4 py-3 rounded-xl shadow-2xl flex items-start gap-2">
+          <X className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{fehlerMeldung}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -786,6 +839,110 @@ function PreisZeile({ label, wert, hervorheben }: { label: string; wert: string;
       <p className={`text-sm font-mono font-semibold ${hervorheben ? 'text-wellbeing-green' : 'text-gray-700'}`}>
         {wert}
       </p>
+    </div>
+  )
+}
+
+// ── Auswahl-Gruppen-Karte (Favorit/Alternative) ───────────────
+interface ProduktGruppeKarteProps {
+  gruppe: FreigabeProduktGruppe
+  states: Record<string, ProduktState>
+  isPending: boolean
+  mwst: number
+  prim: string
+  onWaehle: (chosenId: string) => void
+}
+
+function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, onWaehle }: ProduktGruppeKarteProps) {
+  const gewaehlt = gruppe.produkte.find((p) => states[p.id]?.kundeFavorit)
+
+  return (
+    <div className="border border-gray-200 bg-white rounded-2xl overflow-hidden shadow-sm">
+      <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-gray-900">{gruppe.name}</h3>
+            {gruppe.beschreibung && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{gruppe.beschreibung}</p>}
+          </div>
+          <span className="text-[11px] text-gray-400 shrink-0 mt-0.5">Bitte eine Option wählen</span>
+        </div>
+      </div>
+
+      <div className="divide-y divide-gray-100">
+        {gruppe.produkte.map((p) => {
+          const istGewaehlt = !!states[p.id]?.kundeFavorit
+          const vpBrutto = r2((p.verkaufspreis ?? 0) * (1 + mwst))
+          const gesamtBrutto = r2(vpBrutto * p.menge)
+          return (
+            <button
+              key={p.id}
+              type="button"
+              disabled={isPending}
+              onClick={() => onWaehle(p.id)}
+              className={`w-full flex items-center gap-3 p-4 text-left transition-colors disabled:opacity-60 ${istGewaehlt ? 'bg-emerald-50/60' : 'hover:bg-gray-50'}`}
+            >
+              {/* Radio */}
+              <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${istGewaehlt ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'}`}>
+                {istGewaehlt && <Check className="w-3 h-3 text-white" />}
+              </span>
+              {/* Thumbnail */}
+              <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                {p.bild_url ? (
+                  <Image src={p.bild_url} alt={p.name} width={64} height={64} className="w-full h-full object-cover" unoptimized />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-gray-300" /></div>
+                )}
+              </div>
+              {/* Info */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-sm font-semibold text-gray-900">{p.name}</span>
+                  {p.admin_favorit && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5" style={{ backgroundColor: `${prim}1a`, color: prim }}>
+                      <Star className="w-2.5 h-2.5" /> Empfehlung
+                    </span>
+                  )}
+                  {istGewaehlt && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Ihre Wahl</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5 flex-wrap">
+                  {p.kategorie && <span>{p.kategorie}</span>}
+                  <span>{p.menge} {p.einheit}</span>
+                  {p.produkt_url && (
+                    <a
+                      href={p.produkt_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-0.5 text-wellbeing-green hover:underline"
+                    >
+                      <ExternalLink className="w-3 h-3" /> Link
+                    </a>
+                  )}
+                </div>
+              </div>
+              {/* Preis */}
+              <div className="text-right shrink-0">
+                {p.verkaufspreis != null ? (
+                  <>
+                    <p className="text-sm font-mono font-semibold text-gray-900">{eur(gesamtBrutto)}</p>
+                    <p className="text-[10px] text-gray-400">{p.menge > 1 ? `${p.menge}× · ` : ''}inkl. MwSt</p>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400">auf Anfrage</p>
+                )}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className={`px-5 py-2.5 border-t text-xs ${gewaehlt ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
+        {gewaehlt
+          ? <>&bdquo;{gewaehlt.name}&ldquo; ist freigegeben. Sie können jederzeit eine andere Option wählen.</>
+          : <>Noch keine Auswahl getroffen — bitte wählen Sie eine Option.</>}
+      </div>
     </div>
   )
 }
