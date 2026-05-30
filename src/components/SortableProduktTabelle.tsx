@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useState, useTransition, useRef, useEffect } from 'react'
+import { Fragment, useState, useMemo, useTransition, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DndContext,
@@ -23,16 +23,25 @@ import {
   GripVertical, ChevronDown, ChevronRight, Clock, Package, CheckCircle2,
   Receipt, Trash2, X, CalendarDays, Truck, PackageCheck, Pencil,
   XCircle, AlertTriangle, Undo2, RotateCcw,
-  Tag, ArrowRight, Calendar,
+  Tag, ArrowRight, Calendar, Star, FolderPlus, Plus,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
   produktAusRaumEntfernen,
   updateRaumProduktPositionen,
   raumProdukteAktualisieren,
+  adminFavoritSetzen,
+  adminFavoritEntfernen,
 } from '@/app/actions/raum-produkte'
+import {
+  produktGruppeAnlegen,
+  produktGruppeUmbenennen,
+  produktGruppeLoeschen,
+  raumProduktZuGruppeZuordnen,
+} from '@/app/actions/produkt-gruppen'
+import { ConfirmModal } from './ConfirmModal'
 import { bestellstatusAendern, produktDatumAktualisieren, type ProduktDatumFeld } from '@/app/actions/produkte'
-import type { RaumProduktMitDetails, BestellStatus } from '@/lib/supabase/types'
+import type { RaumProduktMitDetails, BestellStatus, ProduktGruppe } from '@/lib/supabase/types'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import { effektiverVpNetto, basisVpNetto } from '@/lib/preise'
 import HinweisBanner from './HinweisBanner'
@@ -171,6 +180,10 @@ function SortableProduktZeile({
   onDatumChange,
   onRabattChange,
   onMengeChange,
+  gruppen,
+  istGruppiert,
+  onAdminFavoritChange,
+  onGruppeChange,
 }: {
   eintrag: RaumProduktMitDetails
   mwst: number
@@ -183,6 +196,10 @@ function SortableProduktZeile({
   onDatumChange: (raumProduktId: string, feld: ProduktDatumFeld, wert: string | null) => void
   onRabattChange: (raumProduktId: string, rabatt: number | null) => void
   onMengeChange: (raumProduktId: string, menge: number) => void
+  gruppen: ProduktGruppe[]
+  istGruppiert: boolean
+  onAdminFavoritChange: (raumProduktId: string, aktuellFavorit: boolean) => void
+  onGruppeChange: (raumProduktId: string, gruppeId: string | null) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: eintrag.id })
@@ -274,6 +291,17 @@ function SortableProduktZeile({
 
         <td className="px-2 py-3.5 align-middle">
           <div className="flex items-center gap-2 flex-wrap">
+            {istGruppiert && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAdminFavoritChange(eintrag.id, !!eintrag.admin_favorit) }}
+                aria-label={eintrag.admin_favorit ? 'Favorit entfernen' : 'Als Favorit (Empfehlung) markieren'}
+                title={eintrag.admin_favorit ? 'Euer Favorit (Empfehlung) — klicken zum Entfernen' : 'Als Favorit / Empfehlung markieren'}
+                className="shrink-0"
+              >
+                <Star className={`w-4 h-4 transition-colors ${eintrag.admin_favorit ? 'fill-wellbeing-green text-wellbeing-green' : 'text-gray-300 hover:text-wellbeing-green'}`} />
+              </button>
+            )}
             <span className="font-medium text-gray-900 leading-snug">{p.name}</span>
             {p.hinweis_extern && (
               <span
@@ -285,6 +313,17 @@ function SortableProduktZeile({
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap mt-0.5 text-[11px] text-gray-400">
+            {istGruppiert && (
+              eintrag.admin_favorit ? (
+                <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-semibold text-[10px] inline-flex items-center gap-0.5">
+                  <Star className="w-2.5 h-2.5 fill-emerald-600 text-emerald-600" /> Favorit
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium text-[10px]">
+                  Alternative
+                </span>
+              )
+            )}
             {p.partner && <span>{p.partner.name}</span>}
             {p.kategorie && (
               <>
@@ -308,6 +347,22 @@ function SortableProduktZeile({
               </span>
             )}
           </div>
+          {gruppen.length > 0 && (
+            <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <select
+                value={eintrag.produkt_gruppe_id ?? ''}
+                onChange={(e) => onGruppeChange(eintrag.id, e.target.value || null)}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Auswahl-Gruppe zuordnen"
+                className="text-[11px] text-gray-500 border border-gray-200 rounded-lg px-1.5 py-0.5 bg-white focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 max-w-[200px]"
+              >
+                <option value="">Keine Auswahl-Gruppe</option>
+                {gruppen.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </td>
 
         {/* Menge — inline editierbar */}
@@ -739,6 +794,81 @@ function fmtDate(iso: string) {
   return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit' }).format(d)
 }
 
+// ── Produkt-Gruppen-Kopfzeile ───────────────────────────────────
+
+function ProduktGruppeHeader({
+  gruppe,
+  anzahl,
+  hatFavorit,
+  onRename,
+  onDelete,
+}: {
+  gruppe: ProduktGruppe
+  anzahl: number
+  hatFavorit: boolean
+  onRename: (name: string) => void
+  onDelete: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(gruppe.name)
+  const [confirm, setConfirm] = useState(false)
+
+  function commit() {
+    setEditing(false)
+    const t = name.trim()
+    if (t && t !== gruppe.name) onRename(t)
+    else setName(gruppe.name)
+  }
+
+  return (
+    <tr className="bg-wellbeing-cream/40 border-b border-wellbeing-cream/70 group/gh">
+      <td colSpan={11} className="px-4 py-2">
+        <div className="flex items-center gap-2">
+          <FolderPlus className="w-3.5 h-3.5 text-wellbeing-green shrink-0" />
+          {editing ? (
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commit()
+                if (e.key === 'Escape') { setEditing(false); setName(gruppe.name) }
+              }}
+              className="text-xs font-semibold text-wellbeing-green-dark px-1.5 py-0.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 w-48"
+            />
+          ) : (
+            <span className="text-xs font-bold text-wellbeing-green-dark uppercase tracking-wide">{gruppe.name}</span>
+          )}
+          <span className="text-[10px] text-gray-500 bg-white border border-gray-200 rounded-full px-1.5 py-0.5 shrink-0">
+            {anzahl} {anzahl === 1 ? 'Produkt' : 'Produkte'}
+          </span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 shrink-0 ${hatFavorit ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+            <Star className={`w-2.5 h-2.5 ${hatFavorit ? 'fill-emerald-600 text-emerald-600' : 'text-amber-600'}`} />
+            {hatFavorit ? 'Favorit gesetzt' : 'Kein Favorit'}
+          </span>
+          <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/gh:opacity-100 transition-opacity">
+            <button type="button" onClick={() => { setName(gruppe.name); setEditing(true) }} aria-label="Gruppe umbenennen" className="p-1 text-gray-400 hover:text-wellbeing-green transition-colors">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => setConfirm(true)} aria-label="Gruppe löschen" className="p-1 text-gray-400 hover:text-red-500 transition-colors">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+        <ConfirmModal
+          isOpen={confirm}
+          onClose={() => setConfirm(false)}
+          onConfirm={() => { setConfirm(false); onDelete() }}
+          title="Auswahl-Gruppe löschen?"
+          message={`Die Gruppe „${gruppe.name}" wird gelöscht. Die Produkte bleiben im Raum, verlieren aber ihre Gruppen- und Favoriten-Markierung.`}
+          confirmText="Löschen"
+        />
+      </td>
+    </tr>
+  )
+}
+
 // ── Tabelle ─────────────────────────────────────────────────────
 
 const th = 'px-4 py-3 text-[10px] font-semibold text-gray-400 uppercase tracking-widest'
@@ -748,14 +878,19 @@ export default function SortableProduktTabelle({
   mwst,
   projektId,
   raumId,
+  produktGruppen: initialGruppen = [],
 }: {
   eintraege: RaumProduktMitDetails[]
   mwst: number
   projektId: string
   raumId: string
+  produktGruppen?: ProduktGruppe[]
 }) {
   const router = useRouter()
   const [eintraege, setEintraege] = useState(initialEintraege)
+  const [gruppen, setGruppen] = useState<ProduktGruppe[]>(initialGruppen)
+  const [neueGruppeOffen, setNeueGruppeOffen] = useState(false)
+  const [neuerGruppenName, setNeuerGruppenName] = useState('')
   const [, startTransition] = useTransition()
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -786,6 +921,31 @@ export default function SortableProduktTabelle({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialIdsKey])
 
+  // Produkt-Gruppen mit Server-Daten synchronisieren (Migration 114)
+  const gruppenKey = initialGruppen.map((g) => `${g.id}:${g.name}`).join(',')
+  useEffect(() => {
+    setGruppen(initialGruppen)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gruppenKey])
+
+  const sortierteGruppen = useMemo(
+    () => [...gruppen].sort((a, b) => a.reihenfolge - b.reihenfolge || a.created_at.localeCompare(b.created_at)),
+    [gruppen],
+  )
+  const gruppeIds = useMemo(() => new Set(sortierteGruppen.map((g) => g.id)), [sortierteGruppen])
+  const hatGruppen = sortierteGruppen.length > 0
+  const istUngrouped = (e: RaumProduktMitDetails) => !e.produkt_gruppe_id || !gruppeIds.has(e.produkt_gruppe_id)
+  const ungrouped = eintraege.filter(istUngrouped)
+  // Anzeige-Reihenfolge: Gruppen (sortiert) zuerst, dann ungruppierte. Liefert
+  // zugleich die items-Reihenfolge für den SortableContext.
+  const displayEintraege = useMemo(() => {
+    const out: RaumProduktMitDetails[] = []
+    for (const g of sortierteGruppen) out.push(...eintraege.filter((e) => e.produkt_gruppe_id === g.id))
+    out.push(...eintraege.filter((e) => !e.produkt_gruppe_id || !gruppeIds.has(e.produkt_gruppe_id)))
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eintraege, sortierteGruppen])
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -803,25 +963,42 @@ export default function SortableProduktTabelle({
     const { active, over } = event
     if (!over || active.id === over.id) return
 
-    const vorher = eintraege
-    setEintraege((prev) => {
-      const oldIndex = prev.findIndex((e) => e.id === active.id)
-      const newIndex = prev.findIndex((e) => e.id === over.id)
-      const next = arrayMove(prev, oldIndex, newIndex)
+    // Drag operiert auf der Anzeige-Reihenfolge (gruppiert)
+    const liste = displayEintraege
+    const oldIndex = liste.findIndex((e) => e.id === active.id)
+    const newIndex = liste.findIndex((e) => e.id === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
 
-      startTransition(async () => {
-        const res = await updateRaumProduktPositionen(
-          raumId,
-          projektId,
-          next.map((e, i) => ({ id: e.id, reihenfolge: i })),
-        )
-        if (res?.fehler) {
-          setEintraege(vorher)
-          setFehlerToast('Sortierung konnte nicht gespeichert werden.')
-          setTimeout(() => setFehlerToast(null), 4000)
-        }
-      })
-      return next
+    const activeGruppe = liste[oldIndex].produkt_gruppe_id ?? null
+    const zielGruppe   = liste[newIndex].produkt_gruppe_id ?? null
+    const gruppeWechsel = activeGruppe !== zielGruppe
+
+    const vorher = eintraege
+    // Drop auf eine Zeile einer anderen Gruppe verschiebt das Produkt in diese
+    // Gruppe (Regruppieren per Drag) und löscht dessen Favoriten-Markierung.
+    const neu = arrayMove(liste, oldIndex, newIndex).map((e) =>
+      e.id === active.id && gruppeWechsel
+        ? { ...e, produkt_gruppe_id: zielGruppe, admin_favorit: false, kunde_favorit: false }
+        : e,
+    )
+    setEintraege(neu)
+
+    startTransition(async () => {
+      const res = await updateRaumProduktPositionen(
+        raumId,
+        projektId,
+        neu.map((e, i) => ({ id: e.id, reihenfolge: i })),
+      )
+      let grpFehler: string | undefined
+      if (gruppeWechsel) {
+        const g = await raumProduktZuGruppeZuordnen(String(active.id), zielGruppe, raumId, projektId)
+        grpFehler = g?.fehler
+      }
+      if (res?.fehler || grpFehler) {
+        setEintraege(vorher)
+        setFehlerToast('Sortierung konnte nicht gespeichert werden.')
+        setTimeout(() => setFehlerToast(null), 4000)
+      }
     })
   }
 
@@ -944,18 +1121,126 @@ export default function SortableProduktTabelle({
     if (!res?.fehler) startTransition(() => router.refresh())
   }
 
+  // ── Auswahl-Gruppen + Admin-Favorit (Migration 114) ───────────
+  async function handleAdminFavoritChange(raumProduktId: string, aktuellFavorit: boolean) {
+    const eintrag = eintraege.find((e) => e.id === raumProduktId)
+    if (!eintrag?.produkt_gruppe_id) return
+    const grp = eintrag.produkt_gruppe_id
+    const vorher = eintraege
+
+    if (aktuellFavorit) {
+      // Favorit entfernen
+      setEintraege((prev) => prev.map((e) => (e.id === raumProduktId ? { ...e, admin_favorit: false } : e)))
+      const res = await adminFavoritEntfernen(raumProduktId, raumId, projektId)
+      if (res?.fehler) { setEintraege(vorher); setFehlerToast(res.fehler); setTimeout(() => setFehlerToast(null), 4000) }
+      return
+    }
+    // Favorit setzen — Geschwister derselben Gruppe lokal clearen
+    setEintraege((prev) => prev.map((e) => (e.produkt_gruppe_id === grp ? { ...e, admin_favorit: e.id === raumProduktId } : e)))
+    const res = await adminFavoritSetzen(raumProduktId, raumId, projektId)
+    if (res?.fehler) { setEintraege(vorher); setFehlerToast(res.fehler); setTimeout(() => setFehlerToast(null), 4000) }
+  }
+
+  async function handleGruppeChange(raumProduktId: string, gruppeId: string | null) {
+    const vorher = eintraege
+    setEintraege((prev) => prev.map((e) => (e.id === raumProduktId ? { ...e, produkt_gruppe_id: gruppeId, admin_favorit: false, kunde_favorit: false } : e)))
+    const res = await raumProduktZuGruppeZuordnen(raumProduktId, gruppeId, raumId, projektId)
+    if (res?.fehler) { setEintraege(vorher); setFehlerToast('Gruppe konnte nicht geändert werden.'); setTimeout(() => setFehlerToast(null), 4000) }
+  }
+
+  function gruppeAnlegen() {
+    const name = neuerGruppenName.trim()
+    if (!name) return
+    setNeuerGruppenName('')
+    setNeueGruppeOffen(false)
+    startTransition(async () => {
+      const res = await produktGruppeAnlegen(raumId, projektId, name)
+      if ('fehler' in res) { setFehlerToast(res.fehler); setTimeout(() => setFehlerToast(null), 4000); return }
+      setGruppen((prev) => [
+        ...prev,
+        {
+          id: res.id, organisation_id: '', raum_id: raumId, name, beschreibung: null,
+          auswahl_modus: 'einzel', reihenfolge: prev.length, deleted_at: null,
+          created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        },
+      ])
+    })
+  }
+
+  function gruppeUmbenennen(gruppeId: string, name: string) {
+    const vorher = gruppen
+    setGruppen((prev) => prev.map((g) => (g.id === gruppeId ? { ...g, name } : g)))
+    startTransition(async () => {
+      const res = await produktGruppeUmbenennen(gruppeId, raumId, projektId, { name })
+      if (res?.fehler) { setGruppen(vorher); setFehlerToast('Umbenennen fehlgeschlagen.'); setTimeout(() => setFehlerToast(null), 4000) }
+    })
+  }
+
+  function gruppeLoeschen(gruppeId: string) {
+    const vorherG = gruppen
+    const vorherE = eintraege
+    setGruppen((prev) => prev.filter((g) => g.id !== gruppeId))
+    setEintraege((prev) => prev.map((e) => (e.produkt_gruppe_id === gruppeId ? { ...e, produkt_gruppe_id: null, admin_favorit: false, kunde_favorit: false } : e)))
+    startTransition(async () => {
+      const res = await produktGruppeLoeschen(gruppeId, raumId, projektId)
+      if (res?.fehler) { setGruppen(vorherG); setEintraege(vorherE); setFehlerToast('Löschen fehlgeschlagen.'); setTimeout(() => setFehlerToast(null), 4000) }
+    })
+  }
+
+  const renderZeile = (e: RaumProduktMitDetails, istGruppiert: boolean, isLast: boolean) => (
+    <SortableProduktZeile
+      key={e.id}
+      eintrag={e}
+      mwst={mwst}
+      isLast={isLast}
+      expanded={expanded.has(e.id)}
+      onToggleExpand={() => toggleExpand(e.id)}
+      onBestellstatusChange={handleBestellstatusChange}
+      onDeleteRequest={(id, name) => setDeleteTarget({ id, name })}
+      onReklamationRequest={(id, name) => setReklamationTarget({ id, name })}
+      onDatumChange={handleDatumChange}
+      onRabattChange={handleRabattChange}
+      onMengeChange={handleMengeChange}
+      gruppen={sortierteGruppen}
+      istGruppiert={istGruppiert}
+      onAdminFavoritChange={handleAdminFavoritChange}
+      onGruppeChange={handleGruppeChange}
+    />
+  )
+
   return (
     <>
-      {/* Hint-Strip: erklärt das Expand-Feature */}
-      <div className="flex items-center justify-between px-4 py-2 bg-wellbeing-cream/30 border-b border-wellbeing-cream/60 text-[11px] text-wellbeing-green-dark">
-        <span className="inline-flex items-center gap-1.5">
-          <ChevronRight className="w-3 h-3" />
-          Klick auf das Pfeil-Icon einer Zeile zeigt <strong className="font-semibold">Bestell- & Lieferdaten</strong> sowie interne Kalkulation
+      {/* Hint-Strip: erklärt das Expand-Feature + Auswahl-Gruppen anlegen */}
+      <div className="flex items-center justify-between gap-2 px-4 py-2 bg-wellbeing-cream/30 border-b border-wellbeing-cream/60 text-[11px] text-wellbeing-green-dark">
+        <span className="inline-flex items-center gap-1.5 min-w-0">
+          <ChevronRight className="w-3 h-3 shrink-0" />
+          <span className="truncate">Pfeil-Icon zeigt <strong className="font-semibold">Bestell- &amp; Lieferdaten</strong>. Auswahl-Gruppen bündeln Alternativen — ⭐ markiert eure Empfehlung.</span>
         </span>
+        {neueGruppeOffen ? (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <input
+              autoFocus
+              value={neuerGruppenName}
+              onChange={(e) => setNeuerGruppenName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') gruppeAnlegen()
+                if (e.key === 'Escape') { setNeueGruppeOffen(false); setNeuerGruppenName('') }
+              }}
+              placeholder="Auswahl-Gruppe…"
+              className="text-[11px] px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 w-40"
+            />
+            <button type="button" onClick={gruppeAnlegen} className="text-[11px] font-medium px-2 py-1 rounded-lg bg-wellbeing-green text-white hover:bg-wellbeing-green-dark transition-colors">Anlegen</button>
+            <button type="button" onClick={() => { setNeueGruppeOffen(false); setNeuerGruppenName('') }} aria-label="Abbrechen" className="p-1 text-gray-400 hover:text-gray-600 transition-colors"><X className="w-3 h-3" /></button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setNeueGruppeOffen(true)} className="inline-flex items-center gap-1 font-medium text-wellbeing-green hover:text-wellbeing-green-dark px-2 py-1 rounded-lg hover:bg-wellbeing-green/10 transition-colors shrink-0">
+            <Plus className="w-3 h-3" /> Auswahl-Gruppe
+          </button>
+        )}
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={eintraege.map((e) => e.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={displayEintraege.map((e) => e.id)} strategy={verticalListSortingStrategy}>
           <div className="overflow-x-auto overflow-y-auto max-h-[60vh]">
             <table className="w-full text-sm min-w-[820px]">
               <thead className="sticky top-0 z-10">
@@ -974,22 +1259,45 @@ export default function SortableProduktTabelle({
                 </tr>
               </thead>
               <tbody>
-                {eintraege.map((e, i) => (
-                  <SortableProduktZeile
-                    key={e.id}
-                    eintrag={e}
-                    mwst={mwst}
-                    isLast={i === eintraege.length - 1}
-                    expanded={expanded.has(e.id)}
-                    onToggleExpand={() => toggleExpand(e.id)}
-                    onBestellstatusChange={handleBestellstatusChange}
-                    onDeleteRequest={(id, name) => setDeleteTarget({ id, name })}
-                    onReklamationRequest={(id, name) => setReklamationTarget({ id, name })}
-                    onDatumChange={handleDatumChange}
-                    onRabattChange={handleRabattChange}
-                    onMengeChange={handleMengeChange}
-                  />
-                ))}
+                {hatGruppen ? (
+                  <>
+                    {sortierteGruppen.map((g) => {
+                      const rows = eintraege.filter((e) => e.produkt_gruppe_id === g.id)
+                      return (
+                        <Fragment key={g.id}>
+                          <ProduktGruppeHeader
+                            gruppe={g}
+                            anzahl={rows.length}
+                            hatFavorit={rows.some((r) => r.admin_favorit)}
+                            onRename={(n) => gruppeUmbenennen(g.id, n)}
+                            onDelete={() => gruppeLoeschen(g.id)}
+                          />
+                          {rows.length === 0 ? (
+                            <tr>
+                              <td colSpan={11} className="px-6 py-3 text-[11px] text-gray-300 italic">
+                                Noch keine Produkte — beim Hovern über eine Produktzeile erscheint ein Auswahlfeld zum Zuordnen.
+                              </td>
+                            </tr>
+                          ) : (
+                            rows.map((e) => renderZeile(e, true, false))
+                          )}
+                        </Fragment>
+                      )
+                    })}
+                    {ungrouped.length > 0 && (
+                      <>
+                        <tr className="bg-gray-50/70 border-b border-gray-100">
+                          <td colSpan={11} className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            Ohne Auswahl-Gruppe
+                          </td>
+                        </tr>
+                        {ungrouped.map((e) => renderZeile(e, false, false))}
+                      </>
+                    )}
+                  </>
+                ) : (
+                  eintraege.map((e, i) => renderZeile(e, false, i === eintraege.length - 1))
+                )}
               </tbody>
             </table>
           </div>

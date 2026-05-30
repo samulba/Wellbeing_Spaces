@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import { getRaumProdukte } from '@/app/actions/raum-produkte'
+import { produktGruppenAbrufen } from '@/app/actions/produkt-gruppen'
 import { raumEventsAbrufen } from '@/app/actions/timeline'
 import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
@@ -73,7 +74,7 @@ export default async function RaumDetailPage({
   params: { id: string; raumId: string }
   searchParams: SearchParams
 }) {
-  const [raum, alleEintraege, MWST, timelineEvents, kategorienDB, partnerListe, zusatzkosten] = await Promise.all([
+  const [raum, alleEintraege, MWST, timelineEvents, kategorienDB, partnerListe, zusatzkosten, produktGruppen] = await Promise.all([
     getRaum(params.raumId, params.id),
     getRaumProdukte(params.raumId),
     getMwstSatz(),
@@ -81,6 +82,7 @@ export default async function RaumDetailPage({
     getKategorien('produktkategorie'),
     getPartner(),
     getRaumZusatzkosten(params.raumId),
+    produktGruppenAbrufen(params.raumId),
   ])
 
   if (!raum) notFound()
@@ -225,6 +227,7 @@ export default async function RaumDetailPage({
               mwst={MWST}
               projektId={params.id}
               raumId={params.raumId}
+              produktGruppen={produktGruppen}
             />
 
             {/* Summenzeile */}

@@ -8,6 +8,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 ### Freigabe-Modul: Räume in Gruppen unterteilen
 - **Räume eines Projekts lassen sich jetzt in Gruppen bündeln** (z. B. „Erdgeschoss", „Obergeschoss") — für eine kompaktere Übersicht im Tab „Räume". Gruppen anlegen, umbenennen und löschen direkt über der Raum-Liste; jeder Raum wird per Auswahlfeld einer Gruppe zugeordnet. Gruppen sind ein- und ausklappbar. Beim Löschen einer Gruppe bleiben die Räume erhalten und wandern nach „Ohne Gruppe".
 
+### Freigabe-Modul: Auswahl-Gruppen + Favorit/Alternative (Admin)
+- **Produkte in einem Raum lassen sich zu „Auswahl-Gruppen" bündeln** (z. B. „Sofa-Auswahl" mit mehreren Alternativen). In der Produkttabelle eines Raums: Button „+ Auswahl-Gruppe" anlegen, Produkte per Auswahlfeld (beim Hovern sichtbar) zuordnen oder per Drag&Drop in eine andere Gruppe ziehen.
+- **Favorit/Empfehlung markieren**: In einer Gruppe kann genau ein Produkt per ⭐-Stern als euer Favorit markiert werden, die übrigen gelten als Alternativen (Badge „Favorit" / „Alternative"). Diese Empfehlung wird dem Kunden später im Freigabe-Link angezeigt.
+
 ## 2026-05-20
 
 ### Onboarding-Datei-Upload

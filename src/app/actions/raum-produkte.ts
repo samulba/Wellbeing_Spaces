@@ -139,3 +139,63 @@ export async function getRaumProdukte(raumId: string): Promise<RaumProduktMitDet
     .order('created_at')
   return (data ?? []) as RaumProduktMitDetails[]
 }
+
+/**
+ * Admin-Favorit (Empfehlung) innerhalb einer Produkt-Gruppe setzen (Migration 114).
+ * Reine Empfehlung — fasst freigabe_status NICHT an und schreibt kein Audit.
+ * Räumt zuerst die Geschwister (clear-before-set wegen Partial-Unique-Index).
+ */
+export async function adminFavoritSetzen(
+  raumProduktId: string,
+  raumId: string,
+  projektId: string,
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { data: row } = await supabase
+    .from('raum_produkte')
+    .select('produkt_gruppe_id')
+    .eq('id', raumProduktId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!row) return { fehler: 'Produkt nicht gefunden.' }
+  if (!row.produkt_gruppe_id) return { fehler: 'Produkt ist keiner Auswahl-Gruppe zugeordnet.' }
+
+  // 1) Geschwister clearen
+  const { error: e1 } = await supabase
+    .from('raum_produkte')
+    .update({ admin_favorit: false })
+    .eq('produkt_gruppe_id', row.produkt_gruppe_id)
+    .eq('organisation_id', orgId)
+  if (e1) return { fehler: e1.message }
+
+  // 2) Gewählten setzen
+  const { error: e2 } = await supabase
+    .from('raum_produkte')
+    .update({ admin_favorit: true })
+    .eq('id', raumProduktId)
+    .eq('organisation_id', orgId)
+  if (e2) return { fehler: e2.message }
+
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  return {}
+}
+
+/** Admin-Favorit-Markierung einer Zeile entfernen. */
+export async function adminFavoritEntfernen(
+  raumProduktId: string,
+  raumId: string,
+  projektId: string,
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('raum_produkte')
+    .update({ admin_favorit: false })
+    .eq('id', raumProduktId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: error.message }
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  return {}
+}
