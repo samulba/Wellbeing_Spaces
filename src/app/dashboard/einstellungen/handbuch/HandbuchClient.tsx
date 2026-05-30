@@ -745,6 +745,13 @@ function OnboardingKapitel() {
 function KonfiguratorKapitel() {
   return (
     <div>
+      <InfoBox type="warning" title="Veraltet — bitte den Freigabe-Link nutzen">
+        Der Konfigurator wird nicht mehr weiterentwickelt. Dieselbe Funktion (der Kunde wählt
+        zwischen Produkt-Alternativen) gibt es jetzt direkt im <strong>Freigabe-Link mit
+        Auswahl-Gruppen</strong>: Produkte im Raum zu Auswahl-Sets bündeln und einen Favoriten
+        empfehlen — der Kunde wählt seine Variante im Freigabe-Link, was zugleich als Freigabe
+        gilt. Bestehende Konfigurator-Links funktionieren weiterhin.
+      </InfoBox>
       <H2 id="konf-session">Session erstellen</H2>
       <P>Der Konfigurator ist ein <strong>interaktiver Link mit Budget-Tracking</strong> — der Kunde entscheidet selbstständig pro Produkt, du siehst live den Verbrauch.</P>
       <Ol>

@@ -21,6 +21,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Projekt-Detail, Tab „Freigaben": neue Raum-Übersicht** mit Fortschrittsbalken „X/Y freigegeben" pro Raum (nach Räume-Gruppen geclustert) und direktem Link in jeden Raum.
 - Globale Freigaben-Seite: View „Gruppen" heißt jetzt „Nach Projekt" (klarere Abgrenzung zu den neuen Auswahl-Gruppen).
 
+### Konfigurator abgelöst
+- **Der separate „Konfigurator"-Link wird nicht mehr weiterentwickelt** — seine Funktion (Kunde wählt zwischen Alternativen) steckt jetzt im Freigabe-Link mit Auswahl-Gruppen. Im Handbuch weist ein Hinweis darauf hin; bestehende Konfigurator-Links funktionieren weiterhin.
+
 ## 2026-05-20
 
 ### Onboarding-Datei-Upload
