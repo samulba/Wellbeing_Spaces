@@ -213,6 +213,39 @@ export interface Raum {
   breite_m: number | null
   laenge_m: number | null
   hoehe_m: number | null
+  // Raum-Gruppe (Migration 114) — optionale Gruppierung der Räume im Projekt
+  raum_gruppe_id: string | null
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ── Raum-Gruppen + Produkt-Gruppen (Migration 114) ────────────
+// raum_gruppen: benannte Gruppen VON Räumen (Projekt-Ebene, Navigation).
+export interface RaumGruppe {
+  id: string
+  organisation_id: string
+  projekt_id: string
+  name: string
+  farbe: string | null
+  reihenfolge: number
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ProduktGruppeAuswahlModus = 'einzel'
+
+// produkt_gruppen: Auswahl-Set VON Produkten innerhalb eines Raums
+// (mehrere Alternativen, genau ein Favorit).
+export interface ProduktGruppe {
+  id: string
+  organisation_id: string
+  raum_id: string
+  name: string
+  beschreibung: string | null
+  auswahl_modus: ProduktGruppeAuswahlModus
+  reihenfolge: number
   deleted_at: string | null
   created_at: string
   updated_at: string
@@ -357,11 +390,28 @@ export interface FreigabeProdukt {
   hinweis?: string | null
   // Rabatt pro Raum-Produkt (Migration 058) — prozentual, bereits in verkaufspreis berücksichtigt
   rabatt_prozent?: number | null
+  // Auswahl-Gruppe + Favoriten (Migration 114). Optional, da nur gesetzt wenn
+  // das Produkt einer produkt_gruppe zugeordnet ist.
+  produkt_gruppe_id?: string | null
+  admin_favorit?: boolean
+  kunde_favorit?: boolean
+}
+
+// Auswahl-Set innerhalb eines Raums (Migration 114) — mehrere Alternativen,
+// eine davon Favorit. Die Favorit-Flags liegen auf jedem FreigabeProdukt.
+export interface FreigabeProduktGruppe {
+  id: string
+  name: string
+  beschreibung: string | null
+  produkte: FreigabeProdukt[]
 }
 
 export interface FreigabeRaum {
   id: string
   name: string
+  // Auswahl-Gruppen (Migration 114) — werden vor den losen Produkten gerendert
+  gruppen?: FreigabeProduktGruppe[]
+  // ungruppierte Produkte (Rest)
   produkte: FreigabeProdukt[]
 }
 
@@ -448,6 +498,11 @@ export interface RaumProdukt {
   lieferung_erhalten_am: string | null
   freigabe_status: ProduktStatus
   freigabe_kommentar: string | null
+  // Auswahl-Gruppe + Favoriten (Migration 114). admin_favorit/kunde_favorit
+  // sind nur innerhalb einer produkt_gruppe relevant (UI ignoriert sie sonst).
+  produkt_gruppe_id: string | null
+  admin_favorit: boolean
+  kunde_favorit: boolean
   // Migration 100 — Lifecycle-Datums-Felder
   storniert_am?: string | null
   mangel_gemeldet_am?: string | null

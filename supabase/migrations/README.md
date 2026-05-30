@@ -12,7 +12,7 @@ supabase/migrations/
 ## Workflow
 
 1. **Neue Migration anlegen** — direkt in `supabase/migrations/` als `<nr>_<name>.sql`.
-   Die Nummer fortlaufend hochzählen (zuletzt 108 — nächste also 109).
+   Die Nummer fortlaufend hochzählen (zuletzt 113 — nächste also 114).
 2. **In Supabase ausführen** — Datei in den SQL-Editor von Supabase kopieren und ausführen.
 3. **Markieren als angewandt** — Datei nach `supabase/migrations/applied/` verschieben (`git mv`).
    So sieht man in GitHub auf einen Blick, welche Migrationen offen sind: alle Dateien direkt
@@ -28,5 +28,5 @@ supabase/migrations/
 
 ## Aktueller Stand
 
-- **Letzte angewandte Migration:** 108 (Onboarding-Polish — `titel`, `vorlage_snapshot`, Storage-Bucket).
-- **Offene Migrationen:** keine.
+- **Letzte angewandte Migration:** 113 (Onboarding-Status `eingereicht`).
+- **Offene Migrationen:** 114 (Freigabe-Gruppen + Favorit/Alternative — `raum_gruppen`, `produkt_gruppen`, Favoriten-Flags auf `raum_produkte`).
