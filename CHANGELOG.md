@@ -3,6 +3,11 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-05-30
+
+### Freigabe-Modul: Räume in Gruppen unterteilen
+- **Räume eines Projekts lassen sich jetzt in Gruppen bündeln** (z. B. „Erdgeschoss", „Obergeschoss") — für eine kompaktere Übersicht im Tab „Räume". Gruppen anlegen, umbenennen und löschen direkt über der Raum-Liste; jeder Raum wird per Auswahlfeld einer Gruppe zugeordnet. Gruppen sind ein- und ausklappbar. Beim Löschen einer Gruppe bleiben die Räume erhalten und wandern nach „Ohne Gruppe".
+
 ## 2026-05-20
 
 ### Onboarding-Datei-Upload

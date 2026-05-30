@@ -8,6 +8,7 @@ import { freigabeTokensAbrufenFuerProjekt } from '@/app/actions/freigaben'
 import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
+import { raumGruppenAbrufen } from '@/app/actions/raum-gruppen'
 import { projektSoftDelete } from '@/app/actions/projekte'
 import { projektEventsAbrufen } from '@/app/actions/timeline'
 import { Timeline } from '@/components/Timeline'
@@ -151,7 +152,7 @@ export default async function ProjektDetailPage({
 }) {
   const { tab: tabParam } = await searchParams
   const mwstSatz = await getMwstSatz()
-  const [projekt, raeume, aktiveTokens, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten, aufgabenAlle, aufgabenPickerOptionen, serviceRaten] = await Promise.all([
+  const [projekt, raeume, aktiveTokens, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten, aufgabenAlle, aufgabenPickerOptionen, serviceRaten, raumGruppen] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktiveTokens(params.id),
@@ -169,6 +170,7 @@ export default async function ProjektDetailPage({
     getAufgaben({ projektId: params.id }),
     getAufgabePickerOptionen(),
     getServiceRaten(params.id),
+    raumGruppenAbrufen(params.id),
   ])
 
   if (!projekt) return notFound()
@@ -684,7 +686,7 @@ export default async function ProjektDetailPage({
                   <p className="text-xs text-gray-300 mt-1">Über &bdquo;+ Raum hinzufügen&ldquo; erstellen.</p>
                 </div>
               ) : (
-                <SortableRaumListe projektId={projekt.id} raeume={raeume} raumStats={raumStats} />
+                <SortableRaumListe projektId={projekt.id} raeume={raeume} raumStats={raumStats} raumGruppen={raumGruppen} />
               )}
             </div>
 
