@@ -3,6 +3,8 @@ import { getMwstSatz } from '@/app/actions/einstellungen'
 import { brandingFuerToken } from '@/app/actions/branding'
 import { effektiverVpNetto } from '@/lib/preise'
 import FreigabeClient from './FreigabeClient'
+import FreigabePinGate from './FreigabePinGate'
+import { pinCookieGueltig } from '@/lib/freigabe-pin-cookie'
 import { bereichVonRaumProdukt, istImAuswahlScope } from '@/lib/freigabe-scope'
 import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus } from '@/lib/supabase/types'
 
@@ -39,6 +41,14 @@ export default async function FreigabePage({ params }: Props) {
 
   if (!projekt) {
     return <Fehlerseite meldung="Das zugehörige Projekt wurde nicht gefunden." />
+  }
+
+  // 2b. PIN-Datentresor: Bei gesetzter PIN nur den PIN-Screen rendern, solange
+  //     kein gültiges Cookie vorliegt — KEINE Produktdaten laden/ausliefern.
+  const hatPin = !!projekt.freigabe_pin && projekt.freigabe_pin.toString().trim().length >= 4
+  if (hatPin && !pinCookieGueltig(params.token, projekt.freigabe_pin)) {
+    const branding = await brandingFuerToken()
+    return <FreigabePinGate token={params.token} projektName={projekt.name} branding={branding} />
   }
 
   // 3. Räume laden
@@ -161,7 +171,7 @@ export default async function FreigabePage({ params }: Props) {
   {
     const gIds = (gruppenDaten ?? []).map((g) => (g as { id: string }).id)
     if (gIds.length > 0) {
-      const { data: gbData } = await supabase.from('produkt_gruppen').select('id, bereich_id').in('id', gIds)
+      const { data: gbData } = await supabase.from('produkt_gruppen').select('id, bereich_id').in('id', gIds).is('deleted_at', null)
       for (const g of (gbData ?? []) as { id: string; bereich_id: string | null }[]) blockBereich.set(g.id, g.bereich_id ?? null)
     }
   }
@@ -267,7 +277,7 @@ export default async function FreigabePage({ params }: Props) {
 
       return { id: raum.id, name: raum.name, bereiche, gruppen, produkte: lose }
     })
-    .filter((r) => r.produkte.length > 0 || (r.gruppen?.length ?? 0) > 0)
+    .filter((r) => r.produkte.length > 0 || (r.gruppen?.length ?? 0) > 0 || (r.bereiche?.length ?? 0) > 0)
 
   if (raeume.length === 0) {
     return <Fehlerseite meldung="Für dieses Projekt wurden noch keine Produkte hinterlegt." />
@@ -294,7 +304,6 @@ export default async function FreigabePage({ params }: Props) {
       kundeName={kundeName}
       raeume={raeume}
       mwst={mwst}
-      hatPin={!!projekt.freigabe_pin && projekt.freigabe_pin.toString().trim().length >= 4}
       branding={branding}
       scopeBeschreibung={scopeBeschreibung}
       bereitsAbgeschlossen={tokenData.abgeschlossen_am != null}

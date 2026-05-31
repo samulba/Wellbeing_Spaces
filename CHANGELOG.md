@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-31
 
+### Freigabe-Passwortschutz: echter Datentresor
+- Der PIN-Schutz für Freigabe-Links ist jetzt **echter Schutz**: Die Produktdaten werden vom **Server erst nach korrekter PIN** ausgeliefert (vorher waren sie technisch schon im Seitenquelltext einsehbar, bevor die PIN eingegeben war). Verifizierung läuft über ein signiertes, manipulationssicheres Cookie; ändert der Admin die PIN, müssen offene Sitzungen neu eingeben.
+- Sperre nach Fehlversuchen vereinheitlicht (5 Versuche → 15 Min) und gegen gleichzeitige Versuche abgesichert.
+- Kleinere Robustheits-Härtungen im Kunden-Flow (keine Funktionsänderung). Der restliche Freigabe-Flow (Bereiche-Navigation, Auswahl, Abschluss) wurde geprüft und ist sauber.
+- **Optional:** Migration **117** (atomarer Sperr-Zähler) kann in Supabase ausgeführt werden — ohne sie läuft alles unverändert weiter (Fallback).
+
 ### Raum-Produkttabelle: Zuordnen-Chip + Mehrfachauswahl
 - **Aufgeräumte Zuordnung:** Statt zwei gestapelter Dropdowns erscheint beim Hovern jetzt **ein einziger Chip** mit der aktuellen Zuordnung; ein Klick öffnet ein kompaktes Popover mit **Gruppe** + **Auswahl-Block** (bei Produkten in einem Block: Hinweis „Gruppe folgt dem Block").
 - **Mehrfachauswahl wie auf der Freigaben-Seite:** Checkbox je Zeile (grün), Auswahl auch ganzer Blöcke/Gruppen über die Kopf-Checkbox. Bei Auswahl erscheint unten eine **schwebende Leiste** mit „N ausgewählt", den **Summen NUR der ausgewählten** Produkte (EP / Provision / VP netto / VP brutto) und einem **Sammel-Löschen** (mit Rückfrage). Die normale Summenzeile bleibt das Raum-Gesamt.

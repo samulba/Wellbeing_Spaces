@@ -336,7 +336,7 @@ async function ladeItemsImScope(
     const gIds = Array.from(new Set(rows.map((r) => r.produkt_gruppe_id).filter(Boolean))) as string[]
     const blockBereich = new Map<string, string | null>()
     if (gIds.length > 0) {
-      const { data: gb } = await supabase.from('produkt_gruppen').select('id, bereich_id').in('id', gIds)
+      const { data: gb } = await supabase.from('produkt_gruppen').select('id, bereich_id').in('id', gIds).is('deleted_at', null)
       for (const g of ((gb ?? []) as { id: string; bereich_id: string | null }[])) blockBereich.set(g.id, g.bereich_id ?? null)
     }
     rows = rows.filter((r) =>

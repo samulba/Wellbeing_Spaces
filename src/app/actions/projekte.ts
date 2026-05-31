@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { auditLog } from '@/lib/audit'
+import { pinCookieSetzen } from '@/lib/freigabe-pin-cookie'
 import type { ProjektStatus } from '@/lib/supabase/types'
 
 export type ProjektActionState = { fehler: string } | null
@@ -473,14 +474,23 @@ export async function pinPruefen(token: string, pin: string): Promise<boolean> {
           .eq('id', tokenData.projekt_id)
       }
     } else {
-      const versuche = (proj.freigabe_pin_versuche ?? 0) + 1
-      const update: { freigabe_pin_versuche: number; freigabe_pin_gesperrt_bis?: string } = { freigabe_pin_versuche: versuche }
-      if (versuche >= PIN_MAX_VERSUCHE) {
-        update.freigabe_pin_gesperrt_bis = new Date(Date.now() + PIN_SPERRE_MS).toISOString()
+      // Atomarer Fehlversuch-Zähler (Migration 117). Fail-safe: fehlt die
+      // RPC-Funktion, nicht-atomarer Fallback (bisheriges Verhalten).
+      const rpc = await supabase.rpc('freigabe_pin_fehlversuch', { p_projekt_id: tokenData.projekt_id })
+      if (rpc.error) {
+        const versuche = (proj.freigabe_pin_versuche ?? 0) + 1
+        const update: { freigabe_pin_versuche: number; freigabe_pin_gesperrt_bis?: string } = { freigabe_pin_versuche: versuche }
+        if (versuche >= PIN_MAX_VERSUCHE) {
+          update.freigabe_pin_gesperrt_bis = new Date(Date.now() + PIN_SPERRE_MS).toISOString()
+        }
+        await supabase.from('projekte').update(update).eq('id', tokenData.projekt_id)
       }
-      await supabase.from('projekte').update(update).eq('id', tokenData.projekt_id)
     }
   }
+
+  // Datentresor: bei korrekter PIN signiertes httpOnly-Cookie setzen, damit der
+  // Server die Produktdaten freigibt (page.tsx lädt sie erst dann).
+  if (ok) pinCookieSetzen(token, gespeichert)
 
   return ok
 }

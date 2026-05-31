@@ -48,6 +48,7 @@ async function auswahlScopeErlaubt(
       .from('produkt_gruppen')
       .select('bereich_id')
       .eq('id', produkt_gruppe_id)
+      .is('deleted_at', null)
       .maybeSingle()
     blockBereich.set(produkt_gruppe_id, (g?.bereich_id as string | null) ?? null)
   }
