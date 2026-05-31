@@ -906,15 +906,16 @@ function ProduktGruppeHeader({
             {hatFavorit ? 'Empfehlung gesetzt' : 'Keine Empfehlung'}
           </span>
           {bereiche.length > 0 && (
-            <div className="relative inline-block shrink-0">
+            <div className="relative inline-flex items-center shrink-0">
+              <Layers className={`w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none ${gruppe.bereich_id ? 'text-wellbeing-green' : 'text-gray-400'}`} />
               <select
                 value={gruppe.bereich_id ?? ''}
                 onChange={(e) => onBereichChange(e.target.value || null)}
                 aria-label="Block einer Gruppe zuordnen"
                 title="Diesen Auswahl-Block einer Gruppe zuordnen"
-                className={`appearance-none text-[10px] font-medium rounded-lg pl-2 pr-6 py-0.5 max-w-[160px] truncate cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 ${
+                className={`appearance-none text-[11px] font-medium rounded-lg pl-7 pr-6 py-1 max-w-[180px] truncate cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 ${
                   gruppe.bereich_id
-                    ? 'border-wellbeing-green/30 bg-white text-wellbeing-green-dark hover:border-wellbeing-green/50'
+                    ? 'border-wellbeing-green/30 bg-wellbeing-green/5 text-wellbeing-green-dark hover:bg-wellbeing-green/10 hover:border-wellbeing-green/50'
                     : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
                 }`}
               >
@@ -923,7 +924,7 @@ function ProduktGruppeHeader({
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
-              <Layers className="w-2.5 h-2.5 text-gray-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           )}
           <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/gh:opacity-100 transition-opacity">
