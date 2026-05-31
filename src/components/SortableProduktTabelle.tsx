@@ -23,7 +23,7 @@ import {
   GripVertical, ChevronDown, ChevronRight, Clock, Package, CheckCircle2,
   Receipt, Trash2, X, CalendarDays, Truck, PackageCheck, Pencil,
   XCircle, AlertTriangle, Undo2, RotateCcw,
-  Tag, ArrowRight, Calendar, Star, FolderPlus, Plus,
+  Tag, ArrowRight, Calendar, Star, FolderPlus, Plus, Layers,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -40,6 +40,7 @@ import {
   raumProduktZuGruppeZuordnen,
 } from '@/app/actions/produkt-gruppen'
 import { ConfirmModal } from './ConfirmModal'
+import AlternativeModal from './AlternativeModal'
 import { bestellstatusAendern, produktDatumAktualisieren, type ProduktDatumFeld } from '@/app/actions/produkte'
 import type { RaumProduktMitDetails, BestellStatus, ProduktGruppe } from '@/lib/supabase/types'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
@@ -184,6 +185,7 @@ function SortableProduktZeile({
   istGruppiert,
   onAdminFavoritChange,
   onGruppeChange,
+  onAlternativeRequest,
 }: {
   eintrag: RaumProduktMitDetails
   mwst: number
@@ -200,6 +202,7 @@ function SortableProduktZeile({
   istGruppiert: boolean
   onAdminFavoritChange: (raumProduktId: string, aktuellFavorit: boolean) => void
   onGruppeChange: (raumProduktId: string, gruppeId: string | null) => void
+  onAlternativeRequest: (eintrag: RaumProduktMitDetails) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: eintrag.id })
@@ -482,6 +485,15 @@ function SortableProduktZeile({
         {/* Aktionen */}
         <td className="pr-3 pl-1 py-3.5 align-middle">
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={() => onAlternativeRequest(eintrag)}
+              aria-label="Alternative hinzufügen"
+              title="Alternative(n) hinzufügen — Auswahl-Gruppe für dieses Produkt"
+              className="p-1.5 text-gray-400 hover:text-wellbeing-green rounded-md hover:bg-wellbeing-cream/50 transition-colors"
+            >
+              <Layers className="w-3.5 h-3.5" />
+            </button>
             <Link
               href={`/dashboard/produkte/${p.id}/bearbeiten`}
               aria-label="Produkt bearbeiten"
@@ -917,6 +929,8 @@ export default function SortableProduktTabelle({
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   // Reklamations-Modal-Target
   const [reklamationTarget, setReklamationTarget] = useState<{ id: string; name: string } | null>(null)
+  // Produkt, zu dem Alternativen hinzugefügt werden ("+ Alternative")
+  const [alternativeFuer, setAlternativeFuer] = useState<RaumProduktMitDetails | null>(null)
 
   // Live-Updates: Bestellstatus / Freigabe / Liefertermin werden auch
   // von Kunden-Freigabelinks und anderen Team-Mitgliedern geändert.
@@ -1225,6 +1239,7 @@ export default function SortableProduktTabelle({
       istGruppiert={istGruppiert}
       onAdminFavoritChange={handleAdminFavoritChange}
       onGruppeChange={handleGruppeChange}
+      onAlternativeRequest={setAlternativeFuer}
     />
   )
 
@@ -1234,7 +1249,7 @@ export default function SortableProduktTabelle({
       <div className="flex items-center justify-between gap-2 px-4 py-2 bg-wellbeing-cream/30 border-b border-wellbeing-cream/60 text-[11px] text-wellbeing-green-dark">
         <span className="inline-flex items-center gap-1.5 min-w-0">
           <ChevronRight className="w-3 h-3 shrink-0" />
-          <span className="truncate">Pfeil-Icon zeigt <strong className="font-semibold">Bestell- &amp; Lieferdaten</strong>. Auswahl-Gruppen bündeln Alternativen — ⭐ markiert eure Empfehlung.</span>
+          <span className="truncate">Pfeil-Icon zeigt <strong className="font-semibold">Bestell- &amp; Lieferdaten</strong>. Über das Ebenen-Icon je Zeile fügst du <strong className="font-semibold">Alternativen</strong> hinzu — ⭐ markiert eure Empfehlung.</span>
         </span>
         {neueGruppeOffen ? (
           <div className="flex items-center gap-1.5 shrink-0">
@@ -1397,6 +1412,17 @@ export default function SortableProduktTabelle({
             setTimeout(() => setErfolgToast(null), 3000)
             router.refresh()
           }}
+        />
+      )}
+
+      {/* "+ Alternative" — Alternativen zu einem Produkt hinzufügen */}
+      {alternativeFuer && (
+        <AlternativeModal
+          haupt={alternativeFuer}
+          eintraege={eintraege}
+          raumId={raumId}
+          projektId={projektId}
+          onClose={() => setAlternativeFuer(null)}
         />
       )}
     </>

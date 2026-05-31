@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-31
 
+### Alternativen pro Produkt hinzufügen (einfacher)
+- **Neuer Weg, Alternativen anzulegen**: In der Raum-Produkttabelle erscheint beim Hovern über eine Zeile ein **Ebenen-Icon „Alternative(n) hinzufügen"**. Damit wird genau dieses Produkt automatisch zur ⭐-Empfehlung, und du wählst weitere Produkte als Alternativen dazu — entweder **schon im Raum vorhandene** oder direkt **aus der Bibliothek** (werden dann automatisch in den Raum aufgenommen). Die „Auswahl-Gruppe" entsteht unsichtbar im Hintergrund — das frühere „erst Gruppe anlegen, dann zuordnen" entfällt (funktioniert aber weiterhin).
+
 ### Freigabe-Modul: Härtung & Bugfixes vor Launch
 - **Abschluss mit Auswahl-Gruppen funktioniert jetzt korrekt**: Wählt der Kunde in einer Gruppe seine Variante, zählt die Gruppe als EINE erledigte Entscheidung — nicht gewählte Alternativen blockieren den Abschluss nicht mehr (vorher hing es bei „Noch X offen" fest). Auch die Fortschrittsanzeige zählt jetzt pro Entscheidung statt pro Einzelprodukt.
 - **Manipulationsschutz**: Nach dem Absenden einer Freigabe lassen sich Status & Auswahl nicht mehr nachträglich ändern; abgelaufene/zurückgezogene Links werden überall sauber abgewiesen.

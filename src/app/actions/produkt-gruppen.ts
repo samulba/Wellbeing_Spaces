@@ -128,3 +128,119 @@ export async function raumProduktZuGruppeZuordnen(
   revalidatePath(pfad(projektId, raumId))
   return {}
 }
+
+// ─────────────────────────────────────────────────────────────
+// Produkt-zentrisch: „+ Alternative" — Alternativen direkt zu einem
+// Produkt hinzufügen. Bei Neuanlage der Gruppe wird das Hauptprodukt
+// automatisch zur Empfehlung (admin_favorit). Datenmodell wie gehabt
+// (produkt_gruppen + Favorit), nur die Bedienung ist produkt-zentrisch.
+// ─────────────────────────────────────────────────────────────
+
+/** Stellt sicher, dass das Hauptprodukt in einer Auswahl-Gruppe ist.
+ *  Legt sonst eine an (Name aus Produktname) und markiert das Hauptprodukt
+ *  als Empfehlung. Gibt die Gruppen-ID oder einen Fehler zurück. */
+async function ensureGruppeFuerHaupt(
+  hauptRaumProduktId: string,
+  raumId: string,
+): Promise<string | { fehler: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { data: haupt } = await supabase
+    .from('raum_produkte')
+    .select('id, produkt_gruppe_id, produkte(name)')
+    .eq('id', hauptRaumProduktId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!haupt) return { fehler: 'Hauptprodukt nicht gefunden.' }
+  if (haupt.produkt_gruppe_id) return haupt.produkt_gruppe_id as string
+
+  const produktName = ((haupt.produkte as unknown as { name: string } | null)?.name ?? 'Produkt').slice(0, 90)
+  const { data: maxRow } = await supabase
+    .from('produkt_gruppen')
+    .select('reihenfolge')
+    .eq('raum_id', raumId)
+    .is('deleted_at', null)
+    .order('reihenfolge', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const reihenfolge = (maxRow?.reihenfolge ?? -1) + 1
+
+  const { data: grp, error } = await supabase
+    .from('produkt_gruppen')
+    .insert({ raum_id: raumId, name: `Auswahl: ${produktName}`, reihenfolge, organisation_id: orgId })
+    .select('id')
+    .single()
+  if (error || !grp) return { fehler: `Gruppe konnte nicht angelegt werden: ${error?.message ?? 'unbekannt'}` }
+
+  await supabase
+    .from('raum_produkte')
+    .update({ produkt_gruppe_id: grp.id, admin_favorit: true })
+    .eq('id', hauptRaumProduktId)
+    .eq('organisation_id', orgId)
+
+  return grp.id as string
+}
+
+/** Vorhandene Raum-Produkte als Alternativen zum Hauptprodukt hinzufügen. */
+export async function alternativenHinzufuegen(
+  hauptRaumProduktId: string,
+  alternativeRaumProduktIds: string[],
+  raumId: string,
+  projektId: string,
+): Promise<{ fehler?: string }> {
+  if (alternativeRaumProduktIds.length === 0) return {}
+  const grp = await ensureGruppeFuerHaupt(hauptRaumProduktId, raumId)
+  if (typeof grp !== 'string') return grp
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  for (const id of alternativeRaumProduktIds) {
+    if (id === hauptRaumProduktId) continue
+    const { error } = await supabase
+      .from('raum_produkte')
+      .update({ produkt_gruppe_id: grp, admin_favorit: false, kunde_favorit: false })
+      .eq('id', id)
+      .eq('organisation_id', orgId)
+    if (error) return { fehler: error.message }
+  }
+  revalidatePath(pfad(projektId, raumId))
+  return {}
+}
+
+/** Bibliotheks-Produkte als Alternativen hinzufügen: in den Raum aufnehmen
+ *  (falls noch nicht vorhanden) und der Gruppe des Hauptprodukts zuordnen. */
+export async function bibliotheksProdukteAlsAlternative(
+  hauptRaumProduktId: string,
+  produktIds: string[],
+  raumId: string,
+  projektId: string,
+): Promise<{ fehler?: string }> {
+  if (produktIds.length === 0) return {}
+  const grp = await ensureGruppeFuerHaupt(hauptRaumProduktId, raumId)
+  if (typeof grp !== 'string') return grp
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  for (const produktId of produktIds) {
+    const { error: insErr } = await supabase
+      .from('raum_produkte')
+      .insert({ organisation_id: orgId, raum_id: raumId, produkt_id: produktId, menge: 1, reihenfolge: 0, produkt_gruppe_id: grp })
+    if (insErr) {
+      if (insErr.code === '23505') {
+        // Produkt schon im Raum → nur der Gruppe zuordnen
+        await supabase
+          .from('raum_produkte')
+          .update({ produkt_gruppe_id: grp, admin_favorit: false, kunde_favorit: false })
+          .eq('raum_id', raumId)
+          .eq('produkt_id', produktId)
+          .eq('organisation_id', orgId)
+      } else {
+        return { fehler: insErr.message }
+      }
+    }
+  }
+  revalidatePath('/dashboard/produkte')
+  revalidatePath(pfad(projektId, raumId))
+  return {}
+}
