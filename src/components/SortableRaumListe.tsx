@@ -173,18 +173,25 @@ function SortableRaumItem({
       {/* Actions (hover) */}
       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         {gruppen.length > 0 && (
-          <select
-            value={raum.raum_gruppe_id ?? ''}
-            onChange={(e) => onMove(raum.id, e.target.value || null)}
-            onClick={(e) => e.stopPropagation()}
-            aria-label="Gruppe zuordnen"
-            className="text-[11px] text-gray-500 border border-gray-200 rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 max-w-[130px]"
-          >
-            <option value="">Ohne Gruppe</option>
-            {gruppen.map((g) => (
-              <option key={g.id} value={g.id}>{g.name}</option>
-            ))}
-          </select>
+          <div className="relative inline-block">
+            <select
+              value={raum.raum_gruppe_id ?? ''}
+              onChange={(e) => onMove(raum.id, e.target.value || null)}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Gruppe zuordnen"
+              className={`appearance-none text-[11px] font-medium rounded-lg pl-2.5 pr-7 py-1 max-w-[150px] truncate cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 ${
+                raum.raum_gruppe_id
+                  ? 'border-wellbeing-green/30 bg-wellbeing-green/5 text-wellbeing-green-dark hover:border-wellbeing-green/50'
+                  : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+              }`}
+            >
+              <option value="">Ohne Gruppe</option>
+              {gruppen.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
         )}
         <Link
           href={`/dashboard/projekte/${projektId}/raeume/${raum.id}`}

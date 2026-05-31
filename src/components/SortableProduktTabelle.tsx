@@ -348,19 +348,26 @@ function SortableProduktZeile({
             )}
           </div>
           {gruppen.length > 0 && (
-            <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <select
-                value={eintrag.produkt_gruppe_id ?? ''}
-                onChange={(e) => onGruppeChange(eintrag.id, e.target.value || null)}
-                onClick={(e) => e.stopPropagation()}
-                aria-label="Auswahl-Gruppe zuordnen"
-                className="text-[11px] text-gray-500 border border-gray-200 rounded-lg px-1.5 py-0.5 bg-white focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 max-w-[200px]"
-              >
-                <option value="">Keine Auswahl-Gruppe</option>
-                {gruppen.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
+            <div className="mt-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+              <div className="relative inline-block">
+                <select
+                  value={eintrag.produkt_gruppe_id ?? ''}
+                  onChange={(e) => onGruppeChange(eintrag.id, e.target.value || null)}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Auswahl-Gruppe zuordnen"
+                  className={`appearance-none text-[11px] font-medium rounded-lg pl-2.5 pr-7 py-1 max-w-[200px] truncate cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 ${
+                    eintrag.produkt_gruppe_id
+                      ? 'border-wellbeing-green/30 bg-wellbeing-green/5 text-wellbeing-green-dark hover:border-wellbeing-green/50'
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  <option value="">Keine Auswahl-Gruppe</option>
+                  {gruppen.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
           )}
         </td>
