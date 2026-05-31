@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Check, X, RefreshCw, ExternalLink, ChevronDown, Lock, Package, Star } from 'lucide-react'
 import { freigabeStatusAendern, freigabeFavoritWaehlen } from '@/app/actions/freigabe'
 import { pinPruefen } from '@/app/actions/projekte'
-import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, ProduktStatus, Branding } from '@/lib/supabase/types'
+import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus, Branding } from '@/lib/supabase/types'
 import HinweisBanner from '@/components/HinweisBanner'
 import FreigabeAbschlussModal from '@/components/FreigabeAbschlussModal'
 
@@ -34,9 +34,16 @@ interface ProduktState {
   kundeFavorit: boolean
 }
 
-// Produkte eines Raums flach (Auswahl-Gruppen + lose Produkte)
+// Bereiche/"Gruppen" eines Raums (Migration 116). Liegt `bereiche` vor, ist das
+// die maßgebliche Struktur; sonst ein synthetischer Bereich aus den
+// Back-Compat-Feldern (gruppen + lose Produkte) → Verhalten wie bisher.
+function raumBuckets(r: FreigabeRaum): FreigabeBereich[] {
+  if (r.bereiche && r.bereiche.length > 0) return r.bereiche
+  return [{ id: '__all__', name: r.name, beschreibung: null, bloecke: r.gruppen ?? [], produkte: r.produkte }]
+}
+// Produkte eines Raums flach (Blöcke + Einzelprodukte, jedes genau einmal)
 function raumProdukte(r: FreigabeRaum): FreigabeProdukt[] {
-  return [...(r.gruppen ?? []).flatMap((g) => g.produkte), ...r.produkte]
+  return raumBuckets(r).flatMap((b) => [...b.bloecke.flatMap((g) => g.produkte), ...b.produkte])
 }
 // Alle Produkte eines Projekts flach
 function flacheProdukte(raeume: FreigabeRaum[]): FreigabeProdukt[] {
@@ -327,6 +334,9 @@ export default function FreigabeClient({
   const [lokalAbgeschlossen, setLokalAbgeschlossen] = useState(false)
   const [fehlerMeldung, setFehlerMeldung] = useState<string | null>(null)
   const [aktiverRaumIndex, setAktiverRaumIndex] = useState(0)
+  // Innerer Bereich-Pager (Migration 116) — bei Raumwechsel auf 0 zurück.
+  const [aktiverBereichIndex, setAktiverBereichIndex] = useState(0)
+  useEffect(() => { setAktiverBereichIndex(0) }, [aktiverRaumIndex])
 
   // Read-Only-Bestätigungsscreen wenn bereits abgeschlossen
   if (bereitsAbgeschlossen || lokalAbgeschlossen) {
@@ -373,20 +383,22 @@ export default function FreigabeClient({
   // Nicht-gewählte Alternativen blockieren so weder Fortschritt noch Abschluss.
   let total = 0, offenCount = 0, freigegebenCount = 0, abgelehntCount = 0
   for (const r of raeume) {
-    for (const p of r.produkte) {
-      if (!state[p.id]) continue
-      total++
-      const s = state[p.id].status
-      if (s === 'freigegeben') freigegebenCount++
-      else if (s === 'abgelehnt' || s === 'ueberarbeitung') abgelehntCount++
-      else offenCount++
-    }
-    for (const g of (r.gruppen ?? [])) {
-      const members = g.produkte.filter((p) => state[p.id])
-      if (members.length === 0) continue
-      total++
-      if (members.some((p) => state[p.id].status === 'freigegeben')) freigegebenCount++
-      else offenCount++
+    for (const b of raumBuckets(r)) {
+      for (const p of b.produkte) {
+        if (!state[p.id]) continue
+        total++
+        const s = state[p.id].status
+        if (s === 'freigegeben') freigegebenCount++
+        else if (s === 'abgelehnt' || s === 'ueberarbeitung') abgelehntCount++
+        else offenCount++
+      }
+      for (const g of b.bloecke) {
+        const members = g.produkte.filter((p) => state[p.id])
+        if (members.length === 0) continue
+        total++
+        if (members.some((p) => state[p.id].status === 'freigegeben')) freigegebenCount++
+        else offenCount++
+      }
     }
   }
   const entschiedenCount = total - offenCount
@@ -400,10 +412,12 @@ export default function FreigabeClient({
   const aktuellerRaum = sichtbareRaeume[idx]
   const raumOffenCount = (r: FreigabeRaum) => {
     let offen = 0
-    for (const p of r.produkte) if (state[p.id] && state[p.id].status === 'ausstehend') offen++
-    for (const g of (r.gruppen ?? [])) {
-      const members = g.produkte.filter((p) => state[p.id])
-      if (members.length > 0 && !members.some((p) => state[p.id].status === 'freigegeben')) offen++
+    for (const b of raumBuckets(r)) {
+      for (const p of b.produkte) if (state[p.id] && state[p.id].status === 'ausstehend') offen++
+      for (const g of b.bloecke) {
+        const members = g.produkte.filter((p) => state[p.id])
+        if (members.length > 0 && !members.some((p) => state[p.id].status === 'freigegeben')) offen++
+      }
     }
     return offen
   }
@@ -564,19 +578,37 @@ export default function FreigabeClient({
           </div>
         )}
 
-        {/* ── Aktiver Raum: Auswahl-Gruppen + lose Produkte ───── */}
+        {/* ── Aktiver Raum → Bereich/"Gruppe" (geführt, ein Bereich pro Seite) ── */}
         {aktuellerRaum && (() => {
           const raum = aktuellerRaum
-          const aktiveProdukte = raum.produkte.filter((p) => state[p.id])
-          const gruppen = (raum.gruppen ?? []).filter((g) => g.produkte.some((p) => state[p.id]))
+          const hatAktive = (b: FreigabeBereich) =>
+            b.bloecke.some((g) => g.produkte.some((p) => state[p.id])) || b.produkte.some((p) => state[p.id])
+          const sichtbareBereiche = raumBuckets(raum).filter(hatAktive)
+          if (sichtbareBereiche.length === 0) return null
+          const bIdx = Math.min(aktiverBereichIndex, sichtbareBereiche.length - 1)
+          const bereich = sichtbareBereiche[bIdx]
+          const aktiveProdukte = bereich.produkte.filter((p) => state[p.id])
+          const gruppen = bereich.bloecke.filter((g) => g.produkte.some((p) => state[p.id]))
           const anzahl = gruppen.reduce((s, g) => s + g.produkte.length, 0) + aktiveProdukte.length
+          const zeigeBereichKopf = bereich.id !== '__all__'
           return (
             <div className="mb-6">
+              {/* Raum-Kopf */}
               <div className="flex items-center gap-3 mb-3 px-1">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{raum.name}</span>
                 <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-xs text-gray-400">{anzahl} Produkt{anzahl !== 1 ? 'e' : ''}</span>
+                {sichtbareBereiche.length > 1 && (
+                  <span className="text-xs text-gray-400">Gruppe {bIdx + 1} / {sichtbareBereiche.length}</span>
+                )}
               </div>
+              {/* Bereich-Kopf */}
+              {zeigeBereichKopf && (
+                <div className="mb-4 px-1">
+                  <h2 className="text-lg font-semibold tracking-tight" style={{ color: prim }}>{bereich.name}</h2>
+                  {bereich.beschreibung && <p className="text-sm text-gray-500 mt-0.5">{bereich.beschreibung}</p>}
+                  <p className="text-xs text-gray-400 mt-0.5">{anzahl} Produkt{anzahl !== 1 ? 'e' : ''}</p>
+                </div>
+              )}
               <div className="space-y-4">
                 {gruppen.map((g) => (
                   <ProduktGruppeKarte
@@ -604,6 +636,29 @@ export default function FreigabeClient({
                   />
                 ))}
               </div>
+              {/* Bereich-Pager (innerhalb des Raums) */}
+              {sichtbareBereiche.length > 1 && (
+                <div className="flex items-center justify-between gap-3 mt-5">
+                  <button
+                    type="button"
+                    onClick={() => setAktiverBereichIndex((i) => Math.max(0, i - 1))}
+                    disabled={bIdx === 0}
+                    className="inline-flex items-center gap-1 text-sm text-gray-600 disabled:opacity-30 disabled:cursor-default hover:text-gray-900 transition-colors"
+                  >
+                    ← Zurück
+                  </button>
+                  <span className="text-xs text-gray-400">{bIdx + 1} / {sichtbareBereiche.length}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAktiverBereichIndex((i) => Math.min(sichtbareBereiche.length - 1, i + 1))}
+                    disabled={bIdx === sichtbareBereiche.length - 1}
+                    className="inline-flex items-center gap-1 text-sm font-medium disabled:opacity-30 disabled:cursor-default transition-colors"
+                    style={{ color: bIdx === sichtbareBereiche.length - 1 ? undefined : prim }}
+                  >
+                    Weiter →
+                  </button>
+                </div>
+              )}
             </div>
           )
         })()}
