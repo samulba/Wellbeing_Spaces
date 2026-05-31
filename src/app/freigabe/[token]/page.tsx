@@ -72,9 +72,6 @@ export default async function FreigabePage({ params }: Props) {
       reihenfolge,
       freigabe_status,
       freigabe_kommentar,
-      produkt_gruppe_id,
-      admin_favorit,
-      kunde_favorit,
       produkte!inner(
         id, name, beschreibung, kategorie, einheit, verkaufspreis,
         bild_url, produkt_url, deleted_at,
@@ -105,6 +102,25 @@ export default async function FreigabePage({ params }: Props) {
     const arr = gruppenProRaum.get(g.raum_id) ?? []
     arr.push({ id: g.id, name: g.name, beschreibung: g.beschreibung })
     gruppenProRaum.set(g.raum_id, arr)
+  }
+
+  // 4c. Gruppen-/Favoriten-Felder fail-safe nachladen — so bricht die Seite NICHT,
+  //     falls Migration 114 noch nicht eingespielt ist (Spalten fehlen → leere Map,
+  //     alles wird als „ohne Gruppe" gerendert).
+  const favMap = new Map<string, { produkt_gruppe_id: string | null; admin_favorit: boolean; kunde_favorit: boolean }>()
+  const rpIds = (rpDaten ?? []).map((rp) => rp.id as string)
+  if (rpIds.length > 0) {
+    const { data: favData } = await supabase
+      .from('raum_produkte')
+      .select('id, produkt_gruppe_id, admin_favorit, kunde_favorit')
+      .in('id', rpIds)
+    for (const f of (favData ?? []) as { id: string; produkt_gruppe_id: string | null; admin_favorit: boolean | null; kunde_favorit: boolean | null }[]) {
+      favMap.set(f.id, {
+        produkt_gruppe_id: f.produkt_gruppe_id ?? null,
+        admin_favorit: !!f.admin_favorit,
+        kunde_favorit: !!f.kunde_favorit,
+      })
+    }
   }
 
   // 5. Struktur aufbauen: Räume mit Auswahl-Gruppen + losen Produkten
@@ -148,10 +164,10 @@ export default async function FreigabePage({ params }: Props) {
             kommentar: (rp.freigabe_kommentar as string | null) ?? null,
             hinweis: p.hinweis_extern_sichtbar ? p.hinweis_extern : null,
             rabatt_prozent: (rp.rabatt_prozent as number | null) ?? null,
-            // Auswahl-Gruppe + Favoriten (Migration 114)
-            produkt_gruppe_id: (rp.produkt_gruppe_id as string | null) ?? null,
-            admin_favorit: (rp.admin_favorit as boolean | null) ?? false,
-            kunde_favorit: (rp.kunde_favorit as boolean | null) ?? false,
+            // Auswahl-Gruppe + Favoriten (Migration 114) — aus fail-safe favMap
+            produkt_gruppe_id: favMap.get(rp.id as string)?.produkt_gruppe_id ?? null,
+            admin_favorit: favMap.get(rp.id as string)?.admin_favorit ?? false,
+            kunde_favorit: favMap.get(rp.id as string)?.kunde_favorit ?? false,
           }
         })
 
