@@ -3,9 +3,60 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { istImAuswahlScope } from '@/lib/freigabe-scope'
 import type { ProduktStatus } from '@/lib/supabase/types'
 
 export type FreigabeResult = { fehler: string } | { erfolg: true }
+
+/**
+ * Scope-Guard für „auswahl"-Tokens (Migration 081 + 116). Erlaubt den Write,
+ * wenn das Produkt direkt in scope_ids ODER über seinen Bereich in
+ * scope_bereich_ids liegt. Alles fail-safe (fehlende Migration 116 →
+ * scope_bereich_ids leer → nur scope_ids zählt). MUSS exakt der Anzeige-
+ * Auflösung in freigabe/[token]/page.tsx entsprechen (geteilter istImAuswahlScope) —
+ * sonst IDOR. Es wird ausschließlich AUSGEWEITET, nie verengt.
+ */
+async function auswahlScopeErlaubt(
+  supabase: ReturnType<typeof createAdminClient>,
+  token: string,
+  raumProduktId: string,
+  scopeIds: string[],
+): Promise<boolean> {
+  if (scopeIds.includes(raumProduktId)) return true
+
+  // scope_bereich_ids fail-safe nachladen (Spalte könnte fehlen → leer → false)
+  const { data: sb } = await supabase
+    .from('freigabe_tokens')
+    .select('scope_bereich_ids')
+    .eq('token', token)
+    .maybeSingle()
+  const scopeBereichIds = (sb?.scope_bereich_ids as string[] | null) ?? []
+  if (scopeBereichIds.length === 0) return false
+
+  // Ziel-Bereich auflösen (Block→Bereich bzw. eigener Bereich)
+  const { data: rp } = await supabase
+    .from('raum_produkte')
+    .select('produkt_gruppe_id, bereich_id')
+    .eq('id', raumProduktId)
+    .maybeSingle()
+  const produkt_gruppe_id = (rp?.produkt_gruppe_id as string | null) ?? null
+  const bereich_id = (rp?.bereich_id as string | null) ?? null
+
+  const blockBereich = new Map<string, string | null>()
+  if (produkt_gruppe_id) {
+    const { data: g } = await supabase
+      .from('produkt_gruppen')
+      .select('bereich_id')
+      .eq('id', produkt_gruppe_id)
+      .maybeSingle()
+    blockBereich.set(produkt_gruppe_id, (g?.bereich_id as string | null) ?? null)
+  }
+
+  return istImAuswahlScope(
+    { id: raumProduktId, produkt_gruppe_id, bereich_id },
+    scopeIds, scopeBereichIds, blockBereich,
+  )
+}
 
 /**
  * Freigabe-Status auf raum_produkte setzen (Migration 076).
@@ -56,7 +107,7 @@ export async function freigabeStatusAendern(
   if (scopeTyp === 'raum' && scopeIds[0] && rpEintrag.raum_id !== scopeIds[0]) {
     return { fehler: 'Dieses Produkt liegt außerhalb des freigegebenen Bereichs.' }
   }
-  if (scopeTyp === 'auswahl' && scopeIds.length > 0 && !scopeIds.includes(raumProduktId)) {
+  if (scopeTyp === 'auswahl' && !(await auswahlScopeErlaubt(supabase, token, raumProduktId, scopeIds))) {
     return { fehler: 'Dieses Produkt liegt außerhalb des freigegebenen Bereichs.' }
   }
 
@@ -125,7 +176,7 @@ export async function freigabeFavoritWaehlen(
   if (scopeTyp === 'raum' && scopeIds[0] && ziel.raum_id !== scopeIds[0]) {
     return { fehler: 'Dieses Produkt liegt außerhalb des freigegebenen Bereichs.' }
   }
-  if (scopeTyp === 'auswahl' && scopeIds.length > 0 && !scopeIds.includes(raumProduktId)) {
+  if (scopeTyp === 'auswahl' && !(await auswahlScopeErlaubt(supabase, token, raumProduktId, scopeIds))) {
     return { fehler: 'Dieses Produkt liegt außerhalb des freigegebenen Bereichs.' }
   }
 

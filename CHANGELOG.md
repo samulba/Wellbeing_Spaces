@@ -5,9 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-31
 
-### Freigabe: neue „Gruppen"-Ebene (mehrere Empfehlungen je Gruppe) — in Arbeit
-- **Neue Ebene „Gruppe"** über den Auswahl-Blöcken: Eine Gruppe (z. B. „Lounge-Ecke", „Lichtplanung") bündelt jetzt mehrere **Auswahl-Blöcke** (Sessel-Auswahl, Tisch-Auswahl …) + Einzelprodukte. Dadurch sind **mehrere Empfehlungen pro Gruppe** möglich — pro Block eine. Die bisherige „1 von N"-Mechanik der Blöcke bleibt unverändert. (Schema + Grundlagen; UI folgt in den nächsten Schritten.)
-- Migration **116** (`produkt_bereiche` + Bereich-Zuordnungen + Scope-Erweiterung) muss in Supabase ausgeführt werden.
+### Freigabe: neue „Gruppen"-Ebene (mehrere Empfehlungen je Gruppe)
+- **Neue Ebene „Gruppe"** über den Auswahl-Blöcken: Eine Gruppe (z. B. „Lounge-Ecke", „Lichtplanung") bündelt jetzt mehrere **Auswahl-Blöcke** (Sessel-Auswahl, Tisch-Auswahl …) + Einzelprodukte. Dadurch sind **mehrere Empfehlungen pro Gruppe** möglich — pro Block eine. Die bisherige „1 von N"-Mechanik der Blöcke bleibt unverändert.
+- **Raum-Produkttabelle:** Über „+ Gruppe" legst du Gruppen an; Blöcke und Einzelprodukte ordnest du ihnen per Dropdown zu. (Die frühere „Auswahl-Gruppe" heißt jetzt „Auswahl-Block".)
+- **Freigabe-Link erstellen:** Beim Umfang „Auswahl" kannst du jetzt auch **ganze Gruppen** ankreuzen (nicht nur einzelne Produkte). Später hinzugefügte Produkte einer Gruppe sind automatisch dabei.
+- **Kunden-Link:** geführte Navigation — oben der Raum, darin **pro Gruppe eine eigene Seite** mit „Weiter/Zurück" und Gesamt-Fortschritt. Übersichtlicher und klarer getrennt.
+- Migration **116** (`produkt_bereiche` + Bereich-Zuordnungen + Scope-Erweiterung) muss in Supabase ausgeführt werden. Ohne Migration bleibt alles wie bisher (kein Fehler).
 - **Optional:** Migration **116b** wandelt bestehende „Gruppen" automatisch in die neue Ebene um — ⚠️ dabei gehen gesetzte Favoriten verloren und Blöcke werden aufgelöst (danach per „+ Alternative" neu bauen). Nur ausführen, wenn gewünscht.
 
 ### Produktbilder per Drag & Drop
