@@ -3,7 +3,8 @@ import { getMwstSatz } from '@/app/actions/einstellungen'
 import { brandingFuerToken } from '@/app/actions/branding'
 import { effektiverVpNetto } from '@/lib/preise'
 import FreigabeClient from './FreigabeClient'
-import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, ProduktStatus } from '@/lib/supabase/types'
+import { bereichVonRaumProdukt, istImAuswahlScope } from '@/lib/freigabe-scope'
+import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus } from '@/lib/supabase/types'
 
 interface Props {
   params: { token: string }
@@ -61,6 +62,21 @@ export default async function FreigabePage({ params }: Props) {
   const scopeIds   = (tokenData.scope_ids   as string[] | null) ?? []
   const raumFilter = scopeTyp === 'raum' && scopeIds[0] ? [scopeIds[0]] : raeumeDaten.map((r) => r.id)
 
+  // scope_bereich_ids fail-safe nachladen (Migration 116) — Spalte könnte fehlen.
+  let scopeBereichIds: string[] = []
+  {
+    const { data: sbData } = await supabase
+      .from('freigabe_tokens')
+      .select('scope_bereich_ids')
+      .eq('id', tokenData.id)
+      .maybeSingle()
+    scopeBereichIds = ((sbData?.scope_bereich_ids as string[] | null) ?? [])
+  }
+  // Bei „auswahl" + ganzen Gruppen wird dynamisch zur Ladezeit aufgelöst →
+  // KEIN SQL-Vorfilter (alle Raum-Produkte laden, dann in JS filtern). Reine
+  // Produkt-Auswahl (ohne Bereiche) nutzt weiter den effizienten .in()-Vorfilter.
+  const auswahlMitBereich = scopeTyp === 'auswahl' && scopeBereichIds.length > 0
+
   let rpQuery = supabase
     .from('raum_produkte')
     .select(`
@@ -82,7 +98,7 @@ export default async function FreigabePage({ params }: Props) {
     .order('reihenfolge')
     .order('created_at')
 
-  if (scopeTyp === 'auswahl' && scopeIds.length > 0) {
+  if (scopeTyp === 'auswahl' && scopeIds.length > 0 && !auswahlMitBereich) {
     rpQuery = rpQuery.in('id', scopeIds)
   }
 
@@ -123,7 +139,39 @@ export default async function FreigabePage({ params }: Props) {
     }
   }
 
-  // 5. Struktur aufbauen: Räume mit Auswahl-Gruppen + losen Produkten
+  // 4d. Bereiche/"Gruppen" der in-scope Räume laden (Migration 116) — fail-safe.
+  const bereicheProRaum = new Map<string, { id: string; name: string; beschreibung: string | null }[]>()
+  {
+    const { data: bereicheDaten } = await supabase
+      .from('produkt_bereiche')
+      .select('id, raum_id, name, beschreibung, reihenfolge')
+      .in('raum_id', raumFilter)
+      .is('deleted_at', null)
+      .order('reihenfolge')
+      .order('created_at')
+    for (const b of (bereicheDaten ?? []) as { id: string; raum_id: string; name: string; beschreibung: string | null }[]) {
+      const arr = bereicheProRaum.get(b.raum_id) ?? []
+      arr.push({ id: b.id, name: b.name, beschreibung: b.beschreibung })
+      bereicheProRaum.set(b.raum_id, arr)
+    }
+  }
+
+  // 4e. Block→Bereich + Produkt→Bereich fail-safe nachladen (Migration 116).
+  const blockBereich = new Map<string, string | null>()
+  {
+    const gIds = (gruppenDaten ?? []).map((g) => (g as { id: string }).id)
+    if (gIds.length > 0) {
+      const { data: gbData } = await supabase.from('produkt_gruppen').select('id, bereich_id').in('id', gIds)
+      for (const g of (gbData ?? []) as { id: string; bereich_id: string | null }[]) blockBereich.set(g.id, g.bereich_id ?? null)
+    }
+  }
+  const produktBereichMap = new Map<string, string | null>()
+  if (rpIds.length > 0) {
+    const { data: pbData } = await supabase.from('raum_produkte').select('id, bereich_id').in('id', rpIds)
+    for (const r of (pbData ?? []) as { id: string; bereich_id: string | null }[]) produktBereichMap.set(r.id, r.bereich_id ?? null)
+  }
+
+  // 5. Struktur aufbauen: Räume mit Bereichen → Auswahl-Blöcke + Einzelprodukte
   const raeume: FreigabeRaum[] = raeumeDaten
     .map((raum) => {
       const alleProdukte = (rpDaten ?? [])
@@ -131,7 +179,16 @@ export default async function FreigabePage({ params }: Props) {
           if (rp.raum_id !== raum.id) return false
           // Gelöschte Produkte ausblenden
           const p = rp.produkte as unknown as { deleted_at: string | null }
-          return !p?.deleted_at
+          if (p?.deleted_at) return false
+          // „auswahl"-Scope mit ganzen Gruppen: dynamisch auflösen (Migration 116).
+          if (auswahlMitBereich) {
+            const rpId = rp.id as string
+            return istImAuswahlScope(
+              { id: rpId, produkt_gruppe_id: favMap.get(rpId)?.produkt_gruppe_id, bereich_id: produktBereichMap.get(rpId) },
+              scopeIds, scopeBereichIds, blockBereich,
+            )
+          }
+          return true
         })
         .map((rp): FreigabeProdukt => {
           type ProdRaw = {
@@ -168,6 +225,8 @@ export default async function FreigabePage({ params }: Props) {
             produkt_gruppe_id: favMap.get(rp.id as string)?.produkt_gruppe_id ?? null,
             admin_favorit: favMap.get(rp.id as string)?.admin_favorit ?? false,
             kunde_favorit: favMap.get(rp.id as string)?.kunde_favorit ?? false,
+            // Bereich/"Gruppe" (Migration 116) — aus fail-safe produktBereichMap
+            bereich_id: produktBereichMap.get(rp.id as string) ?? null,
           }
         })
 
@@ -186,7 +245,27 @@ export default async function FreigabePage({ params }: Props) {
       const echteGruppenIds = new Set(gruppen.map((g) => g.id))
       const lose = alleProdukte.filter((p) => !p.produkt_gruppe_id || !echteGruppenIds.has(p.produkt_gruppe_id))
 
-      return { id: raum.id, name: raum.name, gruppen, produkte: lose }
+      // Bereiche/"Gruppen" bauen (Migration 116): je Bereich seine Auswahl-Blöcke
+      // (Block-bereich_id == Bereich) + Einzelprodukte (resolveBereich == Bereich).
+      // Nicht zugeordnete Items → synthetischer Trailing-Bereich „Ohne Gruppe".
+      // Jedes Item liegt in genau EINEM Bereich (kein Doppelzählen).
+      const resolveBereich = (p: FreigabeProdukt) =>
+        bereichVonRaumProdukt({ produkt_gruppe_id: p.produkt_gruppe_id, bereich_id: p.bereich_id }, blockBereich)
+      const bereichDefs = bereicheProRaum.get(raum.id) ?? []
+      const bereichIdSet = new Set(bereichDefs.map((b) => b.id))
+      const bereiche: FreigabeBereich[] = []
+      for (const b of bereichDefs) {
+        const bloecke = gruppen.filter((g) => (blockBereich.get(g.id) ?? null) === b.id)
+        const produkte = lose.filter((p) => resolveBereich(p) === b.id)
+        bereiche.push({ id: b.id, name: b.name, beschreibung: b.beschreibung, bloecke, produkte })
+      }
+      const ohneBloecke = gruppen.filter((g) => { const bb = blockBereich.get(g.id) ?? null; return !bb || !bereichIdSet.has(bb) })
+      const ohneProdukte = lose.filter((p) => { const bb = resolveBereich(p); return !bb || !bereichIdSet.has(bb) })
+      if (ohneBloecke.length > 0 || ohneProdukte.length > 0) {
+        bereiche.push({ id: '__ohne__', name: 'Ohne Gruppe', beschreibung: null, bloecke: ohneBloecke, produkte: ohneProdukte })
+      }
+
+      return { id: raum.id, name: raum.name, bereiche, gruppen, produkte: lose }
     })
     .filter((r) => r.produkte.length > 0 || (r.gruppen?.length ?? 0) > 0)
 
@@ -205,7 +284,8 @@ export default async function FreigabePage({ params }: Props) {
   const scopeBeschreibung =
     scopeTyp === 'projekt' ? 'Gesamtes Projekt' :
     scopeTyp === 'raum'    ? `Raum: ${raeume[0]?.name ?? ''}` :
-                              `${raeume.reduce((sum, r) => sum + produktAnzahl(r), 0)} ausgewählte Produkte`
+                              `${raeume.reduce((sum, r) => sum + produktAnzahl(r), 0)} ausgewählte Produkte` +
+                              (scopeBereichIds.length > 0 ? ` · ${scopeBereichIds.length} Gruppe${scopeBereichIds.length === 1 ? '' : 'n'}` : '')
 
   return (
     <FreigabeClient
