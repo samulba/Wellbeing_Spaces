@@ -42,7 +42,7 @@ async function getAlleProdukte(): Promise<FreigabeEintrag[]> {
     }
   }
 
-  return ((data ?? []) as unknown as RpRow[])
+  const basis = ((data ?? []) as unknown as RpRow[])
     .filter((row) => !row.produkte.deleted_at)
     .map((row): FreigabeEintrag => ({
       id:         row.id,                 // raum_produkte.id — Key für Freigabe-Aktionen
@@ -60,6 +60,37 @@ async function getAlleProdukte(): Promise<FreigabeEintrag[]> {
         kommentar: row.freigabe_kommentar,
       },
     }))
+
+  // Fail-safe Anreicherung mit Auswahl-Gruppe + Favoriten (Migration 114).
+  // Eigene Query, damit die Seite NICHT bricht, falls Migration 114 noch nicht
+  // eingespielt ist (Spalten/Tabelle fehlen → Maps bleiben leer, keine Badges).
+  const rpIds = basis.map((e) => e.id)
+  if (rpIds.length > 0) {
+    const { data: favData } = await supabase
+      .from('raum_produkte')
+      .select('id, produkt_gruppe_id, admin_favorit, kunde_favorit')
+      .in('id', rpIds)
+    const favList = (favData ?? []) as { id: string; produkt_gruppe_id: string | null; admin_favorit: boolean | null; kunde_favorit: boolean | null }[]
+    if (favList.length > 0) {
+      const gruppeIds = Array.from(new Set(favList.map((f) => f.produkt_gruppe_id).filter(Boolean) as string[]))
+      const nameMap = new Map<string, string>()
+      if (gruppeIds.length > 0) {
+        const { data: gData } = await supabase.from('produkt_gruppen').select('id, name').in('id', gruppeIds)
+        for (const g of (gData ?? []) as { id: string; name: string }[]) nameMap.set(g.id, g.name)
+      }
+      const favMap = new Map(favList.map((f) => [f.id, f]))
+      for (const e of basis) {
+        const f = favMap.get(e.id)
+        if (!f) continue
+        e.produkt_gruppe_id = f.produkt_gruppe_id ?? null
+        e.gruppe_name = f.produkt_gruppe_id ? (nameMap.get(f.produkt_gruppe_id) ?? null) : null
+        e.admin_favorit = !!f.admin_favorit
+        e.kunde_favorit = !!f.kunde_favorit
+      }
+    }
+  }
+
+  return basis
 }
 
 export default async function FreigabenPage() {

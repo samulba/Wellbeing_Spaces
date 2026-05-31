@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   CheckCircle2, X, Clock, XCircle, RotateCcw, BarChart2, Layers, Table2,
-  Search, ChevronDown, ChevronRight, Undo2, ArrowUpRight,
+  Search, ChevronDown, ChevronRight, Undo2, ArrowUpRight, Star,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -37,6 +37,11 @@ export type FreigabeEintrag = {
     } | null
   } | null
   produktstatus: { status: string; kommentar: string | null } | null
+  // Auswahl-Gruppe + Favoriten (Migration 114) — optional, fail-safe angereichert
+  produkt_gruppe_id?: string | null
+  gruppe_name?: string | null
+  admin_favorit?: boolean
+  kunde_favorit?: boolean
 }
 
 type Tab = 'offen' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung' | 'alle'
@@ -477,12 +482,15 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
               </span>
             </div>
 
-            {/* Row 2: Raum · Projekt */}
+            {/* Row 2: Raum · Projekt · Auswahl-Gruppe */}
             {(e.raeume?.name || (withProjekt && e.raeume?.projekte)) && (
               <p className="text-[11px] text-gray-500 mt-0.5 truncate">
                 {e.raeume?.name}
                 {withProjekt && e.raeume?.projekte && (
                   <> · {e.raeume.projekte.name}</>
+                )}
+                {e.gruppe_name && (
+                  <> · <span className="text-wellbeing-green">{e.gruppe_name}</span></>
                 )}
               </p>
             )}
@@ -501,6 +509,25 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                   <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                   {cfg.label}
                 </span>
+              )}
+              {/* Auswahl-Gruppe: Favorit/Empfehlung vs. Alternative (Migration 114) */}
+              {e.produkt_gruppe_id && (
+                <>
+                  {e.admin_favorit && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-wellbeing-green/10 text-wellbeing-green-dark shrink-0">
+                      <Star className="w-2.5 h-2.5" /> Empfehlung
+                    </span>
+                  )}
+                  {e.kunde_favorit ? (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 shrink-0">
+                      <CheckCircle2 className="w-2.5 h-2.5" /> Kundenwahl
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">
+                      Alternative
+                    </span>
+                  )}
+                </>
               )}
               {vp > 0 && (
                 <span className="text-[11px] font-mono text-gray-500 tabular-nums">
