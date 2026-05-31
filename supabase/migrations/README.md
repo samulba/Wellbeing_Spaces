@@ -28,5 +28,5 @@ supabase/migrations/
 
 ## Aktueller Stand
 
-- **Letzte angewandte Migration:** 114 (Freigabe-Gruppen + Favorit/Alternative — `raum_gruppen`, `produkt_gruppen`, Favoriten-Flags auf `raum_produkte`).
-- **Offene Migrationen:** 115 (Freigabe-Härtung — `freigabe_audit` append-only + PIN-Lockout-Spalten auf `projekte`).
+- **Letzte angewandte Migration:** 115 (Freigabe-Härtung — `freigabe_audit` append-only + PIN-Lockout-Spalten auf `projekte`).
+- **Offene Migrationen:** keine.
