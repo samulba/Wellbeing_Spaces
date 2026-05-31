@@ -2,32 +2,20 @@ import AnimateOnScroll from './AnimateOnScroll'
 
 const faqs = [
   {
-    q: 'Muss mein Kunde sich registrieren?',
-    a: 'Nein. Dein Kunde erhält einen Link und kann direkt im Browser Produkte freigeben oder ablehnen – ohne Account, App-Download oder Passwort.',
+    q: 'Müssen Klient:innen sich registrieren?',
+    a: 'Nein. Klient:innen erhalten einen Link und können direkt im Browser Produkte freigeben oder ablehnen – ohne Account, App-Download oder Passwort.',
   },
   {
-    q: 'Wie sicher sind meine Daten?',
-    a: 'Alle Daten werden DSGVO-konform auf EU-Servern in Frankfurt gespeichert. Wir nutzen Supabase mit Row-Level Security – jeder User sieht nur seine eigenen Daten.',
-  },
-  {
-    q: 'Kann ich von Houzz Pro wechseln?',
-    a: 'Ja. Ein CSV-Import ist in Planung. Aktuell überträgst du Produkte manuell – das dauert für ein typisches Projekt unter 30 Minuten.',
+    q: 'Wie sicher sind die Daten?',
+    a: 'Alle Daten werden DSGVO-konform auf EU-Servern in Frankfurt gespeichert. Eingesetzt wird Supabase mit Row-Level Security – jede Organisation sieht nur ihre eigenen Daten.',
   },
   {
     q: 'Wie funktioniert die Preiskalkulation?',
-    a: 'Du gibst Einkaufspreis und Marge in Prozent ein. Wellbeing Spaces berechnet automatisch den Verkaufspreis netto und brutto (19% MwSt.) sowie Provisionen für Partner.',
-  },
-  {
-    q: 'Kann ich das Tool kostenlos testen?',
-    a: 'Ja. Der Free-Plan ist dauerhaft kostenlos mit 2 Projekten und 1 Benutzer – keine Kreditkarte, kein Ablaufdatum, kein Abo-Trick.',
+    a: 'Einkaufspreis und Marge in Prozent eingeben – Wellbeing Spaces berechnet automatisch den Verkaufspreis netto und brutto (inkl. MwSt.) sowie Provisionen für Partner.',
   },
   {
     q: 'Gibt es eine mobile App?',
-    a: 'Wellbeing Spaces ist eine vollständig responsive Web-App die auf allen Geräten funktioniert. Eine native App für iOS und Android ist für 2026 geplant.',
-  },
-  {
-    q: 'Wie viele Teammitglieder kann ich einladen?',
-    a: 'Free: 1 Benutzer. Pro: bis zu 5 Benutzer. Team: unbegrenzt. Alle Mitglieder arbeiten gleichzeitig an Projekten – Echtzeit-Sync folgt im nächsten Update.',
+    a: 'Wellbeing Spaces ist eine vollständig responsive Web-App, die auf allen Geräten im Browser funktioniert.',
   },
 ]
 

@@ -44,7 +44,7 @@ const features: Feature[] = [
     icon: Calculator,
     tag:  'Automatik',
     title: 'Auto-Kalkulation',
-    desc: 'Einkaufspreis rein, Marge setzen – Verkaufspreis netto und brutto werden automatisch berechnet. Nie wieder Excel-Formeln pflegen.',
+    desc: 'Einkaufspreis rein, Marge setzen – Verkaufspreis netto und brutto werden automatisch berechnet, ohne manuelle Formeln.',
     glow:  '16, 185, 129',
     chip:  'text-emerald-600',
     stage: 'bg-gradient-to-br from-emerald-50/60 via-white to-white',
@@ -53,7 +53,7 @@ const features: Feature[] = [
     icon: Link2,
     tag:  'Freigabe',
     title: 'Freigabe per Link',
-    desc: 'Kunde klickt den Link, gibt frei oder lehnt ab – kein Account, keine App, keine Erklärung nötig. Feedback sofort im Dashboard.',
+    desc: 'Klient:innen öffnen den Link, geben frei oder lehnen ab – kein Account, keine App, keine Erklärung nötig. Feedback sofort im Dashboard.',
     glow:  '14, 165, 233',
     chip:  'text-sky-600',
     stage: 'bg-gradient-to-br from-sky-50/60 via-white to-white',
@@ -71,7 +71,7 @@ const features: Feature[] = [
     icon: Users,
     tag:  'Team',
     title: 'Team & Rollen',
-    desc: 'Mehrere Designer, ein Tool. Zusammen an Projekten arbeiten ohne Datei-Wirrwarr, mit klaren Rollen und Berechtigungen.',
+    desc: 'Mehrere Teammitglieder, ein Tool. Gemeinsam an Projekten arbeiten ohne Datei-Wirrwarr, mit klaren Rollen und Berechtigungen.',
     glow:  '244, 63, 94',
     chip:  'text-rose-600',
     stage: 'bg-gradient-to-br from-rose-50/60 via-white to-white',
@@ -92,12 +92,12 @@ function FeatureGrid() {
       <div className="relative z-10 max-w-[1300px] mx-auto px-6">
         <Reveal variant="blur-in">
           <div className="text-center mb-12">
-            <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">Features</p>
+            <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">Funktionen</p>
             <h2 className="font-syne font-bold text-[32px] md:text-[52px] text-[#445c49] mb-4 leading-[1.1]">
-              Alles was du brauchst –<br className="hidden md:block" /> nichts was du nicht brauchst
+              Funktionen im Überblick
             </h2>
             <p className="text-[15px] md:text-[17px] text-gray-500 max-w-lg mx-auto leading-relaxed">
-              Kein Overkill. Kein 3D-Renderer. Keine Buchhaltung. Nur das was dich täglich weiterbringt.
+              Vom Projekt über die Produktliste bis zur Freigabe — die wichtigsten Werkzeuge an einem Ort.
             </p>
           </div>
         </Reveal>
@@ -180,10 +180,10 @@ export default function Features() {
             {/* Top section header */}
             <div className="text-center mb-6 md:mb-10">
               <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-2">
-                Features
+                Funktionen
               </p>
               <h2 className="font-syne font-bold text-[28px] md:text-[38px] text-[#445c49] leading-[1.1]">
-                Alles was du brauchst
+                Funktionen im Überblick
               </h2>
             </div>
 

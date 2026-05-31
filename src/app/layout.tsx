@@ -19,11 +19,10 @@ const syne = Syne({
 export const metadata: Metadata = {
   metadataBase: new URL('https://wellbeing-spaces.de'),
   title: {
-    default: 'Wellbeing Spaces | Interior Design Projektmanagement Software',
+    default: 'Wellbeing Spaces',
     template: '%s | Wellbeing Spaces',
   },
-  description: 'Die All-in-One Software für Interior Designer. Projekte verwalten, Produktlisten erstellen, Preise kalkulieren und Kunden mit einem Link zur Freigabe einladen. DSGVO-konform.',
-  keywords: ['Interior Design Software', 'Projektmanagement Interior Designer', 'Raumausstattung Software', 'Design Studio Software', 'Preiskalkulation Interior Design', 'DSGVO Interior Design'],
+  description: 'Plattform für Interior-Projekte: Produktlisten, automatische Kalkulation und Freigaben strukturiert an einem Ort. DSGVO-konform, Hosting in der EU.',
   authors: [{ name: 'Wellbeing Spaces' }],
   creator: 'VicinusMedia',
   icons: {
@@ -38,7 +37,7 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Wellbeing Spaces – Interior Design Projektmanagement Software',
+        alt: 'Wellbeing Spaces',
       },
     ],
   },

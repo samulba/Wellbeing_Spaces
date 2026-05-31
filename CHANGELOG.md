@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-31
 
+### Landingpage: rein informativ (kein Verkauf/Demo mehr)
+- Die Startseite ist jetzt **neutral & sachlich informativ** statt SaaS-Verkaufsseite. **Entfernt:** „Demo anfragen" (überall + Formular), Preise/Beta-Bereich, Mitbewerber-Vergleiche (Houzz/Mydoma), erfundene Testimonials und unbelegte Zahlen („3× schneller" etc.), „kostenlos/Free-Plan/Tarife".
+- Texte überall neutral umgeschrieben (kein „du als Designer / deine Kunden"); nur faktische Aussagen (Produktlisten, automatische Kalkulation, Freigabe per Link ohne Account, DSGVO/EU-Server).
+- Unterseiten **/preise, /features, /faq entfernt** (Inhalte als Abschnitte auf der einen Startseite, Nav/Footer verlinken jetzt per Anker). **Team-Login bleibt** erhalten.
+
 ### Freigabe-Passwortschutz: echter Datentresor
 - Der PIN-Schutz für Freigabe-Links ist jetzt **echter Schutz**: Die Produktdaten werden vom **Server erst nach korrekter PIN** ausgeliefert (vorher waren sie technisch schon im Seitenquelltext einsehbar, bevor die PIN eingegeben war). Verifizierung läuft über ein signiertes, manipulationssicheres Cookie; ändert der Admin die PIN, müssen offene Sitzungen neu eingeben.
 - Sperre nach Fehlversuchen vereinheitlicht (5 Versuche → 15 Min) und gegen gleichzeitige Versuche abgesichert.

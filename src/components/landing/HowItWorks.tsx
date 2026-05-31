@@ -11,7 +11,7 @@ const steps = [
     icon: FolderPlus,
     num: '01',
     title: 'Projekt anlegen',
-    desc: 'Kunde und Räume anlegen, Budget setzen – in unter 2 Minuten startklar.',
+    desc: 'Kunde und Räume anlegen, Budget setzen – die Grundlage fürs Projekt steht.',
   },
   {
     icon: Package,
@@ -23,7 +23,7 @@ const steps = [
     icon: Share2,
     num: '03',
     title: 'Freigabe senden',
-    desc: 'Link an Kunden schicken, Feedback sofort im Tool sehen – ohne E-Mail-Chaos.',
+    desc: 'Link an Kunden schicken, Feedback sofort im Tool sehen.',
   },
 ]
 
@@ -64,8 +64,8 @@ function MobileSteps() {
         <Reveal delay={0.3} variant="scale-in">
           <div className="mt-12 flex justify-center">
             <div className="inline-flex items-center gap-3 px-5 py-3 bg-wellbeing-cream border border-wellbeing-cream rounded-2xl">
-              <span className="text-[13px] font-semibold text-[#445c49]">Durchschnittliche Setup-Zeit:</span>
-              <span className="font-syne font-bold text-[#445c49] text-[15px]">unter 5 Min.</span>
+              <span className="text-[13px] font-semibold text-[#445c49]">In drei Schritten:</span>
+              <span className="font-syne font-bold text-[#445c49] text-[15px]">vom Projekt zur Freigabe</span>
             </div>
           </div>
         </Reveal>
@@ -213,8 +213,8 @@ export default function HowItWorks() {
 
             <div className="mt-10 flex justify-center">
               <div className="inline-flex items-center gap-3 px-6 py-3.5 bg-wellbeing-cream border border-wellbeing-cream rounded-2xl">
-                <span className="text-[13px] font-semibold text-[#445c49]">Durchschnittliche Setup-Zeit:</span>
-                <span className="font-syne font-bold text-[#445c49] text-[15px]">unter 5 Minuten</span>
+                <span className="text-[13px] font-semibold text-[#445c49]">In drei Schritten:</span>
+                <span className="font-syne font-bold text-[#445c49] text-[15px]">vom Projekt zur Freigabe</span>
               </div>
             </div>
 

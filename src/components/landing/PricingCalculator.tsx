@@ -87,10 +87,10 @@ export default function PricingCalculator() {
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-14">
             <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">
-              Live Demo
+              Kalkulation
             </p>
             <h2 className="font-syne font-bold text-[36px] md:text-[48px] text-[#445c49] mb-3 leading-[1.1]">
-              Probier die Kalkulation<br className="hidden md:block" /> direkt aus
+              Automatische<br className="hidden md:block" /> Preiskalkulation
             </h2>
             <p className="text-[16px] text-gray-500 max-w-lg mx-auto">
               Einkaufspreis und Marge eingeben – Wellbeing Spaces berechnet VP netto, brutto und Provision sofort.
@@ -139,8 +139,8 @@ export default function PricingCalculator() {
 
                 <div className="border-t border-gray-100 pt-5">
                   <p className="text-[12px] text-gray-400 leading-relaxed">
-                    Wellbeing Spaces berechnet das für jedes Produkt automatisch.
-                    Keine Formeln, kein Excel, keine Fehler.
+                    Wellbeing Spaces berechnet das für jedes Produkt automatisch –
+                    Verkaufspreis netto, brutto und Provision.
                   </p>
                 </div>
               </div>

@@ -4,13 +4,11 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
 import Image from 'next/image'
-import DemoModal from './DemoModal'
 
 const navLinks = [
-  { label: 'Features',  href: '/features'  },
-  { label: 'Vorteile',  href: '/#warum-wbc' },
-  { label: 'Preise',    href: '/preise'    },
-  { label: 'FAQ',       href: '/faq'       },
+  { label: 'Funktionen', href: '/#features' },
+  { label: 'Ablauf',     href: '/#wie-es-funktioniert' },
+  { label: 'FAQ',        href: '/#faq' },
 ]
 
 function smoothScroll(href: string) {
@@ -23,7 +21,6 @@ function smoothScroll(href: string) {
 export default function Nav() {
   const [scrolled,   setScrolled]   = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [demoOpen,   setDemoOpen]   = useState(false)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16)
@@ -74,21 +71,14 @@ export default function Nav() {
             ))}
           </div>
 
-          {/* Right: Anmelden + CTA */}
+          {/* Right: Anmelden (Team-Login) */}
           <div className="hidden md:flex items-center gap-2 shrink-0">
             <Link
               href="https://app.wellbeing-spaces.de/login"
-              className="px-4 py-2 text-[14px] font-medium text-gray-500 hover:text-[#445c49] hover:bg-gray-50 rounded-lg transition-all duration-150"
+              className="inline-flex items-center px-4 py-2 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[14px] font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-wellbeing-green/40 hover:-translate-y-0.5 active:scale-95"
             >
               Anmelden
             </Link>
-            <button
-              onClick={() => setDemoOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[14px] font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-wellbeing-green/40 hover:-translate-y-0.5 active:scale-95"
-            >
-              Demo anfragen
-              <span className="text-wellbeing-green-light">→</span>
-            </button>
           </div>
 
           {/* Hamburger */}
@@ -133,20 +123,12 @@ export default function Nav() {
           <Link
             href="/login"
             onClick={() => setMobileOpen(false)}
-            className="w-full flex items-center justify-center py-3 border border-gray-200 text-gray-700 text-[15px] font-semibold rounded-xl transition-colors hover:bg-gray-50"
+            className="w-full flex items-center justify-center py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-colors"
           >
             Anmelden
           </Link>
-          <button
-            onClick={() => { setMobileOpen(false); setDemoOpen(true) }}
-            className="w-full flex items-center justify-center gap-1.5 py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-colors"
-          >
-            Demo anfragen →
-          </button>
         </div>
       </div>
-
-      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </>
   )
 }

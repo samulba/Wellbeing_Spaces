@@ -1,26 +1,19 @@
 import type { Metadata } from 'next'
 import Nav               from '@/components/landing/Nav'
 import Hero              from '@/components/landing/Hero'
-import CompetitorBadge   from '@/components/landing/CompetitorBadge'
-import ProblemSolution   from '@/components/landing/ProblemSolution'
 import Features          from '@/components/landing/Features'
 import HowItWorks        from '@/components/landing/HowItWorks'
-import WhyWBC            from '@/components/landing/WhyWBC'
 import PricingCalculator from '@/components/landing/PricingCalculator'
-import Pricing           from '@/components/landing/Pricing'
 import FAQ               from '@/components/landing/FAQ'
-import FinalCTA          from '@/components/landing/FinalCTA'
 import Footer            from '@/components/landing/Footer'
 import CookieBanner      from '@/components/landing/CookieBanner'
 import MotionProvider    from '@/components/landing/MotionProvider'
 import ScrollProgress    from '@/components/landing/ScrollProgress'
 
 export const metadata: Metadata = {
-  title: 'Wellbeing Spaces | Interior Design Projektmanagement Software',
+  title: 'Wellbeing Spaces',
   description:
-    'Die All-in-One Software für Interior Designer. Projekte verwalten, Produktlisten erstellen, Preise kalkulieren und Kunden mit einem Link zur Freigabe einladen. DSGVO-konform.',
-  keywords:
-    'Interior Design Software, Projektmanagement Interior Designer, Raumausstattung Software, Design Studio Software, Produktlisten erstellen, Preiskalkulation Interior Design, Kundenfreigabe Tool, DSGVO Interior Design',
+    'Plattform für Interior-Projekte: Produktlisten, automatische Kalkulation und Freigaben strukturiert an einem Ort. DSGVO-konform, Hosting in der EU.',
   alternates: {
     canonical: 'https://wellbeing-spaces.de/',
     languages: {
@@ -29,43 +22,15 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: 'Wellbeing Spaces | Interior Design Projektmanagement',
+    title: 'Wellbeing Spaces',
     description:
-      'Die All-in-One Software für Interior Designer. Projekte, Preise, Freigaben – alles an einem Ort.',
+      'Interior-Projekte digital organisiert: Produktlisten, Kalkulation und Freigaben an einem Ort.',
     url: 'https://wellbeing-spaces.de/',
   },
   twitter: {
-    title: 'Wellbeing Spaces | Interior Design Software',
-    description: 'Projektmanagement für Interior Designer. DSGVO-konform.',
+    title: 'Wellbeing Spaces',
+    description: 'Interior-Projekte digital organisiert. DSGVO-konform.',
   },
-}
-
-const jsonLdSoftware = {
-  '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: 'Wellbeing Spaces',
-  applicationCategory: 'BusinessApplication',
-  operatingSystem: 'Web',
-  description: 'Projektmanagement Software für Interior Designer und Design Studios',
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'EUR',
-    description: 'Aktuell kostenfrei in der Beta-Phase',
-  },
-  publisher: {
-    '@type': 'Organization',
-    name: 'Samuel Liba – Unternehmensberatung',
-    url: 'https://wellbeing-spaces.de',
-  },
-  featureList: [
-    'Projektverwaltung',
-    'Produktlisten erstellen',
-    'Automatische Preiskalkulation',
-    'Kundenfreigabe per Link',
-    'Team & Rollen',
-    'Partnerverwaltung',
-  ],
 }
 
 const jsonLdOrg = {
@@ -93,25 +58,16 @@ export default function LandingPage() {
     <div className="bg-white">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSoftware) }}
-      />
-      <script
-        type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdOrg) }}
       />
       <MotionProvider>
         <ScrollProgress />
         <Nav />
         <Hero />
-        <CompetitorBadge />
-        <ProblemSolution />
         <Features />
         <HowItWorks />
-        <WhyWBC />
         <PricingCalculator />
-        <Pricing />
         <FAQ />
-        <FinalCTA />
         <Footer />
         <CookieBanner />
       </MotionProvider>

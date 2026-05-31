@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, Clock, AlertCircle, Zap, ArrowDown } from 'lucide-react'
 import { m, useScroll, useTransform, useReducedMotion, type MotionValue } from 'framer-motion'
-import DemoModal from './DemoModal'
 
 // ── Animated Mesh-Gradient Background ────────────────────────────
 function AnimatedBG({ y, opacity, scale }: { y: MotionValue<number>; opacity: MotionValue<number>; scale: MotionValue<number> }) {
@@ -224,7 +223,6 @@ const item = {
 }
 
 export default function Hero() {
-  const [demoOpen, setDemoOpen] = useState(false)
   const sectionRef = useRef<HTMLElement>(null)
   const prefersReduced = useReducedMotion()
 
@@ -268,7 +266,7 @@ export default function Hero() {
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-wellbeing-cream border border-wellbeing-cream text-wellbeing-green text-[13px] font-semibold mb-7"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-wellbeing-green animate-pulse" />
-              Für Interior Designer & Design Studios
+              Plattform für Interior-Projekte
             </m.div>
 
             <m.h1
@@ -276,8 +274,8 @@ export default function Hero() {
               className="font-syne font-bold text-[#2d3e31] leading-[1.02] tracking-tight mb-6"
               style={{ fontSize: 'clamp(42px, 6vw, 82px)' }}
             >
-              Deine Projekte.<br />
-              Deine Preise.<br />
+              Produkte.<br />
+              Kalkulation.<br />
               <span className="relative inline-block">
                 <span
                   className="relative z-10"
@@ -290,78 +288,46 @@ export default function Hero() {
                     animation: 'shimmer 6s ease-in-out infinite',
                   }}
                 >
-                  Deine Kunden
+                  Freigaben.
                 </span>
                 <span
                   aria-hidden
                   className="absolute left-0 right-0 bottom-[6%] h-[14%] -z-0 rounded-full"
                   style={{ background: 'rgba(148,193,164,0.28)' }}
                 />
-              </span>{' '}
-              begeistert.
+              </span>
             </m.h1>
 
             <m.p
               variants={item}
               className="text-[17px] md:text-[19px] text-gray-600 max-w-xl mb-10 leading-relaxed lg:mx-0 mx-auto"
             >
-              Produktlisten erstellen, Preise automatisch kalkulieren und
-              Kunden mit einem Link zur Freigabe einladen.
-              Für Interior Designer die mehr wollen als Excel.
+              Produktlisten erstellen, Verkaufspreise automatisch kalkulieren
+              und Produkte per Link zur Freigabe geben — strukturiert an einem Ort.
             </m.p>
 
             <m.div
               variants={item}
               className="flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3 mb-10"
             >
-              <button
-                onClick={() => setDemoOpen(true)}
-                className="group relative inline-flex items-center gap-2 px-7 py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-wellbeing-green-light/70 hover:-translate-y-1 w-full sm:w-auto justify-center overflow-hidden"
-              >
-                <span className="relative z-10">Demo anfragen</span>
-                <span className="relative z-10 transition-transform duration-200 group-hover:translate-x-1">→</span>
-                <span
-                  aria-hidden
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{ background: 'linear-gradient(120deg, transparent 20%, rgba(148,193,164,0.25) 50%, transparent 80%)' }}
-                />
-              </button>
               <a
                 href="#features"
                 onClick={(e) => {
                   e.preventDefault()
                   document.querySelector('#features')?.scrollIntoView({ behavior: 'smooth' })
                 }}
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-white/80 backdrop-blur-sm border border-gray-200 hover:border-gray-300 text-gray-700 text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-sm hover:bg-white w-full sm:w-auto justify-center cursor-pointer"
+                className="group relative inline-flex items-center gap-2 px-7 py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-wellbeing-green-light/70 hover:-translate-y-1 w-full sm:w-auto justify-center cursor-pointer"
               >
-                Wie es funktioniert
+                <span className="relative z-10">Wie es funktioniert</span>
+                <span className="relative z-10 transition-transform duration-200 group-hover:translate-x-1">→</span>
               </a>
-            </m.div>
-
-            {/* Stats-Leiste als Social Proof */}
-            <m.div
-              variants={item}
-              className="flex flex-wrap items-stretch lg:justify-start justify-center gap-6 md:gap-8 mb-6"
-            >
-              {[
-                { value: '3×',    label: 'schneller planen' },
-                { value: '100%',  label: 'Freigaben online' },
-                { value: '0',     label: 'Excel-Tabellen' },
-              ].map((s) => (
-                <div key={s.label} className="flex flex-col">
-                  <span className="font-syne font-bold text-[28px] md:text-[32px] text-[#445c49] leading-none tracking-tight">
-                    {s.value}
-                  </span>
-                  <span className="text-[12px] text-gray-500 mt-1 font-medium">{s.label}</span>
-                </div>
-              ))}
             </m.div>
 
             <m.div
               variants={item}
               className="flex flex-wrap items-center lg:justify-start justify-center gap-x-6 gap-y-2"
             >
-              {['Unverbindliche Demo', 'Keine Kreditkarte', 'DSGVO-konform'].map((t) => (
+              {['DSGVO-konform', 'Server in der EU (Frankfurt)', 'Freigabe ohne Account'].map((t) => (
                 <span key={t} className="flex items-center gap-1.5 text-[13px] text-gray-400">
                   <span className="text-emerald-500 font-bold">✓</span>
                   {t}
@@ -396,8 +362,6 @@ export default function Hero() {
         <div className="w-[1px] h-7 bg-gradient-to-b from-[#445c49]/40 to-transparent" />
         <ArrowDown className="w-3 h-3 text-[#445c49]/50 animate-bounce" strokeWidth={2.5} />
       </m.div>
-
-      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </section>
   )
 }
