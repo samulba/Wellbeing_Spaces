@@ -591,6 +591,8 @@ export interface FreigabeToken {
   abgeschlossen_am: string | null
   abgeschlossen_durch: string | null
   abgeschlossen_kommentar: string | null
+  // „In Bearbeitung"-Signal (Migration 118) — gesetzt beim ersten Entwurf-Klick
+  bearbeitung_begonnen_am?: string | null
   deleted_at: string | null
   created_at: string
 }

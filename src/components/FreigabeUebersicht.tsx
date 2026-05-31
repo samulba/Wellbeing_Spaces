@@ -33,6 +33,7 @@ function tokenStatus(t: FreigabeToken): { label: string; cls: string } {
   if (t.deleted_at) return { label: 'Zurückgezogen', cls: 'bg-gray-100 text-gray-500' }
   if (t.abgeschlossen_am) return { label: 'Abgeschlossen', cls: 'bg-emerald-100 text-emerald-700' }
   if (t.gueltig_bis && new Date(t.gueltig_bis) < new Date()) return { label: 'Abgelaufen', cls: 'bg-amber-100 text-amber-700' }
+  if (t.bearbeitung_begonnen_am) return { label: 'In Bearbeitung', cls: 'bg-blue-100 text-blue-700' }
   return { label: 'Offen', cls: 'bg-wellbeing-green/10 text-wellbeing-green' }
 }
 

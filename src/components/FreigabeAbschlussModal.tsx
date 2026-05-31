@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { Check, X } from 'lucide-react'
-import { freigabeAbschliessen } from '@/app/actions/freigaben'
+import { freigabeAbsenden, type FreigabeEntscheidung } from '@/app/actions/freigaben'
 
 interface Props {
   isOpen: boolean
@@ -15,6 +15,8 @@ interface Props {
   freigegebenCount: number
   abgelehntCount: number
   brandingPrim?: string
+  /** Endzustand aller Produkte — wird beim Absenden in einem Rutsch committet. */
+  entscheidungen: FreigabeEntscheidung[]
 }
 
 export default function FreigabeAbschlussModal({
@@ -28,6 +30,7 @@ export default function FreigabeAbschlussModal({
   freigegebenCount,
   abgelehntCount,
   brandingPrim = '#445c49',
+  entscheidungen,
 }: Props) {
   const [name, setName]           = useState('')
   const [kommentar, setKommentar] = useState('')
@@ -43,7 +46,7 @@ export default function FreigabeAbschlussModal({
     if (!name.trim()) { setFehler('Bitte deinen Namen eingeben.'); return }
     if (!bestaetigt) { setFehler('Bitte die Bestätigung anklicken.'); return }
     startTransition(async () => {
-      const result = await freigabeAbschliessen(token, { name: name.trim(), kommentar: kommentar.trim() || null })
+      const result = await freigabeAbsenden(token, name.trim(), kommentar.trim() || null, entscheidungen)
       if ('erfolg' in result) onErfolg()
       else setFehler(result.fehler)
     })

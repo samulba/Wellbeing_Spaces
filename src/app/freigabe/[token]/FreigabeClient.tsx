@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star } from 'lucide-react'
-import { freigabeStatusAendern, freigabeFavoritWaehlen } from '@/app/actions/freigabe'
+import { freigabeBearbeitungMarkieren, type FreigabeEntscheidung } from '@/app/actions/freigaben'
 import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus, Branding } from '@/lib/supabase/types'
 import HinweisBanner from '@/components/HinweisBanner'
 import FreigabeAbschlussModal from '@/components/FreigabeAbschlussModal'
@@ -100,14 +100,50 @@ export default function FreigabeClient({
     return init
   })
 
-  const [isPending, startTransition] = useTransition()
+  const [isPending] = useTransition()
   const [abschlussModalOffen, setAbschlussModalOffen] = useState(false)
+  const [zeigeReview, setZeigeReview] = useState(false)
   const [lokalAbgeschlossen, setLokalAbgeschlossen] = useState(false)
-  const [fehlerMeldung, setFehlerMeldung] = useState<string | null>(null)
   const [aktiverRaumIndex, setAktiverRaumIndex] = useState(0)
   // Innerer Bereich-Pager (Migration 116) — bei Raumwechsel auf 0 zurück.
   const [aktiverBereichIndex, setAktiverBereichIndex] = useState(0)
   useEffect(() => { setAktiverBereichIndex(0) }, [aktiverRaumIndex])
+
+  // ── Entwurf: Klicks schreiben NICHT mehr live, nur lokal (localStorage).
+  //    Erst beim finalen Absenden (freigabeAbsenden) wird committet. ──────
+  const bearbeitungMarkiertRef = useRef(false)
+  function markiereBearbeitung() {
+    if (bearbeitungMarkiertRef.current) return
+    bearbeitungMarkiertRef.current = true
+    freigabeBearbeitungMarkieren(token).catch(() => {})
+  }
+  function persistDraft(s: Record<string, ProduktState>) {
+    try {
+      const d: Record<string, { status: ProduktStatus; kommentar: string; kundeFavorit: boolean }> = {}
+      for (const id of Object.keys(s)) d[id] = { status: s[id].status, kommentar: s[id].kommentar, kundeFavorit: s[id].kundeFavorit }
+      localStorage.setItem(`freigabe_draft_${token}`, JSON.stringify(d))
+    } catch { /* ignore */ }
+  }
+  function draftLeeren() {
+    try { localStorage.removeItem(`freigabe_draft_${token}`) } catch { /* ignore */ }
+  }
+  // Entwurf beim Öffnen wiederherstellen (gleiches Gerät) — nach Mount.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`freigabe_draft_${token}`)
+      if (!raw) return
+      const d = JSON.parse(raw) as Record<string, { status: ProduktStatus; kommentar: string; kundeFavorit: boolean }>
+      setState((prev) => {
+        const next = { ...prev }
+        for (const id of Object.keys(d)) {
+          if (!next[id]) continue
+          next[id] = { ...next[id], status: d[id].status, kommentar: d[id].kommentar, kommentarEingabe: d[id].kommentar, kundeFavorit: d[id].kundeFavorit }
+        }
+        return next
+      })
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   // Read-Only-Bestätigungsscreen wenn bereits abgeschlossen
   if (bereitsAbgeschlossen || lokalAbgeschlossen) {
@@ -159,6 +195,14 @@ export default function FreigabeClient({
   const alleDone         = freigegebenCount === total && total > 0
   const alleEntschieden  = offenCount === 0 && total > 0
 
+  // Endzustand aller Produkte für den Sammel-Commit (freigabeAbsenden).
+  const entscheidungen: FreigabeEntscheidung[] = flacheProdukte(raeume).map((p) => ({
+    raumProduktId: p.id,
+    status: (state[p.id]?.status ?? 'ausstehend') as FreigabeEntscheidung['status'],
+    kommentar: state[p.id]?.kommentar || null,
+    kundeFavorit: !!state[p.id]?.kundeFavorit,
+  }))
+
   // Räume mit mindestens einem aktiven Produkt (für Tab-Navigation pro Raum)
   const sichtbareRaeume = raeume.filter((r) => raumProdukte(r).some((p) => state[p.id]))
   const idx = Math.min(aktiverRaumIndex, Math.max(0, sichtbareRaeume.length - 1))
@@ -175,42 +219,33 @@ export default function FreigabeClient({
     return offen
   }
 
+  // Entwurf (lokal): nur State + localStorage, KEIN Live-Schreiben.
   function speichereStatus(produktId: string, status: ProduktStatus, kommentar = '') {
-    startTransition(async () => {
-      const result = await freigabeStatusAendern(token, produktId, status, kommentar)
-      if ('erfolg' in result) {
-        setState((prev) => ({
-          ...prev,
-          [produktId]: { ...prev[produktId], status, kommentar, aktiveAktion: null, kommentarEingabe: kommentar },
-        }))
-      }
-    })
+    markiereBearbeitung()
+    const next = {
+      ...state,
+      [produktId]: { ...state[produktId], status, kommentar, aktiveAktion: null, kommentarEingabe: kommentar },
+    }
+    setState(next)
+    persistDraft(next)
   }
 
-  // Kunde wählt seinen Favoriten in einer Auswahl-Gruppe → wird freigegeben,
-  // die Geschwister kehren auf 'ausstehend' zurück (Migration 114).
+  // Kunde wählt seinen Favoriten in einer Auswahl-Gruppe → wird (lokal)
+  // freigegeben, die Geschwister kehren auf 'ausstehend' zurück.
   function waehleFavorit(gruppe: FreigabeProduktGruppe, chosenId: string) {
-    startTransition(async () => {
-      const res = await freigabeFavoritWaehlen(token, chosenId)
-      if ('erfolg' in res) {
-        setState((prev) => {
-          const next = { ...prev }
-          for (const p of gruppe.produkte) {
-            const istChosen = p.id === chosenId
-            next[p.id] = {
-              ...prev[p.id],
-              status: istChosen ? 'freigegeben' : 'ausstehend',
-              kundeFavorit: istChosen,
-              aktiveAktion: null,
-            }
-          }
-          return next
-        })
-      } else {
-        setFehlerMeldung(res.fehler)
-        setTimeout(() => setFehlerMeldung(null), 5000)
+    markiereBearbeitung()
+    const next = { ...state }
+    for (const p of gruppe.produkte) {
+      const istChosen = p.id === chosenId
+      next[p.id] = {
+        ...state[p.id],
+        status: istChosen ? 'freigegeben' : 'ausstehend',
+        kundeFavorit: istChosen,
+        aktiveAktion: null,
       }
-    })
+    }
+    setState(next)
+    persistDraft(next)
   }
 
   function setAktion(produktId: string, aktion: 'ablehnen' | 'alternative' | null) {
@@ -225,6 +260,114 @@ export default function FreigabeClient({
       ...prev,
       [produktId]: { ...prev[produktId], kommentarEingabe: text },
     }))
+  }
+
+  // ── Review / letzter Check-up vor dem verbindlichen Absenden ──
+  if (zeigeReview) {
+    const statusLabel: Record<string, { text: string; cls: string }> = {
+      freigegeben:    { text: 'Freigegeben',        cls: 'bg-emerald-50 text-emerald-700' },
+      abgelehnt:      { text: 'Abgelehnt',          cls: 'bg-red-50 text-red-700' },
+      ueberarbeitung: { text: 'Änderung gewünscht', cls: 'bg-amber-50 text-amber-700' },
+      ausstehend:     { text: 'Offen',              cls: 'bg-gray-100 text-gray-500' },
+    }
+    return (
+      <div className="min-h-screen" style={{ backgroundColor: bg }}>
+        <div className="max-w-2xl mx-auto px-5 py-10">
+          <div className="text-center mb-6">
+            <h1 className="font-syne text-2xl font-bold tracking-tight" style={{ color: prim }}>Bitte alles prüfen</h1>
+            <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">
+              Schauen Sie Ihre Auswahl in Ruhe durch. Erst mit <strong>&bdquo;Verbindlich absenden&ldquo;</strong> wird alles an {firmenname} übermittelt — vorher ist nichts sichtbar.
+            </p>
+          </div>
+
+          <div className="space-y-5">
+            {sichtbareRaeume.map((raum) => {
+              const buckets = raumBuckets(raum).filter(
+                (b) => b.bloecke.some((g) => g.produkte.some((p) => state[p.id])) || b.produkte.some((p) => state[p.id]),
+              )
+              return (
+                <div key={raum.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{raum.name}</span>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {buckets.map((b) => (
+                      <div key={b.id} className="px-4 py-3">
+                        {b.id !== '__all__' && <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">{b.name}</p>}
+                        {b.bloecke.filter((g) => g.produkte.some((p) => state[p.id])).map((g) => {
+                          const chosen = g.produkte.find((p) => state[p.id]?.kundeFavorit)
+                            ?? g.produkte.find((p) => state[p.id]?.status === 'freigegeben')
+                          return (
+                            <div key={g.id} className="flex items-start justify-between gap-3 py-1.5">
+                              <span className="text-sm text-gray-500">{g.name}</span>
+                              <span className="text-sm font-medium text-gray-900 text-right">
+                                {chosen ? chosen.name : <span className="text-amber-600">keine Wahl</span>}
+                              </span>
+                            </div>
+                          )
+                        })}
+                        {b.produkte.filter((p) => state[p.id]).map((p) => {
+                          const st = state[p.id]
+                          const lbl = statusLabel[st.status] ?? statusLabel.ausstehend
+                          return (
+                            <div key={p.id} className="py-1.5">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-gray-700">{p.name}</span>
+                                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${lbl.cls}`}>{lbl.text}</span>
+                              </div>
+                              {st.kommentar && <p className="text-xs text-gray-400 mt-0.5 italic">&bdquo;{st.kommentar}&ldquo;</p>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {!alleEntschieden && (
+            <p className="text-sm text-amber-600 text-center mt-5">
+              Es {offenCount === 1 ? 'ist noch 1 Position' : `sind noch ${offenCount} Positionen`} offen — bitte erst alle entscheiden.
+            </p>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-3 mt-7">
+            <button
+              type="button"
+              onClick={() => setZeigeReview(false)}
+              className="flex-1 py-3 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              ← Zurück zum Bearbeiten
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbschlussModalOffen(true)}
+              disabled={!alleEntschieden}
+              style={{ backgroundColor: prim }}
+              className="flex-1 py-3 text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+            >
+              Verbindlich absenden →
+            </button>
+          </div>
+        </div>
+
+        <FreigabeAbschlussModal
+          isOpen={abschlussModalOffen}
+          onClose={() => setAbschlussModalOffen(false)}
+          onErfolg={() => { setAbschlussModalOffen(false); draftLeeren(); setLokalAbgeschlossen(true) }}
+          token={token}
+          projektName={projektName}
+          scopeBeschreibung={scopeBeschreibung}
+          gesamtCount={total}
+          freigegebenCount={freigegebenCount}
+          abgelehntCount={abgelehntCount}
+          brandingPrim={prim}
+          entscheidungen={entscheidungen}
+        />
+      </div>
+    )
   }
 
   return (
@@ -283,6 +426,15 @@ export default function FreigabeClient({
 
       {/* ── Inhalt ────────────────────────────────────────────── */}
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
+
+        {/* Entwurf-Hinweis: nichts wird gesendet, bis final abgesendet wird */}
+        <div className="flex items-start gap-2 bg-amber-50/70 border border-amber-200 text-amber-800 rounded-xl px-4 py-2.5 mb-5 text-xs leading-relaxed">
+          <span className="mt-0.5">✎</span>
+          <span>
+            Ihre Auswahl wird <strong>noch nicht gesendet</strong>. Sie können alles in Ruhe ändern — erst mit
+            &bdquo;Freigabe prüfen → Verbindlich absenden&ldquo; geht es an {firmenname}.
+          </span>
+        </div>
 
         {/* Intro-Box */}
         {!alleDone ? (
@@ -448,18 +600,17 @@ export default function FreigabeClient({
           }`}>
             {alleEntschieden ? (
               <>
-                <h3 className="text-base font-semibold text-gray-900 mb-1">Bereit zum Abschluss</h3>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Alles entschieden</h3>
                 <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-                  Sie haben alle {total} Positionen entschieden ({freigegebenCount} freigegeben, {abgelehntCount} abgelehnt).
-                  Mit einem Klick senden Sie Ihre finale Rückmeldung an uns.
+                  Sie haben alle {total} Positionen entschieden ({freigegebenCount} freigegeben, {abgelehntCount} abgelehnt/Änderung).
+                  Im nächsten Schritt sehen Sie eine <strong>Übersicht zum Prüfen</strong> — gesendet wird erst danach.
                 </p>
                 <button
-                  onClick={() => setAbschlussModalOffen(true)}
-                  disabled={isPending}
+                  onClick={() => setZeigeReview(true)}
                   style={{ backgroundColor: prim }}
-                  className="w-full sm:w-auto px-6 py-3 text-sm font-semibold text-white rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                  className="w-full sm:w-auto px-6 py-3 text-sm font-semibold text-white rounded-xl hover:opacity-90 transition-opacity"
                 >
-                  Freigabe abschließen →
+                  Freigabe prüfen →
                 </button>
               </>
             ) : (
@@ -467,26 +618,12 @@ export default function FreigabeClient({
                 <h3 className="text-base font-semibold text-gray-900 mb-1">Noch {offenCount} offen</h3>
                 <p className="text-xs text-gray-500 leading-relaxed">
                   Bitte entscheiden Sie zu jedem Produkt (Freigeben, Ablehnen oder Alternative),
-                  danach können Sie die Freigabe abschließen.
+                  danach können Sie alles prüfen und absenden.
                 </p>
               </>
             )}
           </div>
         )}
-
-        {/* ── Abschluss-Modal ──────────────────────────────── */}
-        <FreigabeAbschlussModal
-          isOpen={abschlussModalOffen}
-          onClose={() => setAbschlussModalOffen(false)}
-          onErfolg={() => { setAbschlussModalOffen(false); setLokalAbgeschlossen(true) }}
-          token={token}
-          projektName={projektName}
-          scopeBeschreibung={scopeBeschreibung}
-          gesamtCount={total}
-          freigegebenCount={freigegebenCount}
-          abgelehntCount={abgelehntCount}
-          brandingPrim={prim}
-        />
 
         {/* ── Footer ────────────────────────────────────────── */}
         <div className="text-center pt-8 pb-6 border-t border-gray-200 mt-4 space-y-2.5">
@@ -516,14 +653,6 @@ export default function FreigabeClient({
           )}
         </div>
       </div>
-
-      {/* Fehler-Toast (z. B. Auswahl außerhalb des Bereichs) */}
-      {fehlerMeldung && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 max-w-sm bg-red-600 text-white text-sm px-4 py-3 rounded-xl shadow-2xl flex items-start gap-2">
-          <X className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{fehlerMeldung}</span>
-        </div>
-      )}
     </div>
   )
 }

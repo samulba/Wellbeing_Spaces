@@ -509,6 +509,110 @@ export async function freigabeAbschliessen(
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ENTWURF → SAMMEL-ABSENDEN + „In Bearbeitung"-Signal
+// ═══════════════════════════════════════════════════════════════
+
+/** Markiert einen Token als „in Bearbeitung" (erster Entwurf-Klick des Kunden).
+ *  Fire-and-forget, fail-safe (fehlende Spalte/Token → no-op). */
+export async function freigabeBearbeitungMarkieren(token: string): Promise<void> {
+  try {
+    const supabase = createAdminClient()
+    const { data: tok } = await supabase
+      .from('freigabe_tokens')
+      .select('id, aktiv, deleted_at, abgeschlossen_am, bearbeitung_begonnen_am')
+      .eq('token', token)
+      .maybeSingle()
+    if (!tok || !tok.aktiv || tok.deleted_at || tok.abgeschlossen_am) return
+    if ((tok as { bearbeitung_begonnen_am?: string | null }).bearbeitung_begonnen_am) return
+    await supabase
+      .from('freigabe_tokens')
+      .update({ bearbeitung_begonnen_am: new Date().toISOString() })
+      .eq('id', tok.id)
+  } catch {
+    /* fail-safe: Migration 118 fehlt o. Ä. → ignorieren */
+  }
+}
+
+export interface FreigabeEntscheidung {
+  raumProduktId: string
+  status: 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung'
+  kommentar: string | null
+  kundeFavorit: boolean
+}
+
+/** Sammel-Commit: schreibt ALLE Kunden-Entscheidungen in einem Rutsch und
+ *  schließt die Freigabe ab. Vollständigkeit wird VOR dem Schreiben geprüft
+ *  (kein Teil-Commit). Nur In-Scope-Produkte werden akzeptiert (IDOR-Schutz). */
+export async function freigabeAbsenden(
+  token: string,
+  name: string,
+  kommentar: string | null,
+  entscheidungen: FreigabeEntscheidung[],
+): Promise<{ erfolg: true } | { fehler: string }> {
+  const supabase = createAdminClient()
+
+  if (!name.trim()) return { fehler: 'Bitte deinen Namen eingeben.' }
+
+  const { data: tok } = await supabase
+    .from('freigabe_tokens')
+    .select('id, projekt_id, organisation_id, aktiv, deleted_at, abgeschlossen_am, scope_typ, scope_ids, scope_bereich_ids')
+    .eq('token', token)
+    .maybeSingle()
+
+  if (!tok || !tok.aktiv || tok.deleted_at) return { fehler: 'Ungültiger oder zurückgezogener Link.' }
+  if (tok.abgeschlossen_am) return { fehler: 'Diese Freigabe wurde bereits abgeschlossen.' }
+
+  const scopeTyp: FreigabeScopeTyp = (tok.scope_typ as FreigabeScopeTyp) ?? 'projekt'
+  const scopeIds: string[] = (tok.scope_ids as string[]) ?? []
+  const scopeBereichIds: string[] = (tok.scope_bereich_ids as string[] | null) ?? []
+
+  // In-Scope-Produkte (erlaubte IDs + Block-Zugehörigkeit + Ist-Status)
+  const items = await ladeItemsImScope(supabase, tok.projekt_id, scopeTyp, scopeIds, scopeBereichIds)
+  if (items.length === 0) return { fehler: 'Keine Produkte im Freigabe-Umfang.' }
+
+  const inScope = new Set(items.map((i) => i.id))
+  const gewaehlt = entscheidungen.filter((e) => inScope.has(e.raumProduktId))
+  const desired = new Map<string, string>()
+  for (const e of gewaehlt) desired.set(e.raumProduktId, e.status)
+
+  // Vollständigkeit VOR dem Schreiben prüfen (gruppen-aware) — kein Teil-Commit
+  const erfuellteGruppen = new Set(
+    items.filter((i) => i.produkt_gruppe_id && (desired.get(i.id) ?? i.freigabe_status) === 'freigegeben').map((i) => i.produkt_gruppe_id),
+  )
+  const offen = items.filter((i) => {
+    const st = desired.get(i.id) ?? i.freigabe_status
+    return st === 'ausstehend' && (!i.produkt_gruppe_id || !erfuellteGruppen.has(i.produkt_gruppe_id))
+  }).length
+  if (offen > 0) {
+    return { fehler: `Noch ${offen} Produkt${offen === 1 ? '' : 'e'} offen — bitte erst alle entscheiden.` }
+  }
+
+  // kunde_favorit clear-before-set (Partial-Unique-Index): erst alles im Scope
+  // zurücksetzen, dann die gewählten setzen (Client liefert genau 1 pro Block).
+  const inScopeIds = items.map((i) => i.id)
+  await supabase.from('raum_produkte').update({ kunde_favorit: false }).in('id', inScopeIds)
+  const favIds = gewaehlt.filter((e) => e.kundeFavorit).map((e) => e.raumProduktId)
+  if (favIds.length > 0) {
+    await supabase.from('raum_produkte').update({ kunde_favorit: true }).in('id', favIds)
+  }
+
+  // Status + Kommentar je Entscheidung schreiben (inkl. Audit).
+  for (const e of gewaehlt) {
+    await freigabeStatusSetzen({
+      raumProduktId: e.raumProduktId,
+      status: e.status,
+      kommentar: e.kommentar,
+      kanal: 'token',
+      kontext: { tokenId: tok.id, geaendertVon: `${name.trim()} (Freigabe-Link)` },
+    })
+  }
+
+  // Abschluss: re-validiert, Gate (passt jetzt), markiert Token, Mail,
+  // Timeline-Event, Auto-Projektstatus — alles bestehend, 1:1 wiederverwendet.
+  return freigabeAbschliessen(token, { name, kommentar })
+}
+
+// ═══════════════════════════════════════════════════════════════
 // AUTO-INVALIDIERUNG bei Produkt-Änderung
 // ═══════════════════════════════════════════════════════════════
 

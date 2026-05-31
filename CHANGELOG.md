@@ -5,6 +5,13 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-31
 
+### Freigabe: Entwurf + finaler Check-up statt Sofort-Freigabe
+- Im Kunden-Freigabe-Link werden Entscheidungen jetzt **nicht mehr sofort** übermittelt. Der Klient wählt/gibt frei/lehnt ab in Ruhe (Entwurf), sieht am Ende eine **Übersicht zum Prüfen** und sendet **erst dann verbindlich ab**. Vorher war ein Klick = sofort live bei euch.
+- **Erst nach dem Absenden** erscheinen Auswahl & Freigaben bei euch im Dashboard. Solange der Klient dran ist, zeigt der Link-Status **„In Bearbeitung"**.
+- Eingaben werden **lokal im Browser zwischengespeichert** — schließt der Klient den Tab versehentlich, sind sie beim erneuten Öffnen (gleiches Gerät) wieder da.
+- Ein Hinweis-Banner macht klar: „noch nicht gesendet". Manipulations-/Scope-Schutz bleibt; unvollständige Freigaben werden serverseitig abgelehnt (kein Teil-Commit).
+- Migration **118** (Spalte `bearbeitung_begonnen_am`) in Supabase ausführen — ohne sie funktioniert alles, nur ohne den „In Bearbeitung"-Status.
+
 ### Landingpage: rein informativ (kein Verkauf/Demo mehr)
 - Die Startseite ist jetzt **neutral & sachlich informativ** statt SaaS-Verkaufsseite. **Entfernt:** „Demo anfragen" (überall + Formular), Preise/Beta-Bereich, Mitbewerber-Vergleiche (Houzz/Mydoma), erfundene Testimonials und unbelegte Zahlen („3× schneller" etc.), „kostenlos/Free-Plan/Tarife".
 - Texte überall neutral umgeschrieben (kein „du als Designer / deine Kunden"); nur faktische Aussagen (Produktlisten, automatische Kalkulation, Freigabe per Link ohne Account, DSGVO/EU-Server).
