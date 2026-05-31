@@ -21,6 +21,7 @@ type TokenData = {
   gueltig_bis: string | null
   scope_typ:   FreigabeScopeTyp | null
   scope_ids:   string[] | null
+  scope_bereich_ids?: string[] | null
   created_at:  string
 }
 
@@ -52,8 +53,9 @@ function scopeLabel(token: TokenData, raeume: { id: string; name: string }[]): {
   }
   if (token.scope_typ === 'auswahl') {
     const anzahl = token.scope_ids?.length ?? 0
+    const grp = token.scope_bereich_ids?.length ?? 0
     return {
-      label:    `Auswahl: ${anzahl} Produkt${anzahl === 1 ? '' : 'e'}`,
+      label:    `Auswahl: ${anzahl} Produkt${anzahl === 1 ? '' : 'e'}${grp > 0 ? ` · ${grp} Gruppe${grp === 1 ? '' : 'n'}` : ''}`,
       badgeCls: 'bg-purple-50 text-purple-700 border-purple-200',
       Icon:     ListChecks,
     }
@@ -87,6 +89,7 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
   const [scopeTyp, setScopeTyp]                 = useState<FreigabeScopeTyp>('projekt')
   const [scopeRaumId, setScopeRaumId]           = useState<string>('')
   const [scopeItemIds, setScopeItemIds]         = useState<string[]>([])
+  const [scopeBereichIds, setScopeBereichIds]   = useState<string[]>([])
   const [scopeOptionen, setScopeOptionen]       = useState<ScopeOptionenRaum[] | null>(null)
   const [scopeFehler, setScopeFehler]           = useState<string | null>(null)
   const [erstellenFehler, setErstellenFehler]   = useState<string | null>(null)
@@ -104,10 +107,14 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
     setErstellenFehler(null)
     if (neuerTyp !== 'projekt') scopeOptionenLadenWennNoetig(neuerTyp)
     if (neuerTyp === 'projekt') { setScopeItemIds([]); setScopeRaumId('') }
+    if (neuerTyp !== 'auswahl') setScopeBereichIds([])
   }
 
   function toggleItem(id: string) {
     setScopeItemIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+  }
+  function toggleBereich(id: string) {
+    setScopeBereichIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
   }
 
   function showToast(msg: string) {
@@ -119,17 +126,19 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
   function handleGenerieren() {
     setErstellenFehler(null)
     let scopeIds: string[] = []
+    let bereichIds: string[] = []
     if (scopeTyp === 'raum') {
       if (!scopeRaumId) { setScopeFehler('Bitte einen Raum auswählen.'); return }
       scopeIds = [scopeRaumId]
     } else if (scopeTyp === 'auswahl') {
-      if (scopeItemIds.length === 0) { setScopeFehler('Bitte mindestens ein Produkt auswählen.'); return }
+      if (scopeItemIds.length === 0 && scopeBereichIds.length === 0) { setScopeFehler('Bitte mindestens ein Produkt oder eine Gruppe auswählen.'); return }
       scopeIds = scopeItemIds
+      bereichIds = scopeBereichIds
     }
     setScopeFehler(null)
 
     startTransition(async () => {
-      const result = await freigabeTokenErstellen(projektId, scopeTyp, scopeIds)
+      const result = await freigabeTokenErstellen(projektId, scopeTyp, scopeIds, bereichIds)
       if ('token' in result) {
         const neu: TokenData = {
           id:          '',
@@ -137,12 +146,14 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
           gueltig_bis: null,
           scope_typ:   scopeTyp,
           scope_ids:   scopeIds,
+          scope_bereich_ids: bereichIds,
           created_at:  new Date().toISOString(),
         }
         setTokens((prev) => [neu, ...prev])
         setScopeTyp('projekt')
         setScopeRaumId('')
         setScopeItemIds([])
+        setScopeBereichIds([])
         showToast('✓ Freigabelink erstellt')
       } else {
         setErstellenFehler(result.fehler)
@@ -406,6 +417,19 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
                 scopeOptionen.map((r) => (
                   <div key={r.id}>
                     <p className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50">{r.name}</p>
+                    {/* Ganze Gruppen (Migration 116) — über den Einzelprodukten */}
+                    {r.bereiche.map((b) => (
+                      <label key={b.id} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer bg-wellbeing-cream/20 hover:bg-wellbeing-green/5">
+                        <input
+                          type="checkbox"
+                          checked={scopeBereichIds.includes(b.id)}
+                          onChange={() => toggleBereich(b.id)}
+                          className="rounded border-gray-300 text-wellbeing-green focus:ring-wellbeing-green/30"
+                        />
+                        <Layers className="w-3 h-3 text-wellbeing-green shrink-0" />
+                        <span className="flex-1 font-medium text-wellbeing-green-dark">Ganze Gruppe: {b.name}</span>
+                      </label>
+                    ))}
                     {r.items.length === 0 ? (
                       <p className="px-3 py-2 text-[11px] text-gray-400 italic">keine Produkte</p>
                     ) : r.items.map((it) => (
@@ -425,7 +449,8 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
               )}
               {scopeOptionen.length > 0 && (
                 <div className="px-3 py-1.5 text-[10px] text-gray-500 bg-gray-50 text-right">
-                  {scopeItemIds.length} ausgewählt
+                  {scopeItemIds.length} Produkt{scopeItemIds.length === 1 ? '' : 'e'}
+                  {scopeBereichIds.length > 0 && ` · ${scopeBereichIds.length} Gruppe${scopeBereichIds.length === 1 ? '' : 'n'}`} ausgewählt
                 </div>
               )}
             </div>

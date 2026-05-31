@@ -21,6 +21,7 @@ import { sendMail } from '@/lib/mail'
 import { freigabeAbgeschlossenMail } from '@/lib/mail-templates'
 import { syncAutoEvent } from './timeline'
 import { autoProjektStatusVorwaerts } from './projekte'
+import { istImAuswahlScope } from '@/lib/freigabe-scope'
 import type {
   FreigabeAudit,
   FreigabeKanal,
@@ -38,6 +39,7 @@ export async function freigabeTokenErstellen(
   projektId: string,
   scopeTyp: FreigabeScopeTyp = 'projekt',
   scopeIds: string[] = [],
+  bereichIds: string[] = [],
 ): Promise<{ token: string } | { fehler: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
@@ -48,24 +50,33 @@ export async function freigabeTokenErstellen(
   if (scopeTyp === 'raum' && scopeIds.length !== 1) {
     return { fehler: 'Raum-Scope braucht genau eine Raum-ID.' }
   }
-  if (scopeTyp === 'auswahl' && scopeIds.length === 0) {
-    return { fehler: 'Auswahl-Scope braucht mindestens ein Raum-Produkt.' }
+  if (scopeTyp === 'auswahl' && scopeIds.length === 0 && bereichIds.length === 0) {
+    return { fehler: 'Auswahl-Scope braucht mindestens ein Produkt oder eine Gruppe.' }
   }
+
+  // scope_bereich_ids nur setzen, wenn Gruppen gewählt — sonst kein Risiko,
+  // falls Migration 116 (Spalte) noch fehlt.
+  const insertData: Record<string, unknown> = {
+    projekt_id: projektId,
+    organisation_id: orgId,
+    scope_typ: scopeTyp,
+    scope_ids: scopeIds,
+  }
+  if (bereichIds.length > 0) insertData.scope_bereich_ids = bereichIds
 
   const { data, error } = await supabase
     .from('freigabe_tokens')
-    .insert({
-      projekt_id: projektId,
-      organisation_id: orgId,
-      scope_typ: scopeTyp,
-      scope_ids: scopeIds,
-    })
+    .insert(insertData)
     .select('token')
     .single()
 
   if (error || !data) {
     if (error?.code === '23505') {
       return { fehler: 'Für dieses Projekt gibt es bereits einen offenen Freigabe-Link. Bitte bestehenden verwenden oder zuerst zurückziehen.' }
+    }
+    // Gruppen-Scope, aber Migration 116 fehlt
+    if (bereichIds.length > 0 && (error?.code === '42703' || error?.message?.includes('scope_bereich_ids'))) {
+      return { fehler: 'Migration 116 scheint zu fehlen (scope_bereich_ids-Spalte). Bitte im Supabase SQL-Editor ausführen.' }
     }
     // Häufige Ursache: Migration 081 wurde nicht in Supabase ausgeführt
     if (error?.code === '42703' || error?.message?.includes('scope_typ') || error?.message?.includes('scope_ids')) {
@@ -120,6 +131,8 @@ export interface ScopeOptionenRaum {
   id: string
   name: string
   items: { id: string; name: string; menge: number; einheit: string | null }[]
+  // Gruppen/Bereiche des Raums (Migration 116) — für „Auswahl"-Picker
+  bereiche: { id: string; name: string }[]
 }
 
 export async function freigabeScopeOptionenLaden(
@@ -164,10 +177,27 @@ export async function freigabeScopeOptionenLaden(
     })
   }
 
+  // Bereiche/"Gruppen" je Raum (Migration 116) — fail-safe (Tabelle könnte fehlen).
+  const bereicheByRaum: Record<string, { id: string; name: string }[]> = {}
+  {
+    const { data: ber } = await supabase
+      .from('produkt_bereiche')
+      .select('id, raum_id, name, reihenfolge')
+      .in('raum_id', raeume.map((r) => r.id))
+      .is('deleted_at', null)
+      .order('reihenfolge')
+      .order('name')
+    for (const b of ((ber ?? []) as { id: string; raum_id: string; name: string }[])) {
+      if (!bereicheByRaum[b.raum_id]) bereicheByRaum[b.raum_id] = []
+      bereicheByRaum[b.raum_id].push({ id: b.id, name: b.name })
+    }
+  }
+
   return raeume.map((r) => ({
     id:    r.id,
     name:  r.name,
     items: rpsByRaum[r.id] ?? [],
+    bereiche: bereicheByRaum[r.id] ?? [],
   }))
 }
 
@@ -265,6 +295,7 @@ async function ladeItemsImScope(
   projektId: string,
   scopeTyp: FreigabeScopeTyp,
   scopeIds: string[],
+  scopeBereichIds: string[] = [],
 ): Promise<Array<{ id: string; freigabe_status: string; produkt_gruppe_id: string | null; produktName: string }>> {
   const { data: raeume } = await supabase
     .from('raeume')
@@ -275,21 +306,48 @@ async function ladeItemsImScope(
   const raumIds = (raeume ?? []).map((r) => r.id)
   if (raumIds.length === 0) return []
 
+  // „auswahl" + ganze Gruppen → dynamisch auflösen (analog page.tsx): kein
+  // .in()-Vorfilter, sondern alle Raum-Produkte laden + via Resolver filtern.
+  const auswahlMitBereich = scopeTyp === 'auswahl' && scopeBereichIds.length > 0
+
   let query = supabase
     .from('raum_produkte')
-    .select('id, freigabe_status, produkt_gruppe_id, produkte(name)')
+    .select(
+      auswahlMitBereich
+        ? 'id, freigabe_status, produkt_gruppe_id, bereich_id, produkte(name)'
+        : 'id, freigabe_status, produkt_gruppe_id, produkte(name)',
+    )
     .in('raum_id', raumIds)
 
   if (scopeTyp === 'raum' && scopeIds[0]) query = query.eq('raum_id', scopeIds[0])
-  if (scopeTyp === 'auswahl' && scopeIds.length > 0) query = query.in('id', scopeIds)
+  if (scopeTyp === 'auswahl' && scopeIds.length > 0 && !auswahlMitBereich) query = query.in('id', scopeIds)
 
   const { data } = await query
-  return ((data ?? []) as unknown as Array<{
+  let rows = ((data ?? []) as unknown as Array<{
     id: string
     freigabe_status: string
     produkt_gruppe_id: string | null
+    bereich_id?: string | null
     produkte: { name: string } | null
-  }>).map((rp) => ({
+  }>)
+
+  if (auswahlMitBereich) {
+    // Block→Bereich-Map (Bereich eines Blocks liegt auf produkt_gruppen)
+    const gIds = Array.from(new Set(rows.map((r) => r.produkt_gruppe_id).filter(Boolean))) as string[]
+    const blockBereich = new Map<string, string | null>()
+    if (gIds.length > 0) {
+      const { data: gb } = await supabase.from('produkt_gruppen').select('id, bereich_id').in('id', gIds)
+      for (const g of ((gb ?? []) as { id: string; bereich_id: string | null }[])) blockBereich.set(g.id, g.bereich_id ?? null)
+    }
+    rows = rows.filter((r) =>
+      istImAuswahlScope(
+        { id: r.id, produkt_gruppe_id: r.produkt_gruppe_id, bereich_id: r.bereich_id ?? null },
+        scopeIds, scopeBereichIds, blockBereich,
+      ),
+    )
+  }
+
+  return rows.map((rp) => ({
     id:           rp.id,
     freigabe_status: rp.freigabe_status,
     produkt_gruppe_id: rp.produkt_gruppe_id ?? null,
@@ -328,8 +386,9 @@ export async function freigabeAbschliessen(
 
   const scopeTyp: FreigabeScopeTyp = (tok.scope_typ as FreigabeScopeTyp) ?? 'projekt'
   const scopeIds: string[] = (tok.scope_ids as string[]) ?? []
+  const scopeBereichIds: string[] = (tok.scope_bereich_ids as string[] | null) ?? []
 
-  const items = await ladeItemsImScope(supabase, tok.projekt_id, scopeTyp, scopeIds)
+  const items = await ladeItemsImScope(supabase, tok.projekt_id, scopeTyp, scopeIds, scopeBereichIds)
 
   if (items.length === 0) return { fehler: 'Keine Produkte im Freigabe-Umfang.' }
   // Gruppen-aware: eine Auswahl-Gruppe gilt als entschieden, sobald EIN Mitglied
