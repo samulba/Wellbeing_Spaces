@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getOrganisationIdOrNull } from '@/lib/supabase/server'
 import { getMwstSatz } from '@/app/actions/einstellungen'
 import { brandingFuerToken } from '@/app/actions/branding'
 import { effektiverVpNetto } from '@/lib/preise'
@@ -10,24 +11,40 @@ import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBere
 
 interface Props {
   params: { token: string }
+  searchParams?: { vorschau?: string }
 }
 
-export default async function FreigabePage({ params }: Props) {
+export default async function FreigabePage({ params, searchParams }: Props) {
   const supabase = createAdminClient()
 
   // 1. Token validieren — inkl. Scope + Abschluss + Soft-Delete (Mig 081)
   const { data: tokenData } = await supabase
     .from('freigabe_tokens')
-    .select('id, projekt_id, gueltig_bis, aktiv, scope_typ, scope_ids, abgeschlossen_am, abgeschlossen_durch, deleted_at')
+    .select('id, organisation_id, projekt_id, gueltig_bis, aktiv, scope_typ, scope_ids, abgeschlossen_am, abgeschlossen_durch, deleted_at')
     .eq('token', params.token)
     .maybeSingle()
 
-  if (!tokenData || !tokenData.aktiv || tokenData.deleted_at) {
+  if (!tokenData) {
     return <Fehlerseite meldung="Dieser Freigabe-Link ist ungültig oder wurde zurückgezogen." />
   }
 
-  if (tokenData.gueltig_bis && new Date(tokenData.gueltig_bis) < new Date()) {
-    return <Fehlerseite meldung="Dieser Freigabe-Link ist abgelaufen." />
+  // Admin-Vorschau (?vorschau=1): nur für eingeloggte Nutzer DERSELBEN Organisation.
+  // Umgeht Soft-Delete-/Ablauf-/PIN-/Abschluss-Gates rein zum Testen — schreibt
+  // aber NIE (siehe vorschau-Prop an Client/Modal). Für anonyme Besucher (kein
+  // gültiger Org-Login) bleibt alles beim Alten → PIN-Datentresor unberührt.
+  const vorschau =
+    searchParams?.vorschau === '1' &&
+    !!tokenData.organisation_id &&
+    (await getOrganisationIdOrNull()) === tokenData.organisation_id
+
+  if (!vorschau) {
+    if (!tokenData.aktiv || tokenData.deleted_at) {
+      return <Fehlerseite meldung="Dieser Freigabe-Link ist ungültig oder wurde zurückgezogen." />
+    }
+
+    if (tokenData.gueltig_bis && new Date(tokenData.gueltig_bis) < new Date()) {
+      return <Fehlerseite meldung="Dieser Freigabe-Link ist abgelaufen." />
+    }
   }
 
   // 2. Projektdaten laden (inkl. PIN-Status – PIN selbst NICHT an Client weitergeben!)
@@ -46,7 +63,7 @@ export default async function FreigabePage({ params }: Props) {
   // 2b. PIN-Datentresor: Bei gesetzter PIN nur den PIN-Screen rendern, solange
   //     kein gültiges Cookie vorliegt — KEINE Produktdaten laden/ausliefern.
   const hatPin = !!projekt.freigabe_pin && projekt.freigabe_pin.toString().trim().length >= 4
-  if (hatPin && !pinCookieGueltig(params.token, projekt.freigabe_pin)) {
+  if (!vorschau && hatPin && !pinCookieGueltig(params.token, projekt.freigabe_pin)) {
     const branding = await brandingFuerToken()
     return <FreigabePinGate token={params.token} projektName={projekt.name} branding={branding} />
   }
@@ -306,8 +323,9 @@ export default async function FreigabePage({ params }: Props) {
       mwst={mwst}
       branding={branding}
       scopeBeschreibung={scopeBeschreibung}
-      bereitsAbgeschlossen={tokenData.abgeschlossen_am != null}
+      bereitsAbgeschlossen={vorschau ? false : tokenData.abgeschlossen_am != null}
       abgeschlossenDurch={tokenData.abgeschlossen_durch}
+      vorschau={vorschau}
     />
   )
 }

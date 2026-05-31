@@ -17,6 +17,8 @@ interface Props {
   brandingPrim?: string
   /** Endzustand aller Produkte — wird beim Absenden in einem Rutsch committet. */
   entscheidungen: FreigabeEntscheidung[]
+  /** Admin-Vorschau: blockiert das echte Absenden (es wird nichts geschrieben). */
+  vorschau?: boolean
 }
 
 export default function FreigabeAbschlussModal({
@@ -31,6 +33,7 @@ export default function FreigabeAbschlussModal({
   abgelehntCount,
   brandingPrim = '#445c49',
   entscheidungen,
+  vorschau = false,
 }: Props) {
   const [name, setName]           = useState('')
   const [kommentar, setKommentar] = useState('')
@@ -43,6 +46,7 @@ export default function FreigabeAbschlussModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setFehler(null)
+    if (vorschau) { setFehler('Vorschau-Modus — in der Vorschau wird nichts gesendet.'); return }
     if (!name.trim()) { setFehler('Bitte deinen Namen eingeben.'); return }
     if (!bestaetigt) { setFehler('Bitte die Bestätigung anklicken.'); return }
     startTransition(async () => {
@@ -69,6 +73,12 @@ export default function FreigabeAbschlussModal({
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {vorschau && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-3 py-2.5 text-xs leading-relaxed">
+              <span className="mt-0.5">👁</span>
+              <span><strong>Vorschau-Modus.</strong> Dies ist nur eine Ansicht zum Testen — beim Absenden wird nichts gespeichert oder versendet.</span>
+            </div>
+          )}
           <div className="bg-gray-50 rounded-xl p-4">
             <p className="text-xs font-medium text-gray-500 mb-1">{projektName}</p>
             {scopeBeschreibung && <p className="text-[11px] text-gray-400 mb-2">{scopeBeschreibung}</p>}
@@ -141,7 +151,7 @@ export default function FreigabeAbschlussModal({
               className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               <Check className="w-4 h-4" />
-              {isPending ? 'Wird gesendet…' : 'Jetzt abschließen'}
+              {vorschau ? 'Vorschau – deaktiviert' : isPending ? 'Wird gesendet…' : 'Jetzt abschließen'}
             </button>
             <button
               type="button"

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Layers, Home, ListChecks, Clock, CheckCircle2, Trash2, History } from 'lucide-react'
+import { Layers, Home, ListChecks, Clock, CheckCircle2, Trash2, History, Eye } from 'lucide-react'
 import { freigabeTokenZurueckziehen } from '@/app/actions/freigaben'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import FreigabeAuditDrawer from '@/components/FreigabeAuditDrawer'
@@ -107,6 +107,16 @@ export default function FreigabeUebersicht({ projektId, initialTokens }: Props) 
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  <a
+                    href={`/freigabe/${t.token}?vorschau=1`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Als Kunde ansehen (Vorschau — speichert nichts)"
+                    aria-label="Link in der Vorschau öffnen"
+                    className="p-1.5 text-gray-400 hover:text-wellbeing-green rounded transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </a>
                   <button
                     type="button"
                     onClick={() => handleAuditOeffnen(t)}

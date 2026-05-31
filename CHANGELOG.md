@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-31
 
+### Freigabe: Link-Vorschau + schönerer Prüf-Schritt
+- **Link nachträglich öffnen/testen:** Im „Freigabe-Verlauf" eines Projekts gibt es jetzt pro Link ein **Augen-Symbol** — damit öffnet ihr den Kunden-Link in einer **Vorschau** (neuer Tab), auch wenn er bereits abgeschlossen, abgelaufen oder zurückgezogen ist bzw. eine PIN hat. In der Vorschau wird **nichts gespeichert oder gesendet** (oben ein deutlicher „Vorschau-Modus"-Hinweis). Sichtbar nur für eingeloggte Team-Mitglieder.
+- **„Bitte prüfen"-Seite neu gestaltet:** Der finale Check-up vor dem Absenden sieht jetzt deutlich hochwertiger aus — mit Zusammenfassungs-Zahlen (Freigegeben/Änderung/Abgelehnt), Produktbildern, klaren Status-Pillen, der gewählten Option je Auswahl-Block und einer **festen Absende-Leiste** unten.
+
 ### Freigabe: Entwurf + finaler Check-up statt Sofort-Freigabe
 - Im Kunden-Freigabe-Link werden Entscheidungen jetzt **nicht mehr sofort** übermittelt. Der Klient wählt/gibt frei/lehnt ab in Ruhe (Entwurf), sieht am Ende eine **Übersicht zum Prüfen** und sendet **erst dann verbindlich ab**. Vorher war ein Klick = sofort live bei euch.
 - **Erst nach dem Absenden** erscheinen Auswahl & Freigaben bei euch im Dashboard. Solange der Klient dran ist, zeigt der Link-Status **„In Bearbeitung"**.

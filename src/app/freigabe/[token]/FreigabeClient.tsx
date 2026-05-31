@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star } from 'lucide-react'
+import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft } from 'lucide-react'
 import { freigabeBearbeitungMarkieren, type FreigabeEntscheidung } from '@/app/actions/freigaben'
 import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus, Branding } from '@/lib/supabase/types'
 import HinweisBanner from '@/components/HinweisBanner'
@@ -60,6 +60,8 @@ interface Props {
   scopeBeschreibung?: string
   bereitsAbgeschlossen?: boolean
   abgeschlossenDurch?: string | null
+  /** Admin-Vorschau zum Testen: kein Live-Schreiben, kein Absenden, kein Entwurf. */
+  vorschau?: boolean
 }
 
 // ── Logo ────────────────────────────────────────────
@@ -80,6 +82,7 @@ export default function FreigabeClient({
   scopeBeschreibung,
   bereitsAbgeschlossen = false,
   abgeschlossenDurch = null,
+  vorschau = false,
 }: Props) {
   const prim       = branding?.primary_color    ?? '#445c49'
   const bg         = branding?.background_color ?? '#f6ede2'
@@ -113,11 +116,12 @@ export default function FreigabeClient({
   //    Erst beim finalen Absenden (freigabeAbsenden) wird committet. ──────
   const bearbeitungMarkiertRef = useRef(false)
   function markiereBearbeitung() {
-    if (bearbeitungMarkiertRef.current) return
+    if (vorschau || bearbeitungMarkiertRef.current) return
     bearbeitungMarkiertRef.current = true
     freigabeBearbeitungMarkieren(token).catch(() => {})
   }
   function persistDraft(s: Record<string, ProduktState>) {
+    if (vorschau) return
     try {
       const d: Record<string, { status: ProduktStatus; kommentar: string; kundeFavorit: boolean }> = {}
       for (const id of Object.keys(s)) d[id] = { status: s[id].status, kommentar: s[id].kommentar, kundeFavorit: s[id].kundeFavorit }
@@ -129,6 +133,7 @@ export default function FreigabeClient({
   }
   // Entwurf beim Öffnen wiederherstellen (gleiches Gerät) — nach Mount.
   useEffect(() => {
+    if (vorschau) return
     try {
       const raw = localStorage.getItem(`freigabe_draft_${token}`)
       if (!raw) return
@@ -264,63 +269,176 @@ export default function FreigabeClient({
 
   // ── Review / letzter Check-up vor dem verbindlichen Absenden ──
   if (zeigeReview) {
-    const statusLabel: Record<string, { text: string; cls: string }> = {
-      freigegeben:    { text: 'Freigegeben',        cls: 'bg-emerald-50 text-emerald-700' },
-      abgelehnt:      { text: 'Abgelehnt',          cls: 'bg-red-50 text-red-700' },
-      ueberarbeitung: { text: 'Änderung gewünscht', cls: 'bg-amber-50 text-amber-700' },
-      ausstehend:     { text: 'Offen',              cls: 'bg-gray-100 text-gray-500' },
+    const reviewStatus = {
+      freigegeben:    { text: 'Freigegeben', Icon: Check,     pill: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' },
+      ueberarbeitung: { text: 'Änderung',    Icon: RefreshCw, pill: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' },
+      abgelehnt:      { text: 'Abgelehnt',   Icon: X,         pill: 'bg-red-50 text-red-700 ring-1 ring-red-200' },
+      ausstehend:     { text: 'Offen',       Icon: Clock,     pill: 'bg-gray-100 text-gray-500 ring-1 ring-gray-200' },
+    } as const
+
+    // Mini-Thumbnail (kein eigenes Component → keine Remounts beim Re-Render)
+    const thumb = (url: string | null, name: string) => (
+      <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 ring-1 ring-gray-200/70 shrink-0">
+        {url
+          ? <Image src={url} alt={name} width={96} height={96} className="w-full h-full object-cover" unoptimized />
+          : <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-gray-300" /></div>}
+      </div>
+    )
+
+    // Zusammenfassungs-Zähler (Produkte + gewählte Blöcke)
+    let revFrei = 0, revAend = 0, revAbl = 0
+    for (const r of raeume) for (const b of raumBuckets(r)) {
+      for (const p of b.produkte) {
+        if (!state[p.id]) continue
+        const s = state[p.id].status
+        if (s === 'freigegeben') revFrei++
+        else if (s === 'ueberarbeitung') revAend++
+        else if (s === 'abgelehnt') revAbl++
+      }
+      for (const g of b.bloecke) {
+        const members = g.produkte.filter((p) => state[p.id])
+        if (members.length && members.some((p) => state[p.id]?.status === 'freigegeben')) revFrei++
+      }
     }
+
     return (
-      <div className="min-h-screen" style={{ backgroundColor: bg }}>
-        <div className="max-w-2xl mx-auto px-5 py-10">
-          <div className="text-center mb-6">
-            <h1 className="font-syne text-2xl font-bold tracking-tight" style={{ color: prim }}>Bitte alles prüfen</h1>
-            <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">
-              Schauen Sie Ihre Auswahl in Ruhe durch. Erst mit <strong>&bdquo;Verbindlich absenden&ldquo;</strong> wird alles an {firmenname} übermittelt — vorher ist nichts sichtbar.
+      <div className="min-h-screen" style={{ backgroundColor: bg, fontFamily }}>
+        {vorschau && (
+          <div className="sticky top-0 z-40 bg-amber-500 text-white text-xs sm:text-sm font-medium px-4 py-2 flex items-center justify-center gap-2 text-center">
+            <Eye className="w-4 h-4 shrink-0" />
+            Vorschau-Modus — nur zum Testen. Eingaben werden nicht gespeichert oder gesendet.
+          </div>
+        )}
+
+        <div className="max-w-2xl mx-auto px-4 sm:px-5 pt-7 pb-32">
+          {/* Zurück (oben links) */}
+          <button
+            type="button"
+            onClick={() => setZeigeReview(false)}
+            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-5 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Zurück zum Bearbeiten
+          </button>
+
+          {/* Hero */}
+          <div className="mb-6">
+            <span
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest mb-3 px-2.5 py-1 rounded-full"
+              style={{ color: prim, backgroundColor: `${prim}14` }}
+            >
+              <ListChecks className="w-3.5 h-3.5" /> Letzter Schritt
+            </span>
+            <h1 className="font-syne text-2xl sm:text-[28px] font-bold tracking-tight leading-tight" style={{ color: prim }}>
+              Bitte prüfen Sie Ihre Auswahl
+            </h1>
+            <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+              Sehen Sie Ihre Entscheidungen in Ruhe durch. Erst mit <strong className="text-gray-700">&bdquo;Verbindlich absenden&ldquo;</strong> wird alles an {firmenname} übermittelt — vorher bleibt nichts sichtbar.
             </p>
           </div>
 
-          <div className="space-y-5">
+          {/* Zusammenfassungs-Band */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
+            {[
+              { wert: revFrei, label: 'Freigegeben', dot: 'bg-emerald-500', val: 'text-emerald-600' },
+              { wert: revAend, label: 'Änderung',    dot: 'bg-amber-500',   val: 'text-amber-600' },
+              { wert: revAbl,  label: 'Abgelehnt',   dot: 'bg-red-500',     val: 'text-red-600' },
+            ].map((s) => (
+              <div key={s.label} className="bg-white ring-1 ring-gray-200 rounded-2xl px-3 py-3.5 text-center shadow-sm">
+                <div className="flex items-center justify-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${s.dot}`} />
+                  <span className={`text-2xl font-bold tabular-nums ${s.val}`}>{s.wert}</span>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-0.5">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Räume */}
+          <div className="space-y-4">
             {sichtbareRaeume.map((raum) => {
               const buckets = raumBuckets(raum).filter(
                 (b) => b.bloecke.some((g) => g.produkte.some((p) => state[p.id])) || b.produkte.some((p) => state[p.id]),
               )
+              const raumAnzahl = buckets.reduce(
+                (sum, b) => sum + b.produkte.filter((p) => state[p.id]).length
+                  + b.bloecke.filter((g) => g.produkte.some((p) => state[p.id])).length,
+                0,
+              )
               return (
-                <div key={raum.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{raum.name}</span>
+                <div key={raum.id} className="bg-white ring-1 ring-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-2 px-4 sm:px-5 py-3 border-b border-gray-100">
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: prim }} />
+                    <h3 className="text-sm font-semibold text-gray-900 truncate">{raum.name}</h3>
+                    <span className="ml-auto text-[11px] text-gray-400 shrink-0">{raumAnzahl} Position{raumAnzahl !== 1 ? 'en' : ''}</span>
                   </div>
                   <div className="divide-y divide-gray-100">
-                    {buckets.map((b) => (
-                      <div key={b.id} className="px-4 py-3">
-                        {b.id !== '__all__' && <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">{b.name}</p>}
-                        {b.bloecke.filter((g) => g.produkte.some((p) => state[p.id])).map((g) => {
-                          const chosen = g.produkte.find((p) => state[p.id]?.kundeFavorit)
-                            ?? g.produkte.find((p) => state[p.id]?.status === 'freigegeben')
-                          return (
-                            <div key={g.id} className="flex items-start justify-between gap-3 py-1.5">
-                              <span className="text-sm text-gray-500">{g.name}</span>
-                              <span className="text-sm font-medium text-gray-900 text-right">
-                                {chosen ? chosen.name : <span className="text-amber-600">keine Wahl</span>}
-                              </span>
-                            </div>
-                          )
-                        })}
-                        {b.produkte.filter((p) => state[p.id]).map((p) => {
-                          const st = state[p.id]
-                          const lbl = statusLabel[st.status] ?? statusLabel.ausstehend
-                          return (
-                            <div key={p.id} className="py-1.5">
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-sm text-gray-700">{p.name}</span>
-                                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${lbl.cls}`}>{lbl.text}</span>
+                    {buckets.map((b) => {
+                      const zeigeBereich = b.name && b.id !== '__all__' && b.id !== '__ohne__'
+                      return (
+                        <div key={b.id} className="px-4 sm:px-5 py-3">
+                          {zeigeBereich && (
+                            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{b.name}</p>
+                          )}
+
+                          {/* Auswahl-Blöcke → gewählte Option */}
+                          {b.bloecke.filter((g) => g.produkte.some((p) => state[p.id])).map((g) => {
+                            const chosen = g.produkte.find((p) => state[p.id]?.kundeFavorit)
+                              ?? g.produkte.find((p) => state[p.id]?.status === 'freigegeben')
+                            return chosen ? (
+                              <div key={g.id} className="flex items-center gap-3 py-2">
+                                {thumb(chosen.bild_url, chosen.name)}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-gray-900 truncate">{chosen.name}</p>
+                                  <p className="text-[11px] text-gray-400 truncate">Auswahl · {g.name}</p>
+                                </div>
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 shrink-0">
+                                  <Check className="w-3 h-3" /> Ihre Wahl
+                                </span>
                               </div>
-                              {st.kommentar && <p className="text-xs text-gray-400 mt-0.5 italic">&bdquo;{st.kommentar}&ldquo;</p>}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ))}
+                            ) : (
+                              <div key={g.id} className="flex items-center gap-3 py-2">
+                                <div className="w-12 h-12 rounded-xl bg-amber-50 ring-1 ring-amber-200 flex items-center justify-center shrink-0">
+                                  <Package className="w-5 h-5 text-amber-400" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-gray-900 truncate">{g.name}</p>
+                                  <p className="text-[11px] text-gray-400">Auswahl</p>
+                                </div>
+                                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 shrink-0">
+                                  Keine Wahl
+                                </span>
+                              </div>
+                            )
+                          })}
+
+                          {/* Einzelprodukte → Status + Kommentar */}
+                          {b.produkte.filter((p) => state[p.id]).map((p) => {
+                            const st = state[p.id]
+                            const cfg = reviewStatus[st.status] ?? reviewStatus.ausstehend
+                            const SIcon = cfg.Icon
+                            return (
+                              <div key={p.id} className="py-2">
+                                <div className="flex items-center gap-3">
+                                  {thumb(p.bild_url, p.name)}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
+                                    {p.kategorie && <p className="text-[11px] text-gray-400 truncate">{p.kategorie}</p>}
+                                  </div>
+                                  <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 ${cfg.pill}`}>
+                                    <SIcon className="w-3 h-3" /> {cfg.text}
+                                  </span>
+                                </div>
+                                {st.kommentar && (
+                                  <div className="mt-1.5 ml-[60px] pl-3 border-l-2 border-gray-200">
+                                    <p className="text-xs text-gray-500 italic leading-relaxed">&bdquo;{st.kommentar}&ldquo;</p>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )
@@ -328,27 +446,36 @@ export default function FreigabeClient({
           </div>
 
           {!alleEntschieden && (
-            <p className="text-sm text-amber-600 text-center mt-5">
-              Es {offenCount === 1 ? 'ist noch 1 Position' : `sind noch ${offenCount} Positionen`} offen — bitte erst alle entscheiden.
-            </p>
+            <div className="flex items-center justify-center gap-2 mt-5 text-sm text-amber-700 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-4 py-3">
+              <Clock className="w-4 h-4 shrink-0" />
+              {offenCount === 1 ? 'Es ist noch 1 Position offen' : `Es sind noch ${offenCount} Positionen offen`} — bitte erst alle entscheiden.
+            </div>
           )}
+        </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 mt-7">
+        {/* Sticky Aktionsleiste */}
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 backdrop-blur-sm">
+          <div className="max-w-2xl mx-auto px-4 sm:px-5 py-3 flex items-center gap-3">
             <button
               type="button"
               onClick={() => setZeigeReview(false)}
-              className="flex-1 py-3 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
             >
-              ← Zurück zum Bearbeiten
+              <ArrowLeft className="w-4 h-4" /> Zurück
             </button>
+            <div className="hidden sm:flex flex-1 items-center gap-3 text-xs text-gray-500">
+              <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{revFrei} freigegeben</span>
+              <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />{revAend} Änderung</span>
+              <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />{revAbl} abgelehnt</span>
+            </div>
             <button
               type="button"
               onClick={() => setAbschlussModalOffen(true)}
               disabled={!alleEntschieden}
               style={{ backgroundColor: prim }}
-              className="flex-1 py-3 text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity shadow-sm"
             >
-              Verbindlich absenden →
+              Verbindlich absenden <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -365,6 +492,7 @@ export default function FreigabeClient({
           abgelehntCount={abgelehntCount}
           brandingPrim={prim}
           entscheidungen={entscheidungen}
+          vorschau={vorschau}
         />
       </div>
     )
@@ -373,6 +501,13 @@ export default function FreigabeClient({
   return (
     <div className="min-h-screen bg-gray-50" style={{ '--brand-primary': prim, '--brand-bg': bg } as React.CSSProperties}>
       {branding?.custom_css && <style>{sauberesCss(branding.custom_css)}</style>}
+
+      {vorschau && (
+        <div className="sticky top-0 z-40 bg-amber-500 text-white text-xs sm:text-sm font-medium px-4 py-2 flex items-center justify-center gap-2 text-center">
+          <Eye className="w-4 h-4 shrink-0" />
+          Vorschau-Modus — nur zum Testen. Eingaben werden nicht gespeichert oder gesendet.
+        </div>
+      )}
 
       {/* ── Sticky Header ─────────────────────────────────────── */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200">
