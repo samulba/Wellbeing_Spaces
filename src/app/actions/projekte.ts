@@ -405,6 +405,15 @@ export async function pinSetzen(
  * Nutzt Admin-Client (kein Auth-Cookie nötig).
  * Gibt true zurück wenn PIN korrekt, false sonst.
  */
+const PIN_MAX_VERSUCHE = 5
+const PIN_SPERRE_MS = 15 * 60 * 1000
+
+type PinProjekt = {
+  freigabe_pin: string | null
+  freigabe_pin_versuche?: number | null
+  freigabe_pin_gesperrt_bis?: string | null
+}
+
 export async function pinPruefen(token: string, pin: string): Promise<boolean> {
   const supabase = createAdminClient()
 
@@ -414,22 +423,64 @@ export async function pinPruefen(token: string, pin: string): Promise<boolean> {
     .select('projekt_id')
     .eq('token', token)
     .eq('aktiv', true)
-    .single()
+    .maybeSingle()
 
   if (!tokenData) return false
 
-  const { data: projekt } = await supabase
+  // Projekt + Lockout-Spalten (Migration 115). Fail-safe: fehlen die Spalten
+  // (Migration noch nicht eingespielt), läuft der PIN-Check ohne Lockout weiter.
+  let proj: PinProjekt | null = null
+  let lockoutVerfuegbar = true
+  const voll = await supabase
     .from('projekte')
-    .select('freigabe_pin')
+    .select('freigabe_pin, freigabe_pin_versuche, freigabe_pin_gesperrt_bis')
     .eq('id', tokenData.projekt_id)
     .is('deleted_at', null)
-    .single()
+    .maybeSingle()
+  if (voll.error) {
+    lockoutVerfuegbar = false
+    const basis = await supabase
+      .from('projekte')
+      .select('freigabe_pin')
+      .eq('id', tokenData.projekt_id)
+      .is('deleted_at', null)
+      .maybeSingle()
+    proj = (basis.data as PinProjekt | null)
+  } else {
+    proj = (voll.data as PinProjekt | null)
+  }
 
-  if (!projekt) return false
-  // Beidseitig trimmen + als String normalisieren, damit Legacy-PINs
-  // mit Whitespace nicht mehr falsch zurückgewiesen werden.
-  const gespeichert = (projekt.freigabe_pin ?? '').toString().trim()
-  const eingabe     = (pin ?? '').toString().trim()
+  if (!proj) return false
+
+  // Gesperrt? (zu viele Fehlversuche)
+  if (lockoutVerfuegbar && proj.freigabe_pin_gesperrt_bis && new Date(proj.freigabe_pin_gesperrt_bis) > new Date()) {
+    return false
+  }
+
+  // Beidseitig trimmen + als String normalisieren (Legacy-PINs mit Whitespace).
+  const gespeichert = (proj.freigabe_pin ?? '').toString().trim()
   if (!gespeichert) return false
-  return gespeichert === eingabe
+  const eingabe = (pin ?? '').toString().trim()
+  const ok = gespeichert === eingabe
+
+  // Server-seitiger Brute-Force-Schutz: Versuche zählen / sperren.
+  if (lockoutVerfuegbar) {
+    if (ok) {
+      if ((proj.freigabe_pin_versuche ?? 0) > 0 || proj.freigabe_pin_gesperrt_bis) {
+        await supabase
+          .from('projekte')
+          .update({ freigabe_pin_versuche: 0, freigabe_pin_gesperrt_bis: null })
+          .eq('id', tokenData.projekt_id)
+      }
+    } else {
+      const versuche = (proj.freigabe_pin_versuche ?? 0) + 1
+      const update: { freigabe_pin_versuche: number; freigabe_pin_gesperrt_bis?: string } = { freigabe_pin_versuche: versuche }
+      if (versuche >= PIN_MAX_VERSUCHE) {
+        update.freigabe_pin_gesperrt_bis = new Date(Date.now() + PIN_SPERRE_MS).toISOString()
+      }
+      await supabase.from('projekte').update(update).eq('id', tokenData.projekt_id)
+    }
+  }
+
+  return ok
 }

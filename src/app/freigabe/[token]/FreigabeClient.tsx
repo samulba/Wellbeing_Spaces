@@ -15,6 +15,16 @@ const r2  = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
+// Branding-CSS stammt vom (vertrauenswürdigen) Org-Admin, wird aber defensiv
+// von Ausbruch-/Script-Vektoren befreit, bevor es in <style> landet.
+function sauberesCss(css: string): string {
+  return css
+    .replace(/<\/?\s*style/gi, '')
+    .replace(/<\s*script/gi, '')
+    .replace(/expression\s*\(/gi, '')
+    .replace(/javascript\s*:/gi, '')
+}
+
 // ── Typen ─────────────────────────────────────────────────────
 interface ProduktState {
   status: ProduktStatus
@@ -344,7 +354,7 @@ export default function FreigabeClient({
   if (hatPin && !pinVerifiziert) {
     return (
       <div style={{ '--brand-primary': prim, '--brand-bg': bg } as React.CSSProperties}>
-        {branding?.custom_css && <style>{branding.custom_css}</style>}
+        {branding?.custom_css && <style>{sauberesCss(branding.custom_css)}</style>}
         <PinEingabe
           token={token}
           projektName={projektName}
@@ -358,22 +368,45 @@ export default function FreigabeClient({
     )
   }
 
-  const alleProdukteFlach = flacheProdukte(raeume)
-  const total             = alleProdukteFlach.length
-  const freigegebenCount  = Object.values(state).filter((s) => s.status === 'freigegeben').length
-  const abgelehntCount    = Object.values(state).filter((s) => s.status === 'abgelehnt' || s.status === 'ueberarbeitung').length
-  const entschiedenCount  = freigegebenCount + abgelehntCount
-  const offenCount        = total - entschiedenCount
-  const fortschritt       = total > 0 ? Math.round((entschiedenCount / total) * 100) : 0
-  const alleDone          = freigegebenCount === total && total > 0
-  const alleEntschieden   = entschiedenCount === total && total > 0
+  // Zähler auf Entscheidungs-EINHEITEN (Mig 114): je ungruppiertem Produkt 1 Einheit;
+  // je Auswahl-Gruppe 1 Einheit (entschieden, sobald EIN Mitglied freigegeben ist).
+  // Nicht-gewählte Alternativen blockieren so weder Fortschritt noch Abschluss.
+  let total = 0, offenCount = 0, freigegebenCount = 0, abgelehntCount = 0
+  for (const r of raeume) {
+    for (const p of r.produkte) {
+      if (!state[p.id]) continue
+      total++
+      const s = state[p.id].status
+      if (s === 'freigegeben') freigegebenCount++
+      else if (s === 'abgelehnt' || s === 'ueberarbeitung') abgelehntCount++
+      else offenCount++
+    }
+    for (const g of (r.gruppen ?? [])) {
+      const members = g.produkte.filter((p) => state[p.id])
+      if (members.length === 0) continue
+      total++
+      if (members.some((p) => state[p.id].status === 'freigegeben')) freigegebenCount++
+      else offenCount++
+    }
+  }
+  const entschiedenCount = total - offenCount
+  const fortschritt      = total > 0 ? Math.round((entschiedenCount / total) * 100) : 0
+  const alleDone         = freigegebenCount === total && total > 0
+  const alleEntschieden  = offenCount === 0 && total > 0
 
   // Räume mit mindestens einem aktiven Produkt (für Tab-Navigation pro Raum)
   const sichtbareRaeume = raeume.filter((r) => raumProdukte(r).some((p) => state[p.id]))
   const idx = Math.min(aktiverRaumIndex, Math.max(0, sichtbareRaeume.length - 1))
   const aktuellerRaum = sichtbareRaeume[idx]
-  const raumOffenCount = (r: FreigabeRaum) =>
-    raumProdukte(r).filter((p) => state[p.id] && state[p.id].status === 'ausstehend').length
+  const raumOffenCount = (r: FreigabeRaum) => {
+    let offen = 0
+    for (const p of r.produkte) if (state[p.id] && state[p.id].status === 'ausstehend') offen++
+    for (const g of (r.gruppen ?? [])) {
+      const members = g.produkte.filter((p) => state[p.id])
+      if (members.length > 0 && !members.some((p) => state[p.id].status === 'freigegeben')) offen++
+    }
+    return offen
+  }
 
   function speichereStatus(produktId: string, status: ProduktStatus, kommentar = '') {
     startTransition(async () => {
@@ -429,7 +462,7 @@ export default function FreigabeClient({
 
   return (
     <div className="min-h-screen bg-gray-50" style={{ '--brand-primary': prim, '--brand-bg': bg } as React.CSSProperties}>
-      {branding?.custom_css && <style>{branding.custom_css}</style>}
+      {branding?.custom_css && <style>{sauberesCss(branding.custom_css)}</style>}
 
       {/* ── Sticky Header ─────────────────────────────────────── */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200">

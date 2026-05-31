@@ -17,7 +17,7 @@ export default async function FreigabePage({ params }: Props) {
     .from('freigabe_tokens')
     .select('id, projekt_id, gueltig_bis, aktiv, scope_typ, scope_ids, abgeschlossen_am, abgeschlossen_durch, deleted_at')
     .eq('token', params.token)
-    .single()
+    .maybeSingle()
 
   if (!tokenData || !tokenData.aktiv || tokenData.deleted_at) {
     return <Fehlerseite meldung="Dieser Freigabe-Link ist ungültig oder wurde zurückgezogen." />
@@ -33,7 +33,7 @@ export default async function FreigabePage({ params }: Props) {
     .select('id, name, freigabe_pin, kunden(name)')
     .eq('id', tokenData.projekt_id)
     .is('deleted_at', null)
-    .single()
+    .maybeSingle()
   const projekt = projektRaw as typeof projektRaw & { kunden: { name: string } | null; freigabe_pin: string | null } | null
 
   if (!projekt) {
@@ -171,9 +171,10 @@ export default async function FreigabePage({ params }: Props) {
           }
         })
 
-      // In Auswahl-Gruppen (mehrere Alternativen) + lose Produkte partitionieren
+      // In Auswahl-Gruppen (mehrere Alternativen) + lose Produkte partitionieren.
+      // Eine Gruppe ist erst ab 2 Mitgliedern sinnvoll — 1-Produkt-Gruppen werden als
+      // normales Einzelprodukt (lose, mit Freigeben/Ablehnen) gerendert.
       const gruppenDefs = gruppenProRaum.get(raum.id) ?? []
-      const gruppenIdSet = new Set(gruppenDefs.map((g) => g.id))
       const gruppen: FreigabeProduktGruppe[] = gruppenDefs
         .map((g) => ({
           id: g.id,
@@ -181,8 +182,9 @@ export default async function FreigabePage({ params }: Props) {
           beschreibung: g.beschreibung,
           produkte: alleProdukte.filter((p) => p.produkt_gruppe_id === g.id),
         }))
-        .filter((grp) => grp.produkte.length > 0)
-      const lose = alleProdukte.filter((p) => !p.produkt_gruppe_id || !gruppenIdSet.has(p.produkt_gruppe_id))
+        .filter((grp) => grp.produkte.length >= 2)
+      const echteGruppenIds = new Set(gruppen.map((g) => g.id))
+      const lose = alleProdukte.filter((p) => !p.produkt_gruppe_id || !echteGruppenIds.has(p.produkt_gruppe_id))
 
       return { id: raum.id, name: raum.name, gruppen, produkte: lose }
     })

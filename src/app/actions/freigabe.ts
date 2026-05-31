@@ -1,7 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { ProduktStatus } from '@/lib/supabase/types'
 
@@ -20,30 +20,44 @@ export async function freigabeStatusAendern(
 ): Promise<FreigabeResult> {
   const supabase = createAdminClient()
 
-  // 1. Token validieren
+  // 1. Token validieren (inkl. Abschluss + Soft-Delete + Scope — Mig 081)
   const { data: tokenData } = await supabase
     .from('freigabe_tokens')
-    .select('projekt_id, gueltig_bis')
+    .select('projekt_id, gueltig_bis, aktiv, deleted_at, abgeschlossen_am, scope_typ, scope_ids')
     .eq('token', token)
-    .eq('aktiv', true)
-    .single()
+    .maybeSingle()
 
-  if (!tokenData) return { fehler: 'Ungültiger oder inaktiver Freigabe-Link.' }
-
+  if (!tokenData || !tokenData.aktiv || tokenData.deleted_at) {
+    return { fehler: 'Ungültiger oder zurückgezogener Freigabe-Link.' }
+  }
   if (tokenData.gueltig_bis && new Date(tokenData.gueltig_bis) < new Date()) {
     return { fehler: 'Dieser Freigabe-Link ist abgelaufen.' }
+  }
+  // Nach Abschluss keine Änderungen mehr (Manipulationsschutz)
+  if (tokenData.abgeschlossen_am) {
+    return { fehler: 'Diese Freigabe wurde bereits abgeschlossen.' }
   }
 
   // 2. raum_produkte-Eintrag gehört zum Projekt des Tokens
   const { data: rpEintrag } = await supabase
     .from('raum_produkte')
-    .select('id, raeume!inner(projekt_id)')
+    .select('id, raum_id, raeume!inner(projekt_id)')
     .eq('id', raumProduktId)
     .maybeSingle()
 
   const projektIdDesEintrags = (rpEintrag?.raeume as unknown as { projekt_id: string } | null)?.projekt_id
   if (!rpEintrag || projektIdDesEintrags !== tokenData.projekt_id) {
     return { fehler: 'Zugriff nicht erlaubt.' }
+  }
+
+  // 2b. Scope-Guard (Mig 081): raum/auswahl dürfen nur In-Scope ändern (IDOR-Schutz)
+  const scopeTyp = (tokenData.scope_typ as 'projekt' | 'raum' | 'auswahl' | null) ?? 'projekt'
+  const scopeIds = (tokenData.scope_ids as string[] | null) ?? []
+  if (scopeTyp === 'raum' && scopeIds[0] && rpEintrag.raum_id !== scopeIds[0]) {
+    return { fehler: 'Dieses Produkt liegt außerhalb des freigegebenen Bereichs.' }
+  }
+  if (scopeTyp === 'auswahl' && scopeIds.length > 0 && !scopeIds.includes(raumProduktId)) {
+    return { fehler: 'Dieses Produkt liegt außerhalb des freigegebenen Bereichs.' }
   }
 
   // 3. Status auf raum_produkte aktualisieren (per-Raum)
@@ -166,10 +180,12 @@ export async function freigabeFavoritWaehlen(
  */
 export async function freigabeZuruecksetzenAdmin(raumProduktId: string): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('raum_produkte')
     .update({ freigabe_status: 'ausstehend', freigabe_kommentar: null })
     .eq('id', raumProduktId)
+    .eq('organisation_id', orgId)
   revalidatePath('/dashboard/freigaben')
 }
 
@@ -185,16 +201,18 @@ export async function freigabeBulkStatusAendernAdmin(
   if (raumProduktIds.length === 0) return { erfolg: true, anzahl: 0 }
 
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   // Aktuelle Rolle + User-Email des Admins (für Audit)
   const { data: { user } } = await supabase.auth.getUser()
   const akteur = user?.email ?? 'admin'
 
-  // Snapshot für Audit-Log (alter Status + organisation_id)
+  // Snapshot für Audit-Log (alter Status + organisation_id) — org-scoped (defense-in-depth)
   const { data: vorher } = await supabase
     .from('raum_produkte')
     .select('id, organisation_id, freigabe_status')
     .in('id', raumProduktIds)
+    .eq('organisation_id', orgId)
 
   if (!vorher || vorher.length === 0) {
     return { erfolg: false, anzahl: 0, fehler: 'Keine der ausgewählten Einträge gefunden.' }
@@ -208,6 +226,7 @@ export async function freigabeBulkStatusAendernAdmin(
       freigabe_kommentar: neuerStatus === 'ausstehend' ? null : undefined,
     })
     .in('id', raumProduktIds)
+    .eq('organisation_id', orgId)
 
   if (error) return { erfolg: false, anzahl: 0, fehler: 'Bulk-Update fehlgeschlagen: ' + error.message }
 

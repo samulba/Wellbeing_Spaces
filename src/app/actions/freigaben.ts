@@ -265,7 +265,7 @@ async function ladeItemsImScope(
   projektId: string,
   scopeTyp: FreigabeScopeTyp,
   scopeIds: string[],
-): Promise<Array<{ id: string; freigabe_status: string; produktName: string }>> {
+): Promise<Array<{ id: string; freigabe_status: string; produkt_gruppe_id: string | null; produktName: string }>> {
   const { data: raeume } = await supabase
     .from('raeume')
     .select('id')
@@ -277,7 +277,7 @@ async function ladeItemsImScope(
 
   let query = supabase
     .from('raum_produkte')
-    .select('id, freigabe_status, produkte(name)')
+    .select('id, freigabe_status, produkt_gruppe_id, produkte(name)')
     .in('raum_id', raumIds)
 
   if (scopeTyp === 'raum' && scopeIds[0]) query = query.eq('raum_id', scopeIds[0])
@@ -287,10 +287,12 @@ async function ladeItemsImScope(
   return ((data ?? []) as unknown as Array<{
     id: string
     freigabe_status: string
+    produkt_gruppe_id: string | null
     produkte: { name: string } | null
   }>).map((rp) => ({
     id:           rp.id,
     freigabe_status: rp.freigabe_status,
+    produkt_gruppe_id: rp.produkt_gruppe_id ?? null,
     produktName:  rp.produkte?.name ?? '',
   }))
 }
@@ -314,13 +316,30 @@ export async function freigabeAbschliessen(
   if (!tok) return { fehler: 'Ungültiger oder zurückgezogener Link.' }
   if (tok.abgeschlossen_am) return { fehler: 'Diese Freigabe ist bereits abgeschlossen.' }
 
+  // Projekt laden + Org-Konsistenz prüfen (defense-in-depth) — vor allen Seiteneffekten
+  const { data: projekt } = await supabase
+    .from('projekte')
+    .select('id, name, organisation_id')
+    .eq('id', tok.projekt_id)
+    .maybeSingle()
+  if (!projekt || projekt.organisation_id !== tok.organisation_id) {
+    return { fehler: 'Projekt-Zuordnung ungültig.' }
+  }
+
   const scopeTyp: FreigabeScopeTyp = (tok.scope_typ as FreigabeScopeTyp) ?? 'projekt'
   const scopeIds: string[] = (tok.scope_ids as string[]) ?? []
 
   const items = await ladeItemsImScope(supabase, tok.projekt_id, scopeTyp, scopeIds)
 
   if (items.length === 0) return { fehler: 'Keine Produkte im Freigabe-Umfang.' }
-  const offen = items.filter((i) => i.freigabe_status === 'ausstehend').length
+  // Gruppen-aware: eine Auswahl-Gruppe gilt als entschieden, sobald EIN Mitglied
+  // freigegeben ist. Nicht-gewählte Alternativen (ausstehend) blockieren NICHT.
+  const erfuellteGruppen = new Set(
+    items.filter((i) => i.produkt_gruppe_id && i.freigabe_status === 'freigegeben').map((i) => i.produkt_gruppe_id),
+  )
+  const offen = items.filter(
+    (i) => i.freigabe_status === 'ausstehend' && (!i.produkt_gruppe_id || !erfuellteGruppen.has(i.produkt_gruppe_id)),
+  ).length
   if (offen > 0) {
     return { fehler: `Noch ${offen} Produkt${offen === 1 ? '' : 'e'} offen — bitte erst alle entscheiden.` }
   }
@@ -337,13 +356,7 @@ export async function freigabeAbschliessen(
 
   if (updErr) return { fehler: 'Abschluss konnte nicht gespeichert werden.' }
 
-  // Projekt + Branding für Mail
-  const { data: projekt } = await supabase
-    .from('projekte')
-    .select('id, name, organisation_id')
-    .eq('id', tok.projekt_id)
-    .maybeSingle()
-
+  // Branding für Mail
   const { data: branding } = await supabase
     .from('branding')
     .select('firmenname, primary_color, email, support_email')
@@ -408,11 +421,23 @@ export async function freigabeAbschliessen(
   try {
     const { data: alleItems } = await supabase
       .from('raum_produkte')
-      .select('freigabe_status, raeume!inner(projekt_id)')
+      .select('freigabe_status, produkt_gruppe_id, raeume!inner(projekt_id)')
       .eq('raeume.projekt_id', tok.projekt_id)
 
     if (alleItems && alleItems.length > 0) {
-      const alleFreigegeben = alleItems.every((i) => i.freigabe_status === 'freigegeben')
+      // Gruppen-aware: eine Gruppe gilt als erfüllt, sobald ein Mitglied freigegeben ist.
+      // Nicht-gewählte Alternativen (ausstehend) in einer erfüllten Gruppe blockieren nicht;
+      // echte ausstehende/abgelehnte Positionen verhindern den Auto-Abschluss weiterhin.
+      const erfuellt = new Set(
+        (alleItems as Array<{ freigabe_status: string; produkt_gruppe_id: string | null }>)
+          .filter((i) => i.produkt_gruppe_id && i.freigabe_status === 'freigegeben')
+          .map((i) => i.produkt_gruppe_id),
+      )
+      const alleFreigegeben = (alleItems as Array<{ freigabe_status: string; produkt_gruppe_id: string | null }>).every(
+        (i) =>
+          i.freigabe_status === 'freigegeben' ||
+          (i.freigabe_status === 'ausstehend' && !!i.produkt_gruppe_id && erfuellt.has(i.produkt_gruppe_id)),
+      )
       if (alleFreigegeben) {
         await autoProjektStatusVorwaerts(tok.projekt_id, 'abgeschlossen')
       }
@@ -464,6 +489,13 @@ export async function freigabeInvalidierenBeiProduktAenderung(opts: {
       kontext:       { geaendertVon: 'system' },
     })
   }
+
+  // Kunden-Favorit der zurückgesetzten Einträge aufheben — sonst gälte die Gruppe
+  // weiter als „gewählt", obwohl der Status auf 'ausstehend' zurückfiel (Mig 114).
+  await supabase
+    .from('raum_produkte')
+    .update({ kunde_favorit: false })
+    .in('id', betroffen.map((rp) => rp.id))
 }
 
 // ═══════════════════════════════════════════════════════════════

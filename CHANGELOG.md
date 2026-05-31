@@ -3,6 +3,15 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-05-31
+
+### Freigabe-Modul: Härtung & Bugfixes vor Launch
+- **Abschluss mit Auswahl-Gruppen funktioniert jetzt korrekt**: Wählt der Kunde in einer Gruppe seine Variante, zählt die Gruppe als EINE erledigte Entscheidung — nicht gewählte Alternativen blockieren den Abschluss nicht mehr (vorher hing es bei „Noch X offen" fest). Auch die Fortschrittsanzeige zählt jetzt pro Entscheidung statt pro Einzelprodukt.
+- **Manipulationsschutz**: Nach dem Absenden einer Freigabe lassen sich Status & Auswahl nicht mehr nachträglich ändern; abgelaufene/zurückgezogene Links werden überall sauber abgewiesen.
+- **Sicherheit**: Ein auf einen Raum/eine Auswahl begrenzter Freigabe-Link kann nur noch Produkte innerhalb seines Bereichs freigeben. Die PIN-Eingabe ist jetzt server-seitig gegen Brute-Force geschützt (15 Min. Sperre nach 5 Fehlversuchen). Das Freigabe-Protokoll (Audit) ist unveränderlich.
+- **Übersichtlicher**: 1-Produkt-„Gruppen" werden im Kunden-Link als normales Einzelprodukt angezeigt; auf der Freigaben-Übersicht ist alles wie zuvor erkennbar.
+- Migration **115** (Audit append-only + PIN-Lockout-Spalten) muss in Supabase ausgeführt werden.
+
 ## 2026-05-30
 
 ### Freigabe-Modul: Räume in Gruppen unterteilen
