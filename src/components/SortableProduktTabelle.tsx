@@ -28,6 +28,7 @@ import {
 import Link from 'next/link'
 import {
   produktAusRaumEntfernen,
+  produkteAusRaumEntfernenBulk,
   updateRaumProduktPositionen,
   raumProdukteAktualisieren,
   adminFavoritSetzen,
@@ -47,6 +48,8 @@ import {
   raumProduktZuBereichZuordnen,
 } from '@/app/actions/produkt-bereiche'
 import { ConfirmModal } from './ConfirmModal'
+import Checkbox from './Checkbox'
+import ZuordnungChip from './ZuordnungChip'
 import AlternativeModal from './AlternativeModal'
 import { bestellstatusAendern, produktDatumAktualisieren, type ProduktDatumFeld } from '@/app/actions/produkte'
 import type { RaumProduktMitDetails, BestellStatus, ProduktGruppe, ProduktBereich } from '@/lib/supabase/types'
@@ -195,6 +198,8 @@ function SortableProduktZeile({
   onAlternativeRequest,
   bereiche,
   onBereichChange,
+  istMarkiert,
+  onToggleSelect,
 }: {
   eintrag: RaumProduktMitDetails
   mwst: number
@@ -214,6 +219,8 @@ function SortableProduktZeile({
   onAlternativeRequest: (eintrag: RaumProduktMitDetails) => void
   bereiche: ProduktBereich[]
   onBereichChange: (raumProduktId: string, bereichId: string | null) => void
+  istMarkiert: boolean
+  onToggleSelect: (id: string) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: eintrag.id })
@@ -259,10 +266,20 @@ function SortableProduktZeile({
       <tr
         ref={setNodeRef}
         style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-        className={`hover:bg-gray-50/70 transition-colors group ${zeileKlasse}`}
+        className={`transition-colors group ${istMarkiert ? 'bg-wellbeing-green/5 hover:bg-wellbeing-green/10' : 'hover:bg-gray-50/70'} ${zeileKlasse}`}
       >
+        {/* Auswahl-Checkbox */}
+        <td className="pl-3 pr-0 py-3 align-middle">
+          <Checkbox
+            checked={istMarkiert}
+            onChange={() => onToggleSelect(eintrag.id)}
+            onClick={(e) => e.stopPropagation()}
+            ariaLabel={`${p.name} auswählen`}
+          />
+        </td>
+
         {/* Drag Handle */}
-        <td className="pl-3 pr-1 py-3 align-middle">
+        <td className="pl-1 pr-1 py-3 align-middle">
           <button
             {...attributes}
             {...listeners}
@@ -374,54 +391,14 @@ function SortableProduktZeile({
               </span>
             )}
           </div>
-          {gruppen.length > 0 && (
-            <div className="mt-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-              <div className="relative inline-block">
-                <select
-                  value={eintrag.produkt_gruppe_id ?? ''}
-                  onChange={(e) => onGruppeChange(eintrag.id, e.target.value || null)}
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label="Auswahl-Block zuordnen"
-                  className={`appearance-none text-[11px] font-medium rounded-lg pl-2.5 pr-7 py-1 max-w-[200px] truncate cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 ${
-                    eintrag.produkt_gruppe_id
-                      ? 'border-wellbeing-green/30 bg-wellbeing-green/5 text-wellbeing-green-dark hover:border-wellbeing-green/50'
-                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                  }`}
-                >
-                  <option value="">Kein Auswahl-Block</option>
-                  {gruppen.map((g) => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-          )}
-          {/* Bereich-Zuordnung — nur für Einzelprodukte (Produkte in einem
-              Block erben den Bereich vom Block). Migration 116. */}
-          {bereiche.length > 0 && !eintrag.produkt_gruppe_id && (
-            <div className="mt-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-              <div className="relative inline-block">
-                <select
-                  value={eintrag.bereich_id ?? ''}
-                  onChange={(e) => onBereichChange(eintrag.id, e.target.value || null)}
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label="Gruppe zuordnen"
-                  className={`appearance-none text-[11px] font-medium rounded-lg pl-2.5 pr-7 py-1 max-w-[200px] truncate cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 ${
-                    eintrag.bereich_id
-                      ? 'border-wellbeing-green/30 bg-wellbeing-green/5 text-wellbeing-green-dark hover:border-wellbeing-green/50'
-                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                  }`}
-                >
-                  <option value="">Ohne Gruppe</option>
-                  {bereiche.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-                <Layers className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-          )}
+          {/* Zuordnung (Gruppe + Auswahl-Block) als ein Chip mit Popover */}
+          <ZuordnungChip
+            eintrag={eintrag}
+            gruppen={gruppen}
+            bereiche={bereiche}
+            onGruppeChange={onGruppeChange}
+            onBereichChange={onBereichChange}
+          />
         </td>
 
         {/* Menge — inline editierbar */}
@@ -562,7 +539,7 @@ function SortableProduktZeile({
 
       {expanded && (
         <tr className={`bg-gray-50/60 ${!isLast ? 'border-b border-gray-100' : ''}`}>
-          <td colSpan={11} className="px-6 py-5 space-y-4">
+          <td colSpan={12} className="px-6 py-5 space-y-4">
 
             {p.hinweis_extern && (
               <HinweisBanner
@@ -872,6 +849,9 @@ function ProduktGruppeHeader({
   onDelete,
   bereiche,
   onBereichChange,
+  alleMarkiert,
+  teilMarkiert,
+  onToggleAlle,
 }: {
   gruppe: ProduktGruppe
   anzahl: number
@@ -880,6 +860,9 @@ function ProduktGruppeHeader({
   onDelete: () => void
   bereiche: ProduktBereich[]
   onBereichChange: (bereichId: string | null) => void
+  alleMarkiert: boolean
+  teilMarkiert: boolean
+  onToggleAlle: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(gruppe.name)
@@ -894,6 +877,9 @@ function ProduktGruppeHeader({
 
   return (
     <tr className="bg-wellbeing-cream/40 border-b border-wellbeing-cream/70 group/gh">
+      <td className="pl-3 pr-0 py-2 align-middle">
+        <Checkbox checked={alleMarkiert} indeterminate={teilMarkiert} onChange={onToggleAlle} ariaLabel={`Alle in ${gruppe.name} auswählen`} />
+      </td>
       <td colSpan={11} className="px-4 py-2">
         <div className="flex items-center gap-2">
           <FolderPlus className="w-3.5 h-3.5 text-wellbeing-green shrink-0" />
@@ -970,11 +956,17 @@ function BereichHeader({
   anzahl,
   onRename,
   onDelete,
+  alleMarkiert,
+  teilMarkiert,
+  onToggleAlle,
 }: {
   bereich: ProduktBereich
   anzahl: number
   onRename: (name: string) => void
   onDelete: () => void
+  alleMarkiert: boolean
+  teilMarkiert: boolean
+  onToggleAlle: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(bereich.name)
@@ -989,6 +981,9 @@ function BereichHeader({
 
   return (
     <tr className="bg-wellbeing-green/10 border-y border-wellbeing-green/20 group/bh">
+      <td className="pl-3 pr-0 py-2 align-middle">
+        <Checkbox checked={alleMarkiert} indeterminate={teilMarkiert} onChange={onToggleAlle} ariaLabel={`Alle in ${bereich.name} auswählen`} />
+      </td>
       <td colSpan={11} className="px-3 py-2">
         <div className="flex items-center gap-2">
           <span
@@ -1071,6 +1066,10 @@ export default function SortableProduktTabelle({
   const [reklamationTarget, setReklamationTarget] = useState<{ id: string; name: string } | null>(null)
   // Produkt, zu dem Alternativen hinzugefügt werden ("+ Alternative")
   const [alternativeFuer, setAlternativeFuer] = useState<RaumProduktMitDetails | null>(null)
+  // Mehrfachauswahl (Freigaben-Stil)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteOffen, setBulkDeleteOffen] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
 
   // Live-Updates: Bestellstatus / Freigabe / Liefertermin werden auch
   // von Kunden-Freigabelinks und anderen Team-Mitgliedern geändert.
@@ -1462,6 +1461,56 @@ export default function SortableProduktTabelle({
     })
   }
 
+  // ── Mehrfachauswahl (Freigaben-Stil) ──────────────────────────
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  function toggleMany(ids: string[]) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      const alleDrin = ids.length > 0 && ids.every((id) => next.has(id))
+      if (alleDrin) ids.forEach((id) => next.delete(id))
+      else ids.forEach((id) => next.add(id))
+      return next
+    })
+  }
+  function selectAllVisible() { setSelectedIds(new Set(displayEintraege.map((e) => e.id))) }
+  function clearSelection() { setSelectedIds(new Set()) }
+
+  // Summen NUR der Auswahl (gleiche Formeln wie die Raum-Summenzeile)
+  const ausgewaehlte = eintraege.filter((e) => selectedIds.has(e.id))
+  const selEP    = ausgewaehlte.reduce((s, e) => s + (e.produkte.einkaufspreis ?? 0) * e.menge, 0)
+  const selVpNet = ausgewaehlte.reduce((s, e) => s + effektiverVpNetto(e, e.produkte.verkaufspreis) * e.menge, 0)
+  const selVpBr  = r2(selVpNet * (1 + mwst))
+  const selProv  = ausgewaehlte.reduce((s, e) => s + r2(effektiverVpNetto(e, e.produkte.verkaufspreis) * ((e.produkte.provision_prozent ?? 0) / 100) * e.menge), 0)
+
+  function handleBulkDelete() {
+    if (selectedIds.size === 0 || isBulkDeleting) return
+    setIsBulkDeleting(true)
+    const ids = Array.from(selectedIds)
+    const vorher = eintraege
+    setEintraege((prev) => prev.filter((e) => !selectedIds.has(e.id)))
+    startTransition(async () => {
+      const res = await produkteAusRaumEntfernenBulk(ids, raumId, projektId)
+      setIsBulkDeleting(false)
+      setBulkDeleteOffen(false)
+      if (res?.fehler) {
+        setEintraege(vorher)
+        setFehlerToast('Produkte konnten nicht entfernt werden.')
+        setTimeout(() => setFehlerToast(null), 4000)
+        return
+      }
+      setErfolgToast(`${res.anzahl ?? ids.length} Produkt${(res.anzahl ?? ids.length) === 1 ? '' : 'e'} entfernt`)
+      setTimeout(() => setErfolgToast(null), 2800)
+      clearSelection()
+      router.refresh()
+    })
+  }
+
   const renderZeile = (e: RaumProduktMitDetails, istGruppiert: boolean, isLast: boolean) => (
     <SortableProduktZeile
       key={e.id}
@@ -1483,6 +1532,8 @@ export default function SortableProduktTabelle({
       onAlternativeRequest={setAlternativeFuer}
       bereiche={sortierteBereiche}
       onBereichChange={handleRowBereichChange}
+      istMarkiert={selectedIds.has(e.id)}
+      onToggleSelect={toggleSelect}
     />
   )
 
@@ -1490,7 +1541,11 @@ export default function SortableProduktTabelle({
   // danach die Einzelprodukte. Wird mit/ohne Bereich-Header verwendet.
   const renderBucket = (bucket: RenderBucket) => (
     <>
-      {bucket.bloecke.map(({ gruppe: g, rows }) => (
+      {bucket.bloecke.map(({ gruppe: g, rows }) => {
+        const ids = rows.map((r) => r.id)
+        const alle = ids.length > 0 && ids.every((id) => selectedIds.has(id))
+        const teil = !alle && ids.some((id) => selectedIds.has(id))
+        return (
         <Fragment key={g.id}>
           <ProduktGruppeHeader
             gruppe={g}
@@ -1500,10 +1555,13 @@ export default function SortableProduktTabelle({
             onDelete={() => gruppeLoeschen(g.id)}
             bereiche={sortierteBereiche}
             onBereichChange={(bid) => handleBlockBereichChange(g.id, bid)}
+            alleMarkiert={alle}
+            teilMarkiert={teil}
+            onToggleAlle={() => toggleMany(ids)}
           />
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={11} className="px-6 py-3 text-[11px] text-gray-300 italic">
+              <td colSpan={12} className="px-6 py-3 text-[11px] text-gray-300 italic">
                 Noch keine Produkte — beim Hovern über eine Produktzeile erscheint ein Auswahlfeld zum Zuordnen.
               </td>
             </tr>
@@ -1511,12 +1569,12 @@ export default function SortableProduktTabelle({
             rows.map((e) => renderZeile(e, true, false))
           )}
         </Fragment>
-      ))}
+      )})}
       {bucket.standalone.length > 0 && (
         <>
           {bucket.bloecke.length > 0 && (
             <tr className="bg-gray-50/70 border-b border-gray-100">
-              <td colSpan={11} className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              <td colSpan={12} className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                 Ohne Auswahl-Block
               </td>
             </tr>
@@ -1590,7 +1648,8 @@ export default function SortableProduktTabelle({
             <table className="w-full text-sm min-w-[820px]">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-gray-100 bg-gray-50/90 backdrop-blur">
-                  <th className="w-8 px-2 py-3" />
+                  <th className="w-8 pl-3 pr-0 py-3" />
+                  <th className="w-8 px-1 py-3" />
                   <th className="w-8 px-1 py-3" />
                   <th className="w-14 px-3 py-3" />
                   <th className={`${th} text-left`}>Produkt</th>
@@ -1605,7 +1664,11 @@ export default function SortableProduktTabelle({
               </thead>
               <tbody>
                 {hatBereiche ? (
-                  layout.map((bucket) => (
+                  layout.map((bucket) => {
+                    const bIds = [...bucket.bloecke.flatMap((b) => b.rows.map((r) => r.id)), ...bucket.standalone.map((r) => r.id)]
+                    const bAlle = bIds.length > 0 && bIds.every((id) => selectedIds.has(id))
+                    const bTeil = !bAlle && bIds.some((id) => selectedIds.has(id))
+                    return (
                     <Fragment key={bucket.bereich?.id ?? '__ohne__'}>
                       {bucket.bereich ? (
                         <BereichHeader
@@ -1613,9 +1676,15 @@ export default function SortableProduktTabelle({
                           anzahl={bucket.bloecke.reduce((s, b) => s + b.rows.length, 0) + bucket.standalone.length}
                           onRename={(n) => bereichUmbenennen(bucket.bereich!.id, n)}
                           onDelete={() => bereichLoeschen(bucket.bereich!.id)}
+                          alleMarkiert={bAlle}
+                          teilMarkiert={bTeil}
+                          onToggleAlle={() => toggleMany(bIds)}
                         />
                       ) : (
                         <tr className="bg-gray-100/70 border-y border-gray-200">
+                          <td className="pl-3 pr-0 py-2 align-middle">
+                            <Checkbox checked={bAlle} indeterminate={bTeil} onChange={() => toggleMany(bIds)} ariaLabel="Alle ohne Gruppe auswählen" />
+                          </td>
                           <td colSpan={11} className="px-3 py-2 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
                             Ohne Gruppe
                           </td>
@@ -1623,7 +1692,7 @@ export default function SortableProduktTabelle({
                       )}
                       {renderBucket(bucket)}
                     </Fragment>
-                  ))
+                  )})
                 ) : hatGruppen ? (
                   layout.length > 0 ? renderBucket(layout[0]) : null
                 ) : (
@@ -1721,6 +1790,61 @@ export default function SortableProduktTabelle({
           onClose={() => setAlternativeFuer(null)}
         />
       )}
+
+      {/* Schwebende Auswahl-Leiste (Freigaben-Stil) */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center pointer-events-none px-4">
+          <div className="pointer-events-auto flex items-center gap-2 bg-white border border-gray-200 rounded-2xl shadow-xl pl-4 pr-2 py-2 animate-fadeIn max-w-[95vw] overflow-x-auto">
+            <span className="text-xs font-medium text-gray-700 tabular-nums shrink-0">{selectedIds.size} ausgewählt</span>
+            <span className="w-px h-5 bg-gray-200 mx-1 shrink-0" />
+            <div className="flex items-center gap-3 text-[11px] text-gray-500 shrink-0 tabular-nums">
+              <span><span className="text-gray-400">EP</span> {eur(r2(selEP))}</span>
+              <span><span className="text-gray-400">Prov.</span> {eur(r2(selProv))}</span>
+              <span><span className="text-gray-400">VP netto</span> {eur(r2(selVpNet))}</span>
+              <span className="font-semibold text-gray-700"><span className="text-gray-400 font-normal">VP brutto</span> {eur(selVpBr)}</span>
+            </div>
+            <span className="w-px h-5 bg-gray-200 mx-1 shrink-0" />
+            <button
+              type="button"
+              onClick={() => setBulkDeleteOffen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Löschen
+            </button>
+            {selectedIds.size < displayEintraege.length && (
+              <button
+                type="button"
+                onClick={selectAllVisible}
+                className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-wellbeing-green-dark hover:bg-gray-50 rounded-lg transition-colors shrink-0"
+              >
+                Alle ({displayEintraege.length})
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={clearSelection}
+              title="Auswahl aufheben"
+              aria-label="Auswahl aufheben"
+              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk-Löschen Bestätigung */}
+      <ConfirmModal
+        isOpen={bulkDeleteOffen}
+        onClose={() => { if (!isBulkDeleting) setBulkDeleteOffen(false) }}
+        onConfirm={handleBulkDelete}
+        title={`${selectedIds.size} Produkt${selectedIds.size === 1 ? '' : 'e'} entfernen?`}
+        message="Die Produkte werden aus diesem Raum entfernt. Sie bleiben in der Bibliothek erhalten."
+        confirmText="Entfernen"
+        variant="danger"
+        isLoading={isBulkDeleting}
+      />
     </>
   )
 }

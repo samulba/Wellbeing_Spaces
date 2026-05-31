@@ -54,6 +54,25 @@ export async function produktAusRaumEntfernen(
   return {}
 }
 
+/** Mehrere Verknüpfungen auf einmal entfernen (Bulk) – Produkte bleiben in der Bibliothek. */
+export async function produkteAusRaumEntfernenBulk(
+  raumProduktIds: string[],
+  raumId: string,
+  projektId: string,
+): Promise<{ fehler?: string; anzahl?: number }> {
+  if (raumProduktIds.length === 0) return { anzahl: 0 }
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error, count } = await supabase
+    .from('raum_produkte')
+    .delete({ count: 'exact' })
+    .in('id', raumProduktIds)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: error.message }
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  return { anzahl: count ?? raumProduktIds.length }
+}
+
 /** Menge, Preis-Override, Rabatt oder Notizen eines Raum-Eintrags aktualisieren. */
 export async function raumProdukteAktualisieren(
   raumProduktId: string,

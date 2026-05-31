@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-31
 
+### Raum-Produkttabelle: Zuordnen-Chip + Mehrfachauswahl
+- **Aufgeräumte Zuordnung:** Statt zwei gestapelter Dropdowns erscheint beim Hovern jetzt **ein einziger Chip** mit der aktuellen Zuordnung; ein Klick öffnet ein kompaktes Popover mit **Gruppe** + **Auswahl-Block** (bei Produkten in einem Block: Hinweis „Gruppe folgt dem Block").
+- **Mehrfachauswahl wie auf der Freigaben-Seite:** Checkbox je Zeile (grün), Auswahl auch ganzer Blöcke/Gruppen über die Kopf-Checkbox. Bei Auswahl erscheint unten eine **schwebende Leiste** mit „N ausgewählt", den **Summen NUR der ausgewählten** Produkte (EP / Provision / VP netto / VP brutto) und einem **Sammel-Löschen** (mit Rückfrage). Die normale Summenzeile bleibt das Raum-Gesamt.
+
 ### Raum-Seite: Timeline eingeklappt
 - Die Timeline auf der Raum-Detailseite nimmt keinen Platz mehr weg — sie ist jetzt **standardmäßig eingeklappt** und lässt sich über den Button **„Timeline anzeigen"** bei Bedarf einblenden (und wieder ausblenden).
 
