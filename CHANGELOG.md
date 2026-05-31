@@ -10,6 +10,7 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Manipulationsschutz**: Nach dem Absenden einer Freigabe lassen sich Status & Auswahl nicht mehr nachträglich ändern; abgelaufene/zurückgezogene Links werden überall sauber abgewiesen.
 - **Sicherheit**: Ein auf einen Raum/eine Auswahl begrenzter Freigabe-Link kann nur noch Produkte innerhalb seines Bereichs freigeben. Die PIN-Eingabe ist jetzt server-seitig gegen Brute-Force geschützt (15 Min. Sperre nach 5 Fehlversuchen). Das Freigabe-Protokoll (Audit) ist unveränderlich.
 - **Übersichtlicher**: 1-Produkt-„Gruppen" werden im Kunden-Link als normales Einzelprodukt angezeigt; auf der Freigaben-Übersicht ist alles wie zuvor erkennbar.
+- **Klick auf den Produktnamen** in der Raum-Produkttabelle öffnet jetzt den hinterlegten Produktlink in einem neuen Tab (sofern ein Link hinterlegt ist).
 - Migration **115** (Audit append-only + PIN-Lockout-Spalten) muss in Supabase ausgeführt werden.
 
 ## 2026-05-30

@@ -302,7 +302,20 @@ function SortableProduktZeile({
                 <Star className={`w-4 h-4 transition-colors ${eintrag.admin_favorit ? 'fill-wellbeing-green text-wellbeing-green' : 'text-gray-300 hover:text-wellbeing-green'}`} />
               </button>
             )}
-            <span className="font-medium text-gray-900 leading-snug">{p.name}</span>
+            {p.produkt_url ? (
+              <a
+                href={p.produkt_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="Produktlink in neuem Tab öffnen"
+                className="font-medium text-gray-900 leading-snug hover:text-wellbeing-green hover:underline transition-colors"
+              >
+                {p.name}
+              </a>
+            ) : (
+              <span className="font-medium text-gray-900 leading-snug">{p.name}</span>
+            )}
             {p.hinweis_extern && (
               <span
                 className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold"
