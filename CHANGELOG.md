@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-31
 
+### Raum-Seite: Timeline eingeklappt
+- Die Timeline auf der Raum-Detailseite nimmt keinen Platz mehr weg — sie ist jetzt **standardmäßig eingeklappt** und lässt sich über den Button **„Timeline anzeigen"** bei Bedarf einblenden (und wieder ausblenden).
+
 ### Freigabe: neue „Gruppen"-Ebene (mehrere Empfehlungen je Gruppe)
 - **Neue Ebene „Gruppe"** über den Auswahl-Blöcken: Eine Gruppe (z. B. „Lounge-Ecke", „Lichtplanung") bündelt jetzt mehrere **Auswahl-Blöcke** (Sessel-Auswahl, Tisch-Auswahl …) + Einzelprodukte. Dadurch sind **mehrere Empfehlungen pro Gruppe** möglich — pro Block eine. Die bisherige „1 von N"-Mechanik der Blöcke bleibt unverändert.
 - **Raum-Produkttabelle:** Über „+ Gruppe" legst du Gruppen an; Blöcke und Einzelprodukte ordnest du ihnen per Dropdown zu. (Die frühere „Auswahl-Gruppe" heißt jetzt „Auswahl-Block".)

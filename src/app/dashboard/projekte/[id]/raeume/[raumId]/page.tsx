@@ -19,6 +19,7 @@ import type { Partner, RaumProduktMitDetails } from '@/lib/supabase/types'
 import ProduktHinzufuegenModal from '@/components/ProduktHinzufuegenModal'
 import RaumEventButton from '@/components/RaumEventButton'
 import TimelineSyncButton from '@/components/TimelineSyncButton'
+import CollapsibleTimeline from '@/components/CollapsibleTimeline'
 import RaumZusatzkostenBlock from '@/components/RaumZusatzkostenBlock'
 import { getRaumZusatzkosten } from '@/app/actions/raum-zusatzkosten'
 
@@ -156,36 +157,36 @@ export default async function RaumDetailPage({
         </div>
       </div>
 
-      {/* Raum-Timeline */}
-      <div className="mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm h-full flex flex-col">
-            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap shrink-0">
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Timeline</p>
-                {timelineEvents.length > 0 && (
-                  <span className="text-[10px] text-gray-400 tabular-nums">
-                    {timelineEvents.length}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <TimelineSyncButton raumId={params.raumId} projektId={params.id} />
-                <RaumEventButton projektId={params.id} raumId={params.raumId} />
-              </div>
+      {/* Raum-Timeline — eingeklappt, per Button einblendbar */}
+      <CollapsibleTimeline count={timelineEvents.length}>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col">
+          <div className="flex items-center justify-between mb-3 gap-2 flex-wrap shrink-0">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Timeline</p>
+              {timelineEvents.length > 0 && (
+                <span className="text-[10px] text-gray-400 tabular-nums">
+                  {timelineEvents.length}
+                </span>
+              )}
             </div>
-            <div className="flex-1 min-h-0">
-              <Timeline events={timelineEvents} maxHoehe="460px" />
-            </div>
-            <div className="mt-2 shrink-0">
-              <Link
-                href={`/dashboard/projekte/${params.id}/timeline?raum=${params.raumId}`}
-                className="text-xs text-wellbeing-green hover:underline"
-              >
-                Zur Projekt-Timeline →
-              </Link>
+            <div className="flex items-center gap-2 flex-wrap">
+              <TimelineSyncButton raumId={params.raumId} projektId={params.id} />
+              <RaumEventButton projektId={params.id} raumId={params.raumId} />
             </div>
           </div>
-      </div>
+          <div className="flex-1 min-h-0">
+            <Timeline events={timelineEvents} maxHoehe="460px" />
+          </div>
+          <div className="mt-2 shrink-0">
+            <Link
+              href={`/dashboard/projekte/${params.id}/timeline?raum=${params.raumId}`}
+              className="text-xs text-wellbeing-green hover:underline"
+            >
+              Zur Projekt-Timeline →
+            </Link>
+          </div>
+        </div>
+      </CollapsibleTimeline>
 
       {/* Filter Bar */}
       {alleEintraege.length > 0 && (
