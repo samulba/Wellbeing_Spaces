@@ -1194,7 +1194,7 @@ export default function SortableProduktTabelle({
         ...prev,
         {
           id: res.id, organisation_id: '', raum_id: raumId, name, beschreibung: null,
-          auswahl_modus: 'einzel', reihenfolge: prev.length, deleted_at: null,
+          auswahl_modus: 'einzel', reihenfolge: prev.length, bereich_id: null, deleted_at: null,
           created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
         },
       ])

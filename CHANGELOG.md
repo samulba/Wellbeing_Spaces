@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-31
 
+### Freigabe: neue „Gruppen"-Ebene (mehrere Empfehlungen je Gruppe) — in Arbeit
+- **Neue Ebene „Gruppe"** über den Auswahl-Blöcken: Eine Gruppe (z. B. „Lounge-Ecke", „Lichtplanung") bündelt jetzt mehrere **Auswahl-Blöcke** (Sessel-Auswahl, Tisch-Auswahl …) + Einzelprodukte. Dadurch sind **mehrere Empfehlungen pro Gruppe** möglich — pro Block eine. Die bisherige „1 von N"-Mechanik der Blöcke bleibt unverändert. (Schema + Grundlagen; UI folgt in den nächsten Schritten.)
+- Migration **116** (`produkt_bereiche` + Bereich-Zuordnungen + Scope-Erweiterung) muss in Supabase ausgeführt werden.
+- **Optional:** Migration **116b** wandelt bestehende „Gruppen" automatisch in die neue Ebene um — ⚠️ dabei gehen gesetzte Favoriten verloren und Blöcke werden aufgelöst (danach per „+ Alternative" neu bauen). Nur ausführen, wenn gewünscht.
+
 ### Produktbilder per Drag & Drop
 - Beim Anlegen/Bearbeiten eines Produkts kannst du Bilder jetzt **direkt vom Finder/Explorer/Desktop in den Bild-Bereich ziehen** (Drag & Drop) — kein Umweg mehr über den Datei-Dialog. **Mehrere Bilder gleichzeitig** möglich (bis 5). Der Bereich hebt sich beim Drüberziehen grün hervor; Klicken zum Auswählen funktioniert weiterhin. Nicht-Bilder/zu große Dateien (>10 MB) werden mit Hinweis abgewiesen.
 

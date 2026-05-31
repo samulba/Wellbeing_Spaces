@@ -246,6 +246,24 @@ export interface ProduktGruppe {
   beschreibung: string | null
   auswahl_modus: ProduktGruppeAuswahlModus
   reihenfolge: number
+  // Bereich (Migration 116) — organisatorische "Gruppe" oberhalb des Blocks.
+  bereich_id: string | null
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+// produkt_bereiche: organisatorischer Abschnitt ("Gruppe", z.B. "Lounge-Ecke")
+// innerhalb eines Raums. Buendelt mehrere Auswahl-Bloecke (ProduktGruppe) +
+// Einzelprodukte. Reiner Eltern-Container — keine Favoriten-Logik (Migration 116).
+export interface ProduktBereich {
+  id: string
+  organisation_id: string
+  raum_id: string
+  name: string
+  beschreibung: string | null
+  farbe: string | null
+  reihenfolge: number
   deleted_at: string | null
   created_at: string
   updated_at: string
@@ -395,6 +413,8 @@ export interface FreigabeProdukt {
   produkt_gruppe_id?: string | null
   admin_favorit?: boolean
   kunde_favorit?: boolean
+  // Bereich/"Gruppe" (Migration 116). Optional/fail-safe.
+  bereich_id?: string | null
 }
 
 // Auswahl-Set innerhalb eines Raums (Migration 114) — mehrere Alternativen,
@@ -406,10 +426,25 @@ export interface FreigabeProduktGruppe {
   produkte: FreigabeProdukt[]
 }
 
+// Bereich/"Gruppe" (Migration 116) — organisatorischer Abschnitt im Raum.
+// Enthaelt mehrere Auswahl-Bloecke (bloecke) + Einzelprodukte (produkte).
+// Der Kunden-Wizard rendert pro Bereich eine eigene Seite.
+export interface FreigabeBereich {
+  id: string
+  name: string
+  beschreibung: string | null
+  bloecke: FreigabeProduktGruppe[]
+  produkte: FreigabeProdukt[]
+}
+
 export interface FreigabeRaum {
   id: string
   name: string
-  // Auswahl-Gruppen (Migration 114) — werden vor den losen Produkten gerendert
+  // Bereiche/"Gruppen" (Migration 116) — primaere Struktur des Kunden-Wizards.
+  // Un-zugewiesene Items liegen im synthetischen Trailing-Bereich "Ohne Gruppe".
+  bereiche?: FreigabeBereich[]
+  // Auswahl-Gruppen (Migration 114) — Back-Compat-Felder, vom neuen Client
+  // nicht mehr gelesen (alles liegt in `bereiche`).
   gruppen?: FreigabeProduktGruppe[]
   // ungruppierte Produkte (Rest)
   produkte: FreigabeProdukt[]
@@ -503,6 +538,9 @@ export interface RaumProdukt {
   produkt_gruppe_id: string | null
   admin_favorit: boolean
   kunde_favorit: boolean
+  // Bereich (Migration 116) — "Gruppe" eines EINZELprodukts. Bei Produkten in
+  // einem Block ignoriert (Bereich kommt dann vom Block).
+  bereich_id: string | null
   // Migration 100 — Lifecycle-Datums-Felder
   storniert_am?: string | null
   mangel_gemeldet_am?: string | null
@@ -547,6 +585,8 @@ export interface FreigabeToken {
   // Scope (Migration 081)
   scope_typ: FreigabeScopeTyp
   scope_ids: string[]
+  // Scope "auswahl" kann ganze Bereiche umfassen (Migration 116)
+  scope_bereich_ids: string[]
   // Pflicht-Abschluss (Migration 081)
   abgeschlossen_am: string | null
   abgeschlossen_durch: string | null
