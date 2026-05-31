@@ -39,10 +39,17 @@ import {
   produktGruppeLoeschen,
   raumProduktZuGruppeZuordnen,
 } from '@/app/actions/produkt-gruppen'
+import {
+  produktBereichAnlegen,
+  produktBereichUmbenennen,
+  produktBereichLoeschen,
+  produktGruppeZuBereichZuordnen,
+  raumProduktZuBereichZuordnen,
+} from '@/app/actions/produkt-bereiche'
 import { ConfirmModal } from './ConfirmModal'
 import AlternativeModal from './AlternativeModal'
 import { bestellstatusAendern, produktDatumAktualisieren, type ProduktDatumFeld } from '@/app/actions/produkte'
-import type { RaumProduktMitDetails, BestellStatus, ProduktGruppe } from '@/lib/supabase/types'
+import type { RaumProduktMitDetails, BestellStatus, ProduktGruppe, ProduktBereich } from '@/lib/supabase/types'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import { effektiverVpNetto, basisVpNetto } from '@/lib/preise'
 import HinweisBanner from './HinweisBanner'
@@ -186,6 +193,8 @@ function SortableProduktZeile({
   onAdminFavoritChange,
   onGruppeChange,
   onAlternativeRequest,
+  bereiche,
+  onBereichChange,
 }: {
   eintrag: RaumProduktMitDetails
   mwst: number
@@ -203,6 +212,8 @@ function SortableProduktZeile({
   onAdminFavoritChange: (raumProduktId: string, aktuellFavorit: boolean) => void
   onGruppeChange: (raumProduktId: string, gruppeId: string | null) => void
   onAlternativeRequest: (eintrag: RaumProduktMitDetails) => void
+  bereiche: ProduktBereich[]
+  onBereichChange: (raumProduktId: string, bereichId: string | null) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: eintrag.id })
@@ -370,19 +381,44 @@ function SortableProduktZeile({
                   value={eintrag.produkt_gruppe_id ?? ''}
                   onChange={(e) => onGruppeChange(eintrag.id, e.target.value || null)}
                   onClick={(e) => e.stopPropagation()}
-                  aria-label="Auswahl-Gruppe zuordnen"
+                  aria-label="Auswahl-Block zuordnen"
                   className={`appearance-none text-[11px] font-medium rounded-lg pl-2.5 pr-7 py-1 max-w-[200px] truncate cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 ${
                     eintrag.produkt_gruppe_id
                       ? 'border-wellbeing-green/30 bg-wellbeing-green/5 text-wellbeing-green-dark hover:border-wellbeing-green/50'
                       : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
                   }`}
                 >
-                  <option value="">Keine Auswahl-Gruppe</option>
+                  <option value="">Kein Auswahl-Block</option>
                   {gruppen.map((g) => (
                     <option key={g.id} value={g.id}>{g.name}</option>
                   ))}
                 </select>
                 <ChevronDown className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+          )}
+          {/* Bereich-Zuordnung — nur für Einzelprodukte (Produkte in einem
+              Block erben den Bereich vom Block). Migration 116. */}
+          {bereiche.length > 0 && !eintrag.produkt_gruppe_id && (
+            <div className="mt-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+              <div className="relative inline-block">
+                <select
+                  value={eintrag.bereich_id ?? ''}
+                  onChange={(e) => onBereichChange(eintrag.id, e.target.value || null)}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Gruppe zuordnen"
+                  className={`appearance-none text-[11px] font-medium rounded-lg pl-2.5 pr-7 py-1 max-w-[200px] truncate cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 ${
+                    eintrag.bereich_id
+                      ? 'border-wellbeing-green/30 bg-wellbeing-green/5 text-wellbeing-green-dark hover:border-wellbeing-green/50'
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  <option value="">Ohne Gruppe</option>
+                  {bereiche.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+                <Layers className="w-3 h-3 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
           )}
@@ -834,12 +870,16 @@ function ProduktGruppeHeader({
   hatFavorit,
   onRename,
   onDelete,
+  bereiche,
+  onBereichChange,
 }: {
   gruppe: ProduktGruppe
   anzahl: number
   hatFavorit: boolean
   onRename: (name: string) => void
   onDelete: () => void
+  bereiche: ProduktBereich[]
+  onBereichChange: (bereichId: string | null) => void
 }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(gruppe.name)
@@ -877,10 +917,105 @@ function ProduktGruppeHeader({
           </span>
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 shrink-0 ${hatFavorit ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
             <Star className={`w-2.5 h-2.5 ${hatFavorit ? 'fill-emerald-600 text-emerald-600' : 'text-amber-600'}`} />
-            {hatFavorit ? 'Favorit gesetzt' : 'Kein Favorit'}
+            {hatFavorit ? 'Empfehlung gesetzt' : 'Keine Empfehlung'}
           </span>
+          {bereiche.length > 0 && (
+            <div className="relative inline-block shrink-0">
+              <select
+                value={gruppe.bereich_id ?? ''}
+                onChange={(e) => onBereichChange(e.target.value || null)}
+                aria-label="Block einer Gruppe zuordnen"
+                title="Diesen Auswahl-Block einer Gruppe zuordnen"
+                className={`appearance-none text-[10px] font-medium rounded-lg pl-2 pr-6 py-0.5 max-w-[160px] truncate cursor-pointer border transition-colors focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 ${
+                  gruppe.bereich_id
+                    ? 'border-wellbeing-green/30 bg-white text-wellbeing-green-dark hover:border-wellbeing-green/50'
+                    : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                }`}
+              >
+                <option value="">Ohne Gruppe</option>
+                {bereiche.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              <Layers className="w-2.5 h-2.5 text-gray-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          )}
           <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/gh:opacity-100 transition-opacity">
-            <button type="button" onClick={() => { setName(gruppe.name); setEditing(true) }} aria-label="Gruppe umbenennen" className="p-1 text-gray-400 hover:text-wellbeing-green transition-colors">
+            <button type="button" onClick={() => { setName(gruppe.name); setEditing(true) }} aria-label="Auswahl-Block umbenennen" className="p-1 text-gray-400 hover:text-wellbeing-green transition-colors">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => setConfirm(true)} aria-label="Auswahl-Block löschen" className="p-1 text-gray-400 hover:text-red-500 transition-colors">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+        <ConfirmModal
+          isOpen={confirm}
+          onClose={() => setConfirm(false)}
+          onConfirm={() => { setConfirm(false); onDelete() }}
+          title="Auswahl-Block löschen?"
+          message={`Der Auswahl-Block „${gruppe.name}" wird gelöscht. Die Produkte bleiben im Raum, verlieren aber ihre Block- und Favoriten-Markierung.`}
+          confirmText="Löschen"
+        />
+      </td>
+    </tr>
+  )
+}
+
+// ── Bereich-Kopfzeile ("Gruppe", Migration 116) ────────────────
+// Organisatorische Ebene oberhalb der Auswahl-Blöcke. Nicht klappbar
+// (bewusst einfach gehalten), mit Umbenennen + Löschen.
+function BereichHeader({
+  bereich,
+  anzahl,
+  onRename,
+  onDelete,
+}: {
+  bereich: ProduktBereich
+  anzahl: number
+  onRename: (name: string) => void
+  onDelete: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(bereich.name)
+  const [confirm, setConfirm] = useState(false)
+
+  function commit() {
+    setEditing(false)
+    const t = name.trim()
+    if (t && t !== bereich.name) onRename(t)
+    else setName(bereich.name)
+  }
+
+  return (
+    <tr className="bg-wellbeing-green/10 border-y border-wellbeing-green/20 group/bh">
+      <td colSpan={11} className="px-3 py-2">
+        <div className="flex items-center gap-2">
+          <span
+            className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/5"
+            style={{ backgroundColor: bereich.farbe || '#445c49' }}
+          />
+          <Layers className="w-3.5 h-3.5 text-wellbeing-green shrink-0" />
+          {editing ? (
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commit()
+                if (e.key === 'Escape') { setEditing(false); setName(bereich.name) }
+              }}
+              className="text-sm font-bold text-wellbeing-green-dark px-1.5 py-0.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 w-56"
+            />
+          ) : (
+            <span className="text-sm font-bold text-wellbeing-green-dark tracking-tight">{bereich.name}</span>
+          )}
+          <span className="text-[10px] text-gray-500 bg-white border border-gray-200 rounded-full px-1.5 py-0.5 shrink-0">
+            {anzahl} {anzahl === 1 ? 'Produkt' : 'Produkte'}
+          </span>
+          <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/bh:opacity-100 transition-opacity">
+            <button type="button" onClick={() => { setName(bereich.name); setEditing(true) }} aria-label="Gruppe umbenennen" className="p-1 text-gray-400 hover:text-wellbeing-green transition-colors">
               <Pencil className="w-3.5 h-3.5" />
             </button>
             <button type="button" onClick={() => setConfirm(true)} aria-label="Gruppe löschen" className="p-1 text-gray-400 hover:text-red-500 transition-colors">
@@ -892,8 +1027,8 @@ function ProduktGruppeHeader({
           isOpen={confirm}
           onClose={() => setConfirm(false)}
           onConfirm={() => { setConfirm(false); onDelete() }}
-          title="Auswahl-Gruppe löschen?"
-          message={`Die Gruppe „${gruppe.name}" wird gelöscht. Die Produkte bleiben im Raum, verlieren aber ihre Gruppen- und Favoriten-Markierung.`}
+          title="Gruppe löschen?"
+          message={`Die Gruppe „${bereich.name}" wird gelöscht. Die Auswahl-Blöcke und Produkte bleiben erhalten und werden „Ohne Gruppe" zugeordnet.`}
           confirmText="Löschen"
         />
       </td>
@@ -911,18 +1046,23 @@ export default function SortableProduktTabelle({
   projektId,
   raumId,
   produktGruppen: initialGruppen = [],
+  produktBereiche: initialBereiche = [],
 }: {
   eintraege: RaumProduktMitDetails[]
   mwst: number
   projektId: string
   raumId: string
   produktGruppen?: ProduktGruppe[]
+  produktBereiche?: ProduktBereich[]
 }) {
   const router = useRouter()
   const [eintraege, setEintraege] = useState(initialEintraege)
   const [gruppen, setGruppen] = useState<ProduktGruppe[]>(initialGruppen)
+  const [bereiche, setBereiche] = useState<ProduktBereich[]>(initialBereiche)
   const [neueGruppeOffen, setNeueGruppeOffen] = useState(false)
   const [neuerGruppenName, setNeuerGruppenName] = useState('')
+  const [neueBereichOffen, setNeueBereichOffen] = useState(false)
+  const [neuerBereichName, setNeuerBereichName] = useState('')
   const [, startTransition] = useTransition()
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -956,11 +1096,18 @@ export default function SortableProduktTabelle({
   }, [initialIdsKey])
 
   // Produkt-Gruppen mit Server-Daten synchronisieren (Migration 114)
-  const gruppenKey = initialGruppen.map((g) => `${g.id}:${g.name}`).join(',')
+  const gruppenKey = initialGruppen.map((g) => `${g.id}:${g.name}:${g.bereich_id ?? ''}`).join(',')
   useEffect(() => {
     setGruppen(initialGruppen)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gruppenKey])
+
+  // Bereiche mit Server-Daten synchronisieren (Migration 116)
+  const bereicheKey = initialBereiche.map((b) => `${b.id}:${b.name}`).join(',')
+  useEffect(() => {
+    setBereiche(initialBereiche)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bereicheKey])
 
   const sortierteGruppen = useMemo(
     () => [...gruppen].sort((a, b) => a.reihenfolge - b.reihenfolge || a.created_at.localeCompare(b.created_at)),
@@ -969,16 +1116,54 @@ export default function SortableProduktTabelle({
   const gruppeIds = useMemo(() => new Set(sortierteGruppen.map((g) => g.id)), [sortierteGruppen])
   const hatGruppen = sortierteGruppen.length > 0
   const istUngrouped = (e: RaumProduktMitDetails) => !e.produkt_gruppe_id || !gruppeIds.has(e.produkt_gruppe_id)
-  const ungrouped = eintraege.filter(istUngrouped)
-  // Anzeige-Reihenfolge: Gruppen (sortiert) zuerst, dann ungruppierte. Liefert
-  // zugleich die items-Reihenfolge für den SortableContext.
+
+  const sortierteBereiche = useMemo(
+    () => [...bereiche].sort((a, b) => a.reihenfolge - b.reihenfolge || a.created_at.localeCompare(b.created_at)),
+    [bereiche],
+  )
+  const bereichIds = useMemo(() => new Set(sortierteBereiche.map((b) => b.id)), [sortierteBereiche])
+  const hatBereiche = sortierteBereiche.length > 0
+
+  // Zwei-Ebenen-Layout (Migration 116): Bereich → Auswahl-Blöcke + Einzelprodukte.
+  // Ein Block gehört zu einem Bereich via produkt_gruppen.bereich_id; ein
+  // Einzelprodukt via raum_produkte.bereich_id. Nicht zugeordnete Items
+  // landen im Trailing-Bucket „Ohne Gruppe" (bereich = null).
+  type RenderBucket = {
+    bereich: ProduktBereich | null
+    bloecke: { gruppe: ProduktGruppe; rows: RaumProduktMitDetails[] }[]
+    standalone: RaumProduktMitDetails[]
+  }
+  const layout = useMemo<RenderBucket[]>(() => {
+    const rowsOf = (g: ProduktGruppe) => eintraege.filter((e) => e.produkt_gruppe_id === g.id)
+    const buckets: RenderBucket[] = []
+    for (const b of sortierteBereiche) {
+      buckets.push({
+        bereich: b,
+        bloecke: sortierteGruppen.filter((g) => g.bereich_id === b.id).map((g) => ({ gruppe: g, rows: rowsOf(g) })),
+        standalone: eintraege.filter((e) => istUngrouped(e) && e.bereich_id === b.id),
+      })
+    }
+    const ohneBloecke = sortierteGruppen
+      .filter((g) => !g.bereich_id || !bereichIds.has(g.bereich_id))
+      .map((g) => ({ gruppe: g, rows: rowsOf(g) }))
+    const ohneStandalone = eintraege.filter((e) => istUngrouped(e) && (!e.bereich_id || !bereichIds.has(e.bereich_id)))
+    if (ohneBloecke.length > 0 || ohneStandalone.length > 0) {
+      buckets.push({ bereich: null, bloecke: ohneBloecke, standalone: ohneStandalone })
+    }
+    return buckets
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eintraege, sortierteGruppen, sortierteBereiche, bereichIds])
+
+  // Anzeige-Reihenfolge (= items-Reihenfolge für den SortableContext): je Bucket
+  // erst die Block-Zeilen (in Block-Reihenfolge), dann die Einzelprodukte.
   const displayEintraege = useMemo(() => {
     const out: RaumProduktMitDetails[] = []
-    for (const g of sortierteGruppen) out.push(...eintraege.filter((e) => e.produkt_gruppe_id === g.id))
-    out.push(...eintraege.filter((e) => !e.produkt_gruppe_id || !gruppeIds.has(e.produkt_gruppe_id)))
+    for (const bucket of layout) {
+      for (const blk of bucket.bloecke) out.push(...blk.rows)
+      out.push(...bucket.standalone)
+    }
     return out
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eintraege, sortierteGruppen])
+  }, [layout])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -1221,6 +1406,62 @@ export default function SortableProduktTabelle({
     })
   }
 
+  // ── Bereiche / "Gruppen" (Migration 116) ──────────────────────
+  async function handleBlockBereichChange(gruppeId: string, bereichId: string | null) {
+    const vorher = gruppen
+    setGruppen((prev) => prev.map((g) => (g.id === gruppeId ? { ...g, bereich_id: bereichId } : g)))
+    const res = await produktGruppeZuBereichZuordnen(gruppeId, bereichId, raumId, projektId)
+    if (res?.fehler) { setGruppen(vorher); setFehlerToast('Gruppe konnte nicht geändert werden.'); setTimeout(() => setFehlerToast(null), 4000) }
+  }
+
+  async function handleRowBereichChange(raumProduktId: string, bereichId: string | null) {
+    const vorher = eintraege
+    setEintraege((prev) => prev.map((e) => (e.id === raumProduktId ? { ...e, bereich_id: bereichId } : e)))
+    const res = await raumProduktZuBereichZuordnen(raumProduktId, bereichId, raumId, projektId)
+    if (res?.fehler) { setEintraege(vorher); setFehlerToast('Gruppe konnte nicht geändert werden.'); setTimeout(() => setFehlerToast(null), 4000) }
+  }
+
+  function bereichAnlegen() {
+    const name = neuerBereichName.trim()
+    if (!name) return
+    setNeuerBereichName('')
+    setNeueBereichOffen(false)
+    startTransition(async () => {
+      const res = await produktBereichAnlegen(raumId, projektId, name)
+      if ('fehler' in res) { setFehlerToast(res.fehler); setTimeout(() => setFehlerToast(null), 4000); return }
+      setBereiche((prev) => [
+        ...prev,
+        {
+          id: res.id, organisation_id: '', raum_id: raumId, name, beschreibung: null, farbe: null,
+          reihenfolge: prev.length, deleted_at: null,
+          created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        },
+      ])
+    })
+  }
+
+  function bereichUmbenennen(bereichId: string, name: string) {
+    const vorher = bereiche
+    setBereiche((prev) => prev.map((b) => (b.id === bereichId ? { ...b, name } : b)))
+    startTransition(async () => {
+      const res = await produktBereichUmbenennen(bereichId, raumId, projektId, { name })
+      if (res?.fehler) { setBereiche(vorher); setFehlerToast('Umbenennen fehlgeschlagen.'); setTimeout(() => setFehlerToast(null), 4000) }
+    })
+  }
+
+  function bereichLoeschen(bereichId: string) {
+    const vorherB = bereiche
+    const vorherG = gruppen
+    const vorherE = eintraege
+    setBereiche((prev) => prev.filter((b) => b.id !== bereichId))
+    setGruppen((prev) => prev.map((g) => (g.bereich_id === bereichId ? { ...g, bereich_id: null } : g)))
+    setEintraege((prev) => prev.map((e) => (e.bereich_id === bereichId ? { ...e, bereich_id: null } : e)))
+    startTransition(async () => {
+      const res = await produktBereichLoeschen(bereichId, raumId, projektId)
+      if (res?.fehler) { setBereiche(vorherB); setGruppen(vorherG); setEintraege(vorherE); setFehlerToast('Löschen fehlgeschlagen.'); setTimeout(() => setFehlerToast(null), 4000) }
+    })
+  }
+
   const renderZeile = (e: RaumProduktMitDetails, istGruppiert: boolean, isLast: boolean) => (
     <SortableProduktZeile
       key={e.id}
@@ -1240,7 +1481,50 @@ export default function SortableProduktTabelle({
       onAdminFavoritChange={handleAdminFavoritChange}
       onGruppeChange={handleGruppeChange}
       onAlternativeRequest={setAlternativeFuer}
+      bereiche={sortierteBereiche}
+      onBereichChange={handleRowBereichChange}
     />
+  )
+
+  // Rendert den Inhalt eines Bereich-Buckets: Auswahl-Blöcke (Header + Zeilen),
+  // danach die Einzelprodukte. Wird mit/ohne Bereich-Header verwendet.
+  const renderBucket = (bucket: RenderBucket) => (
+    <>
+      {bucket.bloecke.map(({ gruppe: g, rows }) => (
+        <Fragment key={g.id}>
+          <ProduktGruppeHeader
+            gruppe={g}
+            anzahl={rows.length}
+            hatFavorit={rows.some((r) => r.admin_favorit)}
+            onRename={(n) => gruppeUmbenennen(g.id, n)}
+            onDelete={() => gruppeLoeschen(g.id)}
+            bereiche={sortierteBereiche}
+            onBereichChange={(bid) => handleBlockBereichChange(g.id, bid)}
+          />
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={11} className="px-6 py-3 text-[11px] text-gray-300 italic">
+                Noch keine Produkte — beim Hovern über eine Produktzeile erscheint ein Auswahlfeld zum Zuordnen.
+              </td>
+            </tr>
+          ) : (
+            rows.map((e) => renderZeile(e, true, false))
+          )}
+        </Fragment>
+      ))}
+      {bucket.standalone.length > 0 && (
+        <>
+          {bucket.bloecke.length > 0 && (
+            <tr className="bg-gray-50/70 border-b border-gray-100">
+              <td colSpan={11} className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                Ohne Auswahl-Block
+              </td>
+            </tr>
+          )}
+          {bucket.standalone.map((e) => renderZeile(e, false, false))}
+        </>
+      )}
+    </>
   )
 
   return (
@@ -1251,27 +1535,53 @@ export default function SortableProduktTabelle({
           <ChevronRight className="w-3 h-3 shrink-0" />
           <span className="truncate">Pfeil-Icon zeigt <strong className="font-semibold">Bestell- &amp; Lieferdaten</strong>. Über das Ebenen-Icon je Zeile fügst du <strong className="font-semibold">Alternativen</strong> hinzu — ⭐ markiert eure Empfehlung.</span>
         </span>
-        {neueGruppeOffen ? (
-          <div className="flex items-center gap-1.5 shrink-0">
-            <input
-              autoFocus
-              value={neuerGruppenName}
-              onChange={(e) => setNeuerGruppenName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') gruppeAnlegen()
-                if (e.key === 'Escape') { setNeueGruppeOffen(false); setNeuerGruppenName('') }
-              }}
-              placeholder="Auswahl-Gruppe…"
-              className="text-[11px] px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 w-40"
-            />
-            <button type="button" onClick={gruppeAnlegen} className="text-[11px] font-medium px-2 py-1 rounded-lg bg-wellbeing-green text-white hover:bg-wellbeing-green-dark transition-colors">Anlegen</button>
-            <button type="button" onClick={() => { setNeueGruppeOffen(false); setNeuerGruppenName('') }} aria-label="Abbrechen" className="p-1 text-gray-400 hover:text-gray-600 transition-colors"><X className="w-3 h-3" /></button>
-          </div>
-        ) : (
-          <button type="button" onClick={() => setNeueGruppeOffen(true)} className="inline-flex items-center gap-1 font-medium text-wellbeing-green hover:text-wellbeing-green-dark px-2 py-1 rounded-lg hover:bg-wellbeing-green/10 transition-colors shrink-0">
-            <Plus className="w-3 h-3" /> Auswahl-Gruppe
-          </button>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* + Gruppe (Bereich, Migration 116) */}
+          {neueBereichOffen ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                autoFocus
+                value={neuerBereichName}
+                onChange={(e) => setNeuerBereichName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') bereichAnlegen()
+                  if (e.key === 'Escape') { setNeueBereichOffen(false); setNeuerBereichName('') }
+                }}
+                placeholder="Gruppe…"
+                className="text-[11px] px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 w-40"
+              />
+              <button type="button" onClick={bereichAnlegen} className="text-[11px] font-medium px-2 py-1 rounded-lg bg-wellbeing-green text-white hover:bg-wellbeing-green-dark transition-colors">Anlegen</button>
+              <button type="button" onClick={() => { setNeueBereichOffen(false); setNeuerBereichName('') }} aria-label="Abbrechen" className="p-1 text-gray-400 hover:text-gray-600 transition-colors"><X className="w-3 h-3" /></button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setNeueBereichOffen(true)} className="inline-flex items-center gap-1 font-medium text-wellbeing-green hover:text-wellbeing-green-dark px-2 py-1 rounded-lg hover:bg-wellbeing-green/10 transition-colors">
+              <Layers className="w-3 h-3" /> Gruppe
+            </button>
+          )}
+
+          {/* + Auswahl-Block (produkt_gruppe, Migration 114) */}
+          {neueGruppeOffen ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                autoFocus
+                value={neuerGruppenName}
+                onChange={(e) => setNeuerGruppenName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') gruppeAnlegen()
+                  if (e.key === 'Escape') { setNeueGruppeOffen(false); setNeuerGruppenName('') }
+                }}
+                placeholder="Auswahl-Block…"
+                className="text-[11px] px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 w-40"
+              />
+              <button type="button" onClick={gruppeAnlegen} className="text-[11px] font-medium px-2 py-1 rounded-lg bg-wellbeing-green text-white hover:bg-wellbeing-green-dark transition-colors">Anlegen</button>
+              <button type="button" onClick={() => { setNeueGruppeOffen(false); setNeuerGruppenName('') }} aria-label="Abbrechen" className="p-1 text-gray-400 hover:text-gray-600 transition-colors"><X className="w-3 h-3" /></button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setNeueGruppeOffen(true)} className="inline-flex items-center gap-1 font-medium text-wellbeing-green hover:text-wellbeing-green-dark px-2 py-1 rounded-lg hover:bg-wellbeing-green/10 transition-colors">
+              <Plus className="w-3 h-3" /> Auswahl-Block
+            </button>
+          )}
+        </div>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -1294,42 +1604,28 @@ export default function SortableProduktTabelle({
                 </tr>
               </thead>
               <tbody>
-                {hatGruppen ? (
-                  <>
-                    {sortierteGruppen.map((g) => {
-                      const rows = eintraege.filter((e) => e.produkt_gruppe_id === g.id)
-                      return (
-                        <Fragment key={g.id}>
-                          <ProduktGruppeHeader
-                            gruppe={g}
-                            anzahl={rows.length}
-                            hatFavorit={rows.some((r) => r.admin_favorit)}
-                            onRename={(n) => gruppeUmbenennen(g.id, n)}
-                            onDelete={() => gruppeLoeschen(g.id)}
-                          />
-                          {rows.length === 0 ? (
-                            <tr>
-                              <td colSpan={11} className="px-6 py-3 text-[11px] text-gray-300 italic">
-                                Noch keine Produkte — beim Hovern über eine Produktzeile erscheint ein Auswahlfeld zum Zuordnen.
-                              </td>
-                            </tr>
-                          ) : (
-                            rows.map((e) => renderZeile(e, true, false))
-                          )}
-                        </Fragment>
-                      )
-                    })}
-                    {ungrouped.length > 0 && (
-                      <>
-                        <tr className="bg-gray-50/70 border-b border-gray-100">
-                          <td colSpan={11} className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                            Ohne Auswahl-Gruppe
+                {hatBereiche ? (
+                  layout.map((bucket) => (
+                    <Fragment key={bucket.bereich?.id ?? '__ohne__'}>
+                      {bucket.bereich ? (
+                        <BereichHeader
+                          bereich={bucket.bereich}
+                          anzahl={bucket.bloecke.reduce((s, b) => s + b.rows.length, 0) + bucket.standalone.length}
+                          onRename={(n) => bereichUmbenennen(bucket.bereich!.id, n)}
+                          onDelete={() => bereichLoeschen(bucket.bereich!.id)}
+                        />
+                      ) : (
+                        <tr className="bg-gray-100/70 border-y border-gray-200">
+                          <td colSpan={11} className="px-3 py-2 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                            Ohne Gruppe
                           </td>
                         </tr>
-                        {ungrouped.map((e) => renderZeile(e, false, false))}
-                      </>
-                    )}
-                  </>
+                      )}
+                      {renderBucket(bucket)}
+                    </Fragment>
+                  ))
+                ) : hatGruppen ? (
+                  layout.length > 0 ? renderBucket(layout[0]) : null
                 ) : (
                   eintraege.map((e, i) => renderZeile(e, false, i === eintraege.length - 1))
                 )}
