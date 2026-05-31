@@ -508,13 +508,16 @@ function BilderGrid({
   onChange,
   uploading,
   onUpload,
+  onFilesDropped,
 }: {
   urls:      string[]
   onChange:  (urls: string[]) => void
   uploading: boolean
   onUpload:  () => void
+  onFilesDropped: (files: File[]) => void
 }) {
   const dragIdx = useRef<number | null>(null)
+  const [dragActive, setDragActive] = useState(false)
 
   function remove(i: number) { onChange(urls.filter((_, idx) => idx !== i)) }
   function move(from: number, to: number) {
@@ -528,7 +531,26 @@ function BilderGrid({
   const showUpload = cells.length < 5
 
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div
+      className={`grid grid-cols-3 gap-2 rounded-xl transition-colors ${dragActive ? 'ring-2 ring-wellbeing-green/40 ring-offset-2' : ''}`}
+      onDragOver={(e) => {
+        // Nur OS-Datei-Drops (nicht das interne Umsortieren der Bilder)
+        if (dragIdx.current === null && Array.from(e.dataTransfer.types).includes('Files')) {
+          e.preventDefault()
+          setDragActive(true)
+        }
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragActive(false)
+      }}
+      onDrop={(e) => {
+        if (dragIdx.current === null && e.dataTransfer.files?.length) {
+          e.preventDefault()
+          onFilesDropped(Array.from(e.dataTransfer.files))
+        }
+        setDragActive(false)
+      }}
+    >
       {cells.map((url, i) => (
         <div
           key={url}
@@ -578,14 +600,18 @@ function BilderGrid({
           type="button"
           onClick={onUpload}
           disabled={uploading}
-          className="aspect-square border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center hover:border-wellbeing-green-light hover:bg-wellbeing-cream/20 transition-all disabled:opacity-50"
+          className={`aspect-square border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all disabled:opacity-50 ${
+            dragActive
+              ? 'border-wellbeing-green bg-wellbeing-cream/40'
+              : 'border-gray-200 hover:border-wellbeing-green-light hover:bg-wellbeing-cream/20'
+          }`}
         >
           {uploading
             ? <Loader2 className="w-5 h-5 text-gray-300 animate-spin" />
             : <>
-                <Upload className="w-5 h-5 text-gray-300" />
-                <span className="text-[10px] text-gray-400 mt-1">
-                  {cells.length === 0 ? 'Bild hinzufügen' : `${cells.length}/5`}
+                <Upload className={`w-5 h-5 ${dragActive ? 'text-wellbeing-green' : 'text-gray-300'}`} />
+                <span className={`text-[10px] mt-1 text-center px-1 ${dragActive ? 'text-wellbeing-green font-medium' : 'text-gray-400'}`}>
+                  {dragActive ? 'Hier ablegen' : cells.length === 0 ? 'Bild hinzufügen' : `${cells.length}/5`}
                 </span>
               </>
           }
@@ -656,6 +682,7 @@ export default function ProduktFormular({
   })()
   const [bilderUrls,    setBilderUrls]    = useState<string[]>(initialBilder)
   const [bildUploading, setBildUploading] = useState(false)
+  const [bildFehler,    setBildFehler]    = useState<string | null>(null)
   const bildInputRef = useRef<HTMLInputElement>(null)
 
   // Auto-Fill
@@ -712,23 +739,51 @@ export default function ProduktFormular({
   }, [ep, mwst])
 
   // ── Bild-Upload ───────────────────────────────────────────
-  const handleBildUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  // Zentrale Funktion — wird vom Datei-Dialog UND von Drag&Drop genutzt.
+  // Unterstützt mehrere Dateien gleichzeitig (bis zum 5-Bilder-Limit).
+  const MAX_BILD_MB = 10
+  const uploadFiles = useCallback(async (files: File[]) => {
+    const bilder = files.filter((f) => f.type.startsWith('image/'))
+    if (bilder.length === 0) {
+      setBildFehler('Bitte nur Bilddateien (JPG, PNG, WebP) ablegen.')
+      setTimeout(() => setBildFehler(null), 4000)
+      return
+    }
+    const zuGross = bilder.find((f) => f.size > MAX_BILD_MB * 1024 * 1024)
+    if (zuGross) {
+      setBildFehler(`„${zuGross.name}" ist zu groß (max. ${MAX_BILD_MB} MB).`)
+      setTimeout(() => setBildFehler(null), 5000)
+      return
+    }
+    const frei = 5 - bilderUrls.length
+    if (frei <= 0) {
+      setBildFehler('Maximal 5 Bilder pro Produkt.')
+      setTimeout(() => setBildFehler(null), 4000)
+      return
+    }
+    setBildFehler(null)
     setBildUploading(true)
     const supabase = createClient()
-    const ext = file.name.split('.').pop() ?? 'jpg'
-    const pfad = `produkte/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-    const { data, error } = await supabase.storage
-      .from('produktbilder')
-      .upload(pfad, file, { contentType: file.type, upsert: false })
-    if (!error && data) {
-      const { data: { publicUrl } } = supabase.storage.from('produktbilder').getPublicUrl(data.path)
-      setBilderUrls((prev) => [...prev, publicUrl].slice(0, 5))
+    const neueUrls: string[] = []
+    for (const file of bilder.slice(0, frei)) {
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const pfad = `produkte/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const { data, error } = await supabase.storage
+        .from('produktbilder')
+        .upload(pfad, file, { contentType: file.type, upsert: false })
+      if (!error && data) {
+        const { data: { publicUrl } } = supabase.storage.from('produktbilder').getPublicUrl(data.path)
+        neueUrls.push(publicUrl)
+      }
     }
+    if (neueUrls.length > 0) setBilderUrls((prev) => [...prev, ...neueUrls].slice(0, 5))
     setBildUploading(false)
     if (bildInputRef.current) bildInputRef.current.value = ''
-  }, [])
+  }, [bilderUrls])
+
+  const handleBildUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    uploadFiles(Array.from(e.target.files ?? []))
+  }, [uploadFiles])
 
   // ── Auto-Fill ─────────────────────────────────────────────
   const handleUrlScrape = useCallback(async (urlOverride?: string) => {
@@ -1150,14 +1205,22 @@ export default function ProduktFormular({
                 onChange={setBilderUrls}
                 uploading={bildUploading}
                 onUpload={() => bildInputRef.current?.click()}
+                onFilesDropped={uploadFiles}
               />
               <input
                 ref={bildInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
+                multiple
                 onChange={handleBildUpload}
                 className="hidden"
               />
+              <p className="text-[11px] text-gray-400 mt-1.5">
+                Bilder per Drag &amp; Drop vom Finder/Explorer ablegen oder klicken — bis zu 5 (JPG, PNG, WebP).
+              </p>
+              {bildFehler && (
+                <p className="text-[11px] text-red-600 mt-1">{bildFehler}</p>
+              )}
             </div>
 
             {/* Vermerk / Hinweis (Migration 058) */}

@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-31
 
+### Produktbilder per Drag & Drop
+- Beim Anlegen/Bearbeiten eines Produkts kannst du Bilder jetzt **direkt vom Finder/Explorer/Desktop in den Bild-Bereich ziehen** (Drag & Drop) — kein Umweg mehr über den Datei-Dialog. **Mehrere Bilder gleichzeitig** möglich (bis 5). Der Bereich hebt sich beim Drüberziehen grün hervor; Klicken zum Auswählen funktioniert weiterhin. Nicht-Bilder/zu große Dateien (>10 MB) werden mit Hinweis abgewiesen.
+
 ### Alternativen pro Produkt hinzufügen (einfacher)
 - **Neuer Weg, Alternativen anzulegen**: In der Raum-Produkttabelle erscheint beim Hovern über eine Zeile ein **Ebenen-Icon „Alternative(n) hinzufügen"**. Damit wird genau dieses Produkt automatisch zur ⭐-Empfehlung, und du wählst weitere Produkte als Alternativen dazu — entweder **schon im Raum vorhandene** oder direkt **aus der Bibliothek** (werden dann automatisch in den Raum aufgenommen). Die „Auswahl-Gruppe" entsteht unsichtbar im Hintergrund — das frühere „erst Gruppe anlegen, dann zuordnen" entfällt (funktioniert aber weiterhin).
 
