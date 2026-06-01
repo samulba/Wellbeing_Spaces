@@ -366,11 +366,12 @@ function baueProjektBaum(items: FreigabeEintrag[]): ProjektNode[] {
   for (const pn of Array.from(projMap.values())) {
     const raumMap = new Map<string, RaumNode>()
     for (const e of pn.eintraege) {
-      const r = e.raeume!
+      const r = e.raeume
+      if (!r) continue
       if (!raumMap.has(r.id)) raumMap.set(r.id, { raumId: r.id, raumName: r.name, bereiche: [] })
     }
     for (const rn of Array.from(raumMap.values())) {
-      const raumItems = pn.eintraege.filter((e) => e.raeume!.id === rn.raumId)
+      const raumItems = pn.eintraege.filter((e) => e.raeume?.id === rn.raumId)
       const berMap = new Map<string, BereichNode>()
       for (const e of raumItems) {
         const bid = e.bereich_id ?? null

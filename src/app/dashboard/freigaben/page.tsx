@@ -5,127 +5,143 @@ import FreigabenTabelle, { type FreigabeEintrag } from '@/components/FreigabenTa
 // dynamisch laden, damit der Status immer aktuell ist.
 export const dynamic = 'force-dynamic'
 
+type RpRow = {
+  id: string
+  menge: number
+  verkaufspreis_override: number | null
+  freigabe_status: string
+  freigabe_kommentar: string | null
+  // Gruppierung (Mig 114/116) — atomar mitgeladen, im Fail-safe-Pfad fehlend
+  produkt_gruppe_id?: string | null
+  bereich_id?: string | null
+  admin_favorit?: boolean | null
+  kunde_favorit?: boolean | null
+  produkte: {
+    id: string; name: string; kategorie: string | null; einheit: string
+    verkaufspreis: number | null; bild_url: string | null
+    created_at: string; deleted_at: string | null
+  }
+  raeume: {
+    id: string; name: string; projekt_id: string
+    projekte: { id: string; name: string; kunden: { id: string; name: string } | null } | null
+  } | null
+}
+
 async function getAlleProdukte(): Promise<FreigabeEintrag[]> {
   const supabase = await createClient()
 
-  // Lädt via raum_produkte – eine Zeile pro Raum↔Produkt-Verknüpfung.
-  // Seit Migration 076 liegt freigabe_status auf raum_produkte direkt
-  // (vorher auf produktstatus, global pro produkt_id → leakte zwischen Räumen).
-  const { data } = await supabase
-    .from('raum_produkte')
-    .select(`
-      id,
-      menge,
-      verkaufspreis_override,
-      freigabe_status,
-      freigabe_kommentar,
-      produkte!inner(
+  // Eine Zeile pro Raum↔Produkt. freigabe_status liegt seit Mig 076 auf raum_produkte.
+  // WICHTIG: Gruppierungs-Spalten (produkt_gruppe_id/bereich_id/Favoriten) werden ATOMAR
+  // in derselben Zeile geladen — NICHT mehr über separate `.in('id', rpIds)`-Nachladungen.
+  // Bei Orgs mit viel Bestand wurde diese ID-Liste riesig → Anfrage scheiterte → Produkte
+  // verloren ihre Gruppe („falsch gruppiert"). Block-/Bereich-NAMEN kommen über kleine,
+  // gebundene Lookups (Anzahl Blöcke/Bereiche, nicht Produkte).
+  const RP_BASIS  = 'id, menge, verkaufspreis_override, freigabe_status, freigabe_kommentar'
+  const RP_GRUPPE = 'produkt_gruppe_id, bereich_id, admin_favorit, kunde_favorit'
+  const RP_REST   = `produkte!inner(
         id, name, kategorie, einheit, verkaufspreis, bild_url, created_at, deleted_at
       ),
       raeume!inner(
         id, name, projekt_id,
         projekte ( id, name, kunden ( id, name ) )
-      )
-    `)
-    .order('created_at', { referencedTable: 'produkte', ascending: false })
+      )`
+  const bauen = (felder: string) =>
+    supabase.from('raum_produkte').select(felder).order('created_at', { referencedTable: 'produkte', ascending: false })
 
-  type RpRow = {
-    id: string
-    menge: number
-    verkaufspreis_override: number | null
-    freigabe_status: string
-    freigabe_kommentar: string | null
-    produkte: {
-      id: string; name: string; kategorie: string | null; einheit: string
-      verkaufspreis: number | null; bild_url: string | null
-      created_at: string; deleted_at: string | null
-    }
-    raeume: {
-      id: string; name: string; projekt_id: string
-      projekte: { id: string; name: string; kunden: { id: string; name: string } | null } | null
-    }
+  let gruppenInline = true
+  const rich = await bauen(`${RP_BASIS}, ${RP_GRUPPE}, ${RP_REST}`)
+  let data = rich.data
+  if (rich.error) {
+    // DB ohne Mig-114/116-Spalten → Minimal-Select + Fallback-Nachladung (kleine Orgs/Dev).
+    gruppenInline = false
+    data = (await bauen(`${RP_BASIS}, ${RP_REST}`)).data
   }
 
-  const basis = ((data ?? []) as unknown as RpRow[])
-    .filter((row) => !row.produkte.deleted_at)
-    .map((row): FreigabeEintrag => ({
-      id:         row.id,                 // raum_produkte.id — Key für Freigabe-Aktionen
-      produkt_id: row.produkte.id,        // globale Produkt-ID
-      name:       row.produkte.name,
-      kategorie:  row.produkte.kategorie,
-      menge:      row.menge,
-      einheit:    row.produkte.einheit,
-      verkaufspreis: row.verkaufspreis_override ?? row.produkte.verkaufspreis,
-      bild_url:   row.produkte.bild_url,
-      created_at: row.produkte.created_at,
-      raeume:     row.raeume,
-      produktstatus: {
-        status:    row.freigabe_status,
-        kommentar: row.freigabe_kommentar,
-      },
-    }))
+  const rows = ((data ?? []) as unknown as RpRow[]).filter((r) => r.produkte && !r.produkte.deleted_at && r.raeume)
 
-  // Fail-safe Anreicherung: Auswahl-Block (Mig 114) + Bereich/„Gruppe" (Mig 116)
-  // + Block-Kundennotiz (Mig 119). Getrennte, fehlertolerante Queries — fehlt eine
-  // Migration, bleibt das jeweilige Feld leer (Seite rendert weiter, alles „Ohne Gruppe").
+  const basis = rows.map((row): FreigabeEintrag => ({
+    id:         row.id,                 // raum_produkte.id — Key für Freigabe-Aktionen
+    produkt_id: row.produkte.id,        // globale Produkt-ID
+    name:       row.produkte.name,
+    kategorie:  row.produkte.kategorie,
+    menge:      row.menge,
+    einheit:    row.produkte.einheit,
+    verkaufspreis: row.verkaufspreis_override ?? row.produkte.verkaufspreis,
+    bild_url:   row.produkte.bild_url,
+    created_at: row.produkte.created_at,
+    raeume:     row.raeume,
+    produktstatus: { status: row.freigabe_status, kommentar: row.freigabe_kommentar },
+    // Gruppierung — inline aus der Zeile; sonst (Fallback) unten nachgezogen.
+    produkt_gruppe_id: gruppenInline ? (row.produkt_gruppe_id ?? null) : null,
+    gruppe_name:       null,
+    admin_favorit:     gruppenInline ? !!row.admin_favorit : false,
+    kunde_favorit:     gruppenInline ? !!row.kunde_favorit : false,
+    bereich_id:        null,   // EFFEKTIVER Bereich (block-first) — unten gesetzt
+    bereich_name:      null,
+    bereich_farbe:     null,
+    block_kunde_notiz: null,
+  }))
+
   const rpIds = basis.map((e) => e.id)
-  if (rpIds.length > 0) {
-    // 1. Block-Zuordnung + Favoriten je raum_produkt (Mig 114)
+
+  // Eigener Bereich je raum_produkt (für lose Produkte). Inline aus der Zeile,
+  // im Fallback-Pfad gebündelt nachgeladen.
+  const ownBereich = new Map<string, string | null>()
+  if (gruppenInline) {
+    for (const row of rows) ownBereich.set(row.id, row.bereich_id ?? null)
+  } else if (rpIds.length > 0) {
+    // Fallback: Gruppierungs-Spalten fehlten im Haupt-Select → einzeln nachladen (fehlertolerant).
     const favMap = new Map<string, { produkt_gruppe_id: string | null; admin_favorit: boolean; kunde_favorit: boolean }>()
     {
-      const { data: favData, error } = await supabase
-        .from('raum_produkte')
-        .select('id, produkt_gruppe_id, admin_favorit, kunde_favorit')
-        .in('id', rpIds)
-      if (!error) {
-        for (const f of (favData ?? []) as { id: string; produkt_gruppe_id: string | null; admin_favorit: boolean | null; kunde_favorit: boolean | null }[]) {
-          favMap.set(f.id, { produkt_gruppe_id: f.produkt_gruppe_id ?? null, admin_favorit: !!f.admin_favorit, kunde_favorit: !!f.kunde_favorit })
-        }
+      const { data: favData, error } = await supabase.from('raum_produkte').select('id, produkt_gruppe_id, admin_favorit, kunde_favorit').in('id', rpIds)
+      if (!error) for (const f of (favData ?? []) as { id: string; produkt_gruppe_id: string | null; admin_favorit: boolean | null; kunde_favorit: boolean | null }[]) {
+        favMap.set(f.id, { produkt_gruppe_id: f.produkt_gruppe_id ?? null, admin_favorit: !!f.admin_favorit, kunde_favorit: !!f.kunde_favorit })
       }
     }
-    // 2. Eigener Bereich je raum_produkt (Mig 116)
-    const ownBereich = new Map<string, string | null>()
     {
       const { data: berData, error } = await supabase.from('raum_produkte').select('id, bereich_id').in('id', rpIds)
       if (!error) for (const r of (berData ?? []) as { id: string; bereich_id: string | null }[]) ownBereich.set(r.id, r.bereich_id ?? null)
     }
-    // 3. Block-Details: Name (Mig 114) + Bereich (Mig 116) + Kundennotiz (Mig 119)
-    type BlockRow = { id: string; name: string; bereich_id?: string | null; kunde_notiz?: string | null }
-    const blockIds = Array.from(new Set(Array.from(favMap.values()).map((f) => f.produkt_gruppe_id).filter(Boolean) as string[]))
-    const blockMap = new Map<string, { name: string; bereich_id: string | null; kunde_notiz: string | null }>()
-    if (blockIds.length > 0) {
-      const rich = await supabase.from('produkt_gruppen').select('id, name, bereich_id, kunde_notiz').in('id', blockIds)
-      const rows = rich.error
-        ? ((await supabase.from('produkt_gruppen').select('id, name').in('id', blockIds)).data ?? [])
-        : (rich.data ?? [])
-      for (const g of rows as unknown as BlockRow[]) {
-        blockMap.set(g.id, { name: g.name, bereich_id: g.bereich_id ?? null, kunde_notiz: g.kunde_notiz ?? null })
-      }
-    }
-    // 4. Bereich-Namen/Farben (Mig 116)
-    const bereichIds = new Set<string>()
-    for (const b of Array.from(blockMap.values())) if (b.bereich_id) bereichIds.add(b.bereich_id)
-    for (const v of Array.from(ownBereich.values())) if (v) bereichIds.add(v)
-    const bereichMap = new Map<string, { name: string; farbe: string | null }>()
-    if (bereichIds.size > 0) {
-      const { data: berDef, error } = await supabase.from('produkt_bereiche').select('id, name, farbe').in('id', Array.from(bereichIds))
-      if (!error) for (const b of (berDef ?? []) as { id: string; name: string; farbe: string | null }[]) bereichMap.set(b.id, { name: b.name, farbe: b.farbe ?? null })
-    }
-    // 5. In die Einträge schreiben — effektiver Bereich block-first (Block-Bereich gewinnt).
     for (const e of basis) {
       const f = favMap.get(e.id)
-      const block = f?.produkt_gruppe_id ? blockMap.get(f.produkt_gruppe_id) ?? null : null
       e.produkt_gruppe_id = f?.produkt_gruppe_id ?? null
-      e.gruppe_name = block?.name ?? null
       e.admin_favorit = !!f?.admin_favorit
       e.kunde_favorit = !!f?.kunde_favorit
-      e.block_kunde_notiz = block?.kunde_notiz ?? null
-      const effBereich = block ? (block.bereich_id ?? null) : (ownBereich.get(e.id) ?? null)
-      e.bereich_id = effBereich
-      const berDef = effBereich ? bereichMap.get(effBereich) ?? null : null
-      e.bereich_name = berDef?.name ?? null
-      e.bereich_farbe = berDef?.farbe ?? null
     }
+  }
+
+  // Gebundene Lookups (klein!): Block-Details (Name/Bereich/Kundennotiz) + Bereich-Namen/Farben.
+  type BlockRow = { id: string; name: string; bereich_id?: string | null; kunde_notiz?: string | null }
+  const blockIds = Array.from(new Set(basis.map((e) => e.produkt_gruppe_id).filter(Boolean) as string[]))
+  const blockMap = new Map<string, { name: string; bereich_id: string | null; kunde_notiz: string | null }>()
+  if (blockIds.length > 0) {
+    const richB = await supabase.from('produkt_gruppen').select('id, name, bereich_id, kunde_notiz').in('id', blockIds)
+    const grows = richB.error
+      ? ((await supabase.from('produkt_gruppen').select('id, name').in('id', blockIds)).data ?? [])
+      : (richB.data ?? [])
+    for (const g of grows as unknown as BlockRow[]) {
+      blockMap.set(g.id, { name: g.name, bereich_id: g.bereich_id ?? null, kunde_notiz: g.kunde_notiz ?? null })
+    }
+  }
+  const bereichIds = new Set<string>()
+  for (const b of Array.from(blockMap.values())) if (b.bereich_id) bereichIds.add(b.bereich_id)
+  for (const v of Array.from(ownBereich.values())) if (v) bereichIds.add(v)
+  const bereichMap = new Map<string, { name: string; farbe: string | null }>()
+  if (bereichIds.size > 0) {
+    const { data: berDef, error } = await supabase.from('produkt_bereiche').select('id, name, farbe').in('id', Array.from(bereichIds))
+    if (!error) for (const b of (berDef ?? []) as { id: string; name: string; farbe: string | null }[]) bereichMap.set(b.id, { name: b.name, farbe: b.farbe ?? null })
+  }
+
+  // Effektiven Bereich block-first setzen + Block-Name/Notiz.
+  for (const e of basis) {
+    const block = e.produkt_gruppe_id ? blockMap.get(e.produkt_gruppe_id) ?? null : null
+    e.gruppe_name = block?.name ?? null
+    e.block_kunde_notiz = block?.kunde_notiz ?? null
+    const eff = block ? (block.bereich_id ?? null) : (ownBereich.get(e.id) ?? null)
+    e.bereich_id = eff
+    const bd = eff ? bereichMap.get(eff) ?? null : null
+    e.bereich_name = bd?.name ?? null
+    e.bereich_farbe = bd?.farbe ?? null
   }
 
   return basis
