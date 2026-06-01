@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Partner-Auswertung als Grafik + Scrollbalken endgültig weg
+- Neue **grafische Auswertung** beim Partner mit **umschaltbarer Ansicht**: „Vergleich" (Balken für Umsatz/Einkauf/Marge/Provision/Ertrag) und „Verteilung" (Donut Ertrag = Marge + Provision · Umsatz-Zusammensetzung · Marge-Quote).
+- Der **Scrollbalken** ist jetzt app-weit ausgeblendet (Scrollen per Mausrad/Trackpad/Touch bleibt) — die vorherige punktuelle Lösung hatte den Balken nicht erwischt.
+
 ### Freigabe-Prüfseite: Desktop-Layout (breiter + sticky Sidebar)
 - Der Prüf-Schritt („Bitte prüfen Sie Ihre Auswahl") nutzt auf großen Bildschirmen jetzt den vollen Platz: **zweispaltig** mit den Räumen links und einer **mitlaufenden Sidebar** rechts (Zusammenfassung, Kostenübersicht, „Verbindlich absenden"). Auf dem Handy bleibt alles wie gehabt (gestapelt, untere Absende-Leiste).
 

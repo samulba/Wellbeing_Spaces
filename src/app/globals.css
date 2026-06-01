@@ -269,12 +269,23 @@ nav *, aside * {
   }
 }
 
-/* Scrollbalken ausblenden (Scrollen bleibt via Wheel/Trackpad/Touch erhalten) */
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+/* Scrollbalken global ausblenden — Scrollen bleibt via Wheel/Trackpad/Touch erhalten. */
+* {
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* IE / alte Edge */
 }
-.scrollbar-hide::-webkit-scrollbar {
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;               /* Chrome / Safari / Edge */
+}
+html, body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar {
   display: none;
 }
+/* Klasse als Alias (bestehende Verwendungen bleiben gültig) */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 
