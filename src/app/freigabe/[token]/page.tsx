@@ -9,6 +9,10 @@ import { pinCookieGueltig } from '@/lib/freigabe-pin-cookie'
 import { bereichVonRaumProdukt, istImAuswahlScope } from '@/lib/freigabe-scope'
 import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus } from '@/lib/supabase/types'
 
+// Öffentliche, datengetriebene Seite — niemals cachen, damit Admin-Status-Änderungen
+// (z. B. Freigabe auf „offen" zurücksetzen) sofort sichtbar sind.
+export const dynamic = 'force-dynamic'
+
 interface Props {
   params: { token: string }
   searchParams?: { vorschau?: string }

@@ -5,6 +5,18 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigabe-Link für Kunden: Menge, Bild-Vorschau & Kostenübersicht
+- **Geplante Menge sichtbar:** Auf jeder Produktkarte (einzeln und in Auswahl-Blöcken) steht jetzt klar **„Geplant: X Stk"** — also wie viel ihr vorgesehen habt — direkt neben der „Gewünschten Menge" des Kunden.
+- **Bild-Vorschau (Lightbox):** Ein Klick auf ein Produktbild (großes Bild oder Block-Thumbnail) öffnet jetzt eine **große Vorschau** (mit „Vergrößern"-Hinweis beim Drüberfahren, schließt per ESC/Klick).
+- **Kostenübersicht im Prüf-Schritt:** Die Seite „Bitte prüfen Sie Ihre Auswahl" zeigt nun eine **klare Kosten-Zusammenfassung** der freigegebenen Positionen (Netto, MwSt, Gesamt brutto, mit den Wunschmengen).
+
+### Freigabe-Link: „Zwischenspeicher"-Bug behoben
+- **Behoben:** Wenn im Admin-Bereich eine Freigabe geändert/zurückgesetzt wurde, konnte der Kunden-Link auf demselben Gerät die **alte** Entscheidung (z. B. „freigegeben") aus dem lokalen Zwischenspeicher wieder anzeigen. Jetzt gilt: Sobald ihr serverseitig etwas ändert, wird ein veralteter lokaler Entwurf beim Öffnen **verworfen** — der Admin-Stand gewinnt immer.
+- Zusätzlich wird die Freigabe-Seite **nie mehr gecacht**, sodass Status-Änderungen sofort sichtbar sind.
+
+### Partner-Kopf: altes Provisions-Badge entfernt
+- Das veraltete Provisions-Badge (z. B. „Prozent · 10 %") im Partner-Kopf ist raus — Provision/Konditionen leben jetzt ausschließlich im „Konditionen"-Bereich.
+
 ### Detailseiten aufgeräumt (Partner & Kunde)
 - Die Tab-Leiste (Übersicht/Kontakte/Konditionen/…) auf den **Partner- und Kunden-Detailseiten** sitzt jetzt dezent auf dem Seiten-Hintergrund statt als weißes Band — das unruhige „weiß → grau → weiß" im Kopfbereich ist weg und die Leiste kollidiert nicht mehr mit dem Scrollbalken am rechten Rand.
 
