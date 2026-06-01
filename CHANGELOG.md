@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Service-Raten: „Bezahlt"-Button eindeutig beschriftet
+- Bei einer offenen Service-Rate hieß der grüne Button rechts nur „Bezahlt" — genau wie der bezahlt-Status, was verwirrend aussah (links „Offen", rechts „Bezahlt"). Der Button heißt jetzt **„Als bezahlt markieren"**, damit klar ist: es ist eine Aktion zum Abhaken, kein Status. (Kein Datenfehler — die Rate war korrekt „Offen".)
+
 ### Alternativen werfen Produkte nicht mehr aus ihrer Gruppe (großer Bug behoben)
 - **Behoben:** Wurde zu einem Produkt eine **Alternative** hinzugefügt, landete das Produkt samt Alternative bisher in einem neuen Block **„Ohne Gruppe"** — es fiel also aus seiner Gruppe. Im Freigabe-Link führte das dazu, dass das Produkt **lose** erschien und die Alternative ganz **fehlte**. Der neue Auswahl-Block **erbt jetzt die Gruppe** des Produkts; alles bleibt zusammen an seinem Platz.
 - **Bestehende Fälle werden geheilt:** Eine einmalige Reparatur ordnet bereits „verwaiste" Alternativ-Blöcke automatisch wieder ihrer ursprünglichen Gruppe zu (Migration 122). Falls einzelne Blöcke nicht eindeutig zuzuordnen sind, lassen sie sich wie gewohnt über das Gruppen-Dropdown im Block-Kopf setzen.
