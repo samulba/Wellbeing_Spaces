@@ -5,6 +5,7 @@ import { tokenDeaktivieren, tokenErneuern } from '@/app/actions/freigabe-token'
 import {
   freigabeTokenErstellen,
   freigabeScopeOptionenLaden,
+  freigabeTokenLoeschen,
   type ScopeOptionenRaum,
 } from '@/app/actions/freigaben'
 import { pinSetzen } from '@/app/actions/projekte'
@@ -84,6 +85,7 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
   const [toast, setToast]                 = useState<string | null>(null)
   const [confirmDeaktivId, setConfirmDeaktivId]   = useState<string | null>(null)
   const [confirmErneuernId, setConfirmErneuernId] = useState<string | null>(null)
+  const [confirmLoeschenId, setConfirmLoeschenId] = useState<string | null>(null)
 
   // Create-Form State (Scope-Picker)
   const [scopeTyp, setScopeTyp]                 = useState<FreigabeScopeTyp>('projekt')
@@ -177,6 +179,15 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
     setConfirmDeaktivId(null)
   }
 
+  function handleLoeschen(tokenId: string) {
+    if (!tokenId) return
+    startTransition(async () => {
+      await freigabeTokenLoeschen(tokenId, projektId)
+      setTokens((prev) => prev.filter((t) => t.id !== tokenId))
+    })
+    setConfirmLoeschenId(null)
+  }
+
   function handleErneuern(tokenId: string) {
     if (!tokenId) return
     startTransition(async () => {
@@ -251,6 +262,16 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
         message="Der alte Link wird ungültig. Der neue Link muss dem Kunden neu geschickt werden."
         confirmText="Erneuern"
         variant="warning"
+        isLoading={isPending}
+      />
+      <ConfirmModal
+        isOpen={confirmLoeschenId !== null}
+        onClose={() => setConfirmLoeschenId(null)}
+        onConfirm={() => confirmLoeschenId && handleLoeschen(confirmLoeschenId)}
+        title="Freigabe-Link endgültig löschen"
+        message="Der Link wird vollständig entfernt (nicht nur deaktiviert) und verschwindet aus der Liste. Das kann nicht rückgängig gemacht werden."
+        confirmText="Endgültig löschen"
+        variant="danger"
         isLoading={isPending}
       />
 
@@ -337,10 +358,20 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
                         <button
                           onClick={() => setConfirmDeaktivId(t.id)}
                           disabled={isPending}
-                          className="inline-flex items-center gap-1 text-[11px] text-red-400/70 hover:text-red-500 transition-colors ml-auto"
+                          title="Link ungültig machen (bleibt im Archiv)"
+                          className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-amber-600 transition-colors ml-auto"
+                        >
+                          <EyeOff className="w-3 h-3" />
+                          Deaktivieren
+                        </button>
+                        <button
+                          onClick={() => setConfirmLoeschenId(t.id)}
+                          disabled={isPending}
+                          title="Link endgültig löschen"
+                          className="inline-flex items-center gap-1 text-[11px] text-red-400/70 hover:text-red-500 transition-colors"
                         >
                           <Trash2 className="w-3 h-3" />
-                          Deaktivieren
+                          Löschen
                         </button>
                       </>
                     )}

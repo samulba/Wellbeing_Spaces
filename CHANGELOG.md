@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigabe-Links: endgültig löschen + Link aus dem Archiv öffnen
+- **Endgültig löschen:** Sowohl bei aktiven Links („Löschen" neben „Deaktivieren") als auch im „Verlauf & Archiv" (Papierkorb-Symbol) kannst du Links jetzt **komplett entfernen** — nicht nur zurückziehen. (Das Entscheidungs-Protokoll bleibt erhalten.)
+- **Link aus dem Archiv öffnen:** Im „Verlauf & Archiv" öffnet ein **Klick auf den Titel** jetzt den **echten Link** in einem neuen Tab; das Augen-Symbol bleibt für die Vorschau.
+
 ### Freigabe-Links: aufgeräumt (aktiv oben, Archiv unten)
 - **Keine Doppelung mehr:** Aktive Links stehen jetzt **nur** oben unter „Kunden-Freigabelinks". Der untere Bereich heißt jetzt **„Verlauf & Archiv"** und zeigt **nur abgeschlossene/zurückgezogene** Links (+ Entscheidungs-Protokoll). Ein Link „wandert" also nach unten ins Archiv, sobald er abgeschlossen oder zurückgezogen wurde — sonst bleibt er oben.
 - **Verwirrender „Erneuern/↻"-Knopf entfernt:** Er war nicht mehr nötig (neue Produkte fließen automatisch in passende Auswahl-Links) und löste die Meldung „keine Auswahl hinterlegt" aus.
