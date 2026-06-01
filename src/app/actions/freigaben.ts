@@ -153,8 +153,10 @@ export interface ScopeOptionenRaum {
   id: string
   name: string
   items: { id: string; name: string; menge: number; einheit: string | null }[]
-  // Gruppen/Bereiche des Raums (Migration 116) — für „Auswahl"-Picker
-  bereiche: { id: string; name: string }[]
+  // Gruppen/Bereiche des Raums (Migration 116) — für „Auswahl"-Picker.
+  // `anzahl` = wie viele Produkte effektiv in dieser Gruppe liegen (block-first),
+  // damit man im Picker sieht, welche Gruppe Produkte enthält (keine leeren wählen).
+  bereiche: { id: string; name: string; anzahl: number }[]
 }
 
 /**
@@ -312,19 +314,54 @@ export async function freigabeScopeOptionenLaden(
     })
   }
 
+  // Effektiven Bereich je raum_produkt bestimmen (block-first, identisch zur Kunden-Seite),
+  // um pro Gruppe die Produktanzahl zu zählen. Alles fail-safe (fehlende Mig 114/116 → 0).
+  const raumIds = raeume.map((r) => r.id)
+  const ownBereich = new Map<string, string | null>()   // rpId -> eigener bereich_id
+  const blockOf    = new Map<string, string | null>()    // rpId -> produkt_gruppe_id
+  {
+    const { data: rg, error } = await supabase
+      .from('raum_produkte')
+      .select('id, produkt_gruppe_id, bereich_id')
+      .in('raum_id', raumIds)
+      .is('deleted_at', null)
+    if (!error) for (const r of (rg ?? []) as { id: string; produkt_gruppe_id: string | null; bereich_id: string | null }[]) {
+      ownBereich.set(r.id, r.bereich_id ?? null)
+      blockOf.set(r.id, r.produkt_gruppe_id ?? null)
+    }
+  }
+  const blockBereich = new Map<string, string | null>() // produkt_gruppe_id -> bereich_id
+  {
+    const { data: g, error } = await supabase
+      .from('produkt_gruppen')
+      .select('id, bereich_id')
+      .in('raum_id', raumIds)
+      .is('deleted_at', null)
+    if (!error) for (const row of (g ?? []) as { id: string; bereich_id: string | null }[]) blockBereich.set(row.id, row.bereich_id ?? null)
+  }
+  // Pro Bereich zählen, wie viele (nicht gelöschte) raum_produkte effektiv darin liegen.
+  const anzahlProBereich = new Map<string, number>()
+  for (const rp of ((rps ?? []) as unknown as RpRow[])) {
+    if (!rp.produkte) continue
+    const block = blockOf.get(rp.id) ?? null
+    const ausBlock = block ? (blockBereich.get(block) ?? null) : null
+    const eff = ausBlock ?? ownBereich.get(rp.id) ?? null
+    if (eff) anzahlProBereich.set(eff, (anzahlProBereich.get(eff) ?? 0) + 1)
+  }
+
   // Bereiche/"Gruppen" je Raum (Migration 116) — fail-safe (Tabelle könnte fehlen).
-  const bereicheByRaum: Record<string, { id: string; name: string }[]> = {}
+  const bereicheByRaum: Record<string, { id: string; name: string; anzahl: number }[]> = {}
   {
     const { data: ber } = await supabase
       .from('produkt_bereiche')
       .select('id, raum_id, name, reihenfolge')
-      .in('raum_id', raeume.map((r) => r.id))
+      .in('raum_id', raumIds)
       .is('deleted_at', null)
       .order('reihenfolge')
       .order('name')
     for (const b of ((ber ?? []) as { id: string; raum_id: string; name: string }[])) {
       if (!bereicheByRaum[b.raum_id]) bereicheByRaum[b.raum_id] = []
-      bereicheByRaum[b.raum_id].push({ id: b.id, name: b.name })
+      bereicheByRaum[b.raum_id].push({ id: b.id, name: b.name, anzahl: anzahlProBereich.get(b.id) ?? 0 })
     }
   }
 

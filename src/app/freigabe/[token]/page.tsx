@@ -393,7 +393,10 @@ export default async function FreigabePage({ params, searchParams }: Props) {
       for (const b of bereichDefs) {
         const bloecke = gruppen.filter((g) => (blockBereich.get(g.id) ?? null) === b.id)
         const produkte = lose.filter((p) => resolveBereich(p) === b.id)
-        bereiche.push({ id: b.id, name: b.name, beschreibung: b.beschreibung, bloecke, produkte })
+        // Leere Bereiche NICHT rendern — sonst „hat Inhalt", obwohl 0 Produkte (→ „0 von 0").
+        if (bloecke.length > 0 || produkte.length > 0) {
+          bereiche.push({ id: b.id, name: b.name, beschreibung: b.beschreibung, bloecke, produkte })
+        }
       }
       const ohneBloecke = gruppen.filter((g) => { const bb = blockBereich.get(g.id) ?? null; return !bb || !bereichIdSet.has(bb) })
       const ohneProdukte = lose.filter((p) => { const bb = resolveBereich(p); return !bb || !bereichIdSet.has(bb) })
@@ -406,7 +409,17 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     .filter((r) => r.produkte.length > 0 || (r.gruppen?.length ?? 0) > 0 || (r.bereiche?.length ?? 0) > 0)
 
   if (raeume.length === 0) {
-    return <Fehlerseite meldung="Für dieses Projekt wurden noch keine Produkte hinterlegt." />
+    // Auswahl-Link, der (aktuell) auf nichts auflöst → klare Meldung statt „keine Produkte".
+    const istAuswahlMitInhalt = scopeTyp === 'auswahl' && (scopeIds.length > 0 || scopeBereichIds.length > 0)
+    return (
+      <Fehlerseite
+        meldung={
+          istAuswahlMitInhalt
+            ? 'Die für diesen Link ausgewählten Produkte oder Gruppen sind derzeit nicht verfügbar. Bitte fordern Sie einen aktualisierten Freigabe-Link an.'
+            : 'Für dieses Projekt wurden noch keine Produkte hinterlegt.'
+        }
+      />
+    )
   }
 
   const [kundeName, mwst, branding] = await Promise.all([

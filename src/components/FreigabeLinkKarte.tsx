@@ -55,8 +55,13 @@ function scopeLabel(token: TokenData, raeume: { id: string; name: string }[]): {
   if (token.scope_typ === 'auswahl') {
     const anzahl = token.scope_ids?.length ?? 0
     const grp = token.scope_bereich_ids?.length ?? 0
+    // Ganze Gruppen führen (sie enthalten die Produkte); Einzelprodukte nur wenn vorhanden.
+    // Kein irreführendes „0 Produkte" mehr, wenn der Link über Gruppen läuft.
+    const teile: string[] = []
+    if (grp > 0) teile.push(`${grp} Gruppe${grp === 1 ? '' : 'n'}`)
+    if (anzahl > 0) teile.push(`${anzahl} Produkt${anzahl === 1 ? '' : 'e'}`)
     return {
-      label:    `Auswahl: ${anzahl} Produkt${anzahl === 1 ? '' : 'e'}${grp > 0 ? ` · ${grp} Gruppe${grp === 1 ? '' : 'n'}` : ''}`,
+      label:    `Auswahl: ${teile.length > 0 ? teile.join(' · ') : 'leer'}`,
       badgeCls: 'bg-purple-50 text-purple-700 border-purple-200',
       Icon:     ListChecks,
     }
@@ -455,18 +460,25 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
                   <div key={r.id}>
                     <p className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50">{r.name}</p>
                     {/* Ganze Gruppen (Migration 116) — über den Einzelprodukten */}
-                    {r.bereiche.map((b) => (
-                      <label key={b.id} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer bg-wellbeing-cream/20 hover:bg-wellbeing-green/5">
-                        <input
-                          type="checkbox"
-                          checked={scopeBereichIds.includes(b.id)}
-                          onChange={() => toggleBereich(b.id)}
-                          className="rounded border-gray-300 text-wellbeing-green focus:ring-wellbeing-green/30"
-                        />
-                        <Layers className="w-3 h-3 text-wellbeing-green shrink-0" />
-                        <span className="flex-1 font-medium text-wellbeing-green-dark">Ganze Gruppe: {b.name}</span>
-                      </label>
-                    ))}
+                    {r.bereiche.map((b) => {
+                      const leer = b.anzahl === 0
+                      return (
+                        <label key={b.id} className={`flex items-center gap-2 px-3 py-1.5 text-xs bg-wellbeing-cream/20 ${leer ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-wellbeing-green/5'}`}>
+                          <input
+                            type="checkbox"
+                            checked={scopeBereichIds.includes(b.id)}
+                            onChange={() => toggleBereich(b.id)}
+                            disabled={leer}
+                            className="rounded border-gray-300 text-wellbeing-green focus:ring-wellbeing-green/30 disabled:opacity-50"
+                          />
+                          <Layers className="w-3 h-3 text-wellbeing-green shrink-0" />
+                          <span className="flex-1 font-medium text-wellbeing-green-dark">Ganze Gruppe: {b.name}</span>
+                          <span className={`text-[10px] shrink-0 ${leer ? 'text-gray-400' : 'text-wellbeing-green'}`}>
+                            {leer ? 'leer' : `${b.anzahl} Produkt${b.anzahl === 1 ? '' : 'e'}`}
+                          </span>
+                        </label>
+                      )
+                    })}
                     {r.items.length === 0 ? (
                       <p className="px-3 py-2 text-[11px] text-gray-400 italic">keine Produkte</p>
                     ) : r.items.map((it) => (
