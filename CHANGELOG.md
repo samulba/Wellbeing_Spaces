@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigabe-Prüfseite: Desktop-Layout (breiter + sticky Sidebar)
+- Der Prüf-Schritt („Bitte prüfen Sie Ihre Auswahl") nutzt auf großen Bildschirmen jetzt den vollen Platz: **zweispaltig** mit den Räumen links und einer **mitlaufenden Sidebar** rechts (Zusammenfassung, Kostenübersicht, „Verbindlich absenden"). Auf dem Handy bleibt alles wie gehabt (gestapelt, untere Absende-Leiste).
+
 ### Partner-Detail: volle Auswertung + Scrollbalken weg
 - Das KPI-Band beim Partner zeigt jetzt eine **richtige Auswertung**: Bestellter Umsatz, **Einkaufsvolumen (EK)**, **Marge**, **Provision** und **Ertrag gesamt** (Marge + Provision) — plus Aktive Bestellungen, Offene Lieferungen und Anzahl Produkte. Alles nur intern sichtbar.
 - Der störende **Scrollbalken** auf der Partner-Detailseite ist ausgeblendet (Scrollen per Mausrad/Trackpad bleibt erhalten).

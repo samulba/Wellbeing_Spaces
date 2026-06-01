@@ -412,6 +412,48 @@ export default function FreigabeClient({
     summeNetto = r2(summeNetto)
     const summeBrutto = r2(summeNetto * (1 + mwst))
 
+    // Wiederverwendbare Bausteine (Mobile: über den Räumen · Desktop: in der Sidebar)
+    const zusammenfassungBand = (
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        {[
+          { wert: revFrei, label: 'Freigegeben', dot: 'bg-emerald-500', val: 'text-emerald-600' },
+          { wert: revAend, label: 'Änderung',    dot: 'bg-amber-500',   val: 'text-amber-600' },
+          { wert: revAbl,  label: 'Abgelehnt',   dot: 'bg-red-500',     val: 'text-red-600' },
+        ].map((s) => (
+          <div key={s.label} className="bg-white ring-1 ring-gray-200 rounded-2xl px-3 py-3.5 text-center shadow-sm">
+            <div className="flex items-center justify-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${s.dot}`} />
+              <span className={`text-2xl font-bold tabular-nums ${s.val}`}>{s.wert}</span>
+            </div>
+            <p className="text-[11px] text-gray-500 mt-0.5">{s.label}</p>
+          </div>
+        ))}
+      </div>
+    )
+
+    const kostenCard = summeNetto > 0 ? (
+      <div className="bg-white ring-1 ring-gray-200 rounded-2xl px-4 sm:px-5 py-4 shadow-sm">
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">Geschätzte Kosten Ihrer Freigaben</p>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">Zwischensumme (netto)</span>
+            <span className="font-mono text-gray-700 tabular-nums">{eur(summeNetto)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">zzgl. MwSt ({Math.round(mwst * 100)} %)</span>
+            <span className="font-mono text-gray-700 tabular-nums">{eur(r2(summeBrutto - summeNetto))}</span>
+          </div>
+          <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-gray-100">
+            <span className="text-sm font-semibold text-gray-900">Gesamt (brutto)</span>
+            <span className="font-mono text-lg font-bold tabular-nums" style={{ color: prim }}>{eur(summeBrutto)}</span>
+          </div>
+        </div>
+        <p className="text-[11px] text-gray-400 mt-2.5 leading-relaxed">
+          Enthält nur <strong className="text-gray-500 font-medium">freigegebene</strong> Positionen mit Ihren gewünschten Mengen. Abgelehnte Positionen und Alternativ-Wünsche sind nicht eingerechnet.
+        </p>
+      </div>
+    ) : null
+
     return (
       <div className="min-h-screen" style={{ backgroundColor: bg, fontFamily }}>
         {vorschau && (
@@ -421,7 +463,7 @@ export default function FreigabeClient({
           </div>
         )}
 
-        <div className="max-w-2xl mx-auto px-4 sm:px-5 pt-7 pb-32">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-7 pb-32 lg:pb-12">
           {/* Zurück (oben links) */}
           <button
             type="button"
@@ -447,46 +489,15 @@ export default function FreigabeClient({
             </p>
           </div>
 
-          {/* Zusammenfassungs-Band */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
-            {[
-              { wert: revFrei, label: 'Freigegeben', dot: 'bg-emerald-500', val: 'text-emerald-600' },
-              { wert: revAend, label: 'Änderung',    dot: 'bg-amber-500',   val: 'text-amber-600' },
-              { wert: revAbl,  label: 'Abgelehnt',   dot: 'bg-red-500',     val: 'text-red-600' },
-            ].map((s) => (
-              <div key={s.label} className="bg-white ring-1 ring-gray-200 rounded-2xl px-3 py-3.5 text-center shadow-sm">
-                <div className="flex items-center justify-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full ${s.dot}`} />
-                  <span className={`text-2xl font-bold tabular-nums ${s.val}`}>{s.wert}</span>
-                </div>
-                <p className="text-[11px] text-gray-500 mt-0.5">{s.label}</p>
-              </div>
-            ))}
-          </div>
+          {/* Desktop: 2-spaltig (Räume + sticky Sidebar) · Mobile: gestapelt */}
+          <div className="lg:grid lg:grid-cols-[1fr_336px] lg:gap-8 lg:items-start">
+          <div className="min-w-0">
 
-          {/* Kosten-Übersicht der Freigaben */}
-          {summeNetto > 0 && (
-            <div className="bg-white ring-1 ring-gray-200 rounded-2xl px-4 sm:px-5 py-4 mb-6 shadow-sm">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">Geschätzte Kosten Ihrer Freigaben</p>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Zwischensumme (netto)</span>
-                  <span className="font-mono text-gray-700 tabular-nums">{eur(summeNetto)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">zzgl. MwSt ({Math.round(mwst * 100)} %)</span>
-                  <span className="font-mono text-gray-700 tabular-nums">{eur(r2(summeBrutto - summeNetto))}</span>
-                </div>
-                <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-gray-100">
-                  <span className="text-sm font-semibold text-gray-900">Gesamt (brutto)</span>
-                  <span className="font-mono text-lg font-bold tabular-nums" style={{ color: prim }}>{eur(summeBrutto)}</span>
-                </div>
-              </div>
-              <p className="text-[11px] text-gray-400 mt-2.5 leading-relaxed">
-                Enthält nur <strong className="text-gray-500 font-medium">freigegebene</strong> Positionen mit Ihren gewünschten Mengen. Abgelehnte Positionen und Alternativ-Wünsche sind nicht eingerechnet.
-              </p>
-            </div>
-          )}
+          {/* Mobile: Zusammenfassung + Kosten über den Räumen */}
+          <div className="lg:hidden space-y-4 mb-6">
+            {zusammenfassungBand}
+            {kostenCard}
+          </div>
 
           {/* Räume */}
           <div className="space-y-4">
@@ -598,10 +609,41 @@ export default function FreigabeClient({
               {offenCount === 1 ? 'Es ist noch 1 Position offen' : `Es sind noch ${offenCount} Positionen offen`} — bitte erst alle entscheiden.
             </div>
           )}
+
+          </div>{/* /linke Spalte */}
+
+          {/* Desktop-Sidebar (sticky) */}
+          <aside className="hidden lg:flex lg:flex-col gap-4 lg:sticky lg:top-6">
+            {zusammenfassungBand}
+            {kostenCard}
+            <div className="bg-white ring-1 ring-gray-200 rounded-2xl p-4 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setAbschlussModalOffen(true)}
+                disabled={!alleEntschieden}
+                style={{ backgroundColor: prim }}
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity shadow-sm"
+              >
+                Verbindlich absenden <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setZeigeReview(false)}
+                className="w-full mt-2 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" /> Zurück zum Bearbeiten
+              </button>
+              {!alleEntschieden && (
+                <p className="text-[11px] text-amber-600 text-center mt-2">Bitte erst alle Positionen entscheiden.</p>
+              )}
+            </div>
+          </aside>
+
+          </div>{/* /grid */}
         </div>
 
-        {/* Sticky Aktionsleiste */}
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 backdrop-blur-sm">
+        {/* Sticky Aktionsleiste — nur Mobile (Desktop nutzt die Sidebar) */}
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-4 sm:px-5 py-3 flex items-center gap-3">
             <button
               type="button"
