@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigabe-Links: aufgeräumt (aktiv oben, Archiv unten)
+- **Keine Doppelung mehr:** Aktive Links stehen jetzt **nur** oben unter „Kunden-Freigabelinks". Der untere Bereich heißt jetzt **„Verlauf & Archiv"** und zeigt **nur abgeschlossene/zurückgezogene** Links (+ Entscheidungs-Protokoll). Ein Link „wandert" also nach unten ins Archiv, sobald er abgeschlossen oder zurückgezogen wurde — sonst bleibt er oben.
+- **Verwirrender „Erneuern/↻"-Knopf entfernt:** Er war nicht mehr nötig (neue Produkte fließen automatisch in passende Auswahl-Links) und löste die Meldung „keine Auswahl hinterlegt" aus.
+- **Leere Auswahl-Links** („0 Produkte") werden jetzt klar **markiert** mit dem Hinweis, sie zu deaktivieren (sie zeigen dem Kunden nichts).
+
 ### Freigabe-Link: neue Produkte erscheinen jetzt automatisch
 - **Behoben (automatisch, ohne Klick):** Produkte, die du nach dem Versenden eines Links zu einem Raum/Block hinzufügst, werden jetzt **selbsttätig** in passende „Kuratierte Auswahl"-Links übernommen — sie tauchen sofort beim Kunden auf (und sind dort entscheidbar). Deine bestehende Auswahl bleibt unverändert.
 - **Kein veralteter Stand mehr:** Die Freigabe- (und Portal-)Seiten werden jetzt **nie** vom Browser/CDN zwischengespeichert (`no-store`) — Änderungen sind nach dem Neuladen garantiert sichtbar, auch im selben Tab.

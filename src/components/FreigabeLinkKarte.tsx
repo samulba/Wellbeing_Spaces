@@ -10,7 +10,7 @@ import {
 import { pinSetzen } from '@/app/actions/projekte'
 import {
   RefreshCw, Clock, Lock, LockOpen, Copy, Check, Eye, EyeOff,
-  Share2, Layers, Home, ListChecks, Plus, Trash2,
+  Share2, Layers, Home, ListChecks, Plus, Trash2, AlertTriangle,
 } from 'lucide-react'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import type { FreigabeScopeTyp } from '@/lib/supabase/types'
@@ -292,6 +292,12 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
                       </span>
                     )}
                   </div>
+                  {t.scope_typ === 'auswahl' && (t.scope_ids?.length ?? 0) === 0 && (t.scope_bereich_ids?.length ?? 0) === 0 && (
+                    <div className="flex items-start gap-1.5 mb-2 text-[11px] text-red-600 bg-red-50 border border-red-100 rounded-md px-2 py-1.5">
+                      <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+                      <span>Keine Produkte ausgewählt — dieser Link zeigt dem Kunden nichts. Bitte deaktivieren und einen neuen Link mit Auswahl erstellen.</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <input
                       readOnly
