@@ -69,20 +69,28 @@ async function getRaeume(projektId: string): Promise<Raum[]> {
 
 async function getAktiveTokens(projektId: string) {
   const supabase = await createClient()
-  const { data } = await supabase
-    .from('freigabe_tokens')
-    .select('id, token, gueltig_bis, scope_typ, scope_ids, created_at')
-    .eq('projekt_id', projektId)
-    .eq('aktiv', true)
-    .is('abgeschlossen_am', null)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-  return (data ?? []) as {
+  const lade = (felder: string) =>
+    supabase
+      .from('freigabe_tokens')
+      .select(felder)
+      .eq('projekt_id', projektId)
+      .eq('aktiv', true)
+      .is('abgeschlossen_am', null)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+  const basis = 'id, token, gueltig_bis, scope_typ, scope_ids, created_at'
+  // scope_bereich_ids (Migration 116) mitladen — sonst zeigt der Admin bei
+  // „ganze Gruppen"-Links fälschlich „0 Produkte" + die rote Leer-Warnung.
+  // Fail-safe: fehlt die Spalte, ohne sie laden.
+  let res = await lade(`${basis}, scope_bereich_ids`)
+  if (res.error) res = await lade(basis)
+  return (res.data ?? []) as unknown as {
     id: string
     token: string
     gueltig_bis: string | null
     scope_typ: 'projekt' | 'raum' | 'auswahl' | null
     scope_ids: string[] | null
+    scope_bereich_ids: string[] | null
     created_at: string
   }[]
 }
