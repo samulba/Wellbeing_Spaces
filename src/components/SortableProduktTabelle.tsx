@@ -24,6 +24,7 @@ import {
   Receipt, Trash2, X, CalendarDays, Truck, PackageCheck, Pencil,
   XCircle, AlertTriangle, Undo2, RotateCcw,
   Tag, ArrowRight, Calendar, Star, FolderPlus, Plus, Layers, StickyNote,
+  MessageSquareQuote,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -401,6 +402,16 @@ function SortableProduktZeile({
             onGruppeChange={onGruppeChange}
             onBereichChange={onBereichChange}
           />
+          {/* Kundenwunsch: Kommentar des Kunden bei Ablehnen/Alternative (Mig 076) */}
+          {eintrag.freigabe_kommentar && eintrag.freigabe_kommentar.trim() && (
+            <div className="mt-2 flex items-start gap-2 rounded-lg border border-wellbeing-terracotta/25 bg-wellbeing-cream/60 px-2.5 py-1.5 max-w-xl" role="note">
+              <MessageSquareQuote className="w-3.5 h-3.5 text-wellbeing-terracotta shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-wellbeing-terracotta/80">Kundenwunsch</p>
+                <p className="text-[12px] leading-snug text-wellbeing-green-dark whitespace-pre-line break-words">{eintrag.freigabe_kommentar}</p>
+              </div>
+            </div>
+          )}
         </td>
 
         {/* Menge — inline editierbar */}
@@ -949,9 +960,14 @@ function ProduktGruppeHeader({
           </div>
         </div>
         {gruppe.kunde_notiz && gruppe.kunde_notiz.trim() && (
-          <div className="mt-1.5 flex items-start gap-1.5 text-[11px] text-wellbeing-terracotta bg-wellbeing-terracotta/10 rounded-md px-2 py-1 max-w-2xl">
-            <StickyNote className="w-3 h-3 shrink-0 mt-0.5" />
-            <span><span className="font-semibold">Kundennotiz:</span> {gruppe.kunde_notiz}</span>
+          <div className="mt-2 flex items-start gap-2 rounded-lg border border-wellbeing-terracotta/25 bg-wellbeing-cream/60 px-3 py-2 max-w-2xl shadow-sm">
+            <span className="w-6 h-6 rounded-full bg-wellbeing-terracotta/10 flex items-center justify-center shrink-0">
+              <StickyNote className="w-3.5 h-3.5 text-wellbeing-terracotta" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-wellbeing-terracotta/80 mb-0.5">Kundennotiz</p>
+              <p className="text-[12px] leading-snug text-wellbeing-green-dark whitespace-pre-line break-words">{gruppe.kunde_notiz}</p>
+            </div>
           </div>
         )}
         <ConfirmModal

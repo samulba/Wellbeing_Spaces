@@ -148,12 +148,17 @@ async function ensureGruppeFuerHaupt(
 
   const { data: haupt } = await supabase
     .from('raum_produkte')
-    .select('id, produkt_gruppe_id, produkte(name)')
+    .select('id, produkt_gruppe_id, bereich_id, produkte(name)')
     .eq('id', hauptRaumProduktId)
     .eq('organisation_id', orgId)
     .maybeSingle()
   if (!haupt) return { fehler: 'Hauptprodukt nicht gefunden.' }
   if (haupt.produkt_gruppe_id) return haupt.produkt_gruppe_id as string
+  // Das Hauptprodukt ist hier nachweislich lose (sonst früher zurückgekehrt) →
+  // sein Bereich = eigener raum_produkte.bereich_id. Der neue Block ERBT diesen
+  // Bereich, damit das Produkt + die Alternativen in ihrer Gruppe bleiben und
+  // nicht nach „Ohne Gruppe" fallen.
+  const hauptBereichId = (haupt.bereich_id as string | null) ?? null
 
   const produktName = ((haupt.produkte as unknown as { name: string } | null)?.name ?? 'Produkt').slice(0, 90)
   const { data: maxRow } = await supabase
@@ -168,7 +173,7 @@ async function ensureGruppeFuerHaupt(
 
   const { data: grp, error } = await supabase
     .from('produkt_gruppen')
-    .insert({ raum_id: raumId, name: `Auswahl: ${produktName}`, reihenfolge, organisation_id: orgId })
+    .insert({ raum_id: raumId, name: `Auswahl: ${produktName}`, reihenfolge, organisation_id: orgId, bereich_id: hauptBereichId })
     .select('id')
     .single()
   if (error || !grp) return { fehler: `Gruppe konnte nicht angelegt werden: ${error?.message ?? 'unbekannt'}` }
