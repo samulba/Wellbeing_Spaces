@@ -55,6 +55,20 @@ function alleGruppen(raeume: FreigabeRaum[]): FreigabeProduktGruppe[] {
   return raeume.flatMap((r) => raumBuckets(r).flatMap((b) => b.bloecke))
 }
 
+// Kurzer Hash (djb2) — für den Server-Status-Fingerprint.
+function hashStr(s: string): string {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0
+  return h.toString(36)
+}
+// Fingerprint der Server-Freigabe-Status. Ändert sich, sobald der Admin
+// irgendeinen Status setzt/zurücksetzt → ein veralteter lokaler Entwurf wird
+// beim Öffnen verworfen (Server/Admin gewinnt). raum_produkte hat kein
+// updated_at, daher dienen die Status-Werte selbst als Fingerprint.
+function statusFingerprint(raeume: FreigabeRaum[]): string {
+  return hashStr(flacheProdukte(raeume).map((p) => `${p.id}:${p.status}`).sort().join('|'))
+}
+
 interface Props {
   token: string
   projektName: string
@@ -94,6 +108,8 @@ export default function FreigabeClient({
   const bg         = branding?.background_color ?? '#f6ede2'
   const firmenname = branding?.firmenname       ?? 'Wellbeing Spaces'
   const fontFamily = branding?.font_family      ?? 'Inter'
+  // Server-Status-Fingerprint (gegen veraltete localStorage-Entwürfe nach Admin-Änderungen).
+  const serverFingerprint = statusFingerprint(raeume)
   // ── Alle Hooks zuerst (Rules of Hooks) ───────────────────────
   const [state, setState] = useState<Record<string, ProduktState>>(() => {
     const init: Record<string, ProduktState> = {}
@@ -139,7 +155,7 @@ export default function FreigabeClient({
     try {
       const d: Record<string, { status: ProduktStatus; kommentar: string; kundeFavorit: boolean; menge: number }> = {}
       for (const id of Object.keys(s)) d[id] = { status: s[id].status, kommentar: s[id].kommentar, kundeFavorit: s[id].kundeFavorit, menge: s[id].menge }
-      localStorage.setItem(`freigabe_draft_${token}`, JSON.stringify({ v: 2, produkte: d, blockNotizen: notes }))
+      localStorage.setItem(`freigabe_draft_${token}`, JSON.stringify({ v: 3, fp: serverFingerprint, produkte: d, blockNotizen: notes }))
     } catch { /* ignore */ }
   }
   function draftLeeren() {
@@ -152,7 +168,11 @@ export default function FreigabeClient({
       const raw = localStorage.getItem(`freigabe_draft_${token}`)
       if (!raw) return
       const parsed = JSON.parse(raw)
-      // v2: { produkte, blockNotizen } — Legacy: flache Produkt-Map.
+      // Server-Status hat sich seit dem Entwurf geändert (Admin hat etwas gesetzt/
+      // zurückgesetzt) ODER Freigabe bereits abgeschlossen → Entwurf verwerfen,
+      // Server/Admin gewinnt. Legacy-Entwürfe ohne Fingerprint werden ebenfalls verworfen.
+      if (bereitsAbgeschlossen || parsed?.fp !== serverFingerprint) { draftLeeren(); return }
+      // v3: { fp, produkte, blockNotizen }
       const prod = (parsed?.produkte ?? parsed) as Record<string, { status: ProduktStatus; kommentar: string; kundeFavorit: boolean; menge?: number }>
       const notes = (parsed?.blockNotizen ?? null) as Record<string, string> | null
       setState((prev) => {

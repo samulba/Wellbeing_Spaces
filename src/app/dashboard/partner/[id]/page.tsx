@@ -21,12 +21,6 @@ import {
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
-const modellBadge: Record<string, string> = {
-  Prozent:     'bg-wellbeing-cream text-wellbeing-green-dark',
-  Fix:         'bg-emerald-50 text-emerald-700',
-  Individuell: 'bg-gray-100 text-gray-600',
-}
-
 const partnerTypLabel: Record<string, string> = {
   lieferant:   'Lieferant',
   hersteller:  'Hersteller',
@@ -233,13 +227,6 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                   {partner.website.replace(/^https?:\/\/(www\.)?/, '')}
                   <ExternalLink className="w-2.5 h-2.5" />
                 </a>
-              )}
-              {partner.provisionsmodell && (
-                <span className={`inline-flex items-center text-[11px] px-1.5 py-0.5 rounded font-medium ${modellBadge[partner.provisionsmodell] ?? 'bg-gray-100 text-gray-600'}`}>
-                  {partner.provisionsmodell}
-                  {partner.provisions_wert != null && partner.provisionsmodell === 'Prozent' && ` · ${partner.provisions_wert} %`}
-                  {partner.provisions_wert != null && partner.provisionsmodell === 'Fix' && ` · ${eur(partner.provisions_wert)}`}
-                </span>
               )}
             </div>
           </div>
