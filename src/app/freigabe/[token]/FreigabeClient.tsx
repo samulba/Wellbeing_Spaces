@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft, Plus, Minus, StickyNote } from 'lucide-react'
+import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft, Plus, Minus, StickyNote, Maximize2 } from 'lucide-react'
 import { freigabeBearbeitungMarkieren, type FreigabeEntscheidung, type FreigabeBlockNotiz } from '@/app/actions/freigaben'
 import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus, Branding } from '@/lib/supabase/types'
 import HinweisBanner from '@/components/HinweisBanner'
@@ -88,6 +88,37 @@ interface Props {
 function Logo() {
   return (
     <Image src="/logo-klein.png" alt="Wellbeing Spaces" width={20} height={20} className="w-5 h-5 object-contain" />
+  )
+}
+
+// Bild-Vergrößerung (Lightbox) — Klick außerhalb oder ESC schließt.
+function BildLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+  }, [onClose])
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Schließen"
+        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+      >
+        <X className="w-5 h-5" />
+      </button>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={alt} onClick={(e) => e.stopPropagation()} className="max-w-full max-h-[88vh] object-contain rounded-xl shadow-2xl" />
+    </div>
   )
 }
 
@@ -371,6 +402,16 @@ export default function FreigabeClient({
       }
     }
 
+    // Geschätzte Kosten der freigegebenen Positionen (mit den gewünschten Mengen).
+    let summeNetto = 0
+    for (const p of flacheProdukte(raeume)) {
+      if (state[p.id]?.status === 'freigegeben' && p.verkaufspreis != null) {
+        summeNetto += p.verkaufspreis * (state[p.id]?.menge ?? p.menge)
+      }
+    }
+    summeNetto = r2(summeNetto)
+    const summeBrutto = r2(summeNetto * (1 + mwst))
+
     return (
       <div className="min-h-screen" style={{ backgroundColor: bg, fontFamily }}>
         {vorschau && (
@@ -422,6 +463,30 @@ export default function FreigabeClient({
               </div>
             ))}
           </div>
+
+          {/* Kosten-Übersicht der Freigaben */}
+          {summeNetto > 0 && (
+            <div className="bg-white ring-1 ring-gray-200 rounded-2xl px-4 sm:px-5 py-4 mb-6 shadow-sm">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">Geschätzte Kosten Ihrer Freigaben</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Zwischensumme (netto)</span>
+                  <span className="font-mono text-gray-700 tabular-nums">{eur(summeNetto)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">zzgl. MwSt ({Math.round(mwst * 100)} %)</span>
+                  <span className="font-mono text-gray-700 tabular-nums">{eur(r2(summeBrutto - summeNetto))}</span>
+                </div>
+                <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-gray-100">
+                  <span className="text-sm font-semibold text-gray-900">Gesamt (brutto)</span>
+                  <span className="font-mono text-lg font-bold tabular-nums" style={{ color: prim }}>{eur(summeBrutto)}</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2.5 leading-relaxed">
+                Enthält nur <strong className="text-gray-500 font-medium">freigegebene</strong> Positionen mit Ihren gewünschten Mengen. Abgelehnte Positionen und Alternativ-Wünsche sind nicht eingerechnet.
+              </p>
+            </div>
+          )}
 
           {/* Räume */}
           <div className="space-y-4">
@@ -900,6 +965,7 @@ function ProduktKarte({
   const { status, aktiveAktion, kommentarEingabe, kommentar } = produktState
   const menge = produktState.menge ?? produkt.menge
   const [detailOffen, setDetailOffen] = useState(false)
+  const [bildGross, setBildGross] = useState(false)
 
   const vpBrutto      = r2((produkt.verkaufspreis ?? 0) * (1 + mwst))
   const gesamtBrutto  = r2(vpBrutto * menge)
@@ -915,23 +981,37 @@ function ProduktKarte({
   return (
     <div className={`border ${cfg.rand} ${cfg.bg} rounded-2xl overflow-hidden shadow-sm transition-all`}>
 
-      {/* ── Produktbild (groß, oben) ──────────────────────── */}
-      <div className="w-full aspect-[16/9] sm:aspect-[2/1] overflow-hidden bg-gray-100">
+      {/* ── Produktbild (groß, oben — klickbar für Vorschau) ── */}
+      <button
+        type="button"
+        onClick={() => produkt.bild_url && setBildGross(true)}
+        disabled={!produkt.bild_url}
+        aria-label="Bild vergrößern"
+        className="group relative w-full aspect-[16/9] sm:aspect-[2/1] overflow-hidden bg-gray-100 block cursor-zoom-in disabled:cursor-default"
+      >
         {produkt.bild_url ? (
-          <Image
-            src={produkt.bild_url}
-            alt={produkt.name}
-            width={800}
-            height={400}
-            className="w-full h-full object-cover"
-            unoptimized
-          />
+          <>
+            <Image
+              src={produkt.bild_url}
+              alt={produkt.name}
+              width={800}
+              height={400}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              unoptimized
+            />
+            <span className="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1 text-[11px] font-medium text-white bg-black/45 backdrop-blur px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+              <Maximize2 className="w-3 h-3" /> Vergrößern
+            </span>
+          </>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Package className="w-10 h-10 text-gray-300" />
           </div>
         )}
-      </div>
+      </button>
+      {bildGross && produkt.bild_url && (
+        <BildLightbox src={produkt.bild_url} alt={produkt.name} onClose={() => setBildGross(false)} />
+      )}
 
       <div className="p-5">
         {/* ── Kopf: Name + Status ───────────────────────── */}
@@ -994,10 +1074,15 @@ function ProduktKarte({
           <p className="text-sm text-gray-400 mb-3">Preis auf Anfrage</p>
         )}
 
-        {/* ── Menge wählen ──────────────────────────────── */}
-        <div className="flex items-center justify-between gap-3 mb-4 px-4 py-2.5 bg-gray-50 rounded-xl">
-          <span className="text-xs font-semibold text-gray-600">Gewünschte Menge</span>
-          <div className="flex items-center gap-2">
+        {/* ── Menge: geplant (von WBC) + gewünscht (Kunde) ── */}
+        <div className="flex items-center justify-between gap-3 mb-4 px-4 py-3 bg-gray-50 rounded-xl">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-gray-600">Gewünschte Menge</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">
+              Geplant: <span className="font-semibold text-gray-700">{produkt.menge} {produkt.einheit}</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             <MengeStepper menge={menge} disabled={isPending} onChange={onMengeChange} />
             <span className="text-xs text-gray-400">{produkt.einheit}</span>
           </div>
@@ -1157,6 +1242,7 @@ interface ProduktGruppeKarteProps {
 
 function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onToggle, onMenge, onNotiz }: ProduktGruppeKarteProps) {
   const gewaehlteCount = gruppe.produkte.filter((p) => states[p.id]?.kundeFavorit).length
+  const [lightboxBild, setLightboxBild] = useState<{ src: string; alt: string } | null>(null)
 
   return (
     <div className="border border-gray-200 bg-white rounded-2xl overflow-hidden shadow-sm">
@@ -1179,26 +1265,37 @@ function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onTo
           return (
             <div key={p.id} className={`px-4 py-3.5 transition-colors ${istGewaehlt ? 'bg-emerald-50/50' : ''}`}>
               <div className="flex items-start gap-3">
-                {/* Auswahl-Bereich (Checkbox + Bild + Infos) */}
+                {/* Thumbnail (klickbar → Vorschau) */}
+                <button
+                  type="button"
+                  disabled={!p.bild_url}
+                  onClick={() => p.bild_url && setLightboxBild({ src: p.bild_url, alt: p.name })}
+                  aria-label="Bild vergrößern"
+                  className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 shrink-0 relative group cursor-zoom-in disabled:cursor-default"
+                >
+                  {p.bild_url ? (
+                    <>
+                      <Image src={p.bild_url} alt={p.name} width={64} height={64} className="w-full h-full object-cover" unoptimized />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-colors">
+                        <Maximize2 className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </span>
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-gray-300" /></div>
+                  )}
+                </button>
+                {/* Auswahl-Bereich (Checkbox + Infos) */}
                 <button
                   type="button"
                   disabled={isPending}
                   onClick={() => onToggle(p.id)}
                   aria-pressed={istGewaehlt}
-                  className="flex items-start gap-3 flex-1 min-w-0 text-left disabled:opacity-60"
+                  className="flex items-start gap-2.5 flex-1 min-w-0 text-left disabled:opacity-60"
                 >
                   {/* Checkbox */}
                   <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${istGewaehlt ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'}`}>
                     {istGewaehlt && <Check className="w-3 h-3 text-white" />}
                   </span>
-                  {/* Thumbnail */}
-                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                    {p.bild_url ? (
-                      <Image src={p.bild_url} alt={p.name} width={64} height={64} className="w-full h-full object-cover" unoptimized />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-gray-300" /></div>
-                    )}
-                  </div>
                   {/* Info */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -1213,7 +1310,7 @@ function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onTo
                       )}
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      {p.kategorie ? `${p.kategorie} · ` : ''}{p.einheit}
+                      {p.kategorie ? `${p.kategorie} · ` : ''}Geplant: <span className="font-medium text-gray-600">{p.menge} {p.einheit}</span>
                     </div>
                   </div>
                 </button>
@@ -1272,6 +1369,10 @@ function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onTo
           ? <>{gewaehlteCount} von {gruppe.produkte.length} gewählt. Sie können mehrere wählen und die Mengen anpassen.</>
           : <>Noch nichts gewählt — bitte mindestens eine Option auswählen.</>}
       </div>
+
+      {lightboxBild && (
+        <BildLightbox src={lightboxBild.src} alt={lightboxBild.alt} onClose={() => setLightboxBild(null)} />
+      )}
     </div>
   )
 }
