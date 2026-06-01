@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigabe-Link: „ganze Gruppen"-Links zeigen im Admin nicht mehr fälschlich „0 Produkte"
+- **Behoben:** Ein „Auswahl"-Link, der ganze **Gruppen** freigibt (statt einzelner Produkte), wurde in der Link-Liste fälschlich als „Auswahl: 0 Produkte" mit roter Warnung „zeigt dem Kunden nichts" angezeigt — obwohl der Link beim Kunden korrekt funktioniert. Ursache: die Gruppen-Auswahl wurde beim Laden der Liste nicht mitgelesen. Jetzt steht z. B. „Auswahl: 0 Produkte · 3 Gruppen" und die Warnung erscheint nur noch, wenn wirklich nichts gewählt ist.
+
 ### Freigabe-Link „Auswahl": Block-Produkte bleiben im Block & nichts verschwindet (großer Bug behoben)
 - **Behoben:** Bei „Auswahl"-Links mit ganzen Gruppen wurden einzelne Produkte, die im Projekt klar in einem Block einer Gruppe liegen, im Link teils **freistehend** angezeigt — oder **fehlten ganz**. Ursache: die Kundenseite hat die Block-/Gruppen-Zuordnung über getrennte Nachlade-Abfragen zusammengesetzt; ging dabei eine Zeile verloren, „vergaß" das Produkt seinen Block. Die Kundenseite lädt diese Zuordnung jetzt **fest mit dem Produkt** (genau wie die interne Projektansicht) — Link und Projekt können nicht mehr auseinanderlaufen.
 - Zusätzlich: Produkte, deren Block-Gruppe nicht auflösbar war, fallen jetzt sauber auf ihre eigene Gruppe zurück, statt unsichtbar zu werden.
