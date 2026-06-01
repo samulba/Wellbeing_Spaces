@@ -23,7 +23,7 @@ import {
   GripVertical, ChevronDown, ChevronRight, Clock, Package, CheckCircle2,
   Receipt, Trash2, X, CalendarDays, Truck, PackageCheck, Pencil,
   XCircle, AlertTriangle, Undo2, RotateCcw,
-  Tag, ArrowRight, Calendar, Star, FolderPlus, Plus, Layers,
+  Tag, ArrowRight, Calendar, Star, FolderPlus, Plus, Layers, StickyNote,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -428,6 +428,16 @@ function SortableProduktZeile({
               <span className="text-gray-900 font-medium group-hover/menge:text-wellbeing-green">{eintrag.menge}</span>
               <span className="text-gray-400 text-xs">{p.einheit}</span>
             </button>
+          )}
+          {eintrag.kunde_menge != null && eintrag.kunde_menge !== eintrag.menge && (
+            <div className="mt-0.5">
+              <span
+                className="inline-block text-[10px] font-semibold text-wellbeing-terracotta bg-wellbeing-terracotta/10 px-1.5 py-0.5 rounded"
+                title="Vom Kunden in der Freigabe gewünschte Menge"
+              >
+                Kunde: {eintrag.kunde_menge}
+              </span>
+            </div>
           )}
         </td>
 
@@ -936,6 +946,12 @@ function ProduktGruppeHeader({
             </button>
           </div>
         </div>
+        {gruppe.kunde_notiz && gruppe.kunde_notiz.trim() && (
+          <div className="mt-1.5 flex items-start gap-1.5 text-[11px] text-wellbeing-terracotta bg-wellbeing-terracotta/10 rounded-md px-2 py-1 max-w-2xl">
+            <StickyNote className="w-3 h-3 shrink-0 mt-0.5" />
+            <span><span className="font-semibold">Kundennotiz:</span> {gruppe.kunde_notiz}</span>
+          </div>
+        )}
         <ConfirmModal
           isOpen={confirm}
           onClose={() => setConfirm(false)}

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { Check, X } from 'lucide-react'
-import { freigabeAbsenden, type FreigabeEntscheidung } from '@/app/actions/freigaben'
+import { freigabeAbsenden, type FreigabeEntscheidung, type FreigabeBlockNotiz } from '@/app/actions/freigaben'
 
 interface Props {
   isOpen: boolean
@@ -17,6 +17,8 @@ interface Props {
   brandingPrim?: string
   /** Endzustand aller Produkte — wird beim Absenden in einem Rutsch committet. */
   entscheidungen: FreigabeEntscheidung[]
+  /** Sammelnotizen je Auswahl-Block (Migration 119). */
+  blockNotizen?: FreigabeBlockNotiz[]
   /** Admin-Vorschau: blockiert das echte Absenden (es wird nichts geschrieben). */
   vorschau?: boolean
 }
@@ -33,6 +35,7 @@ export default function FreigabeAbschlussModal({
   abgelehntCount,
   brandingPrim = '#445c49',
   entscheidungen,
+  blockNotizen = [],
   vorschau = false,
 }: Props) {
   const [name, setName]           = useState('')
@@ -50,7 +53,7 @@ export default function FreigabeAbschlussModal({
     if (!name.trim()) { setFehler('Bitte deinen Namen eingeben.'); return }
     if (!bestaetigt) { setFehler('Bitte die Bestätigung anklicken.'); return }
     startTransition(async () => {
-      const result = await freigabeAbsenden(token, name.trim(), kommentar.trim() || null, entscheidungen)
+      const result = await freigabeAbsenden(token, name.trim(), kommentar.trim() || null, entscheidungen, blockNotizen)
       if ('erfolg' in result) onErfolg()
       else setFehler(result.fehler)
     })

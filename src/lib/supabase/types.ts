@@ -246,6 +246,8 @@ export interface ProduktGruppe {
   beschreibung: string | null
   auswahl_modus: ProduktGruppeAuswahlModus
   reihenfolge: number
+  // Sammelnotiz des Kunden für diesen Block (Migration 119). Optional/fail-safe.
+  kunde_notiz?: string | null
   // Bereich (Migration 116) — organisatorische "Gruppe" oberhalb des Blocks.
   bereich_id: string | null
   deleted_at: string | null
@@ -404,6 +406,8 @@ export interface FreigabeProdukt {
   produkt_url: string | null
   status: ProduktStatus
   kommentar: string | null
+  // Wunsch-Menge des Kunden (Migration 119) — NULL = unverändert (es gilt `menge`).
+  kunde_menge?: number | null
   // Vermerk (Migration 058) — NUR gesetzt wenn hinweis_extern_sichtbar=true
   hinweis?: string | null
   // Rabatt pro Raum-Produkt (Migration 058) — prozentual, bereits in verkaufspreis berücksichtigt
@@ -424,6 +428,8 @@ export interface FreigabeProduktGruppe {
   name: string
   beschreibung: string | null
   produkte: FreigabeProdukt[]
+  // Sammelnotiz des Kunden für diesen Block (Migration 119). Optional/fail-safe.
+  kunde_notiz?: string | null
 }
 
 // Bereich/"Gruppe" (Migration 116) — organisatorischer Abschnitt im Raum.
@@ -538,6 +544,8 @@ export interface RaumProdukt {
   produkt_gruppe_id: string | null
   admin_favorit: boolean
   kunde_favorit: boolean
+  // Wunsch-Menge des Kunden aus der Freigabe (Migration 119) — NULL = unverändert.
+  kunde_menge?: number | null
   // Bereich (Migration 116) — "Gruppe" eines EINZELprodukts. Bei Produkten in
   // einem Block ignoriert (Bereich kommt dann vom Block).
   bereich_id: string | null

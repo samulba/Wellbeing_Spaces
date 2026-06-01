@@ -147,6 +147,16 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     gruppenProRaum.set(g.raum_id, arr)
   }
 
+  // Block-Sammelnotiz des Kunden (Migration 119) — fail-safe (Spalte kann fehlen).
+  const gruppenNotizMap = new Map<string, string | null>()
+  {
+    const gIds = (gruppenDaten ?? []).map((g) => (g as { id: string }).id)
+    if (gIds.length > 0) {
+      const { data: gnData } = await supabase.from('produkt_gruppen').select('id, kunde_notiz').in('id', gIds)
+      for (const g of (gnData ?? []) as { id: string; kunde_notiz: string | null }[]) gruppenNotizMap.set(g.id, g.kunde_notiz ?? null)
+    }
+  }
+
   // 4c. Gruppen-/Favoriten-Felder fail-safe nachladen — so bricht die Seite NICHT,
   //     falls Migration 114 noch nicht eingespielt ist (Spalten fehlen → leere Map,
   //     alles wird als „ohne Gruppe" gerendert).
@@ -198,6 +208,13 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     for (const r of (pbData ?? []) as { id: string; bereich_id: string | null }[]) produktBereichMap.set(r.id, r.bereich_id ?? null)
   }
 
+  // 4f. Wunsch-Menge des Kunden je Produkt (Migration 119) — fail-safe.
+  const kundeMengeMap = new Map<string, number | null>()
+  if (rpIds.length > 0) {
+    const { data: kmData } = await supabase.from('raum_produkte').select('id, kunde_menge').in('id', rpIds)
+    for (const r of (kmData ?? []) as { id: string; kunde_menge: number | null }[]) kundeMengeMap.set(r.id, r.kunde_menge ?? null)
+  }
+
   // 5. Struktur aufbauen: Räume mit Bereichen → Auswahl-Blöcke + Einzelprodukte
   const raeume: FreigabeRaum[] = raeumeDaten
     .map((raum) => {
@@ -246,6 +263,7 @@ export default async function FreigabePage({ params, searchParams }: Props) {
             produkt_url: p.produkt_url,
             status: ((rp.freigabe_status as ProduktStatus) ?? 'ausstehend'),
             kommentar: (rp.freigabe_kommentar as string | null) ?? null,
+            kunde_menge: kundeMengeMap.get(rp.id as string) ?? null,
             hinweis: p.hinweis_extern_sichtbar ? p.hinweis_extern : null,
             rabatt_prozent: (rp.rabatt_prozent as number | null) ?? null,
             // Auswahl-Gruppe + Favoriten (Migration 114) — aus fail-safe favMap
@@ -266,6 +284,7 @@ export default async function FreigabePage({ params, searchParams }: Props) {
           id: g.id,
           name: g.name,
           beschreibung: g.beschreibung,
+          kunde_notiz: gruppenNotizMap.get(g.id) ?? null,
           produkte: alleProdukte.filter((p) => p.produkt_gruppe_id === g.id),
         }))
         .filter((grp) => grp.produkte.length >= 2)

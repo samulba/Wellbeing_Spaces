@@ -538,6 +538,14 @@ export interface FreigabeEntscheidung {
   status: 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung'
   kommentar: string | null
   kundeFavorit: boolean
+  // Wunsch-Menge des Kunden (Migration 119). NULL = unverändert (geplante Menge gilt).
+  menge?: number | null
+}
+
+/** Sammelnotiz des Kunden je Auswahl-Block (Migration 119). */
+export interface FreigabeBlockNotiz {
+  gruppeId: string
+  notiz: string | null
 }
 
 /** Sammel-Commit: schreibt ALLE Kunden-Entscheidungen in einem Rutsch und
@@ -548,6 +556,7 @@ export async function freigabeAbsenden(
   name: string,
   kommentar: string | null,
   entscheidungen: FreigabeEntscheidung[],
+  blockNotizen: FreigabeBlockNotiz[] = [],
 ): Promise<{ erfolg: true } | { fehler: string }> {
   const supabase = createAdminClient()
 
@@ -605,6 +614,30 @@ export async function freigabeAbsenden(
       kanal: 'token',
       kontext: { tokenId: tok.id, geaendertVon: `${name.trim()} (Freigabe-Link)` },
     })
+  }
+
+  // Wunsch-Menge je Produkt (Migration 119) — separat + fail-safe (Spalte kann fehlen).
+  try {
+    for (const e of gewaehlt) {
+      if (e.menge === undefined) continue
+      const wunsch = e.menge != null && e.menge >= 1 ? Math.round(e.menge) : null
+      await supabase.from('raum_produkte').update({ kunde_menge: wunsch }).eq('id', e.raumProduktId)
+    }
+  } catch { /* kunde_menge-Spalte fehlt → ignorieren */ }
+
+  // Sammelnotiz je Auswahl-Block (Migration 119) — nur In-Scope-Blöcke, fail-safe.
+  if (blockNotizen.length > 0) {
+    const erlaubteGruppen = new Set(items.map((i) => i.produkt_gruppe_id).filter(Boolean) as string[])
+    try {
+      for (const bn of blockNotizen) {
+        if (!erlaubteGruppen.has(bn.gruppeId)) continue
+        await supabase
+          .from('produkt_gruppen')
+          .update({ kunde_notiz: bn.notiz?.trim() || null })
+          .eq('id', bn.gruppeId)
+          .eq('organisation_id', tok.organisation_id)
+      }
+    } catch { /* kunde_notiz-Spalte fehlt → ignorieren */ }
   }
 
   // Abschluss: re-validiert, Gate (passt jetzt), markiert Token, Mail,

@@ -2,8 +2,8 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft } from 'lucide-react'
-import { freigabeBearbeitungMarkieren, type FreigabeEntscheidung } from '@/app/actions/freigaben'
+import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft, Plus, Minus, StickyNote } from 'lucide-react'
+import { freigabeBearbeitungMarkieren, type FreigabeEntscheidung, type FreigabeBlockNotiz } from '@/app/actions/freigaben'
 import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus, Branding } from '@/lib/supabase/types'
 import HinweisBanner from '@/components/HinweisBanner'
 import FreigabeAbschlussModal from '@/components/FreigabeAbschlussModal'
@@ -31,6 +31,8 @@ interface ProduktState {
   aktiveAktion: 'ablehnen' | 'alternative' | null
   kommentarEingabe: string
   kundeFavorit: boolean
+  // Wunsch-Menge des Kunden (Migration 119) — init aus kunde_menge ?? menge.
+  menge: number
 }
 
 // Bereiche/"Gruppen" eines Raums (Migration 116). Liegt `bereiche` vor, ist das
@@ -47,6 +49,10 @@ function raumProdukte(r: FreigabeRaum): FreigabeProdukt[] {
 // Alle Produkte eines Projekts flach
 function flacheProdukte(raeume: FreigabeRaum[]): FreigabeProdukt[] {
   return raeume.flatMap(raumProdukte)
+}
+// Alle Auswahl-Blöcke eines Projekts flach (für Block-Notizen)
+function alleGruppen(raeume: FreigabeRaum[]): FreigabeProduktGruppe[] {
+  return raeume.flatMap((r) => raumBuckets(r).flatMap((b) => b.bloecke))
 }
 
 interface Props {
@@ -98,8 +104,16 @@ export default function FreigabeClient({
         aktiveAktion: null,
         kommentarEingabe: p.kommentar ?? '',
         kundeFavorit: !!p.kunde_favorit,
+        menge: (p.kunde_menge ?? p.menge) || 1,
       }
     }
+    return init
+  })
+
+  // Sammelnotiz je Auswahl-Block (Migration 119) — eigener State.
+  const [blockNotizen, setBlockNotizen] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {}
+    for (const g of alleGruppen(raeume)) init[g.id] = g.kunde_notiz ?? ''
     return init
   })
 
@@ -120,12 +134,12 @@ export default function FreigabeClient({
     bearbeitungMarkiertRef.current = true
     freigabeBearbeitungMarkieren(token).catch(() => {})
   }
-  function persistDraft(s: Record<string, ProduktState>) {
+  function persistDraft(s: Record<string, ProduktState>, notes: Record<string, string>) {
     if (vorschau) return
     try {
-      const d: Record<string, { status: ProduktStatus; kommentar: string; kundeFavorit: boolean }> = {}
-      for (const id of Object.keys(s)) d[id] = { status: s[id].status, kommentar: s[id].kommentar, kundeFavorit: s[id].kundeFavorit }
-      localStorage.setItem(`freigabe_draft_${token}`, JSON.stringify(d))
+      const d: Record<string, { status: ProduktStatus; kommentar: string; kundeFavorit: boolean; menge: number }> = {}
+      for (const id of Object.keys(s)) d[id] = { status: s[id].status, kommentar: s[id].kommentar, kundeFavorit: s[id].kundeFavorit, menge: s[id].menge }
+      localStorage.setItem(`freigabe_draft_${token}`, JSON.stringify({ v: 2, produkte: d, blockNotizen: notes }))
     } catch { /* ignore */ }
   }
   function draftLeeren() {
@@ -137,15 +151,25 @@ export default function FreigabeClient({
     try {
       const raw = localStorage.getItem(`freigabe_draft_${token}`)
       if (!raw) return
-      const d = JSON.parse(raw) as Record<string, { status: ProduktStatus; kommentar: string; kundeFavorit: boolean }>
+      const parsed = JSON.parse(raw)
+      // v2: { produkte, blockNotizen } — Legacy: flache Produkt-Map.
+      const prod = (parsed?.produkte ?? parsed) as Record<string, { status: ProduktStatus; kommentar: string; kundeFavorit: boolean; menge?: number }>
+      const notes = (parsed?.blockNotizen ?? null) as Record<string, string> | null
       setState((prev) => {
         const next = { ...prev }
-        for (const id of Object.keys(d)) {
+        for (const id of Object.keys(prod)) {
           if (!next[id]) continue
-          next[id] = { ...next[id], status: d[id].status, kommentar: d[id].kommentar, kommentarEingabe: d[id].kommentar, kundeFavorit: d[id].kundeFavorit }
+          const d = prod[id]
+          next[id] = {
+            ...next[id],
+            status: d.status, kommentar: d.kommentar, kommentarEingabe: d.kommentar,
+            kundeFavorit: !!d.kundeFavorit,
+            menge: typeof d.menge === 'number' && d.menge >= 1 ? d.menge : next[id].menge,
+          }
         }
         return next
       })
+      if (notes && typeof notes === 'object') setBlockNotizen((prev) => ({ ...prev, ...notes }))
     } catch { /* ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
@@ -201,12 +225,21 @@ export default function FreigabeClient({
   const alleEntschieden  = offenCount === 0 && total > 0
 
   // Endzustand aller Produkte für den Sammel-Commit (freigabeAbsenden).
-  const entscheidungen: FreigabeEntscheidung[] = flacheProdukte(raeume).map((p) => ({
-    raumProduktId: p.id,
-    status: (state[p.id]?.status ?? 'ausstehend') as FreigabeEntscheidung['status'],
-    kommentar: state[p.id]?.kommentar || null,
-    kundeFavorit: !!state[p.id]?.kundeFavorit,
-  }))
+  // menge nur, wenn der Kunde sie geändert hat (sonst null = geplante Menge gilt).
+  const entscheidungen: FreigabeEntscheidung[] = flacheProdukte(raeume).map((p) => {
+    const chosenMenge = state[p.id]?.menge ?? p.menge
+    return {
+      raumProduktId: p.id,
+      status: (state[p.id]?.status ?? 'ausstehend') as FreigabeEntscheidung['status'],
+      kommentar: state[p.id]?.kommentar || null,
+      kundeFavorit: !!state[p.id]?.kundeFavorit,
+      menge: chosenMenge !== p.menge ? chosenMenge : null,
+    }
+  })
+  // Block-Sammelnotizen für den Commit (nur nicht-leere).
+  const blockNotizenCommit: FreigabeBlockNotiz[] = Object.entries(blockNotizen)
+    .filter(([, v]) => v && v.trim().length > 0)
+    .map(([gruppeId, notiz]) => ({ gruppeId, notiz: notiz.trim() }))
 
   // Räume mit mindestens einem aktiven Produkt (für Tab-Navigation pro Raum)
   const sichtbareRaeume = raeume.filter((r) => raumProdukte(r).some((p) => state[p.id]))
@@ -232,25 +265,42 @@ export default function FreigabeClient({
       [produktId]: { ...state[produktId], status, kommentar, aktiveAktion: null, kommentarEingabe: kommentar },
     }
     setState(next)
-    persistDraft(next)
+    persistDraft(next, blockNotizen)
   }
 
-  // Kunde wählt seinen Favoriten in einer Auswahl-Gruppe → wird (lokal)
-  // freigegeben, die Geschwister kehren auf 'ausstehend' zurück.
-  function waehleFavorit(gruppe: FreigabeProduktGruppe, chosenId: string) {
+  // Mehrfachauswahl (Migration 119): Kunde schaltet ein Produkt eines Auswahl-
+  // Blocks an/aus. Gewählt = freigegeben + kunde_favorit; mehrere möglich.
+  function toggleBlockMember(produktId: string) {
     markiereBearbeitung()
-    const next = { ...state }
-    for (const p of gruppe.produkte) {
-      const istChosen = p.id === chosenId
-      next[p.id] = {
-        ...state[p.id],
-        status: istChosen ? 'freigegeben' : 'ausstehend',
-        kundeFavorit: istChosen,
+    const istGewaehlt = !!state[produktId]?.kundeFavorit
+    const next = {
+      ...state,
+      [produktId]: {
+        ...state[produktId],
+        status: (istGewaehlt ? 'ausstehend' : 'freigegeben') as ProduktStatus,
+        kundeFavorit: !istGewaehlt,
         aktiveAktion: null,
-      }
+      },
     }
     setState(next)
-    persistDraft(next)
+    persistDraft(next, blockNotizen)
+  }
+
+  // Wunsch-Menge ändern (Migration 119).
+  function setMenge(produktId: string, menge: number) {
+    markiereBearbeitung()
+    const m = Math.max(1, Math.min(999, Math.round(menge || 1)))
+    const next = { ...state, [produktId]: { ...state[produktId], menge: m } }
+    setState(next)
+    persistDraft(next, blockNotizen)
+  }
+
+  // Sammelnotiz eines Auswahl-Blocks ändern (Migration 119).
+  function setBlockNotiz(gruppeId: string, text: string) {
+    markiereBearbeitung()
+    const next = { ...blockNotizen, [gruppeId]: text }
+    setBlockNotizen(next)
+    persistDraft(state, next)
   }
 
   function setAktion(produktId: string, aktion: 'ablehnen' | 'alternative' | null) {
@@ -380,49 +430,61 @@ export default function FreigabeClient({
                             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{b.name}</p>
                           )}
 
-                          {/* Auswahl-Blöcke → gewählte Option */}
+                          {/* Auswahl-Blöcke → alle gewählten Optionen (Mehrfachauswahl) */}
                           {b.bloecke.filter((g) => g.produkte.some((p) => state[p.id])).map((g) => {
-                            const chosen = g.produkte.find((p) => state[p.id]?.kundeFavorit)
-                              ?? g.produkte.find((p) => state[p.id]?.status === 'freigegeben')
-                            return chosen ? (
-                              <div key={g.id} className="flex items-center gap-3 py-2">
-                                {thumb(chosen.bild_url, chosen.name)}
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-medium text-gray-900 truncate">{chosen.name}</p>
-                                  <p className="text-[11px] text-gray-400 truncate">Auswahl · {g.name}</p>
-                                </div>
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 shrink-0">
-                                  <Check className="w-3 h-3" /> Ihre Wahl
-                                </span>
-                              </div>
-                            ) : (
-                              <div key={g.id} className="flex items-center gap-3 py-2">
-                                <div className="w-12 h-12 rounded-xl bg-amber-50 ring-1 ring-amber-200 flex items-center justify-center shrink-0">
-                                  <Package className="w-5 h-5 text-amber-400" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-medium text-gray-900 truncate">{g.name}</p>
-                                  <p className="text-[11px] text-gray-400">Auswahl</p>
-                                </div>
-                                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 shrink-0">
-                                  Keine Wahl
-                                </span>
+                            const gewaehlte = g.produkte.filter((p) => state[p.id]?.kundeFavorit)
+                            const notiz = (blockNotizen[g.id] ?? '').trim()
+                            return (
+                              <div key={g.id} className="py-2">
+                                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">{g.name}</p>
+                                {gewaehlte.length > 0 ? (
+                                  <div className="space-y-1.5">
+                                    {gewaehlte.map((p) => {
+                                      const m = state[p.id]?.menge ?? p.menge
+                                      return (
+                                        <div key={p.id} className="flex items-center gap-3">
+                                          {thumb(p.bild_url, p.name)}
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
+                                            <p className="text-[11px] text-gray-400">{m}× {p.einheit}</p>
+                                          </div>
+                                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 shrink-0">
+                                            <Check className="w-3 h-3" /> Gewählt
+                                          </span>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 text-[13px] text-amber-700">
+                                    <Package className="w-4 h-4 shrink-0 text-amber-400" /> Keine Option gewählt
+                                  </div>
+                                )}
+                                {notiz && (
+                                  <div className="mt-2 ml-[60px] pl-3 border-l-2 border-gray-200 flex items-start gap-1.5">
+                                    <StickyNote className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                                    <p className="text-xs text-gray-500 italic leading-relaxed">&bdquo;{notiz}&ldquo;</p>
+                                  </div>
+                                )}
                               </div>
                             )
                           })}
 
-                          {/* Einzelprodukte → Status + Kommentar */}
+                          {/* Einzelprodukte → Status + Menge + Kommentar */}
                           {b.produkte.filter((p) => state[p.id]).map((p) => {
                             const st = state[p.id]
                             const cfg = reviewStatus[st.status] ?? reviewStatus.ausstehend
                             const SIcon = cfg.Icon
+                            const m = st.menge ?? p.menge
                             return (
                               <div key={p.id} className="py-2">
                                 <div className="flex items-center gap-3">
                                   {thumb(p.bild_url, p.name)}
                                   <div className="min-w-0 flex-1">
                                     <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
-                                    {p.kategorie && <p className="text-[11px] text-gray-400 truncate">{p.kategorie}</p>}
+                                    <p className="text-[11px] text-gray-400 truncate">
+                                      {m}× {p.einheit}{p.kategorie ? ` · ${p.kategorie}` : ''}
+                                    </p>
                                   </div>
                                   <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 ${cfg.pill}`}>
                                     <SIcon className="w-3 h-3" /> {cfg.text}
@@ -492,6 +554,7 @@ export default function FreigabeClient({
           abgelehntCount={abgelehntCount}
           brandingPrim={prim}
           entscheidungen={entscheidungen}
+          blockNotizen={blockNotizenCommit}
           vorschau={vorschau}
         />
       </div>
@@ -658,7 +721,10 @@ export default function FreigabeClient({
                     isPending={isPending}
                     mwst={mwst}
                     prim={prim}
-                    onWaehle={(id) => waehleFavorit(g, id)}
+                    notiz={blockNotizen[g.id] ?? ''}
+                    onToggle={(id) => toggleBlockMember(id)}
+                    onMenge={(id, n) => setMenge(id, n)}
+                    onNotiz={(t) => setBlockNotiz(g.id, t)}
                   />
                 ))}
                 {aktiveProdukte.map((p) => (
@@ -673,6 +739,7 @@ export default function FreigabeClient({
                     onKommentarChange={(t) => setKommentarEingabe(p.id, t)}
                     onSpeichern={(s) => speichereStatus(p.id, s, state[p.id].kommentarEingabe)}
                     onAbbrechen={() => setAktion(p.id, null)}
+                    onMengeChange={(n) => setMenge(p.id, n)}
                   />
                 ))}
               </div>
@@ -803,17 +870,19 @@ interface ProduktKarteProps {
   onKommentarChange: (t: string) => void
   onSpeichern: (s: ProduktStatus) => void
   onAbbrechen: () => void
+  onMengeChange: (n: number) => void
 }
 
 function ProduktKarte({
   produkt, produktState, isPending, mwst,
-  onFreigeben, onAktionWaehlen, onKommentarChange, onSpeichern, onAbbrechen,
+  onFreigeben, onAktionWaehlen, onKommentarChange, onSpeichern, onAbbrechen, onMengeChange,
 }: ProduktKarteProps) {
   const { status, aktiveAktion, kommentarEingabe, kommentar } = produktState
+  const menge = produktState.menge ?? produkt.menge
   const [detailOffen, setDetailOffen] = useState(false)
 
   const vpBrutto      = r2((produkt.verkaufspreis ?? 0) * (1 + mwst))
-  const gesamtBrutto  = r2(vpBrutto * produkt.menge)
+  const gesamtBrutto  = r2(vpBrutto * menge)
 
   const statusCfg = {
     ausstehend:     { rand: 'border-gray-200',    bg: 'bg-white',         badgeCls: 'bg-gray-100 text-gray-500',        label: 'Ausstehend' },
@@ -896,14 +965,23 @@ function ProduktKarte({
 
         {/* ── Preise ────────────────────────────────────── */}
         {produkt.verkaufspreis != null ? (
-          <div className="grid grid-cols-3 gap-2 mb-4 bg-gray-50 rounded-xl px-4 py-3">
+          <div className="grid grid-cols-3 gap-2 mb-3 bg-gray-50 rounded-xl px-4 py-3">
             <PreisZeile label="Netto" wert={eur(produkt.verkaufspreis)} />
             <PreisZeile label="Brutto" wert={eur(vpBrutto)} />
-            <PreisZeile label={produkt.menge > 1 ? `${produkt.menge}× Gesamt` : 'Gesamt'} wert={eur(gesamtBrutto)} hervorheben />
+            <PreisZeile label={menge > 1 ? `${menge}× Gesamt` : 'Gesamt'} wert={eur(gesamtBrutto)} hervorheben />
           </div>
         ) : (
-          <p className="text-sm text-gray-400 mb-4">Preis auf Anfrage</p>
+          <p className="text-sm text-gray-400 mb-3">Preis auf Anfrage</p>
         )}
+
+        {/* ── Menge wählen ──────────────────────────────── */}
+        <div className="flex items-center justify-between gap-3 mb-4 px-4 py-2.5 bg-gray-50 rounded-xl">
+          <span className="text-xs font-semibold text-gray-600">Gewünschte Menge</span>
+          <div className="flex items-center gap-2">
+            <MengeStepper menge={menge} disabled={isPending} onChange={onMengeChange} />
+            <span className="text-xs text-gray-400">{produkt.einheit}</span>
+          </div>
+        </div>
 
         {/* ── Kommentar anzeigen ────────────────────────── */}
         {kommentar && !aktiveAktion && (
@@ -1009,18 +1087,56 @@ function PreisZeile({ label, wert, hervorheben }: { label: string; wert: string;
   )
 }
 
-// ── Auswahl-Gruppen-Karte (Favorit/Alternative) ───────────────
+// ── Mengen-Stepper (−/Eingabe/+) ──────────────────────────────
+function MengeStepper({ menge, disabled, onChange }: { menge: number; disabled?: boolean; onChange: (n: number) => void }) {
+  return (
+    <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden shrink-0">
+      <button
+        type="button"
+        disabled={disabled || menge <= 1}
+        onClick={() => onChange(menge - 1)}
+        aria-label="Menge verringern"
+        className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-default transition-colors"
+      >
+        <Minus className="w-3.5 h-3.5" />
+      </button>
+      <input
+        type="number"
+        min={1}
+        value={menge}
+        disabled={disabled}
+        onChange={(e) => onChange(parseInt(e.target.value, 10) || 1)}
+        aria-label="Menge"
+        className="w-10 h-8 text-center text-sm font-semibold text-gray-900 border-x border-gray-200 focus:outline-none focus:bg-wellbeing-green/5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange(menge + 1)}
+        aria-label="Menge erhöhen"
+        className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+      >
+        <Plus className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  )
+}
+
+// ── Auswahl-Block-Karte (Mehrfachauswahl + Wunsch-Menge + Sammelnotiz) ──
 interface ProduktGruppeKarteProps {
   gruppe: FreigabeProduktGruppe
   states: Record<string, ProduktState>
   isPending: boolean
   mwst: number
   prim: string
-  onWaehle: (chosenId: string) => void
+  notiz: string
+  onToggle: (id: string) => void
+  onMenge: (id: string, n: number) => void
+  onNotiz: (text: string) => void
 }
 
-function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, onWaehle }: ProduktGruppeKarteProps) {
-  const gewaehlt = gruppe.produkte.find((p) => states[p.id]?.kundeFavorit)
+function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onToggle, onMenge, onNotiz }: ProduktGruppeKarteProps) {
+  const gewaehlteCount = gruppe.produkte.filter((p) => states[p.id]?.kundeFavorit).length
 
   return (
     <div className="border border-gray-200 bg-white rounded-2xl overflow-hidden shadow-sm">
@@ -1030,84 +1146,111 @@ function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, onWaehle }:
             <h3 className="text-sm font-semibold text-gray-900">{gruppe.name}</h3>
             {gruppe.beschreibung && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{gruppe.beschreibung}</p>}
           </div>
-          <span className="text-[11px] text-gray-400 shrink-0 mt-0.5">Bitte eine Option wählen</span>
+          <span className="text-[11px] font-medium shrink-0 mt-0.5" style={{ color: prim }}>Mehrere möglich</span>
         </div>
       </div>
 
       <div className="divide-y divide-gray-100">
         {gruppe.produkte.map((p) => {
           const istGewaehlt = !!states[p.id]?.kundeFavorit
+          const menge = states[p.id]?.menge ?? p.menge
           const vpBrutto = r2((p.verkaufspreis ?? 0) * (1 + mwst))
-          const gesamtBrutto = r2(vpBrutto * p.menge)
+          const gesamtBrutto = r2(vpBrutto * menge)
           return (
-            <button
-              key={p.id}
-              type="button"
-              disabled={isPending}
-              onClick={() => onWaehle(p.id)}
-              className={`w-full flex items-center gap-3 p-4 text-left transition-colors disabled:opacity-60 ${istGewaehlt ? 'bg-emerald-50/60' : 'hover:bg-gray-50'}`}
-            >
-              {/* Radio */}
-              <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${istGewaehlt ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'}`}>
-                {istGewaehlt && <Check className="w-3 h-3 text-white" />}
-              </span>
-              {/* Thumbnail */}
-              <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                {p.bild_url ? (
-                  <Image src={p.bild_url} alt={p.name} width={64} height={64} className="w-full h-full object-cover" unoptimized />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-gray-300" /></div>
-                )}
-              </div>
-              {/* Info */}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-sm font-semibold text-gray-900">{p.name}</span>
-                  {p.admin_favorit && (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5" style={{ backgroundColor: `${prim}1a`, color: prim }}>
-                      <Star className="w-2.5 h-2.5" /> Empfehlung
-                    </span>
-                  )}
-                  {istGewaehlt && (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Ihre Wahl</span>
+            <div key={p.id} className={`px-4 py-3.5 transition-colors ${istGewaehlt ? 'bg-emerald-50/50' : ''}`}>
+              <div className="flex items-start gap-3">
+                {/* Auswahl-Bereich (Checkbox + Bild + Infos) */}
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => onToggle(p.id)}
+                  aria-pressed={istGewaehlt}
+                  className="flex items-start gap-3 flex-1 min-w-0 text-left disabled:opacity-60"
+                >
+                  {/* Checkbox */}
+                  <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${istGewaehlt ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'}`}>
+                    {istGewaehlt && <Check className="w-3 h-3 text-white" />}
+                  </span>
+                  {/* Thumbnail */}
+                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                    {p.bild_url ? (
+                      <Image src={p.bild_url} alt={p.name} width={64} height={64} className="w-full h-full object-cover" unoptimized />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-gray-300" /></div>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-semibold text-gray-900">{p.name}</span>
+                      {p.admin_favorit && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5" style={{ backgroundColor: `${prim}1a`, color: prim }}>
+                          <Star className="w-2.5 h-2.5" /> Empfehlung
+                        </span>
+                      )}
+                      {istGewaehlt && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Gewählt</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {p.kategorie ? `${p.kategorie} · ` : ''}{p.einheit}
+                    </div>
+                  </div>
+                </button>
+                {/* Preis */}
+                <div className="text-right shrink-0">
+                  {p.verkaufspreis != null ? (
+                    <>
+                      <p className="text-sm font-mono font-semibold text-gray-900">{eur(gesamtBrutto)}</p>
+                      <p className="text-[10px] text-gray-400">{menge > 1 ? `${menge}× · ` : ''}inkl. MwSt</p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-400">auf Anfrage</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5 flex-wrap">
-                  {p.kategorie && <span>{p.kategorie}</span>}
-                  <span>{p.menge} {p.einheit}</span>
-                  {p.produkt_url && (
-                    <a
-                      href={p.produkt_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-0.5 text-wellbeing-green hover:underline"
-                    >
-                      <ExternalLink className="w-3 h-3" /> Link
+              </div>
+
+              {/* Untere Zeile: Produktlink + Mengen-Stepper (wenn gewählt) */}
+              {(p.produkt_url || istGewaehlt) && (
+                <div className="flex items-center justify-between gap-3 mt-2.5 pl-8">
+                  {p.produkt_url ? (
+                    <a href={p.produkt_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-wellbeing-green hover:underline">
+                      <ExternalLink className="w-3 h-3" /> Produktlink
                     </a>
+                  ) : <span />}
+                  {istGewaehlt && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-gray-500">Menge</span>
+                      <MengeStepper menge={menge} disabled={isPending} onChange={(n) => onMenge(p.id, n)} />
+                      <span className="text-[11px] text-gray-400">{p.einheit}</span>
+                    </div>
                   )}
                 </div>
-              </div>
-              {/* Preis */}
-              <div className="text-right shrink-0">
-                {p.verkaufspreis != null ? (
-                  <>
-                    <p className="text-sm font-mono font-semibold text-gray-900">{eur(gesamtBrutto)}</p>
-                    <p className="text-[10px] text-gray-400">{p.menge > 1 ? `${p.menge}× · ` : ''}inkl. MwSt</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-gray-400">auf Anfrage</p>
-                )}
-              </div>
-            </button>
+              )}
+            </div>
           )
         })}
       </div>
 
-      <div className={`px-5 py-2.5 border-t text-xs ${gewaehlt ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
-        {gewaehlt
-          ? <>&bdquo;{gewaehlt.name}&ldquo; ist freigegeben. Sie können jederzeit eine andere Option wählen.</>
-          : <>Noch keine Auswahl getroffen — bitte wählen Sie eine Option.</>}
+      {/* Sammelnotiz für den ganzen Block */}
+      <div className="px-5 py-3 border-t border-gray-100">
+        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+          <StickyNote className="w-3.5 h-3.5" /> Notiz zu dieser Auswahl <span className="text-gray-400 font-normal normal-case tracking-normal">(optional)</span>
+        </label>
+        <textarea
+          rows={2}
+          value={notiz}
+          disabled={isPending}
+          onChange={(e) => onNotiz(e.target.value)}
+          placeholder="z. B. „Bitte 2× das graue und 1× das blaue Kissen.“"
+          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none"
+        />
+      </div>
+
+      <div className={`px-5 py-2.5 border-t text-xs ${gewaehlteCount > 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
+        {gewaehlteCount > 0
+          ? <>{gewaehlteCount} von {gruppe.produkte.length} gewählt. Sie können mehrere wählen und die Mengen anpassen.</>
+          : <>Noch nichts gewählt — bitte mindestens eine Option auswählen.</>}
       </div>
     </div>
   )

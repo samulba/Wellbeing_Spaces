@@ -3,6 +3,15 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-06-01
+
+### Freigabe: mehr Entscheidungsfreiheit für Kunden (Mehrfachauswahl · Menge · Notiz)
+- **Mehrfachauswahl in Auswahl-Blöcken:** Der Kunde kann jetzt **mehrere** Produkte aus einem Block wählen (z. B. zwei verschiedene Kissen) — vorher war es genau eines. Die Optionen sind jetzt Häkchen statt Radio-Buttons.
+- **Wunsch-Menge:** Bei jedem Produkt kann der Kunde die **Stückzahl** über −/+ anpassen (z. B. „doch 3 statt 1"). Eure geplante Menge/Kalkulation bleibt unangetastet; in der Produkttabelle erscheint ein **„Kunde: X"**-Hinweis, wenn der Wunsch abweicht.
+- **Notiz pro Auswahl-Block:** Unter jedem Block gibt es ein **Notizfeld** („z. B. 2× das graue, 1× das blaue Kissen"). Die Notiz erscheint beim Block in eurer Produkttabelle als **„Kundennotiz"**.
+- Der Prüf-Screen vor dem Absenden zeigt jetzt alle gewählten Optionen mit Stückzahl und die Block-Notizen. Alles wird wie gehabt erst beim verbindlichen Absenden übermittelt.
+- Migration **119** in Supabase ausführen (erlaubt Mehrfach-Wahl + Spalten `kunde_menge`/`kunde_notiz`). Ohne Migration läuft alles weiter — nur ohne die drei neuen Möglichkeiten.
+
 ## 2026-05-31
 
 ### Freigabe: Link-Vorschau + schönerer Prüf-Schritt
