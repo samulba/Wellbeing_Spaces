@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { partnerSoftDelete, getPartnerKonditionen, getPartnerKontakte } from '@/app/actions/partner'
 import { getKategorien } from '@/app/actions/einstellungen'
+import { provisionBetrag, einkaufNettoNachRabatt } from '@/lib/preise'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
@@ -15,7 +16,7 @@ import PartnerAltNotizBanner from '@/components/PartnerAltNotizBanner'
 import { vertraegeAbrufen } from '@/app/actions/partner-vertraege'
 import {
   ExternalLink, Mail, Phone, Smartphone, Globe, Star, MapPin, BadgeCheck,
-  ShoppingCart, Truck, Banknote, Users,
+  ShoppingCart, Truck, Banknote, Users, TrendingUp, Percent, Coins, Wallet, Package,
 } from 'lucide-react'
 
 const eur = (n: number) =>
@@ -56,7 +57,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
   // Bibliotheks-Produkte dieses Partners (Sortiment-Basis)
   const { data: produkte } = await supabase
     .from('produkte')
-    .select('id, name, artikelnummer, einheit, verkaufspreis, bilder_urls')
+    .select('id, name, artikelnummer, einheit, verkaufspreis, einkaufspreis, marge_prozent, provision_prozent, provision_typ, provision_fix, einkaufsrabatt_prozent, bilder_urls')
     .eq('partner_id', params.id)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -67,6 +68,12 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
     artikelnummer: string | null
     einheit: string | null
     verkaufspreis: number | null
+    einkaufspreis: number | null
+    marge_prozent: number | null
+    provision_prozent: number | null
+    provision_typ: 'prozent' | 'fix' | null
+    provision_fix: number | null
+    einkaufsrabatt_prozent: number | null
     bilder_urls: string[] | null
   }
   const produkteBasis = (produkte ?? []) as ProduktBasis[]
@@ -125,13 +132,30 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
   let bestellterUmsatz = 0
   let aktiveBestellungen = 0
   let offeneLieferungen = 0
+  let einkaufVolumen = 0
+  let provisionGesamt = 0
   for (const rp of einsatzRaw) {
     if (istAktiv(rp.bestellstatus)) {
-      bestellterUmsatz   += effPreis(rp) * rp.menge
+      const vp   = effPreis(rp)
+      const prod = produktById.get(rp.produkt_id)
+      const ekEff = einkaufNettoNachRabatt(prod?.einkaufspreis ?? 0, prod?.einkaufsrabatt_prozent ?? null)
+      bestellterUmsatz   += vp * rp.menge
+      einkaufVolumen     += ekEff * rp.menge
+      provisionGesamt    += provisionBetrag(
+        { provision_typ: prod?.provision_typ ?? null, provision_prozent: prod?.provision_prozent ?? null, provision_fix: prod?.provision_fix ?? null },
+        vp,
+      ) * rp.menge
       aktiveBestellungen += 1
       if (!istGeliefert(rp.bestellstatus)) offeneLieferungen += 1
     }
   }
+  const r2 = (n: number) => Math.round(n * 100) / 100
+  bestellterUmsatz = r2(bestellterUmsatz)
+  einkaufVolumen   = r2(einkaufVolumen)
+  provisionGesamt  = r2(provisionGesamt)
+  const margeGesamt  = r2(bestellterUmsatz - einkaufVolumen)
+  const ertragGesamt = r2(margeGesamt + provisionGesamt)
+  const produkteAnzahl = produkteBasis.length
 
   // ── Sortiment-Liste ──────────────────────────────────────────
   type Agg = { raumIds: Set<string>; menge: number; bestellt: number; geliefert: number }
@@ -190,7 +214,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
 
   // ── UI ───────────────────────────────────────────────────────
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
+    <div className="flex-1 overflow-y-auto scrollbar-hide px-6 py-6 animate-fadeIn">
       {/* Breadcrumb + Header (analog zu Kunde / Raum: kompakt, kein font-syne) */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -240,29 +264,19 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      {/* KPI-Band (kompakt, analog zu KundeStatsBand) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-        <KpiKarte
-          icon={<Banknote className="w-4 h-4" />}
-          tone="emerald"
-          label="Bestellter Umsatz"
-          wert={bestellterUmsatz > 0 ? eur(bestellterUmsatz) : '–'}
-          subLabel="bestellt + geliefert + Rechnung"
-        />
-        <KpiKarte
-          icon={<ShoppingCart className="w-4 h-4" />}
-          tone="amber"
-          label="Aktive Bestellungen"
-          wert={aktiveBestellungen}
-          subLabel="Positionen ≥ bestellt"
-        />
-        <KpiKarte
-          icon={<Truck className="w-4 h-4" />}
-          tone="blue"
-          label="Offene Lieferungen"
-          wert={offeneLieferungen}
-          subLabel="bestellt, noch nicht geliefert"
-        />
+      {/* Auswertung — Wirtschaftlichkeit + Operatives (nur intern) */}
+      <div className="mb-6">
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2 px-0.5">Auswertung · nur intern</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <KpiKarte icon={<Banknote className="w-4 h-4" />}     tone="emerald" label="Bestellter Umsatz"   wert={bestellterUmsatz > 0 ? eur(bestellterUmsatz) : '–'} subLabel="VK netto · bestellt + geliefert" />
+          <KpiKarte icon={<Wallet className="w-4 h-4" />}       tone="slate"   label="Einkaufsvolumen"     wert={einkaufVolumen > 0 ? eur(einkaufVolumen) : '–'}     subLabel="EK netto · an Partner" />
+          <KpiKarte icon={<Percent className="w-4 h-4" />}      tone="blue"    label="Marge"               wert={margeGesamt !== 0 ? eur(margeGesamt) : '–'}         subLabel="Umsatz − Einkauf" />
+          <KpiKarte icon={<Coins className="w-4 h-4" />}        tone="violet"  label="Provision"           wert={provisionGesamt > 0 ? eur(provisionGesamt) : '–'}   subLabel="Trade-Provision" />
+          <KpiKarte icon={<TrendingUp className="w-4 h-4" />}   tone="green"   label="Ertrag gesamt"       wert={ertragGesamt !== 0 ? eur(ertragGesamt) : '–'}       subLabel="Marge + Provision" />
+          <KpiKarte icon={<ShoppingCart className="w-4 h-4" />} tone="amber"   label="Aktive Bestellungen" wert={aktiveBestellungen}                                subLabel="Positionen ≥ bestellt" />
+          <KpiKarte icon={<Truck className="w-4 h-4" />}        tone="blue"    label="Offene Lieferungen"  wert={offeneLieferungen}                                 subLabel="noch nicht geliefert" />
+          <KpiKarte icon={<Package className="w-4 h-4" />}      tone="slate"   label="Produkte"            wert={produkteAnzahl}                                    subLabel="im Sortiment" />
+        </div>
       </div>
 
       {/* Tabs */}
@@ -432,11 +446,14 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
 }
 
 // ── KPI-Karte (analog KundeStatsBand) ───────────────────────
-type KpiTone = 'emerald' | 'amber' | 'blue'
+type KpiTone = 'emerald' | 'amber' | 'blue' | 'slate' | 'violet' | 'green'
 const KPI_TONE: Record<KpiTone, { iconBg: string; iconText: string }> = {
   emerald: { iconBg: 'bg-emerald-50', iconText: 'text-emerald-600' },
   amber:   { iconBg: 'bg-amber-50',   iconText: 'text-amber-600' },
   blue:    { iconBg: 'bg-blue-50',    iconText: 'text-blue-600' },
+  slate:   { iconBg: 'bg-slate-100',  iconText: 'text-slate-600' },
+  violet:  { iconBg: 'bg-violet-50',  iconText: 'text-violet-600' },
+  green:   { iconBg: 'bg-wellbeing-green/10', iconText: 'text-wellbeing-green' },
 }
 
 function KpiKarte({

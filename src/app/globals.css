@@ -269,3 +269,12 @@ nav *, aside * {
   }
 }
 
+/* Scrollbalken ausblenden (Scrollen bleibt via Wheel/Trackpad/Touch erhalten) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+

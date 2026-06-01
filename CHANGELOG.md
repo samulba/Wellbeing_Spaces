@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Partner-Detail: volle Auswertung + Scrollbalken weg
+- Das KPI-Band beim Partner zeigt jetzt eine **richtige Auswertung**: Bestellter Umsatz, **Einkaufsvolumen (EK)**, **Marge**, **Provision** und **Ertrag gesamt** (Marge + Provision) — plus Aktive Bestellungen, Offene Lieferungen und Anzahl Produkte. Alles nur intern sichtbar.
+- Der störende **Scrollbalken** auf der Partner-Detailseite ist ausgeblendet (Scrollen per Mausrad/Trackpad bleibt erhalten).
+
 ### Freigabe-Link für Kunden: Menge, Bild-Vorschau & Kostenübersicht
 - **Geplante Menge sichtbar:** Auf jeder Produktkarte (einzeln und in Auswahl-Blöcken) steht jetzt klar **„Geplant: X Stk"** — also wie viel ihr vorgesehen habt — direkt neben der „Gewünschten Menge" des Kunden.
 - **Bild-Vorschau (Lightbox):** Ein Klick auf ein Produktbild (großes Bild oder Block-Thumbnail) öffnet jetzt eine **große Vorschau** (mit „Vergrößern"-Hinweis beim Drüberfahren, schließt per ESC/Klick).
