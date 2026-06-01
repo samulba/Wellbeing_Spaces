@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigabe-Link „Auswahl": Gruppen zeigen ihre Produktanzahl (Verwirrung „3 Gruppen, 0 Produkte" behoben)
+- Beim Erstellen eines „Auswahl"-Links steht jetzt **hinter jeder Gruppe, wie viele Produkte sie enthält** (z. B. „Ganze Gruppe: Lounge-Ecke · 5 Produkte"). **Leere Gruppen** sind als „leer" markiert und können nicht ausgewählt werden — so entstehen keine Links mehr, die dem Kunden nichts zeigen.
+- Der Link-Badge sagt nicht mehr irreführend **„0 Produkte"**, wenn der Link über ganze Gruppen läuft — er zeigt jetzt z. B. **„Auswahl: 3 Gruppen"**.
+- Öffnet ein Kunde einen Link, dessen ausgewählte Gruppen/Produkte gerade nichts enthalten, sieht er eine **klare Meldung** („… derzeit nicht verfügbar, bitte aktualisierten Link anfordern") statt einer leeren „0 von 0"-Seite.
+- **Hinweis:** Zeigt eine Gruppe „leer", obwohl du dort Produkte erwartest, sind die Produkte (noch) nicht dieser Gruppe zugeordnet — im Raum der Gruppe zuordnen, dann erscheinen sie im Link.
+
 ### Freigaben: ältere/große Projekte gruppieren wieder korrekt (Bug behoben)
 - **Behoben:** In der Freigaben-Übersicht erschienen bei Kunden mit viel Bestand (ältere, gewachsene Projekte) Produkte plötzlich **„Ohne Gruppe"** statt in ihren Gruppen/Blöcken — neue/kleine Projekte waren nicht betroffen. Ursache: die Gruppen-Zuordnung wurde projektübergreifend über eine zu große Nachlade-Abfrage geholt, die bei viel Bestand scheiterte. Die Zuordnung wird jetzt **direkt mit dem Produkt** geladen (wie schon im Kunden-Link), unabhängig von der Bestandsgröße — Gruppen/Blöcke werden überall korrekt angezeigt.
 - Robustheit: leere/neu angelegte Räume führen in keiner Freigabe-Ansicht mehr zu Fehlern.
