@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Layers, Home, ListChecks, Clock, CheckCircle2, Trash2, History, Eye } from 'lucide-react'
-import { freigabeTokenZurueckziehen } from '@/app/actions/freigaben'
+import { Layers, Home, ListChecks, Clock, CheckCircle2, Trash2, History, Eye, RefreshCw } from 'lucide-react'
+import { freigabeTokenZurueckziehen, freigabeScopeAktualisieren } from '@/app/actions/freigaben'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import FreigabeAuditDrawer from '@/components/FreigabeAuditDrawer'
 import type { FreigabeToken } from '@/lib/supabase/types'
@@ -43,7 +43,19 @@ export default function FreigabeUebersicht({ projektId, initialTokens }: Props) 
   const [drawerToken, setDrawerToken] = useState<FreigabeToken | null>(null)
   const [drawerTokenLabel, setDrawerTokenLabel] = useState('')
   const [confirmTokenId, setConfirmTokenId] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ text: string; ok: boolean } | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  function handleAktualisieren(t: FreigabeToken) {
+    setFeedback(null)
+    startTransition(async () => {
+      const res = await freigabeScopeAktualisieren(t.id, projektId)
+      if (res.fehler) { setFeedback({ text: res.fehler, ok: false }); return }
+      if (res.live) { setFeedback({ text: 'Dieser Link ist „live" — neue Produkte erscheinen automatisch.', ok: true }); return }
+      const n = res.hinzugefuegt ?? 0
+      setFeedback({ text: n > 0 ? `${n} neue${n === 1 ? 's Produkt wurde' : ' Produkte wurden'} in den Link aufgenommen.` : 'Keine neuen Produkte gefunden — der Link ist aktuell.', ok: true })
+    })
+  }
 
   function handleAuditOeffnen(t: FreigabeToken) {
     setDrawerToken(t)
@@ -79,6 +91,12 @@ export default function FreigabeUebersicht({ projektId, initialTokens }: Props) 
           Freigabe-Verlauf ({tokens.length})
         </h2>
 
+        {feedback && (
+          <div className={`mb-3 text-xs px-3 py-2 rounded-lg ${feedback.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+            {feedback.text}
+          </div>
+        )}
+
         <ul className="divide-y divide-gray-100">
           {tokens.map((t) => {
             const Icon = scopeIcon[t.scope_typ]
@@ -107,6 +125,18 @@ export default function FreigabeUebersicht({ projektId, initialTokens }: Props) 
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  {t.scope_typ === 'auswahl' && kannZurueckgezogen && (
+                    <button
+                      type="button"
+                      onClick={() => handleAktualisieren(t)}
+                      disabled={isPending}
+                      title="Neu hinzugefügte Produkte in diesen Link aufnehmen"
+                      aria-label="Link aktualisieren"
+                      className="p-1.5 text-gray-400 hover:text-wellbeing-green rounded transition-colors disabled:opacity-40"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <a
                     href={`/freigabe/${t.token}?vorschau=1`}
                     target="_blank"

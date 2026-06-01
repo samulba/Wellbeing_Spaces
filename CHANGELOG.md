@@ -5,6 +5,13 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigabe-Link: neue Produkte nachträglich aufnehmen
+- **Behoben:** Bei einem Link mit **kuratierter Auswahl** wurden später hinzugefügte Produkte nicht angezeigt (die Auswahl war fix). Im „Freigabe-Verlauf" gibt es jetzt pro solchem Link ein **Aktualisieren-Symbol** (↻) — ein Klick nimmt alle **neu hinzugefügten** Produkte der betroffenen Räume in den Link auf, ohne die bestehende Auswahl zu verändern.
+- Projekt- und Raum-Links zeigen neue Produkte weiterhin **automatisch** (live).
+
+### Partner-Auswertung: Grafik überarbeitet
+- „Vergleich" ist jetzt ein **Säulen-Diagramm**, „Verteilung" ein **Donut** (Ertrag = Marge + Provision) plus **Umsatz-Zusammensetzung** — füllt die Breite sauber statt mittig zu schwimmen.
+
 ### Partner-Auswertung als Grafik + Scrollbalken endgültig weg
 - Die Partner-Auswertung ist jetzt **eine schlanke, aufgeräumte Karte** statt zwei Blöcke: Die vielen großen Kacheln sind weg — die **Grafik** zeigt die Zahlen (mit Werten), darunter dezent die operativen Angaben (aktive Bestellungen · offene Lieferungen · Produkte).
 - **Umschaltbare Ansicht**: „Vergleich" (schlanke Balken für Umsatz/Einkauf/Marge/Provision/Ertrag) und „Verteilung" (Donut Ertrag = Marge + Provision · Umsatz-Zusammensetzung · Marge-Quote).
