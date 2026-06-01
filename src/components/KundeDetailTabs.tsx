@@ -59,8 +59,8 @@ export default function KundeDetailTabs({
 
   return (
     <div>
-      {/* Tab-Leiste — Underline-Style analog Projekt-/Partner-Detail */}
-      <div className="border-b border-gray-100 bg-white -mx-6 px-6 mb-6">
+      {/* Tab-Leiste — Underline-Style, dezent auf Seiten-Hintergrund (kein weißes Band, kein Scrollbar-Konflikt) */}
+      <div className="border-b border-gray-200 mb-6">
         <nav className="flex items-center gap-0 overflow-x-auto">
           {TABS.map(({ id, label, icon: Icon }) => {
             const aktiv = tabIst(id)

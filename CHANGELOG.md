@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Detailseiten aufgeräumt (Partner & Kunde)
+- Die Tab-Leiste (Übersicht/Kontakte/Konditionen/…) auf den **Partner- und Kunden-Detailseiten** sitzt jetzt dezent auf dem Seiten-Hintergrund statt als weißes Band — das unruhige „weiß → grau → weiß" im Kopfbereich ist weg und die Leiste kollidiert nicht mehr mit dem Scrollbalken am rechten Rand.
+
 ### Kalkulation & Partner-Konditionen
 - **Partner-Konditionen ins Produkt übernehmen:** Im Produktformular erscheint jetzt — sobald ein Partner gewählt ist — ein Hinweis mit den hinterlegten Konditionen (Provision, Einkaufsrabatt, Zahlungsziel) und ein Button **„Vom Partner übernehmen"**. Abweichungen vom Partner werden markiert. Es wird **nichts** automatisch überschrieben.
 - **Provision als Prozent ODER Fixbetrag:** Die Provision kann jetzt wahlweise als Prozentsatz (vom VK netto) oder als **Fixbetrag pro Stück** angegeben werden. Neu außerdem das Feld **Einkaufsrabatt (%)** im Produkt.
