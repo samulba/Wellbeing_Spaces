@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigaben: ältere/große Projekte gruppieren wieder korrekt (Bug behoben)
+- **Behoben:** In der Freigaben-Übersicht erschienen bei Kunden mit viel Bestand (ältere, gewachsene Projekte) Produkte plötzlich **„Ohne Gruppe"** statt in ihren Gruppen/Blöcken — neue/kleine Projekte waren nicht betroffen. Ursache: die Gruppen-Zuordnung wurde projektübergreifend über eine zu große Nachlade-Abfrage geholt, die bei viel Bestand scheiterte. Die Zuordnung wird jetzt **direkt mit dem Produkt** geladen (wie schon im Kunden-Link), unabhängig von der Bestandsgröße — Gruppen/Blöcke werden überall korrekt angezeigt.
+- Robustheit: leere/neu angelegte Räume führen in keiner Freigabe-Ansicht mehr zu Fehlern.
+
 ### Freigaben-Seite komplett überarbeitet (Struktur + Handlungsbedarf)
 - Die Seite **Freigaben** (Sidebar) ist jetzt im einheitlichen Dashboard-Stil (sauberer Seitenkopf, Filter-Pills, Toolbar) und zeigt die neue **Gruppen→Block-Struktur**: pro Projekt aufklappbar nach Raum → Gruppe → Auswahl-Block (mit Mitgliedern, Block-Status & Kundennotiz) bzw. Einzelprodukten. Der Fortschritt zählt jetzt **Entscheidungs-Einheiten** wie beim Kunden (ein Block = eine Entscheidung).
 - **Neu: „Handlungsbedarf"-Bereich ganz oben** — sammelt projektübergreifend alle Produkte, die der Kunde abgelehnt hat oder überarbeitet haben möchte, samt seinem Kommentar (Kundenwunsch), mit „Im Raum öffnen" und „Zurücksetzen". So sieht man sofort, was zu tun ist.
