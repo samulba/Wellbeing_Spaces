@@ -110,6 +110,27 @@ export async function freigabeTokenZurueckziehen(
   revalidatePath(`/dashboard/projekte/${projektId}`)
 }
 
+/**
+ * Endgültiges Löschen eines Freigabe-Links (Hard-Delete). Anders als „zurückziehen"
+ * (Soft-Delete) verschwindet der Link komplett. Das Entscheidungs-Protokoll bleibt
+ * erhalten (freigabe_audit.token_id ist ON DELETE SET NULL). org-scoped, fail-safe.
+ */
+export async function freigabeTokenLoeschen(
+  tokenId: string,
+  projektId: string,
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('freigabe_tokens')
+    .delete()
+    .eq('id', tokenId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Löschen fehlgeschlagen. Bitte erneut versuchen.' }
+  revalidatePath(`/dashboard/projekte/${projektId}`)
+  return {}
+}
+
 export async function freigabeTokensAbrufenFuerProjekt(
   projektId: string,
 ): Promise<FreigabeToken[]> {
