@@ -145,32 +145,63 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     }
   }
 
-  let rpQuery = supabase
-    .from('raum_produkte')
-    .select(`
-      id,
-      raum_id,
-      menge,
-      verkaufspreis_override,
-      rabatt_prozent,
-      reihenfolge,
-      freigabe_status,
-      freigabe_kommentar,
-      produkte!inner(
+  // Gruppierungs-Spalten (Mig 114/116/119) MÖGLICHST atomar auf derselben Zeile
+  // laden — exakt wie der Admin (getRaumProdukte). So kann die Block-/Bereich-
+  // Zuordnung der Anzeige NIE von der DB abweichen (kein Desync/Row-Cap über
+  // separate Backfill-Queries). Fail-safe: fehlt eine Spalte (DB ohne Migration),
+  // liefert PostgREST einen Fehler → Minimal-Select + Backfill-Maps wie bisher.
+  const RP_BASIS = 'id, raum_id, menge, verkaufspreis_override, rabatt_prozent, reihenfolge, freigabe_status, freigabe_kommentar'
+  const RP_GRUPPE = 'produkt_gruppe_id, bereich_id, admin_favorit, kunde_favorit, kunde_menge'
+  const RP_PRODUKT = `produkte!inner(
         id, name, beschreibung, kategorie, einheit, verkaufspreis,
         bild_url, produkt_url, deleted_at,
         hinweis_extern, hinweis_extern_sichtbar
-      )
-    `)
-    .in('raum_id', raumFilter)
-    .order('reihenfolge')
-    .order('created_at')
-
-  if (scopeTyp === 'auswahl' && scopeIds.length > 0 && !auswahlMitBereich) {
-    rpQuery = rpQuery.in('id', scopeIds)
+      )`
+  const baueRpQuery = (felder: string) => {
+    let q = supabase
+      .from('raum_produkte')
+      .select(felder)
+      .in('raum_id', raumFilter)
+      .order('reihenfolge')
+      .order('created_at')
+    if (scopeTyp === 'auswahl' && scopeIds.length > 0 && !auswahlMitBereich) {
+      q = q.in('id', scopeIds)
+    }
+    return q
   }
 
-  const { data: rpDaten } = await rpQuery
+  // Konkreter Zeilentyp (der dynamische .select(string) liefert sonst GenericStringError).
+  // Gruppierungsfelder optional → auf dem Fallback-Pfad (Minimal-Select) fehlen sie.
+  type RpZeile = {
+    id: string
+    raum_id: string
+    menge: number
+    verkaufspreis_override: number | null
+    rabatt_prozent: number | null
+    reihenfolge: number
+    freigabe_status: string | null
+    freigabe_kommentar: string | null
+    produkt_gruppe_id?: string | null
+    bereich_id?: string | null
+    admin_favorit?: boolean | null
+    kunde_favorit?: boolean | null
+    kunde_menge?: number | null
+    produkte: {
+      id: string; name: string; beschreibung: string | null; kategorie: string | null
+      einheit: string; verkaufspreis: number | null; bild_url: string | null
+      produkt_url: string | null; deleted_at: string | null
+      hinweis_extern: string | null; hinweis_extern_sichtbar: boolean
+    } | null
+  }
+
+  let gruppenInline = true
+  const rpRich = await baueRpQuery(`${RP_BASIS}, ${RP_GRUPPE}, ${RP_PRODUKT}`)
+  let rpDaten = rpRich.data as unknown as RpZeile[] | null
+  if (rpRich.error) {
+    // Migrations-Spalte fehlt → Minimal-Select; Gruppierung kommt aus Backfill-Maps.
+    gruppenInline = false
+    rpDaten = (await baueRpQuery(`${RP_BASIS}, ${RP_PRODUKT}`)).data as unknown as RpZeile[] | null
+  }
 
   // 4b. Auswahl-Gruppen der in-scope Räume laden (Migration 114)
   const { data: gruppenDaten } = await supabase
@@ -198,12 +229,12 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     }
   }
 
-  // 4c. Gruppen-/Favoriten-Felder fail-safe nachladen — so bricht die Seite NICHT,
-  //     falls Migration 114 noch nicht eingespielt ist (Spalten fehlen → leere Map,
-  //     alles wird als „ohne Gruppe" gerendert).
+  // 4c. Gruppen-/Favoriten-Felder NUR im Fallback nachladen (wenn die Spalten
+  //     nicht inline geladen werden konnten). Auf dem Normalpfad reisen sie auf
+  //     rpDaten → kein separater Roundtrip, kein Desync/Row-Cap.
   const favMap = new Map<string, { produkt_gruppe_id: string | null; admin_favorit: boolean; kunde_favorit: boolean }>()
   const rpIds = (rpDaten ?? []).map((rp) => rp.id as string)
-  if (rpIds.length > 0) {
+  if (!gruppenInline && rpIds.length > 0) {
     const { data: favData } = await supabase
       .from('raum_produkte')
       .select('id, produkt_gruppe_id, admin_favorit, kunde_favorit')
@@ -244,17 +275,31 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     }
   }
   const produktBereichMap = new Map<string, string | null>()
-  if (rpIds.length > 0) {
+  if (!gruppenInline && rpIds.length > 0) {
     const { data: pbData } = await supabase.from('raum_produkte').select('id, bereich_id').in('id', rpIds)
     for (const r of (pbData ?? []) as { id: string; bereich_id: string | null }[]) produktBereichMap.set(r.id, r.bereich_id ?? null)
   }
 
-  // 4f. Wunsch-Menge des Kunden je Produkt (Migration 119) — fail-safe.
+  // 4f. Wunsch-Menge des Kunden je Produkt (Migration 119) — nur im Fallback.
   const kundeMengeMap = new Map<string, number | null>()
-  if (rpIds.length > 0) {
+  if (!gruppenInline && rpIds.length > 0) {
     const { data: kmData } = await supabase.from('raum_produkte').select('id, kunde_menge').in('id', rpIds)
     for (const r of (kmData ?? []) as { id: string; kunde_menge: number | null }[]) kundeMengeMap.set(r.id, r.kunde_menge ?? null)
   }
+
+  // Gruppierungs-Accessoren: lesen aus der rpDaten-Zeile (Normalpfad, atomar) oder
+  // aus den Backfill-Maps (Fallback). EINE Quelle für Scope-Filter UND gerendertes
+  // Objekt → Anzeige kann nie „lose vs. im Block" widersprüchlich werden.
+  const rpGruppeId = (rp: RpZeile): string | null =>
+    gruppenInline ? (rp.produkt_gruppe_id ?? null) : (favMap.get(rp.id)?.produkt_gruppe_id ?? null)
+  const rpBereichId = (rp: RpZeile): string | null =>
+    gruppenInline ? (rp.bereich_id ?? null) : (produktBereichMap.get(rp.id) ?? null)
+  const rpKundeMenge = (rp: RpZeile): number | null =>
+    gruppenInline ? (rp.kunde_menge ?? null) : (kundeMengeMap.get(rp.id) ?? null)
+  const rpAdminFavorit = (rp: RpZeile): boolean =>
+    gruppenInline ? !!rp.admin_favorit : (favMap.get(rp.id)?.admin_favorit ?? false)
+  const rpKundeFavorit = (rp: RpZeile): boolean =>
+    gruppenInline ? !!rp.kunde_favorit : (favMap.get(rp.id)?.kunde_favorit ?? false)
 
   // 5. Struktur aufbauen: Räume mit Bereichen → Auswahl-Blöcke + Einzelprodukte
   const raeume: FreigabeRaum[] = raeumeDaten
@@ -269,7 +314,7 @@ export default async function FreigabePage({ params, searchParams }: Props) {
           if (auswahlMitBereich) {
             const rpId = rp.id as string
             return istImAuswahlScope(
-              { id: rpId, produkt_gruppe_id: favMap.get(rpId)?.produkt_gruppe_id, bereich_id: produktBereichMap.get(rpId) },
+              { id: rpId, produkt_gruppe_id: rpGruppeId(rp), bereich_id: rpBereichId(rp) },
               scopeIds, scopeBereichIds, blockBereich,
             )
           }
@@ -304,15 +349,15 @@ export default async function FreigabePage({ params, searchParams }: Props) {
             produkt_url: p.produkt_url,
             status: ((rp.freigabe_status as ProduktStatus) ?? 'ausstehend'),
             kommentar: (rp.freigabe_kommentar as string | null) ?? null,
-            kunde_menge: kundeMengeMap.get(rp.id as string) ?? null,
+            kunde_menge: rpKundeMenge(rp),
             hinweis: p.hinweis_extern_sichtbar ? p.hinweis_extern : null,
             rabatt_prozent: (rp.rabatt_prozent as number | null) ?? null,
-            // Auswahl-Gruppe + Favoriten (Migration 114) — aus fail-safe favMap
-            produkt_gruppe_id: favMap.get(rp.id as string)?.produkt_gruppe_id ?? null,
-            admin_favorit: favMap.get(rp.id as string)?.admin_favorit ?? false,
-            kunde_favorit: favMap.get(rp.id as string)?.kunde_favorit ?? false,
-            // Bereich/"Gruppe" (Migration 116) — aus fail-safe produktBereichMap
-            bereich_id: produktBereichMap.get(rp.id as string) ?? null,
+            // Auswahl-Gruppe + Favoriten (Mig 114) + Bereich (Mig 116) — atomar aus
+            // rpDaten (Normalpfad) bzw. Backfill-Maps (Fallback), via Accessoren.
+            produkt_gruppe_id: rpGruppeId(rp),
+            admin_favorit: rpAdminFavorit(rp),
+            kunde_favorit: rpKundeFavorit(rp),
+            bereich_id: rpBereichId(rp),
           }
         })
 
