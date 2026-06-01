@@ -328,7 +328,11 @@ export default async function FreigabePage({ params, searchParams }: Props) {
           kunde_notiz: gruppenNotizMap.get(g.id) ?? null,
           produkte: alleProdukte.filter((p) => p.produkt_gruppe_id === g.id),
         }))
-        .filter((grp) => grp.produkte.length >= 2)
+        // Block behalten, wenn er ≥2 Produkte hat ODER einem Bereich/„Gruppe" zugeordnet
+        // ist — dann ist auch ein 1-Produkt-Block bewusste Struktur und bleibt als Block
+        // sichtbar (Produkt landet NICHT lose). Ohne Bereich gilt weiter: 1-Produkt-Block
+        // → loses Einzelprodukt (S75).
+        .filter((grp) => grp.produkte.length >= 2 || (grp.produkte.length >= 1 && (blockBereich.get(grp.id) ?? null) !== null))
       const echteGruppenIds = new Set(gruppen.map((g) => g.id))
       const lose = alleProdukte.filter((p) => !p.produkt_gruppe_id || !echteGruppenIds.has(p.produkt_gruppe_id))
 

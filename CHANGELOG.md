@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigabe-Link: Produkte bleiben in ihrem Auswahl-Block (Bug behoben)
+- **Behoben:** Produkte, die einem **Auswahl-Block innerhalb einer Gruppe** zugeordnet sind, wurden im Freigabe-Link teils **freistehend** in der Gruppe angezeigt statt im Block — vor allem, wenn vom Block gerade nur **ein** Produkt sichtbar war (z. B. weil bei einer kuratierten Auswahl nicht alle Block-Produkte mit aufgenommen wurden). Solche Blöcke werden jetzt **als Block** dargestellt, das Produkt bleibt korrekt **drin**. Einzel-Produkt-Blöcke ohne Gruppe verhalten sich unverändert (werden als normales Produkt gezeigt).
+
 ### Freigabe „Auswahl"-Links heilen sich beim Öffnen (auch alte Projekte)
 - Ein „Kuratierte Auswahl"-Link nimmt jetzt **beim Öffnen automatisch** alle Produkte auf, die seit seiner Erstellung zu seinen Räumen hinzugefügt wurden — **auch bei alten Projekten**, ohne den Link neu anlegen zu müssen. Die ursprüngliche Auswahl bleibt erhalten (bewusst entfernte Produkte kommen nicht zurück). Projekt-/Raum-Links waren ohnehin schon live.
 

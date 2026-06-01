@@ -1294,7 +1294,9 @@ function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onTo
             <h3 className="text-sm font-semibold text-gray-900">{gruppe.name}</h3>
             {gruppe.beschreibung && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{gruppe.beschreibung}</p>}
           </div>
-          <span className="text-[11px] font-medium shrink-0 mt-0.5" style={{ color: prim }}>Mehrere möglich</span>
+          {gruppe.produkte.length > 1 && (
+            <span className="text-[11px] font-medium shrink-0 mt-0.5" style={{ color: prim }}>Mehrere möglich</span>
+          )}
         </div>
       </div>
 
@@ -1408,8 +1410,12 @@ function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onTo
 
       <div className={`px-5 py-2.5 border-t text-xs ${gewaehlteCount > 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
         {gewaehlteCount > 0
-          ? <>{gewaehlteCount} von {gruppe.produkte.length} gewählt. Sie können mehrere wählen und die Mengen anpassen.</>
-          : <>Noch nichts gewählt — bitte mindestens eine Option auswählen.</>}
+          ? (gruppe.produkte.length > 1
+              ? <>{gewaehlteCount} von {gruppe.produkte.length} gewählt. Sie können mehrere wählen und die Mengen anpassen.</>
+              : <>Gewählt. Menge bei Bedarf anpassen.</>)
+          : (gruppe.produkte.length > 1
+              ? <>Noch nichts gewählt — bitte mindestens eine Option auswählen.</>
+              : <>Noch nicht gewählt — bitte bestätigen.</>)}
       </div>
 
       {lightboxBild && (
