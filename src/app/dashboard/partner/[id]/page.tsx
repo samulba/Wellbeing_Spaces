@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { partnerSoftDelete, getPartnerKonditionen, getPartnerKontakte } from '@/app/actions/partner'
+import { getKategorien } from '@/app/actions/einstellungen'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
@@ -104,11 +105,12 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
   )
 
   // Notizen / Konditionen / Verträge / Kontakte parallel
-  const [notizen, konditionen, vertraege, kontakte] = await Promise.all([
+  const [notizen, konditionen, vertraege, kontakte, kategorienDB] = await Promise.all([
     getPartnerNotizen(params.id),
     getPartnerKonditionen(params.id),
     vertraegeAbrufen(params.id),
     getPartnerKontakte(params.id),
+    getKategorien('produktkategorie'),
   ])
   const hauptkontakt = kontakte.find((k) => k.ist_hauptkontakt) ?? kontakte[0] ?? null
 
@@ -425,7 +427,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
           <PartnerKontakteBlock partnerId={partner.id} initialKontakte={kontakte} />
         }
         konditionen={
-          <PartnerKonditionenBlock partnerId={partner.id} initialKonditionen={konditionen} />
+          <PartnerKonditionenBlock partnerId={partner.id} initialKonditionen={konditionen} kategorien={kategorienDB.map((k) => ({ name: k.name }))} />
         }
         vertraege={
           <PartnerVertraegeBlock partnerId={partner.id} initialVertraege={vertraege} />

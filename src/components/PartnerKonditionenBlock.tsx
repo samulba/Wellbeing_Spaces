@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Plus, Pencil, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, ChevronDown, ChevronUp, Star } from 'lucide-react'
 import type { PartnerKondition, PartnerKonditionTyp, Json } from '@/lib/supabase/types'
 import {
   konditionAnlegen,
   konditionAktualisieren,
   konditionLoeschen,
+  konditionAlsStandardSetzen,
   type KonditionDaten,
 } from '@/app/actions/partner'
+import { parseStaffelung, parseKategorieWerte } from '@/lib/partner-konditionen'
 import { ConfirmModal } from '@/components/ConfirmModal'
 
 // ── Hilfsdaten ────────────────────────────────────────────────
@@ -56,12 +58,15 @@ function formatDatum(d: string | null): string {
 
 // ── Formular ──────────────────────────────────────────────────
 
+interface StaffelRow { ab_umsatz: string; prozent: string }
+interface KategorieRow { kategorie: string; prozent: string }
+
 interface FormState {
   name: string
   typ: PartnerKonditionTyp
   wert: string
-  staffelung: string
-  kategorie_werte: string
+  staffelRows: StaffelRow[]
+  kategorieRows: KategorieRow[]
   gueltig_von: string
   gueltig_bis: string
   zahlungsziel_tage: string
@@ -69,14 +74,15 @@ interface FormState {
   skonto_tage: string
   notizen: string
   aktiv: boolean
+  ist_standard: boolean
 }
 
 const leereFormState: FormState = {
   name: 'Standard',
   typ: 'prozent_fix',
   wert: '',
-  staffelung: '',
-  kategorie_werte: '',
+  staffelRows: [{ ab_umsatz: '0', prozent: '' }],
+  kategorieRows: [{ kategorie: '', prozent: '' }],
   gueltig_von: '',
   gueltig_bis: '',
   zahlungsziel_tage: '30',
@@ -84,15 +90,18 @@ const leereFormState: FormState = {
   skonto_tage: '',
   notizen: '',
   aktiv: true,
+  ist_standard: false,
 }
 
 function konditionZuForm(k: PartnerKondition): FormState {
+  const staffel = parseStaffelung(k.staffelung).map((s) => ({ ab_umsatz: String(s.ab_umsatz), prozent: String(s.prozent) }))
+  const kategorie = Object.entries(parseKategorieWerte(k.kategorie_werte)).map(([kat, pr]) => ({ kategorie: kat, prozent: String(pr) }))
   return {
     name:              k.name,
     typ:               k.typ,
     wert:              k.wert?.toString() ?? '',
-    staffelung:        k.staffelung ? JSON.stringify(k.staffelung, null, 2) : '',
-    kategorie_werte:   k.kategorie_werte ? JSON.stringify(k.kategorie_werte, null, 2) : '',
+    staffelRows:       staffel.length ? staffel : [{ ab_umsatz: '0', prozent: '' }],
+    kategorieRows:     kategorie.length ? kategorie : [{ kategorie: '', prozent: '' }],
     gueltig_von:       k.gueltig_von ?? '',
     gueltig_bis:       k.gueltig_bis ?? '',
     zahlungsziel_tage: k.zahlungsziel_tage?.toString() ?? '30',
@@ -100,21 +109,25 @@ function konditionZuForm(k: PartnerKondition): FormState {
     skonto_tage:       k.skonto_tage?.toString() ?? '',
     notizen:           k.notizen ?? '',
     aktiv:             k.aktiv,
+    ist_standard:      k.ist_standard ?? false,
   }
 }
 
 function formZuDaten(f: FormState): KonditionDaten {
-  let staffelung: Json | null = null
-  let kategorie_werte: Json | null = null
-  try { if (f.staffelung.trim()) staffelung = JSON.parse(f.staffelung) as Json } catch { /* ignorieren */ }
-  try { if (f.kategorie_werte.trim()) kategorie_werte = JSON.parse(f.kategorie_werte) as Json } catch { /* ignorieren */ }
-
+  const staffelArr = f.staffelRows
+    .filter((r) => r.prozent.trim() !== '')
+    .map((r) => ({ ab_umsatz: parseFloat(r.ab_umsatz) || 0, prozent: parseFloat(r.prozent) || 0 }))
+    .sort((a, b) => a.ab_umsatz - b.ab_umsatz)
+  const kategorieObj: Record<string, number> = {}
+  for (const r of f.kategorieRows) {
+    if (r.kategorie.trim() && r.prozent.trim() !== '') kategorieObj[r.kategorie] = parseFloat(r.prozent) || 0
+  }
   return {
     name:              f.name || 'Standard',
     typ:               f.typ,
     wert:              f.wert ? parseFloat(f.wert) : null,
-    staffelung,
-    kategorie_werte,
+    staffelung:        f.typ === 'prozent_gestaffelt' && staffelArr.length ? (staffelArr as unknown as Json) : null,
+    kategorie_werte:   f.typ === 'kategorie_basiert' && Object.keys(kategorieObj).length ? (kategorieObj as unknown as Json) : null,
     gueltig_von:       f.gueltig_von || null,
     gueltig_bis:       f.gueltig_bis || null,
     zahlungsziel_tage: f.zahlungsziel_tage ? parseInt(f.zahlungsziel_tage) : null,
@@ -130,14 +143,16 @@ function formZuDaten(f: FormState): KonditionDaten {
 interface Props {
   partnerId: string
   initialKonditionen: PartnerKondition[]
+  kategorien: { name: string }[]
 }
 
-export default function PartnerKonditionenBlock({ partnerId, initialKonditionen }: Props) {
+export default function PartnerKonditionenBlock({ partnerId, initialKonditionen, kategorien }: Props) {
   const [konditionen, setKonditionen] = useState(initialKonditionen)
   const [modalOffen, setModalOffen] = useState(false)
   const [bearbeitenId, setBearbeitenId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(leereFormState)
   const [fehler, setFehler] = useState<string | null>(null)
+  const [listFehler, setListFehler] = useState<string | null>(null)
   const [erweitert, setErweitert] = useState(false)
   const [confirmLoeschenId, setConfirmLoeschenId] = useState<string | null>(null)
   const confirmKondition = konditionen.find(k => k.id === confirmLoeschenId)
@@ -166,22 +181,19 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
   function handleSpeichern() {
     const daten = formZuDaten(form)
     startTransition(async () => {
+      let zielId = bearbeitenId
       if (bearbeitenId) {
         const res = await konditionAktualisieren(bearbeitenId, partnerId, daten)
         if (res.fehler) { setFehler(res.fehler); return }
         setKonditionen((prev) =>
-          prev.map((k) =>
-            k.id === bearbeitenId
-              ? { ...k, ...daten, updated_at: new Date().toISOString() }
-              : k
-          )
+          prev.map((k) => (k.id === bearbeitenId ? { ...k, ...daten, updated_at: new Date().toISOString() } : k)),
         )
       } else {
         const res = await konditionAnlegen(partnerId, daten)
-        if (res.fehler) { setFehler(res.fehler); return }
-        // Pessimistisch: Seite lädt neu via revalidatePath
+        if (res.fehler || !res.id) { setFehler(res.fehler ?? 'Fehler beim Anlegen.'); return }
+        zielId = res.id
         const optimistisch: PartnerKondition = {
-          id: crypto.randomUUID(),
+          id: res.id,
           organisation_id: '',
           partner_id: partnerId,
           name: daten.name,
@@ -196,10 +208,18 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
           skonto_tage: daten.skonto_tage,
           notizen: daten.notizen,
           aktiv: daten.aktiv,
+          ist_standard: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
         setKonditionen((prev) => [optimistisch, ...prev])
+      }
+      // Standard setzen, falls gewünscht (eigene fail-safe Action)
+      if (form.ist_standard && zielId) {
+        const sres = await konditionAlsStandardSetzen(zielId, partnerId)
+        if (!sres.fehler) {
+          setKonditionen((prev) => prev.map((k) => ({ ...k, ist_standard: k.id === zielId })))
+        }
       }
       schliesseModal()
     })
@@ -211,6 +231,15 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
       if (!res.fehler) {
         setKonditionen((prev) => prev.filter((k) => k.id !== id))
       }
+    })
+  }
+
+  function handleStandardSetzen(id: string) {
+    setListFehler(null)
+    startTransition(async () => {
+      const res = await konditionAlsStandardSetzen(id, partnerId)
+      if (res.fehler) { setListFehler(res.fehler); return }
+      setKonditionen((prev) => prev.map((k) => ({ ...k, ist_standard: k.id === id })))
     })
   }
 
@@ -245,6 +274,10 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
         </button>
       </div>
 
+      {listFehler && (
+        <div className="px-5 py-2.5 text-xs text-red-600 bg-red-50 border-b border-red-100">{listFehler}</div>
+      )}
+
       {/* Liste */}
       {konditionen.length === 0 ? (
         <div className="py-10 text-center">
@@ -267,6 +300,11 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
                   <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${TYP_BADGE[k.typ]}`}>
                     {TYP_LABEL[k.typ]}
                   </span>
+                  {k.ist_standard && (
+                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-wellbeing-green text-white font-medium">
+                      <Star className="w-3 h-3 fill-current" /> Standard
+                    </span>
+                  )}
                   {!k.aktiv && (
                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 font-medium">
                       Inaktiv
@@ -296,6 +334,16 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
                 )}
               </div>
               <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-4">
+                {!k.ist_standard && (
+                  <button
+                    type="button"
+                    onClick={() => handleStandardSetzen(k.id)}
+                    className="p-1.5 text-gray-400 hover:text-wellbeing-green hover:bg-wellbeing-cream/60 rounded-lg transition-colors"
+                    title="Als Standard markieren"
+                  >
+                    <Star className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => oeffneBearbeiten(k)}
@@ -385,32 +433,102 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
                 </div>
               )}
 
-              {/* Staffelung (JSON) */}
+              {/* Staffelung (Zeilen-Editor) */}
               {istGestaffelt && (
                 <div>
-                  <label className={lbl}>Staffelung (JSON)</label>
-                  <textarea
-                    rows={4}
-                    value={form.staffelung}
-                    onChange={(e) => setForm((f) => ({ ...f, staffelung: e.target.value }))}
-                    className={`${inp} resize-none font-mono text-xs`}
-                    placeholder={`[\n  { "ab_umsatz": 1000, "prozent": 5 },\n  { "ab_umsatz": 5000, "prozent": 8 }\n]`}
-                  />
+                  <label className={lbl}>Staffelung (ab Umsatz → Prozent)</label>
+                  <div className="space-y-2">
+                    {form.staffelRows.map((row, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type="number" min="0" step="1"
+                            value={row.ab_umsatz}
+                            onChange={(e) => setForm((f) => ({ ...f, staffelRows: f.staffelRows.map((r, j) => j === i ? { ...r, ab_umsatz: e.target.value } : r) }))}
+                            className={`${inp} font-mono pr-8`}
+                            placeholder="ab €"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">€</span>
+                        </div>
+                        <span className="text-gray-300">→</span>
+                        <div className="relative w-24">
+                          <input
+                            type="number" min="0" step="0.1"
+                            value={row.prozent}
+                            onChange={(e) => setForm((f) => ({ ...f, staffelRows: f.staffelRows.map((r, j) => j === i ? { ...r, prozent: e.target.value } : r) }))}
+                            className={`${inp} font-mono pr-7`}
+                            placeholder="%"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, staffelRows: f.staffelRows.length > 1 ? f.staffelRows.filter((_, j) => j !== i) : f.staffelRows }))}
+                          className="p-2 text-gray-300 hover:text-red-500 rounded-lg transition-colors"
+                          title="Stufe entfernen"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, staffelRows: [...f.staffelRows, { ab_umsatz: '', prozent: '' }] }))}
+                    className="mt-2 inline-flex items-center gap-1 text-xs text-wellbeing-green hover:underline underline-offset-2"
+                  >
+                    <Plus className="w-3 h-3" /> Stufe
+                  </button>
                 </div>
               )}
 
-              {/* Kategorie-Werte (JSON) */}
+              {/* Kategorie-Werte (Zeilen-Editor) */}
               {istKategorieBas && (
                 <div>
-                  <label className={lbl}>Kategorie-Werte (JSON)</label>
-                  <textarea
-                    rows={4}
-                    value={form.kategorie_werte}
-                    onChange={(e) => setForm((f) => ({ ...f, kategorie_werte: e.target.value }))}
-                    className={`${inp} resize-none font-mono text-xs`}
-                    placeholder={`{\n  "Möbel": 10,\n  "Beleuchtung": 8\n}`}
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Format: Kategorie-Name → Prozentsatz</p>
+                  <label className={lbl}>Kategorie → Prozentsatz</label>
+                  <div className="space-y-2">
+                    {form.kategorieRows.map((row, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <select
+                          value={row.kategorie}
+                          onChange={(e) => setForm((f) => ({ ...f, kategorieRows: f.kategorieRows.map((r, j) => j === i ? { ...r, kategorie: e.target.value } : r) }))}
+                          className={`${inp} flex-1`}
+                        >
+                          <option value="">Kategorie wählen…</option>
+                          {kategorien.map((k) => <option key={k.name} value={k.name}>{k.name}</option>)}
+                        </select>
+                        <span className="text-gray-300">→</span>
+                        <div className="relative w-24">
+                          <input
+                            type="number" min="0" step="0.1"
+                            value={row.prozent}
+                            onChange={(e) => setForm((f) => ({ ...f, kategorieRows: f.kategorieRows.map((r, j) => j === i ? { ...r, prozent: e.target.value } : r) }))}
+                            className={`${inp} font-mono pr-7`}
+                            placeholder="%"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, kategorieRows: f.kategorieRows.length > 1 ? f.kategorieRows.filter((_, j) => j !== i) : f.kategorieRows }))}
+                          className="p-2 text-gray-300 hover:text-red-500 rounded-lg transition-colors"
+                          title="Zeile entfernen"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, kategorieRows: [...f.kategorieRows, { kategorie: '', prozent: '' }] }))}
+                    className="mt-2 inline-flex items-center gap-1 text-xs text-wellbeing-green hover:underline underline-offset-2"
+                  >
+                    <Plus className="w-3 h-3" /> Kategorie
+                  </button>
+                  {kategorien.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">Noch keine Produktkategorien angelegt (Einstellungen → Kategorien).</p>
+                  )}
                 </div>
               )}
 
@@ -492,16 +610,27 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
                 />
               </div>
 
-              {/* Aktiv */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={form.aktiv}
-                  onChange={(e) => setForm((f) => ({ ...f, aktiv: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-wellbeing-green"
-                />
-                <span className="text-sm text-gray-700">Kondition aktiv</span>
-              </label>
+              {/* Aktiv + Standard */}
+              <div className="flex flex-col gap-2.5">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.aktiv}
+                    onChange={(e) => setForm((f) => ({ ...f, aktiv: e.target.checked }))}
+                    className="w-4 h-4 rounded accent-wellbeing-green"
+                  />
+                  <span className="text-sm text-gray-700">Kondition aktiv</span>
+                </label>
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.ist_standard}
+                    onChange={(e) => setForm((f) => ({ ...f, ist_standard: e.target.checked }))}
+                    className="w-4 h-4 rounded accent-wellbeing-green"
+                  />
+                  <span className="text-sm text-gray-700">Als Standard-Kondition (wird im Produkt bevorzugt übernommen)</span>
+                </label>
+              </div>
             </div>
 
             {/* Modal-Footer */}
