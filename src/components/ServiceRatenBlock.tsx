@@ -220,9 +220,10 @@ export default function ServiceRatenBlock({ projektId, initial, servicePauschale
                   <button
                     type="button"
                     onClick={() => alsBezahlt(r.id)}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-emerald-700 border border-emerald-200 hover:bg-emerald-50 rounded-md transition-colors"
+                    title="Diese Rate als bezahlt markieren"
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-emerald-700 border border-emerald-200 hover:bg-emerald-50 rounded-md transition-colors whitespace-nowrap"
                   >
-                    <Check className="w-3 h-3" /> Bezahlt
+                    <Check className="w-3 h-3" /> Als bezahlt markieren
                   </button>
                 )}
                 <button
