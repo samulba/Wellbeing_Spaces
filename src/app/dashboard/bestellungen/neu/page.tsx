@@ -11,17 +11,21 @@ interface Props {
 
 async function getKandidaten(partnerId: string): Promise<ProduktKandidat[]> {
   const supabase = await createClient()
-  const { data } = await supabase
+  const lade = (extra: string) => supabase
     .from('raum_produkte')
     .select(`
       id, menge,
-      produkte!inner(id, name, bild_url, partner_id, einheit, einkaufspreis, verkaufspreis),
+      produkte!inner(id, name, bild_url, partner_id, einheit, einkaufspreis${extra}, verkaufspreis),
       raeume(id, name, projekt_id, projekte(name))
     `)
     .eq('produkte.partner_id', partnerId)
     .eq('freigabe_status', 'freigegeben')
     .eq('bestellstatus', 'ausstehend')
     .is('deleted_at', null)
+  // Fail-safe: einkaufsrabatt_prozent (Migration 120) ggf. noch nicht vorhanden.
+  let res = await lade(', einkaufsrabatt_prozent')
+  if (res.error) res = await lade('')
+  const data = res.data
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((data ?? []) as any[]).map((rp) => ({
     raum_produkt_id: rp.id,
@@ -32,6 +36,7 @@ async function getKandidaten(partnerId: string): Promise<ProduktKandidat[]> {
       bild_url:      rp.produkte.bild_url,
       einheit:       rp.produkte.einheit ?? 'Stk',
       einkaufspreis: rp.produkte.einkaufspreis,
+      einkaufsrabatt_prozent: rp.produkte.einkaufsrabatt_prozent ?? null,
       verkaufspreis: rp.produkte.verkaufspreis,
     },
     raum: rp.raeume ? {

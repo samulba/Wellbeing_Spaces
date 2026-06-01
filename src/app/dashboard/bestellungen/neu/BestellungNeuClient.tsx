@@ -10,6 +10,7 @@ import {
   bestellungAnlegen, positionHinzufuegen,
 } from '@/app/actions/lieferanten-bestellungen'
 import type { LieferantenBestellungStatus } from '@/lib/supabase/types'
+import { einkaufNettoNachRabatt } from '@/lib/preise'
 
 export type PartnerOption = { id: string; name: string }
 
@@ -22,6 +23,7 @@ export type ProduktKandidat = {
     bild_url: string | null
     einheit: string
     einkaufspreis: number | null
+    einkaufsrabatt_prozent: number | null
     verkaufspreis: number | null
   }
   raum: { id: string; name: string; projekt_id: string; projekt_name: string | null } | null
@@ -54,7 +56,7 @@ export default function BestellungNeuClient({
     for (const k of kandidaten) {
       init[k.raum_produkt_id] = {
         menge: k.menge,
-        preis: k.produkt.einkaufspreis ?? 0,
+        preis: einkaufNettoNachRabatt(k.produkt.einkaufspreis, k.produkt.einkaufsrabatt_prozent),
       }
     }
     return init
