@@ -31,6 +31,10 @@ export async function produktZuRaumHinzufuegen(
     return { fehler: 'Fehler beim Hinzufügen. Bitte erneut versuchen.' }
   }
 
+  // Auswahl-Freigabe-Links automatisch um das neue Produkt erweitern (fail-safe)
+  const { freigabeAuswahlScopeFuerRaum } = await import('./freigaben')
+  await freigabeAuswahlScopeFuerRaum(supabase, orgId, raumId)
+
   revalidatePath('/dashboard/produkte')
   if (projektId) revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   return {}

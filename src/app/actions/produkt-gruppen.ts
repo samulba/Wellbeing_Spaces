@@ -240,6 +240,9 @@ export async function bibliotheksProdukteAlsAlternative(
       }
     }
   }
+  // Auswahl-Freigabe-Links automatisch um die neuen Produkte erweitern (fail-safe)
+  const { freigabeAuswahlScopeFuerRaum } = await import('./freigaben')
+  await freigabeAuswahlScopeFuerRaum(supabase, orgId, raumId)
   revalidatePath('/dashboard/produkte')
   revalidatePath(pfad(projektId, raumId))
   return {}
