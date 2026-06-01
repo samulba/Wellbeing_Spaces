@@ -1,6 +1,6 @@
 import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { getMwstSatz } from '@/app/actions/einstellungen'
-import { effektiverVpNetto } from '@/lib/preise'
+import { effektiverVpNetto, provisionBetrag } from '@/lib/preise'
 import { NextResponse } from 'next/server'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -49,6 +49,9 @@ type RaumProduktRow = {
     einheit: string
     einkaufspreis: number | null
     marge_prozent: number | null
+    provision_prozent: number | null
+    provision_typ: 'prozent' | 'fix' | null
+    provision_fix: number | null
     verkaufspreis: number | null
     produkt_url: string | null
     deleted_at: string | null
@@ -91,23 +94,28 @@ export async function GET(
   for (const r of raeume ?? []) raumMap[r.id] = { name: r.name, reihenfolge: r.reihenfolge ?? 0 }
   const raumIds = (raeume ?? []).map((r) => r.id)
 
-  const { data: rpsRaw } = raumIds.length
-    ? await supabase
+  const rpFelder = 'raum_id, menge, reihenfolge, verkaufspreis_override, rabatt_prozent, freigabe_status'
+  const prodBasis =
+    'id, name, kategorie, einheit, einkaufspreis, marge_prozent, provision_prozent, verkaufspreis, produkt_url, deleted_at, hinweis_extern, hinweis_extern_sichtbar, partner(name)'
+  // Fail-safe: provision_typ/provision_fix (Migration 120) ggf. noch nicht vorhanden → ohne erneut laden.
+  let rpsRaw: RaumProduktRow[] | null = null
+  if (raumIds.length) {
+    const rich = await supabase
+      .from('raum_produkte')
+      .select(`${rpFelder}, produkte(${prodBasis}, provision_typ, provision_fix)`)
+      .in('raum_id', raumIds)
+      .order('reihenfolge')
+    if (rich.error) {
+      const safe = await supabase
         .from('raum_produkte')
-        .select(`
-          raum_id, menge, reihenfolge, verkaufspreis_override, rabatt_prozent,
-          freigabe_status,
-          produkte(
-            id, name, kategorie, einheit,
-            einkaufspreis, marge_prozent, verkaufspreis,
-            produkt_url, deleted_at,
-            hinweis_extern, hinweis_extern_sichtbar,
-            partner(name)
-          )
-        `)
+        .select(`${rpFelder}, produkte(${prodBasis})`)
         .in('raum_id', raumIds)
         .order('reihenfolge')
-    : { data: [] as RaumProduktRow[] }
+      rpsRaw = safe.data as unknown as RaumProduktRow[] | null
+    } else {
+      rpsRaw = rich.data as unknown as RaumProduktRow[] | null
+    }
+  }
 
   const rps = ((rpsRaw ?? []) as unknown as RaumProduktRow[]).filter(
     (rp) => rp.produkte && rp.produkte.deleted_at == null,
@@ -126,6 +134,7 @@ export async function GET(
     'Menge', 'Einheit',
     'EP netto (€)',
     'Marge (%)',
+    'Provision gesamt (€)',
     'Basis-VP netto (€)',
     'Rabatt (%)',
     'VP netto (€)', 'VP brutto (€)',
@@ -145,6 +154,10 @@ export async function GET(
     const vpBrutto     = r2(vp * (1 + MWST))
     const gesamtNetto  = r2(vp * rp.menge)
     const gesamtBrutto = r2(gesamtNetto * (1 + MWST))
+    const provisionGesamt = r2(provisionBetrag(
+      { provision_typ: p.provision_typ, provision_prozent: p.provision_prozent, provision_fix: p.provision_fix },
+      vp,
+    ) * rp.menge)
     const status       = rp.freigabe_status ?? 'ausstehend'
     const partnerName  = p.partner ? (Array.isArray(p.partner) ? p.partner[0]?.name : p.partner.name) : null
     const hinweis      = p.hinweis_extern
@@ -158,6 +171,7 @@ export async function GET(
       csvCell(p.einheit),
       csvNum(ep),
       p.marge_prozent != null ? String(p.marge_prozent).replace('.', ',') : '',
+      csvNum(provisionGesamt),
       csvNum(basisVp),
       rp.rabatt_prozent != null ? String(rp.rabatt_prozent).replace('.', ',') : '',
       csvNum(vp),
