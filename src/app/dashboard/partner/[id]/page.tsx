@@ -16,12 +16,8 @@ import PartnerKontakteBlock from '@/components/PartnerKontakteBlock'
 import PartnerAltNotizBanner from '@/components/PartnerAltNotizBanner'
 import { vertraegeAbrufen } from '@/app/actions/partner-vertraege'
 import {
-  ExternalLink, Mail, Phone, Smartphone, Globe, Star, MapPin, BadgeCheck,
-  ShoppingCart, Truck, Banknote, Users, TrendingUp, Percent, Coins, Wallet, Package,
+  ExternalLink, Mail, Phone, Smartphone, Globe, Star, MapPin, BadgeCheck, Users,
 } from 'lucide-react'
-
-const eur = (n: number) =>
-  new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
 const partnerTypLabel: Record<string, string> = {
   lieferant:   'Lieferant',
@@ -265,28 +261,16 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      {/* Auswertung — Wirtschaftlichkeit + Operatives (nur intern) */}
-      <div className="mb-6">
-        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2 px-0.5">Auswertung · nur intern</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <KpiKarte icon={<Banknote className="w-4 h-4" />}     tone="emerald" label="Bestellter Umsatz"   wert={bestellterUmsatz > 0 ? eur(bestellterUmsatz) : '–'} subLabel="VK netto · bestellt + geliefert" />
-          <KpiKarte icon={<Wallet className="w-4 h-4" />}       tone="slate"   label="Einkaufsvolumen"     wert={einkaufVolumen > 0 ? eur(einkaufVolumen) : '–'}     subLabel="EK netto · an Partner" />
-          <KpiKarte icon={<Percent className="w-4 h-4" />}      tone="blue"    label="Marge"               wert={margeGesamt !== 0 ? eur(margeGesamt) : '–'}         subLabel="Umsatz − Einkauf" />
-          <KpiKarte icon={<Coins className="w-4 h-4" />}        tone="violet"  label="Provision"           wert={provisionGesamt > 0 ? eur(provisionGesamt) : '–'}   subLabel="Trade-Provision" />
-          <KpiKarte icon={<TrendingUp className="w-4 h-4" />}   tone="green"   label="Ertrag gesamt"       wert={ertragGesamt !== 0 ? eur(ertragGesamt) : '–'}       subLabel="Marge + Provision" />
-          <KpiKarte icon={<ShoppingCart className="w-4 h-4" />} tone="amber"   label="Aktive Bestellungen" wert={aktiveBestellungen}                                subLabel="Positionen ≥ bestellt" />
-          <KpiKarte icon={<Truck className="w-4 h-4" />}        tone="blue"    label="Offene Lieferungen"  wert={offeneLieferungen}                                 subLabel="noch nicht geliefert" />
-          <KpiKarte icon={<Package className="w-4 h-4" />}      tone="slate"   label="Produkte"            wert={produkteAnzahl}                                    subLabel="im Sortiment" />
-        </div>
-      </div>
-
-      {/* Grafische Auswertung (umschaltbar) */}
+      {/* Auswertung (grafisch, umschaltbar) — nur intern */}
       <PartnerAuswertungChart
         umsatz={bestellterUmsatz}
         einkauf={einkaufVolumen}
         marge={margeGesamt}
         provision={provisionGesamt}
         ertrag={ertragGesamt}
+        aktiveBestellungen={aktiveBestellungen}
+        offeneLieferungen={offeneLieferungen}
+        produkteAnzahl={produkteAnzahl}
       />
 
       {/* Tabs */}
@@ -451,41 +435,6 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
           />
         }
       />
-    </div>
-  )
-}
-
-// ── KPI-Karte (analog KundeStatsBand) ───────────────────────
-type KpiTone = 'emerald' | 'amber' | 'blue' | 'slate' | 'violet' | 'green'
-const KPI_TONE: Record<KpiTone, { iconBg: string; iconText: string }> = {
-  emerald: { iconBg: 'bg-emerald-50', iconText: 'text-emerald-600' },
-  amber:   { iconBg: 'bg-amber-50',   iconText: 'text-amber-600' },
-  blue:    { iconBg: 'bg-blue-50',    iconText: 'text-blue-600' },
-  slate:   { iconBg: 'bg-slate-100',  iconText: 'text-slate-600' },
-  violet:  { iconBg: 'bg-violet-50',  iconText: 'text-violet-600' },
-  green:   { iconBg: 'bg-wellbeing-green/10', iconText: 'text-wellbeing-green' },
-}
-
-function KpiKarte({
-  icon, label, wert, subLabel, tone = 'emerald',
-}: {
-  icon:      React.ReactNode
-  label:     string
-  wert:      string | number
-  subLabel?: string
-  tone?:     KpiTone
-}) {
-  const t = KPI_TONE[tone]
-  return (
-    <div className="bg-white border border-gray-200 hover:border-wellbeing-green/40 hover:shadow rounded-xl px-4 py-3 flex items-center gap-3 transition-all">
-      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${t.iconBg} ${t.iconText}`}>
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider leading-none">{label}</p>
-        <p className="text-2xl font-semibold text-gray-900 leading-tight mt-1 tabular-nums">{wert}</p>
-        {subLabel && <p className="text-[11px] text-gray-500 truncate">{subLabel}</p>}
-      </div>
     </div>
   )
 }
