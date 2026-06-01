@@ -54,7 +54,7 @@ import AlternativeModal from './AlternativeModal'
 import { bestellstatusAendern, produktDatumAktualisieren, type ProduktDatumFeld } from '@/app/actions/produkte'
 import type { RaumProduktMitDetails, BestellStatus, ProduktGruppe, ProduktBereich } from '@/lib/supabase/types'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
-import { effektiverVpNetto, basisVpNetto } from '@/lib/preise'
+import { effektiverVpNetto, basisVpNetto, provisionBetrag } from '@/lib/preise'
 import HinweisBanner from './HinweisBanner'
 import ReklamationModal from './ReklamationModal'
 
@@ -250,7 +250,9 @@ function SortableProduktZeile({
   const vpBrutto = r2(effektivVP * (1 + mwst))
   const gesamtBrutto = r2(vpBrutto * eintrag.menge)
   const gesamtNetto = r2(effektivVP * eintrag.menge)
-  const provisionEur = r2(effektivVP * ((p.provision_prozent ?? 0) / 100))
+  const provisionEur = provisionBetrag(p, effektivVP)
+  const istFixProv = p.provision_typ === 'fix'
+  const hatProvision = istFixProv ? p.provision_fix != null : p.provision_prozent != null
 
   // Alle Status-Felder liegen seit Migration 076 auf raum_produkte (pro Raum).
   const status = (eintrag.freigabe_status ?? 'ausstehend') as typeof eintrag.freigabe_status
@@ -453,14 +455,14 @@ function SortableProduktZeile({
 
         {/* Marge / Provision (intern, kompakt) */}
         <td className={`${td} text-center whitespace-nowrap`} title="Marge · Provision (nur intern sichtbar)">
-          {(p.marge_prozent != null || p.provision_prozent != null) ? (
+          {(p.marge_prozent != null || hatProvision) ? (
             <div className="inline-flex flex-col items-center gap-0.5 leading-tight">
               <span className="text-[11px] text-gray-600 font-mono tabular-nums">
                 {p.marge_prozent != null ? `${p.marge_prozent}%` : '–'}
                 <span className="mx-1 text-gray-300">·</span>
-                {p.provision_prozent != null ? `${p.provision_prozent}%` : '–'}
+                {hatProvision ? (istFixProv ? `${eur(p.provision_fix ?? 0)}/Stk` : `${p.provision_prozent}%`) : '–'}
               </span>
-              {hasEffektivVP && p.provision_prozent != null && (
+              {hasEffektivVP && !istFixProv && p.provision_prozent != null && (
                 <span className="text-[10px] text-gray-400 font-mono tabular-nums">
                   {eur(provisionEur)}
                 </span>
@@ -650,7 +652,7 @@ function SortableProduktZeile({
                   <KpiZelle label="EP netto" wert={p.einkaufspreis != null ? eur(p.einkaufspreis) : '–'} intern />
                   <KpiZelle label="Marge"     wert={p.marge_prozent != null ? fmtProzent(p.marge_prozent) : '–'} intern />
                   <KpiZelle label="VP netto"  wert={hasEffektivVP ? eur(effektivVP) : '–'} />
-                  <KpiZelle label="Provision" wert={p.provision_prozent != null && hasEffektivVP ? `${fmtProzent(p.provision_prozent)} · ${eur(provisionEur)}` : '–'} intern />
+                  <KpiZelle label="Provision" wert={hatProvision && hasEffektivVP ? (istFixProv ? `${eur(p.provision_fix ?? 0)}/Stk` : `${fmtProzent(p.provision_prozent ?? 0)} · ${eur(provisionEur)}`) : '–'} intern />
                   <div className="col-span-2 pt-2 border-t border-gray-100 flex items-center justify-between">
                     <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Gesamt netto</span>
                     <span className="font-mono text-base font-bold text-wellbeing-green">
@@ -1503,7 +1505,7 @@ export default function SortableProduktTabelle({
   const selEP    = ausgewaehlte.reduce((s, e) => s + (e.produkte.einkaufspreis ?? 0) * e.menge, 0)
   const selVpNet = ausgewaehlte.reduce((s, e) => s + effektiverVpNetto(e, e.produkte.verkaufspreis) * e.menge, 0)
   const selVpBr  = r2(selVpNet * (1 + mwst))
-  const selProv  = ausgewaehlte.reduce((s, e) => s + r2(effektiverVpNetto(e, e.produkte.verkaufspreis) * ((e.produkte.provision_prozent ?? 0) / 100) * e.menge), 0)
+  const selProv  = ausgewaehlte.reduce((s, e) => s + r2(provisionBetrag(e.produkte, effektiverVpNetto(e, e.produkte.verkaufspreis)) * e.menge), 0)
 
   function handleBulkDelete() {
     if (selectedIds.size === 0 || isBulkDeleting) return

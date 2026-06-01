@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import { getRaumProdukte } from '@/app/actions/raum-produkte'
+import { effektiverVpNetto, provisionBetrag } from '@/lib/preise'
 import { produktGruppenAbrufen } from '@/app/actions/produkt-gruppen'
 import { produktBereicheAbrufen } from '@/app/actions/produkt-bereiche'
 import { raumEventsAbrufen } from '@/app/actions/timeline'
@@ -118,16 +119,23 @@ export default async function RaumDetailPage({
     .filter((p) => verwendetePartnerIds.has(p.id))
     .map((p) => ({ id: p.id, name: p.name }))
 
-  // Effektiver VP pro Eintrag
-  const effVP = (e: RaumProduktMitDetails) => e.verkaufspreis_override ?? e.produkte.verkaufspreis ?? 0
+  // Effektiver VP pro Eintrag (inkl. Override + Rabatt — Single Source of Truth)
+  const effVP = (e: RaumProduktMitDetails) =>
+    effektiverVpNetto(
+      { verkaufspreis_override: e.verkaufspreis_override, rabatt_prozent: e.rabatt_prozent ?? null },
+      e.produkte.verkaufspreis,
+    )
 
   // Summen (auf gefilterten Einträgen)
   const sumEpGesamt       = eintraege.reduce((s, e) => s + (e.produkte.einkaufspreis ?? 0) * e.menge, 0)
   const sumVpNettoGesamt  = eintraege.reduce((s, e) => s + effVP(e) * e.menge, 0)
   const sumVpBruttoGesamt = r2(sumVpNettoGesamt * (1 + MWST))
   const sumProvisionGesamt = eintraege.reduce(
-    (s, e) => s + r2(effVP(e) * ((e.produkte.provision_prozent ?? 0) / 100) * e.menge), 0
+    (s, e) => s + r2(provisionBetrag(e.produkte, effVP(e)) * e.menge), 0
   )
+  // Wirtschaftlichkeit (intern): Marge = VP netto − EK, Ertrag = Marge + Provision
+  const sumMargeGesamt  = r2(sumVpNettoGesamt - sumEpGesamt)
+  const sumErtragGesamt = r2(sumMargeGesamt + sumProvisionGesamt)
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
@@ -238,7 +246,9 @@ export default async function RaumDetailPage({
             <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
               <div className="flex flex-wrap items-center gap-x-8 gap-y-2 justify-end">
                 <SummeZelle label="EP gesamt"        wert={eur(r2(sumEpGesamt))}         intern />
+                <SummeZelle label="Marge gesamt"     wert={eur(sumMargeGesamt)}          intern />
                 <SummeZelle label="Provision gesamt" wert={eur(r2(sumProvisionGesamt))}  intern />
+                <SummeZelle label="Ertrag gesamt"    wert={eur(sumErtragGesamt)}         intern />
                 <SummeZelle label="VP netto gesamt"  wert={eur(r2(sumVpNettoGesamt))} />
                 <SummeZelle label="VP brutto gesamt" wert={eur(sumVpBruttoGesamt)}        hervorheben />
               </div>

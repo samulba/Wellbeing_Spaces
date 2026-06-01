@@ -111,6 +111,20 @@ export default function ProjektGesamtuebersicht({ kalk, serviceKostenNetto, prod
             </div>
           )}
 
+          {/* Wirtschaftlichkeit (nur intern) */}
+          {kalk.produkteAnzahl > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Wirtschaftlichkeit · nur intern</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <WirtZelle label="Einkauf (EK)" wert={eurN(kalk.ekSummeNetto)} />
+                <WirtZelle label="Marge"        wert={eurN(kalk.margeSummeNetto)} />
+                <WirtZelle label="Provision"    wert={eurN(kalk.provisionSummeNetto)} />
+                <WirtZelle label="Ertrag"       wert={eurN(kalk.ertragSummeNetto)} hervorheben />
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1.5">Ertrag = Marge + Provision · alle Werte netto · nicht für Kunden sichtbar.</p>
+            </div>
+          )}
+
           {/* Status-Counts */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
             <StatusZelle label="Ausstehend"    wert={kalk.statusCounts.ausstehend}    farbe="text-gray-500 bg-gray-50" />
@@ -146,6 +160,15 @@ function StatusZelle({ label, wert, farbe }: { label: string; wert: number; farb
     <div className={`px-2 py-1.5 rounded-md ${farbe} flex items-center justify-between`}>
       <span>{label}</span>
       <span className="font-mono font-semibold tabular-nums">{wert}</span>
+    </div>
+  )
+}
+
+function WirtZelle({ label, wert, hervorheben }: { label: string; wert: string; hervorheben?: boolean }) {
+  return (
+    <div className={`rounded-lg border p-2.5 ${hervorheben ? 'border-wellbeing-green/40 bg-wellbeing-green/5' : 'border-gray-100 bg-gray-50'}`}>
+      <p className="text-[10px] text-gray-500">{label}</p>
+      <p className={`text-sm font-mono font-semibold mt-1 tabular-nums ${hervorheben ? 'text-wellbeing-green' : 'text-gray-900'}`}>{wert}</p>
     </div>
   )
 }
