@@ -23,7 +23,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { effektiverVpNetto } from './preise'
+import { effektiverVpNetto, provisionBetrag } from './preise'
 
 export interface RaumKalkulation {
   raumId: string
@@ -32,6 +32,11 @@ export interface RaumKalkulation {
   produkteMengeGesamt: number          // Summe aller mengen (Stueckzahl)
   produkteSummeNetto: number
   produkteSummeBrutto: number
+  // Wirtschaftlichkeit (intern, admin-only) — Migration 120
+  ekSummeNetto: number          // Σ einkaufspreis × menge
+  margeSummeNetto: number       // produkteSummeNetto − ekSummeNetto
+  provisionSummeNetto: number   // Σ provisionBetrag × menge (Trade-Provision = Ertrag)
+  ertragSummeNetto: number      // margeSummeNetto + provisionSummeNetto
   zusatzkostenSummeNetto: number
   zusatzkostenSummeBrutto: number
   /** Summe aller Positionen netto = produkte + zusatzkosten */
@@ -57,6 +62,11 @@ export interface ProjektKalkulation {
   /** Projekt-Total (aufsummiert ueber alle Raeume) */
   produkteSummeNetto: number
   produkteSummeBrutto: number
+  // Wirtschaftlichkeit (intern, admin-only) — Migration 120
+  ekSummeNetto: number
+  margeSummeNetto: number
+  provisionSummeNetto: number
+  ertragSummeNetto: number
   zusatzkostenSummeNetto: number
   zusatzkostenSummeBrutto: number
   /** Budget-relevant: Produkte + Zusatzkosten (KEINE Servicepauschale!) */
@@ -76,6 +86,10 @@ export interface ProjektKalkulation {
 
 interface ProduktSlim {
   verkaufspreis: number | null
+  einkaufspreis: number | null
+  provision_prozent: number | null
+  provision_typ?: 'prozent' | 'fix' | null
+  provision_fix?: number | null
 }
 
 interface RaumProduktSlim {
@@ -130,12 +144,25 @@ export async function berechneProjektKalkulation(
     return leereKalkulation(projektId, mwstSatz)
   }
 
-  // 2. Raum-Produkte mit Produkt-Details
-  const { data: rpRaw } = await supabase
+  // 2. Raum-Produkte mit Produkt-Details.
+  // Fail-safe: provision_typ/provision_fix (Migration 120) sind ggf. noch nicht vorhanden
+  // → bei Fehler ohne diese Spalten erneut laden (EK/Provision% existieren seit Mig 038).
+  const rpFelder = 'raum_id, menge, verkaufspreis_override, rabatt_prozent, freigabe_status'
+  const rich = await supabase
     .from('raum_produkte')
-    .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, freigabe_status, produkte(verkaufspreis)')
+    .select(`${rpFelder}, produkte(verkaufspreis, einkaufspreis, provision_prozent, provision_typ, provision_fix)`)
     .in('raum_id', raumIds)
     .is('deleted_at', null)
+
+  let rpRaw: unknown[] | null = rich.data
+  if (rich.error) {
+    const safe = await supabase
+      .from('raum_produkte')
+      .select(`${rpFelder}, produkte(verkaufspreis, einkaufspreis, provision_prozent)`)
+      .in('raum_id', raumIds)
+      .is('deleted_at', null)
+    rpRaw = safe.data
+  }
 
   const raumProdukte = (rpRaw ?? []) as unknown as RaumProduktSlim[]
 
@@ -172,6 +199,10 @@ export async function berechneProjektKalkulation(
       produkteMengeGesamt: 0,
       produkteSummeNetto: 0,
       produkteSummeBrutto: 0,
+      ekSummeNetto: 0,
+      margeSummeNetto: 0,
+      provisionSummeNetto: 0,
+      ertragSummeNetto: 0,
       zusatzkostenSummeNetto: 0,
       zusatzkostenSummeBrutto: 0,
       raumSummeNetto: 0,
@@ -195,6 +226,15 @@ export async function berechneProjektKalkulation(
     slot.produkteAnzahl += 1
     slot.produkteMengeGesamt += menge
     slot.produkteSummeNetto += vpNetto * menge
+    slot.ekSummeNetto += (rp.produkte?.einkaufspreis ?? 0) * menge
+    slot.provisionSummeNetto += provisionBetrag(
+      {
+        provision_typ:     rp.produkte?.provision_typ ?? null,
+        provision_prozent: rp.produkte?.provision_prozent ?? null,
+        provision_fix:     rp.produkte?.provision_fix ?? null,
+      },
+      vpNetto,
+    ) * menge
     const s = (rp.freigabe_status as keyof RaumKalkulation['statusCounts']) ?? 'ausstehend'
     if (s === 'freigegeben' || s === 'abgelehnt' || s === 'ueberarbeitung' || s === 'ausstehend') {
       slot.statusCounts[s] += 1
@@ -218,6 +258,11 @@ export async function berechneProjektKalkulation(
     slot.zusatzkostenSummeBrutto = r2(slot.zusatzkostenSummeNetto * (1 + mwstSatz))
     slot.raumSummeNetto = r2(slot.produkteSummeNetto + slot.zusatzkostenSummeNetto)
     slot.raumSummeBrutto = r2(slot.raumSummeNetto * (1 + mwstSatz))
+    // Wirtschaftlichkeit (intern)
+    slot.ekSummeNetto = r2(slot.ekSummeNetto)
+    slot.provisionSummeNetto = r2(slot.provisionSummeNetto)
+    slot.margeSummeNetto = r2(slot.produkteSummeNetto - slot.ekSummeNetto)
+    slot.ertragSummeNetto = r2(slot.margeSummeNetto + slot.provisionSummeNetto)
   })
 
   // ── Projekt-Totals ──────────────────────────────────────────
@@ -225,6 +270,10 @@ export async function berechneProjektKalkulation(
 
   const produkteSummeNetto = r2(raumeListe.reduce((s, r) => s + r.produkteSummeNetto, 0))
   const zusatzkostenSummeNetto = r2(raumeListe.reduce((s, r) => s + r.zusatzkostenSummeNetto, 0))
+  const ekSummeNetto = r2(raumeListe.reduce((s, r) => s + r.ekSummeNetto, 0))
+  const provisionSummeNetto = r2(raumeListe.reduce((s, r) => s + r.provisionSummeNetto, 0))
+  const margeSummeNetto = r2(produkteSummeNetto - ekSummeNetto)
+  const ertragSummeNetto = r2(margeSummeNetto + provisionSummeNetto)
   const budgetVerbrauchtNetto = r2(produkteSummeNetto + zusatzkostenSummeNetto)
   const produkteAnzahl = raumeListe.reduce((s, r) => s + r.produkteAnzahl, 0)
   const produkteMengeGesamt = raumeListe.reduce((s, r) => s + r.produkteMengeGesamt, 0)
@@ -259,6 +308,10 @@ export async function berechneProjektKalkulation(
     raeume: raumeListe,
     produkteSummeNetto,
     produkteSummeBrutto: r2(produkteSummeNetto * (1 + mwstSatz)),
+    ekSummeNetto,
+    margeSummeNetto,
+    provisionSummeNetto,
+    ertragSummeNetto,
     zusatzkostenSummeNetto,
     zusatzkostenSummeBrutto: r2(zusatzkostenSummeNetto * (1 + mwstSatz)),
     budgetVerbrauchtNetto,
@@ -280,6 +333,10 @@ function leereKalkulation(projektId: string, mwstSatz: number): ProjektKalkulati
     raeume: [],
     produkteSummeNetto: 0,
     produkteSummeBrutto: 0,
+    ekSummeNetto: 0,
+    margeSummeNetto: 0,
+    provisionSummeNetto: 0,
+    ertragSummeNetto: 0,
     zusatzkostenSummeNetto: 0,
     zusatzkostenSummeBrutto: 0,
     budgetVerbrauchtNetto: 0,

@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Kalkulation & Partner-Konditionen
+- **Angebot aus Produktliste** übernimmt jetzt **Rabatte** korrekt (identisch zu Produkttabelle, PDF und CSV) — vorher wurde ein Positions-Rabatt beim Erzeugen des Angebots ignoriert.
+- Grundlage für eine durchgängige Provisions-/Einkaufslogik gelegt (Partner-Konditionen werden zur zentralen Quelle). Migrationen **120** + **121** in Supabase ausführen; ohne sie läuft alles weiter wie bisher.
+
 ### Freigabe: mehr Entscheidungsfreiheit für Kunden (Mehrfachauswahl · Menge · Notiz)
 - **Mehrfachauswahl in Auswahl-Blöcken:** Der Kunde kann jetzt **mehrere** Produkte aus einem Block wählen (z. B. zwei verschiedene Kissen) — vorher war es genau eines. Die Optionen sind jetzt Häkchen statt Radio-Buttons.
 - **Wunsch-Menge:** Bei jedem Produkt kann der Kunde die **Stückzahl** über −/+ anpassen (z. B. „doch 3 statt 1"). Eure geplante Menge/Kalkulation bleibt unangetastet; in der Produkttabelle erscheint ein **„Kunde: X"**-Hinweis, wenn der Wunsch abweicht.

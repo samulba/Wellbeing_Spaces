@@ -195,17 +195,53 @@ export async function getPartnerKonditionen(partnerId: string): Promise<PartnerK
 export async function konditionAnlegen(
   partnerId: string,
   daten: KonditionDaten
+): Promise<{ fehler?: string; id?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { data, error } = await supabase
+    .from('partner_konditionen')
+    .insert({
+      organisation_id: orgId,
+      partner_id: partnerId,
+      ...daten,
+    })
+    .select('id')
+    .single()
+
+  if (error || !data) return { fehler: 'Fehler beim Anlegen der Kondition.' }
+
+  revalidatePath(`/dashboard/partner/${partnerId}`)
+  return { id: data.id as string }
+}
+
+/**
+ * Markiert eine Kondition als Standard (genau 1 pro Partner). Setzt zuerst alle
+ * Geschwister auf false (Partial-Unique-Index-konform), dann diese auf true.
+ * Fail-safe: existiert die Spalte `ist_standard` noch nicht (Migration 121),
+ * gibt die Funktion einen Fehler zurück statt zu crashen.
+ */
+export async function konditionAlsStandardSetzen(
+  id: string,
+  partnerId: string
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
-  const { error } = await supabase.from('partner_konditionen').insert({
-    organisation_id: orgId,
-    partner_id: partnerId,
-    ...daten,
-  })
+  await supabase
+    .from('partner_konditionen')
+    .update({ ist_standard: false })
+    .eq('partner_id', partnerId)
+    .eq('organisation_id', orgId)
 
-  if (error) return { fehler: 'Fehler beim Anlegen der Kondition.' }
+  const { error } = await supabase
+    .from('partner_konditionen')
+    .update({ ist_standard: true })
+    .eq('id', id)
+    .eq('partner_id', partnerId)
+    .eq('organisation_id', orgId)
+
+  if (error) return { fehler: 'Fehler beim Setzen der Standard-Kondition (Migration 121 nötig?).' }
 
   revalidatePath(`/dashboard/partner/${partnerId}`)
   return {}

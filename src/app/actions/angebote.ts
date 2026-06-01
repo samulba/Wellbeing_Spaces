@@ -4,6 +4,7 @@ import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Angebot, AngebotStatus, AngebotPosition } from '@/lib/supabase/types'
 import { berechneAngebotSummen } from '@/lib/angebot-utils'
+import { effektiverVpNetto } from '@/lib/preise'
 import { sendMail } from '@/lib/mail'
 import { angebotVersandMail } from '@/lib/mail-templates'
 
@@ -102,7 +103,7 @@ export async function angebotAusProduktliste(
 
   const { data: eintraege } = await supabase
     .from('raum_produkte')
-    .select('menge, verkaufspreis_override, reihenfolge, produkte(name, einheit, verkaufspreis, deleted_at)')
+    .select('menge, verkaufspreis_override, rabatt_prozent, reihenfolge, produkte(name, einheit, verkaufspreis, deleted_at)')
     .in('raum_id', raumIds)
     .order('reihenfolge')
 
@@ -113,15 +114,19 @@ export async function angebotAusProduktliste(
     })
     .map((e, i) => {
       const p = (e.produkte as unknown) as { name: string; einheit: string; verkaufspreis: number | null }
-      const ep = e.verkaufspreis_override ?? p?.verkaufspreis ?? 0
+      // Endpreis = Override + Rabatt (Single Source of Truth, identisch zu Tabelle/PDF/CSV)
+      const einzelpreis = effektiverVpNetto(
+        { verkaufspreis_override: e.verkaufspreis_override, rabatt_prozent: (e as { rabatt_prozent: number | null }).rabatt_prozent ?? null },
+        p?.verkaufspreis ?? null,
+      )
       return {
         id: `pos-${i + 1}`,
         name: p?.name ?? '–',
         beschreibung: null,
         menge: e.menge,
         einheit: p?.einheit ?? 'Stk',
-        einzelpreis: ep,
-        gesamtpreis: Math.round(ep * e.menge * 100) / 100,
+        einzelpreis,
+        gesamtpreis: Math.round(einzelpreis * e.menge * 100) / 100,
       }
     })
 

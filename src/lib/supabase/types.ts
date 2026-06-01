@@ -284,7 +284,9 @@ export interface Partner {
   telefon: string | null
   website: string | null
   adresse: string | null
+  /** @deprecated Ab Migration 121 in partner_konditionen gefaltet — nicht mehr gelesen/geschrieben. */
   provisionsmodell: ProvisionsModell | null
+  /** @deprecated Ab Migration 121 in partner_konditionen gefaltet — nicht mehr gelesen/geschrieben. */
   provisions_wert: number | null
   einkaufskonditionen: string | null
   notizen: string | null
@@ -360,8 +362,27 @@ export interface PartnerKondition {
   skonto_tage: number | null
   notizen: string | null
   aktiv: boolean
+  // Standard-Kondition (Migration 121) — genau 1 pro Partner, vom Resolver bevorzugt.
+  ist_standard?: boolean
   created_at: string
   updated_at: string
+}
+
+// Aufgelöste Partner-Konditionen für ein konkretes Produkt (Resolver-Ergebnis,
+// src/lib/partner-konditionen.ts). Rein berechnet, nicht persistiert.
+export interface ResolvedPartnerKonditionen {
+  provisionTyp: ProvisionTyp | null
+  provisionProzent: number | null
+  provisionFix: number | null
+  einkaufsrabattProzent: number | null
+  zahlungszielTage: number | null
+  skontoProzent: number | null
+  skontoTage: number | null
+  mindestbestellwert: number | null
+  /** Hinweis, wenn gestaffelte Konditionen existieren (final auf Bestell-/Projektebene). */
+  staffelHinweis: string | null
+  /** Quelle-Kondition (für „weicht ab"-Hinweis). */
+  quelleKonditionId: string | null
 }
 
 // ── Partner-Verträge (Migration 079) — hochgeladene PDFs/Docs ──
@@ -464,6 +485,8 @@ export type ProduktVerfuegbarkeit =
   | 'lieferzeit_4_6'
   | 'standard'
 
+export type ProvisionTyp = 'prozent' | 'fix'
+
 export interface Produkt {
   id: string
   organisation_id?: string | null
@@ -478,6 +501,11 @@ export interface Produkt {
   einkaufspreis: number | null
   marge_prozent: number | null
   provision_prozent: number | null
+  // Provisions-Typ + Fixbetrag (Migration 120). null/undefined = legacy → wie 'prozent' behandeln.
+  provision_typ?: ProvisionTyp | null
+  provision_fix?: number | null
+  // Einkaufsrabatt % auf den EK (Migration 120) — z.B. aus Partner-Konditionen übernommen.
+  einkaufsrabatt_prozent?: number | null
   notizen_intern: string | null
   // Externe Felder
   verkaufspreis: number | null
