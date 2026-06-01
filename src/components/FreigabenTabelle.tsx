@@ -6,6 +6,7 @@ import Link from 'next/link'
 import {
   CheckCircle2, X, Clock, XCircle, RotateCcw, BarChart2, Layers, Table2,
   Search, ChevronDown, ChevronRight, Undo2, ArrowUpRight, Star,
+  AlertTriangle, MessageSquareQuote, Home,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -13,6 +14,7 @@ import {
 } from 'recharts'
 import { freigabeZuruecksetzenAdmin, freigabeBulkStatusAendernAdmin } from '@/app/actions/freigabe'
 import Checkbox from '@/components/Checkbox'
+import StickyPageHeader from '@/components/StickyPageHeader'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type FreigabeEintrag = {
@@ -37,11 +39,16 @@ export type FreigabeEintrag = {
     } | null
   } | null
   produktstatus: { status: string; kommentar: string | null } | null
-  // Auswahl-Gruppe + Favoriten (Migration 114) — optional, fail-safe angereichert
+  // Auswahl-Block + Favoriten (Migration 114) — optional, fail-safe angereichert
   produkt_gruppe_id?: string | null
   gruppe_name?: string | null
   admin_favorit?: boolean
   kunde_favorit?: boolean
+  // Bereich/„Gruppe" (Mig 116, effektiv = block-first) + Block-Kundennotiz (Mig 119)
+  bereich_id?: string | null
+  bereich_name?: string | null
+  bereich_farbe?: string | null
+  block_kunde_notiz?: string | null
 }
 
 type Tab = 'offen' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung' | 'alle'
@@ -68,6 +75,15 @@ function matchTab(status: string, tab: Tab) {
 
 function formatDatum(iso: string) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })
+}
+
+// Avatar-Tile (gleiche Palette wie ProjekteGrid/NavSidebar)
+const AVATAR_FARBEN = ['bg-wellbeing-green', 'bg-violet-500', 'bg-blue-500', 'bg-emerald-500', 'bg-rose-500', 'bg-amber-500']
+function avatarFarbe(s: string) { return AVATAR_FARBEN[(s.charCodeAt(0) || 0) % AVATAR_FARBEN.length] }
+function initials(name: string) { return name.split(' ').map((w) => w[0]).filter(Boolean).join('').toUpperCase().slice(0, 2) || '–' }
+
+function eur(n: number): string {
+  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 }
 
 // ── Chart: Tooltip ────────────────────────────────────────────
@@ -198,7 +214,7 @@ function DetailModal({ eintrag, onClose, onReset, isPending }: {
             </span>
           </InfoZeile>
           {kommentar && (
-            <InfoZeile label="Kommentar">
+            <InfoZeile label="Kundenwunsch">
               <p className="text-sm text-gray-700 leading-relaxed">{kommentar}</p>
             </InfoZeile>
           )}
@@ -250,58 +266,144 @@ function InfoZeile({ label, children }: { label: string; children: React.ReactNo
   )
 }
 
-// ── Gruppierung ────────────────────────────────────────────────
-type ProjektGruppe = {
-  projektId: string
-  projektName: string
-  kundeName: string | null
-  kundeId: string | null
-  eintraege: FreigabeEintrag[]
-  offenCount: number
-  freigegebenCount: number
-  abgelehntCount: number
-  ueberarbeitungCount: number
-  vpSumme: number
+// ── Kundennotiz/-wunsch Karte (geteilter Stil mit SortableProduktTabelle) ──
+function KundenNotizKarte({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="mt-1.5 flex items-start gap-2 rounded-lg border border-wellbeing-terracotta/25 bg-wellbeing-cream/60 px-2.5 py-1.5" role="note">
+      <MessageSquareQuote className="w-3.5 h-3.5 text-wellbeing-terracotta shrink-0 mt-0.5" />
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-wellbeing-terracotta/80">{label}</p>
+        <p className="text-[12px] leading-snug text-wellbeing-green-dark whitespace-pre-line break-words">{text}</p>
+      </div>
+    </div>
+  )
 }
 
-function gruppiereNachProjekt(eintraege: FreigabeEintrag[]): ProjektGruppe[] {
-  const map = new Map<string, ProjektGruppe>()
+// ── Entscheidungs-Einheiten (Block = 1 Einheit, gespiegelt aus FreigabeClient) ──
+type Einheiten = { total: number; freigegeben: number; offen: number; abgelehnt: number; ueberarbeitung: number }
 
-  for (const e of eintraege) {
-    const projekt = e.raeume?.projekte
-    if (!projekt) continue
-    const id = projekt.id
+/** Status eines Blocks aus seinen Mitgliedern: freigegeben gewinnt, dann Überarbeitung, dann abgelehnt, sonst offen. */
+function blockStatusKey(members: FreigabeEintrag[]): 'freigegeben' | 'ueberarbeitung' | 'abgelehnt' | 'ausstehend' {
+  const st = members.map((m) => m.produktstatus?.status ?? 'ausstehend')
+  if (st.includes('freigegeben')) return 'freigegeben'
+  if (st.includes('ueberarbeitung')) return 'ueberarbeitung'
+  if (st.includes('abgelehnt')) return 'abgelehnt'
+  return 'ausstehend'
+}
 
-    if (!map.has(id)) {
-      map.set(id, {
-        projektId:   id,
-        projektName: projekt.name,
-        kundeName:   projekt.kunden?.name ?? null,
-        kundeId:     projekt.kunden?.id   ?? null,
-        eintraege:   [],
-        offenCount:  0,
-        freigegebenCount: 0,
-        abgelehntCount: 0,
-        ueberarbeitungCount: 0,
-        vpSumme: 0,
-      })
+function zaehleEinheiten(items: FreigabeEintrag[]): Einheiten {
+  const eh: Einheiten = { total: 0, freigegeben: 0, offen: 0, abgelehnt: 0, ueberarbeitung: 0 }
+  const blockMap = new Map<string, FreigabeEintrag[]>()
+  for (const e of items) {
+    if (e.produkt_gruppe_id) {
+      const arr = blockMap.get(e.produkt_gruppe_id) ?? []
+      arr.push(e); blockMap.set(e.produkt_gruppe_id, arr)
+      continue
     }
+    eh.total++
+    const s = e.produktstatus?.status ?? 'ausstehend'
+    if (s === 'freigegeben') eh.freigegeben++
+    else if (s === 'abgelehnt') eh.abgelehnt++
+    else if (s === 'ueberarbeitung') eh.ueberarbeitung++
+    else eh.offen++
+  }
+  for (const members of Array.from(blockMap.values())) {
+    eh.total++
+    const k = blockStatusKey(members)
+    if (k === 'freigegeben') eh.freigegeben++
+    else if (k === 'ueberarbeitung') eh.ueberarbeitung++
+    else if (k === 'abgelehnt') eh.abgelehnt++
+    else eh.offen++
+  }
+  return eh
+}
 
-    const gruppe = map.get(id)!
-    gruppe.eintraege.push(e)
-    const status = e.produktstatus?.status ?? 'ausstehend'
-    if (status === 'ausstehend') gruppe.offenCount++
-    else if (status === 'freigegeben') gruppe.freigegebenCount++
-    else if (status === 'abgelehnt') gruppe.abgelehntCount++
-    else if (status === 'ueberarbeitung') { gruppe.ueberarbeitungCount++; gruppe.offenCount++ }
-    gruppe.vpSumme += (e.verkaufspreis ?? 0) * (e.menge ?? 0)
+// ── Gruppierung (flach, für Balken-Chart) ──────────────────────
+type ProjektGruppe = {
+  projektName: string
+  freigegebenCount: number; offenCount: number; abgelehntCount: number; ueberarbeitungCount: number
+}
+function gruppiereFuerChart(eintraege: FreigabeEintrag[]): ProjektGruppe[] {
+  const map = new Map<string, ProjektGruppe>()
+  for (const e of eintraege) {
+    const p = e.raeume?.projekte
+    if (!p) continue
+    let g = map.get(p.id)
+    if (!g) { g = { projektName: p.name, freigegebenCount: 0, offenCount: 0, abgelehntCount: 0, ueberarbeitungCount: 0 }; map.set(p.id, g) }
+    const s = e.produktstatus?.status ?? 'ausstehend'
+    if (s === 'freigegeben') g.freigegebenCount++
+    else if (s === 'abgelehnt') g.abgelehntCount++
+    else if (s === 'ueberarbeitung') { g.ueberarbeitungCount++; g.offenCount++ }
+    else g.offenCount++
+  }
+  return Array.from(map.values())
+}
+
+// ── Strukturierter Baum: Projekt → Raum → Bereich → Block/lose ──
+type BlockNode = { blockId: string; blockName: string; kundeNotiz: string | null; members: FreigabeEintrag[] }
+type BereichNode = { key: string; bereichId: string | null; name: string; farbe: string | null; bloecke: BlockNode[]; lose: FreigabeEintrag[] }
+type RaumNode = { raumId: string; raumName: string; bereiche: BereichNode[] }
+type ProjektNode = {
+  projektId: string; projektName: string; kundeName: string | null; kundeId: string | null
+  eintraege: FreigabeEintrag[]; raeume: RaumNode[]
+  einheiten: Einheiten; vpSumme: number; handlungsbedarf: number
+}
+
+function baueProjektBaum(items: FreigabeEintrag[]): ProjektNode[] {
+  const projMap = new Map<string, ProjektNode>()
+  for (const e of items) {
+    const p = e.raeume?.projekte
+    if (!p || !e.raeume) continue
+    let pn = projMap.get(p.id)
+    if (!pn) {
+      pn = { projektId: p.id, projektName: p.name, kundeName: p.kunden?.name ?? null, kundeId: p.kunden?.id ?? null,
+        eintraege: [], raeume: [], einheiten: { total: 0, freigegeben: 0, offen: 0, abgelehnt: 0, ueberarbeitung: 0 }, vpSumme: 0, handlungsbedarf: 0 }
+      projMap.set(p.id, pn)
+    }
+    pn.eintraege.push(e)
   }
 
-  return Array.from(map.values()).sort((a, b) => b.offenCount - a.offenCount)
-}
+  for (const pn of Array.from(projMap.values())) {
+    const raumMap = new Map<string, RaumNode>()
+    for (const e of pn.eintraege) {
+      const r = e.raeume!
+      if (!raumMap.has(r.id)) raumMap.set(r.id, { raumId: r.id, raumName: r.name, bereiche: [] })
+    }
+    for (const rn of Array.from(raumMap.values())) {
+      const raumItems = pn.eintraege.filter((e) => e.raeume!.id === rn.raumId)
+      const berMap = new Map<string, BereichNode>()
+      for (const e of raumItems) {
+        const bid = e.bereich_id ?? null
+        const key = bid ?? '__ohne__'
+        if (!berMap.has(key)) {
+          berMap.set(key, { key, bereichId: bid, name: bid ? (e.bereich_name ?? 'Gruppe') : 'Ohne Gruppe', farbe: e.bereich_farbe ?? null, bloecke: [], lose: [] })
+        }
+      }
+      for (const bn of Array.from(berMap.values())) {
+        const berItems = raumItems.filter((e) => (e.bereich_id ?? null) === bn.bereichId)
+        const blockMap = new Map<string, BlockNode>()
+        for (const e of berItems) {
+          if (e.produkt_gruppe_id) {
+            let bl = blockMap.get(e.produkt_gruppe_id)
+            if (!bl) { bl = { blockId: e.produkt_gruppe_id, blockName: e.gruppe_name ?? 'Auswahl-Block', kundeNotiz: e.block_kunde_notiz ?? null, members: [] }; blockMap.set(e.produkt_gruppe_id, bl) }
+            bl.members.push(e)
+          } else {
+            bn.lose.push(e)
+          }
+        }
+        bn.bloecke = Array.from(blockMap.values())
+      }
+      // Bereiche mit Inhalt: „Ohne Gruppe" ans Ende
+      rn.bereiche = Array.from(berMap.values()).sort((a, b) => (a.bereichId ? 0 : 1) - (b.bereichId ? 0 : 1))
+    }
+    pn.raeume = Array.from(raumMap.values())
+    pn.einheiten = zaehleEinheiten(pn.eintraege)
+    pn.vpSumme = pn.eintraege.reduce((s, e) => s + (e.verkaufspreis ?? 0) * (e.menge ?? 0), 0)
+    pn.handlungsbedarf = pn.eintraege.filter((e) => { const s = e.produktstatus?.status; return s === 'abgelehnt' || s === 'ueberarbeitung' }).length
+  }
 
-function eur(n: number): string {
-  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+  // Projekte mit den meisten offenen Einheiten zuerst, dann Handlungsbedarf
+  return Array.from(projMap.values()).sort((a, b) => b.einheiten.offen - a.einheiten.offen || b.handlungsbedarf - a.handlungsbedarf)
 }
 
 // ── Komponente ────────────────────────────────────────────────
@@ -316,10 +418,11 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
   const [selectedEintrag, setSelected]   = useState<FreigabeEintrag | null>(null)
   const [selectedIds, setSelectedIds]    = useState<Set<string>>(new Set())
   const [bulkToast, setBulkToast]        = useState<string | null>(null)
+  const [feedOffen, setFeedOffen]        = useState(true)
   const [isPending, startTransition]     = useTransition()
   const router                           = useRouter()
 
-  // Globale Status-Counts (für Hero + Chips) — unabhängig vom Tab-Filter
+  // Globale Status-Counts (für Pills) — unabhängig vom Tab-Filter
   const counts = useMemo(() => {
     const c = { freigegeben: 0, ausstehend: 0, abgelehnt: 0, ueberarbeitung: 0 }
     for (const e of eintraege) {
@@ -329,8 +432,12 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
     return c
   }, [eintraege])
 
-  const gesamt = eintraege.length
-  const entschieden = counts.freigegeben + counts.abgelehnt
+  // Globale Entscheidungs-Einheiten (für Seitenkopf)
+  const globalEinheiten = useMemo(() => zaehleEinheiten(eintraege), [eintraege])
+  const handlungsbedarfGesamt = useMemo(
+    () => eintraege.filter((e) => { const s = e.produktstatus?.status; return s === 'abgelehnt' || s === 'ueberarbeitung' }).length,
+    [eintraege],
+  )
 
   // Liste der Projekte für Projekt-Filter
   const alleProjekte = useMemo(() => {
@@ -342,6 +449,16 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
     return Array.from(m.entries()).sort((a, b) => a[1].localeCompare(b[1]))
   }, [eintraege])
 
+  const passtSuche = (e: FreigabeEintrag, q: string) =>
+    !q || (
+      e.name.toLowerCase().includes(q) ||
+      (e.raeume?.name ?? '').toLowerCase().includes(q) ||
+      (e.raeume?.projekte?.name ?? '').toLowerCase().includes(q) ||
+      (e.kategorie ?? '').toLowerCase().includes(q) ||
+      (e.bereich_name ?? '').toLowerCase().includes(q) ||
+      (e.gruppe_name ?? '').toLowerCase().includes(q)
+    )
+
   // Kombinierter Filter: Tab + Projekt + Suche
   const gefiltert = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -349,17 +466,27 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
       const status = e.produktstatus?.status ?? 'ausstehend'
       if (!matchTab(status, tab)) return false
       if (projektFilter !== 'alle' && e.raeume?.projekte?.id !== projektFilter) return false
-      if (q && !(
-        e.name.toLowerCase().includes(q) ||
-        (e.raeume?.name ?? '').toLowerCase().includes(q) ||
-        (e.raeume?.projekte?.name ?? '').toLowerCase().includes(q) ||
-        (e.kategorie ?? '').toLowerCase().includes(q)
-      )) return false
-      return true
+      return passtSuche(e, q)
     })
   }, [eintraege, tab, projektFilter, search])
 
-  const gruppen = useMemo(() => gruppiereNachProjekt(gefiltert), [gefiltert])
+  const projektBaum = useMemo(() => baueProjektBaum(gefiltert), [gefiltert])
+  const chartGruppen = useMemo(() => gruppiereFuerChart(gefiltert), [gefiltert])
+
+  // Handlungsbedarf-Feed: abgelehnt/ueberarbeitung (mit Kommentar zuerst). Respektiert Projekt+Suche, nicht den Tab.
+  const feedItems = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return eintraege
+      .filter((e) => { const s = e.produktstatus?.status; return s === 'abgelehnt' || s === 'ueberarbeitung' })
+      .filter((e) => projektFilter === 'alle' || e.raeume?.projekte?.id === projektFilter)
+      .filter((e) => passtSuche(e, q))
+      .sort((a, b) => {
+        const ak = a.produktstatus?.kommentar ? 0 : 1
+        const bk = b.produktstatus?.kommentar ? 0 : 1
+        if (ak !== bk) return ak - bk
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      })
+  }, [eintraege, projektFilter, search])
 
   function handleReset(raumProduktId: string) {
     startTransition(async () => {
@@ -482,27 +609,24 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
               </span>
             </div>
 
-            {/* Row 2: Raum · Projekt · Auswahl-Gruppe */}
+            {/* Row 2: Raum · Projekt (nur in Tabelle/Feed) */}
             {(e.raeume?.name || (withProjekt && e.raeume?.projekte)) && (
               <p className="text-[11px] text-gray-500 mt-0.5 truncate">
                 {e.raeume?.name}
                 {withProjekt && e.raeume?.projekte && (
                   <> · {e.raeume.projekte.name}</>
                 )}
-                {e.gruppe_name && (
-                  <> · <span className="text-wellbeing-green">{e.gruppe_name}</span></>
-                )}
               </p>
             )}
 
-            {/* Kommentar (wenn Überarbeitung/Abgelehnt mit Kommentar) */}
+            {/* Kundenwunsch (wenn Überarbeitung/Abgelehnt mit Kommentar) */}
             {kommentar && (
-              <p className="text-[11px] text-amber-600 mt-0.5 truncate" title={kommentar}>
+              <p className="text-[11px] text-wellbeing-terracotta mt-0.5 truncate" title={kommentar}>
                 &bdquo;{kommentar}&ldquo;
               </p>
             )}
 
-            {/* Row 3: Status-Pill + VP + Actions — Actions auf Mobile immer sichtbar */}
+            {/* Row 3: Status-Pill + Favorit + VP + Actions */}
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               {cfg && (
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text} shrink-0`}>
@@ -510,7 +634,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                   {cfg.label}
                 </span>
               )}
-              {/* Auswahl-Gruppe: Favorit/Empfehlung vs. Alternative (Migration 114) */}
+              {/* Block: Empfehlung / Kundenwahl / Alternative (Migration 114) */}
               {e.produkt_gruppe_id && (
                 <>
                   {e.admin_favorit && (
@@ -548,10 +672,10 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                   </button>
                 )}
                 <Link
-                  href={`/dashboard/projekte/${e.raeume?.projekte?.id ?? ''}`}
+                  href={`/dashboard/projekte/${e.raeume?.projekte?.id ?? ''}/raeume/${e.raeume?.id ?? ''}`}
                   onClick={(ev) => ev.stopPropagation()}
-                  title="Zum Projekt"
-                  aria-label="Zum Projekt"
+                  title="Im Raum öffnen"
+                  aria-label="Im Raum öffnen"
                   className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-wellbeing-green hover:bg-wellbeing-green/10 rounded-md transition-colors"
                 >
                   <ArrowUpRight className="w-3.5 h-3.5" />
@@ -564,55 +688,107 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
     )
   }
 
-  return (
-    <div className="flex flex-col min-h-0">
+  // ── Block-Karte (Auswahl-Block innerhalb eines Bereichs) ─────
+  const blockKarte = (bl: BlockNode) => {
+    const k = blockStatusKey(bl.members)
+    return (
+      <div key={bl.blockId} className="px-4 md:px-5 py-2.5 border-b border-gray-100 bg-gray-50/40 last:border-b-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Layers className="w-3.5 h-3.5 text-wellbeing-green shrink-0" />
+          <span className="text-xs font-semibold text-gray-700">{bl.blockName}</span>
+          <span className="text-[10px] text-gray-400">{bl.members.length} {bl.members.length === 1 ? 'Option' : 'Optionen'}</span>
+          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusBadge[k] ?? 'bg-gray-100 text-gray-500'}`}>
+            {k === 'ausstehend' ? 'Offen' : statusLabel[k]}
+          </span>
+        </div>
+        {bl.kundeNotiz && bl.kundeNotiz.trim() && (
+          <KundenNotizKarte label="Kundennotiz" text={bl.kundeNotiz} />
+        )}
+        <ul className="mt-1.5 bg-white rounded-lg border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+          {bl.members.map((e) => produktZeile(e, false))}
+        </ul>
+      </div>
+    )
+  }
 
-      {/* ── Sticky Hero + Filter-Bar ─────────────────────────── */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 px-6 pt-5 pb-4 space-y-4">
-
-        {/* Titel + Gesamt-Stat */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="font-syne text-[22px] font-bold text-gray-900 leading-tight tracking-tight">
-              Freigaben
-            </h1>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {gesamt > 0 ? (
-                <>
-                  <span className="font-medium text-gray-700 tabular-nums">{entschieden}</span>
-                  <span> von </span>
-                  <span className="font-medium text-gray-700 tabular-nums">{gesamt}</span>
-                  <span> entschieden · </span>
-                  <span className={counts.ausstehend > 0 ? 'text-amber-600 font-medium' : ''}>
-                    {counts.ausstehend} offen
-                  </span>
-                </>
-              ) : (
-                'Produkt-Freigaben aller Projekte im Überblick'
-              )}
+  // ── Handlungsbedarf-Zeile ────────────────────────────────────
+  const feedZeile = (e: FreigabeEintrag) => {
+    const status    = e.produktstatus?.status ?? 'ausstehend'
+    const kommentar = e.produktstatus?.kommentar
+    const kuerzel   = e.name.slice(0, 2).toUpperCase()
+    const cfg       = STATUS_CFG.find((c) => c.key === status)
+    return (
+      <li key={e.id} className="px-4 md:px-5 py-3">
+        <div className="flex items-start gap-3">
+          {e.bild_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={e.bild_url} alt={e.name} className="w-9 h-9 rounded-lg object-cover border border-gray-200 shrink-0" />
+          ) : (
+            <div className="w-9 h-9 rounded-lg bg-wellbeing-cream border border-wellbeing-cream shrink-0 flex items-center justify-center">
+              <span className="text-[10px] font-bold text-wellbeing-green-light">{kuerzel}</span>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-medium text-gray-900 truncate">{e.name}</p>
+              <span className="text-[11px] text-gray-400 shrink-0 tabular-nums">{formatDatum(e.created_at)}</span>
+            </div>
+            <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+              {e.raeume?.projekte?.name}
+              {e.raeume?.name && <> · {e.raeume.name}</>}
+              {e.bereich_name && <> · <span className="text-wellbeing-green">{e.bereich_name}</span></>}
+              {e.gruppe_name && <> · {e.gruppe_name}</>}
             </p>
+            {kommentar
+              ? <KundenNotizKarte label="Kundenwunsch" text={kommentar} />
+              : <p className="text-[11px] text-gray-400 italic mt-1">Kein Kommentar hinterlassen.</p>}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {cfg && (
+                <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text} shrink-0`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                  {cfg.label}
+                </span>
+              )}
+              <div className="ml-auto flex items-center gap-1.5">
+                <Link
+                  href={`/dashboard/projekte/${e.raeume?.projekte?.id ?? ''}/raeume/${e.raeume?.id ?? ''}`}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-wellbeing-green hover:text-wellbeing-green-dark px-2 py-1 rounded-md hover:bg-wellbeing-green/5 transition-colors"
+                >
+                  Im Raum öffnen <ArrowUpRight className="w-3 h-3" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => handleReset(e.id)}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 border border-amber-200 hover:bg-amber-50 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
+                >
+                  <Undo2 className="w-3 h-3" /> Zurücksetzen
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+      </li>
+    )
+  }
 
-        {/* Single Progress-Bar mit farbigen Segmenten */}
-        {gesamt > 0 && (
-          <div className="flex h-1.5 rounded-full overflow-hidden bg-gray-100">
-            {STATUS_CFG.map((cfg) => {
-              const count = counts[cfg.key as keyof typeof counts]
-              const pct = (count / gesamt) * 100
-              if (pct === 0) return null
-              return (
-                <div
-                  key={cfg.key}
-                  title={`${count} ${cfg.label}`}
-                  style={{ width: `${pct}%`, backgroundColor: cfg.farbe }}
-                />
-              )
-            })}
-          </div>
-        )}
+  const subtitle = globalEinheiten.total > 0
+    ? `${globalEinheiten.freigegeben} von ${globalEinheiten.total} Entscheidungen freigegeben` +
+      (handlungsbedarfGesamt > 0 ? ` · ${handlungsbedarfGesamt} mit Handlungsbedarf` : '')
+    : 'Produkt-Freigaben aller Projekte im Überblick'
 
-        {/* Status-Chips (Filter) */}
+  return (
+    <>
+      <StickyPageHeader
+        title="Freigaben"
+        count={globalEinheiten.offen}
+        countLabel="offen"
+        subtitle={subtitle}
+      />
+
+      <div className="px-6 py-6 space-y-4">
+
+        {/* Filter-Pills (Projekte-Stil) */}
         <div className="flex items-center flex-wrap gap-1.5">
           {STATUS_CFG.map((cfg) => {
             const count = counts[cfg.key as keyof typeof counts]
@@ -622,41 +798,39 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                 key={cfg.key}
                 type="button"
                 onClick={() => setTab(aktiv ? 'alle' : cfg.tab)}
-                className={`inline-flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  aktiv
-                    ? `${cfg.bg} ${cfg.text} ring-1 ring-current/10`
-                    : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+                className={`inline-flex items-center gap-1.5 pl-2 pr-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  aktiv ? 'bg-wellbeing-green text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
                 }`}
               >
                 <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                <span className="tabular-nums font-semibold">{count}</span>
-                <span>{cfg.label}</span>
+                {cfg.label}
+                <span className={`text-[10px] font-semibold rounded-full px-1.5 py-0.5 tabular-nums ${aktiv ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>
+                  {count}
+                </span>
               </button>
             )
           })}
           <button
             type="button"
             onClick={() => setTab('alle')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              tab === 'alle'
-                ? 'bg-gray-100 text-gray-700 ring-1 ring-gray-200'
-                : 'text-gray-400 hover:text-gray-700'
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              tab === 'alle' ? 'bg-wellbeing-green text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
             }`}
           >
             Alle
           </button>
         </div>
 
-        {/* Action-Bar: Suche + Projekt + View */}
+        {/* Toolbar: Suche + Projekt + View */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[220px] max-w-md">
+          <div className="relative w-full sm:w-[340px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-300 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={(ev) => setSearch(ev.target.value)}
-              placeholder="Produkt, Raum, Projekt, Kategorie…"
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:bg-white focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition"
+              placeholder="Produkt, Raum, Projekt, Gruppe…"
+              className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition"
             />
           </div>
 
@@ -664,7 +838,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
             <select
               value={projektFilter}
               onChange={(ev) => setProjektFilter(ev.target.value)}
-              className="appearance-none pl-3 pr-8 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 cursor-pointer"
+              className="appearance-none pl-3 pr-8 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 cursor-pointer"
             >
               <option value="alle">Alle Projekte</option>
               {alleProjekte.map(([id, name]) => (
@@ -673,6 +847,8 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
           </div>
+
+          <span className="text-xs text-gray-400 tabular-nums hidden md:inline">{gefiltert.length} Einträge</span>
 
           <div className="ml-auto flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
             {([
@@ -685,7 +861,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                 type="button"
                 onClick={() => setView(key)}
                 title={label}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
                   view === key ? 'bg-wellbeing-green text-white' : 'text-gray-500 hover:bg-gray-50'
                 }`}
               >
@@ -695,10 +871,32 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
             ))}
           </div>
         </div>
-      </div>
 
-      {/* ── Scrollbarer Content ────────────────────────────────── */}
-      <div className="px-6 py-5">
+        {/* Handlungsbedarf-Feed */}
+        {feedItems.length > 0 && (
+          <div className="bg-white border border-wellbeing-terracotta/20 rounded-xl shadow-sm overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setFeedOffen((o) => !o)}
+              className="w-full flex items-center gap-2 px-5 py-3 text-left hover:bg-wellbeing-cream/30 transition-colors"
+            >
+              <span className="w-7 h-7 rounded-lg bg-wellbeing-terracotta/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-wellbeing-terracotta" />
+              </span>
+              <span className="text-sm font-semibold text-gray-900">Handlungsbedarf</span>
+              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-wellbeing-terracotta/10 text-wellbeing-terracotta tabular-nums">
+                {feedItems.length}
+              </span>
+              <span className="text-[11px] text-gray-400 hidden sm:inline">Kundenrückmeldungen, die du bearbeiten solltest</span>
+              <ChevronRight className={`w-4 h-4 text-gray-400 ml-auto transition-transform ${feedOffen ? 'rotate-90' : ''}`} />
+            </button>
+            {feedOffen && (
+              <ul className="border-t border-gray-100 divide-y divide-gray-50">
+                {feedItems.map((e) => feedZeile(e))}
+              </ul>
+            )}
+          </div>
+        )}
 
         {/* Leerer Zustand */}
         {gefiltert.length === 0 && (
@@ -717,93 +915,117 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
           </div>
         )}
 
-        {/* Gruppen-View */}
+        {/* Strukturierte „Nach Projekt"-Ansicht: Projekt → Raum → Bereich → Block/lose */}
         {gefiltert.length > 0 && view === 'gruppen' && (
           <div className="space-y-3">
-            {gruppen.map((g) => {
-              const isCollapsed = collapsedGroups.has(g.projektId)
-              const gesamtInGruppe = g.eintraege.length
-              const erledigt = g.freigegebenCount + g.abgelehntCount
-              const progressPct = gesamtInGruppe > 0 ? Math.round((erledigt / gesamtInGruppe) * 100) : 0
-
-              const gruppeIds = g.eintraege.map((e) => e.id)
-              const alleInGruppeMarkiert = gruppeIds.length > 0 && gruppeIds.every((id) => selectedIds.has(id))
-              const teilweiseMarkiert = !alleInGruppeMarkiert && gruppeIds.some((id) => selectedIds.has(id))
+            {projektBaum.map((p) => {
+              const isCollapsed = collapsedGroups.has(p.projektId)
+              const gruppeIds = p.eintraege.map((e) => e.id)
+              const alleMarkiert = gruppeIds.length > 0 && gruppeIds.every((id) => selectedIds.has(id))
+              const teilMarkiert = !alleMarkiert && gruppeIds.some((id) => selectedIds.has(id))
+              const eh = p.einheiten
+              const pct = eh.total > 0 ? Math.round((eh.freigegeben / eh.total) * 100) : 0
 
               return (
-                <div key={g.projektId} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                  <div className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                <div key={p.projektId} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                  {/* Projekt-Kopf */}
+                  <div className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors">
                     <div className="shrink-0">
                       <Checkbox
-                        checked={alleInGruppeMarkiert}
-                        indeterminate={teilweiseMarkiert}
+                        checked={alleMarkiert}
+                        indeterminate={teilMarkiert}
                         onChange={() => toggleSelectGroup(gruppeIds)}
-                        ariaLabel={`Alle Produkte in ${g.projektName} auswählen`}
+                        ariaLabel={`Alle Produkte in ${p.projektName} auswählen`}
                         onClick={(ev) => ev.stopPropagation()}
                       />
                     </div>
-
                     <button
                       type="button"
-                      onClick={() => toggleGroup(g.projektId)}
+                      onClick={() => toggleGroup(p.projektId)}
                       className="flex items-center gap-3 flex-1 min-w-0 text-left"
                     >
-                    <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-semibold text-gray-900 truncate">{g.projektName}</h3>
-                        {g.kundeName && (
-                          <span className="text-[11px] text-gray-400">· {g.kundeName}</span>
-                        )}
-                        {g.offenCount > 0 && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            {g.offenCount} offen
-                          </span>
-                        )}
-                      </div>
-                      {/* Mini-Progress */}
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <div className="flex h-1 rounded-full overflow-hidden bg-gray-100 flex-1 max-w-[240px]">
-                          {STATUS_CFG.map((cfg) => {
-                            const count = cfg.key === 'ausstehend' ? g.offenCount - g.ueberarbeitungCount
-                              : cfg.key === 'freigegeben' ? g.freigegebenCount
-                              : cfg.key === 'abgelehnt' ? g.abgelehntCount
-                              : g.ueberarbeitungCount
-                            const pct = gesamtInGruppe > 0 ? (count / gesamtInGruppe) * 100 : 0
-                            if (pct === 0) return null
-                            return <div key={cfg.key} style={{ width: `${pct}%`, backgroundColor: cfg.farbe }} />
-                          })}
-                        </div>
-                        <span className="text-[11px] text-gray-400 tabular-nums shrink-0">
-                          {erledigt}/{gesamtInGruppe} · {progressPct}%
-                        </span>
-                      </div>
-                    </div>
-
-                    </button>
-
-                    {g.vpSumme > 0 && (
-                      <span className="text-[11px] font-mono text-gray-500 tabular-nums shrink-0">
-                        {eur(g.vpSumme)}
+                      <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${isCollapsed ? '' : 'rotate-90'}`} />
+                      <span className={`w-9 h-9 rounded-lg ${avatarFarbe(p.projektName)} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+                        {initials(p.projektName)}
                       </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm font-semibold text-gray-900 truncate">{p.projektName}</h3>
+                          {p.kundeName && <span className="text-[11px] text-gray-400">· {p.kundeName}</span>}
+                          {eh.offen > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              {eh.offen} offen
+                            </span>
+                          )}
+                          {p.handlungsbedarf > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-wellbeing-terracotta/10 text-wellbeing-terracotta">
+                              <AlertTriangle className="w-2.5 h-2.5" />
+                              {p.handlungsbedarf} Handlungsbedarf
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <div className="flex h-1 rounded-full overflow-hidden bg-gray-100 flex-1 max-w-[240px]">
+                            {([
+                              ['freigegeben', eh.freigegeben],
+                              ['ausstehend', eh.offen],
+                              ['ueberarbeitung', eh.ueberarbeitung],
+                              ['abgelehnt', eh.abgelehnt],
+                            ] as const).map(([key, n]) => {
+                              const segPct = eh.total > 0 ? (n / eh.total) * 100 : 0
+                              if (segPct === 0) return null
+                              const farbe = STATUS_CFG.find((c) => c.key === key)?.farbe ?? '#d1d5db'
+                              return <div key={key} style={{ width: `${segPct}%`, backgroundColor: farbe }} />
+                            })}
+                          </div>
+                          <span className="text-[11px] text-gray-400 tabular-nums shrink-0">
+                            {eh.freigegeben}/{eh.total} · {pct}%
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                    {p.vpSumme > 0 && (
+                      <span className="text-[11px] font-mono text-gray-500 tabular-nums shrink-0 hidden sm:inline">{eur(p.vpSumme)}</span>
                     )}
-
                     <Link
-                      href={`/dashboard/projekte/${g.projektId}`}
+                      href={`/dashboard/projekte/${p.projektId}`}
                       onClick={(ev) => ev.stopPropagation()}
-                      className="text-[11px] text-gray-400 hover:text-wellbeing-green transition-colors whitespace-nowrap inline-flex items-center gap-1"
+                      className="text-[11px] text-gray-400 hover:text-wellbeing-green transition-colors whitespace-nowrap inline-flex items-center gap-1 shrink-0"
                     >
                       <ArrowUpRight className="w-3 h-3" />
-                      Projekt
+                      <span className="hidden sm:inline">Projekt</span>
                     </Link>
                   </div>
 
+                  {/* Projekt-Körper: Raum → Bereich → Block/lose */}
                   {!isCollapsed && (
-                    <ul className="border-t border-gray-100 divide-y divide-gray-50">
-                      {g.eintraege.map((e) => produktZeile(e, false))}
-                    </ul>
+                    <div className="border-t border-gray-100">
+                      {p.raeume.map((r) => (
+                        <div key={r.raumId}>
+                          {p.raeume.length > 1 && (
+                            <div className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-50/70 border-b border-gray-100">
+                              <Home className="w-3 h-3 text-gray-400 shrink-0" />
+                              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{r.raumName}</span>
+                            </div>
+                          )}
+                          {r.bereiche.map((bn) => (
+                            <div key={bn.key}>
+                              <div className="flex items-center gap-2 px-4 py-1.5 bg-wellbeing-green/[0.03] border-b border-gray-100">
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: bn.farbe || (bn.bereichId ? '#94c1a4' : '#d1d5db') }} />
+                                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{bn.name}</span>
+                              </div>
+                              {bn.bloecke.map((bl) => blockKarte(bl))}
+                              {bn.lose.length > 0 && (
+                                <ul className="divide-y divide-gray-50 border-b border-gray-100 last:border-b-0">
+                                  {bn.lose.map((e) => produktZeile(e, false))}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )
@@ -826,7 +1048,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
         {/* Balken-View (Chart) */}
         {gefiltert.length > 0 && view === 'balken' && (
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
-            <BalkenChart gruppen={gruppen} />
+            <BalkenChart gruppen={chartGruppen} />
           </div>
         )}
 
@@ -839,13 +1061,12 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
             isPending={isPending}
           />
         )}
-
       </div>
 
       {/* ── Floating Bulk-Action-Bar ────────────────────────── */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center pointer-events-none px-4">
-          <div className="pointer-events-auto flex items-center gap-2 bg-white border border-gray-200 rounded-2xl shadow-xl pl-4 pr-2 py-2 animate-fadeIn">
+          <div className="pointer-events-auto flex items-center gap-2 bg-white border border-gray-200 rounded-2xl shadow-xl pl-4 pr-2 py-2 animate-fadeIn flex-wrap justify-center">
             <span className="text-xs font-medium text-gray-700 tabular-nums">
               {selectedIds.size} ausgewählt
             </span>
@@ -915,6 +1136,6 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
           ✓ {bulkToast}
         </div>
       )}
-    </div>
+    </>
   )
 }

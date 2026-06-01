@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigaben-Seite komplett überarbeitet (Struktur + Handlungsbedarf)
+- Die Seite **Freigaben** (Sidebar) ist jetzt im einheitlichen Dashboard-Stil (sauberer Seitenkopf, Filter-Pills, Toolbar) und zeigt die neue **Gruppen→Block-Struktur**: pro Projekt aufklappbar nach Raum → Gruppe → Auswahl-Block (mit Mitgliedern, Block-Status & Kundennotiz) bzw. Einzelprodukten. Der Fortschritt zählt jetzt **Entscheidungs-Einheiten** wie beim Kunden (ein Block = eine Entscheidung).
+- **Neu: „Handlungsbedarf"-Bereich ganz oben** — sammelt projektübergreifend alle Produkte, die der Kunde abgelehnt hat oder überarbeitet haben möchte, samt seinem Kommentar (Kundenwunsch), mit „Im Raum öffnen" und „Zurücksetzen". So sieht man sofort, was zu tun ist.
+- Status der Seite ist jetzt immer aktuell (auch nach Kundenentscheidungen via Link/Portal). Suche, Filter, Mehrfachauswahl und die Tabellen-/Balken-Ansicht bleiben erhalten.
+
 ### Service-Raten: „Bezahlt"-Button eindeutig beschriftet
 - Bei einer offenen Service-Rate hieß der grüne Button rechts nur „Bezahlt" — genau wie der bezahlt-Status, was verwirrend aussah (links „Offen", rechts „Bezahlt"). Der Button heißt jetzt **„Als bezahlt markieren"**, damit klar ist: es ist eine Aktion zum Abhaken, kein Status. (Kein Datenfehler — die Rate war korrekt „Offen".)
 
