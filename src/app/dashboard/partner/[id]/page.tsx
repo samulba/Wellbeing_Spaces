@@ -8,6 +8,7 @@ import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
 import PartnerKonditionenBlock from '@/components/PartnerKonditionenBlock'
+import PartnerAuswertungChart from '@/components/PartnerAuswertungChart'
 import PartnerVertraegeBlock from '@/components/PartnerVertraegeBlock'
 import PartnerDetailTabs from '@/components/PartnerDetailTabs'
 import PartnerProdukteTab, { type SortimentEintrag, type EinsatzEintrag } from '@/components/PartnerProdukteTab'
@@ -278,6 +279,15 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
           <KpiKarte icon={<Package className="w-4 h-4" />}      tone="slate"   label="Produkte"            wert={produkteAnzahl}                                    subLabel="im Sortiment" />
         </div>
       </div>
+
+      {/* Grafische Auswertung (umschaltbar) */}
+      <PartnerAuswertungChart
+        umsatz={bestellterUmsatz}
+        einkauf={einkaufVolumen}
+        marge={margeGesamt}
+        provision={provisionGesamt}
+        ertrag={ertragGesamt}
+      />
 
       {/* Tabs */}
       <PartnerDetailTabs
