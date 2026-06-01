@@ -135,6 +135,62 @@ export interface ScopeOptionenRaum {
   bereiche: { id: string; name: string }[]
 }
 
+/**
+ * Aktualisiert den Scope eines „Auswahl"-Links: nimmt neu hinzugekommene Produkte
+ * (nach Erstellung des Links) aus den betroffenen Räumen in die Auswahl auf, ohne
+ * die bestehende Kuratierung zu verändern. „Projekt"/„Raum"-Links zeigen neue Produkte
+ * ohnehin live. Fail-safe + org-scoped.
+ */
+export async function freigabeScopeAktualisieren(
+  tokenId: string,
+  projektId: string,
+): Promise<{ erfolg?: boolean; hinzugefuegt?: number; live?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { data: tok } = await supabase
+    .from('freigabe_tokens')
+    .select('id, scope_typ, scope_ids, created_at, deleted_at, abgeschlossen_am')
+    .eq('id', tokenId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!tok) return { fehler: 'Link nicht gefunden.' }
+  if (tok.deleted_at || tok.abgeschlossen_am) return { fehler: 'Dieser Link ist nicht mehr aktiv.' }
+
+  // Projekt-/Raum-Links sind dynamisch — neue Produkte erscheinen automatisch.
+  if (tok.scope_typ !== 'auswahl') return { erfolg: true, hinzugefuegt: 0, live: true }
+
+  const altIds: string[] = ((tok.scope_ids as string[] | null) ?? [])
+  if (altIds.length === 0) return { fehler: 'Für diesen Link ist keine Auswahl hinterlegt.' }
+
+  // Räume der bestehenden Auswahl ermitteln
+  const { data: rps } = await supabase
+    .from('raum_produkte').select('raum_id').in('id', altIds).is('deleted_at', null)
+  const raumIds = Array.from(new Set((rps ?? []).map((r) => r.raum_id as string)))
+  if (raumIds.length === 0) return { fehler: 'Die Räume der Auswahl wurden nicht gefunden.' }
+
+  // Neu hinzugekommene Produkte (nach Link-Erstellung) in diesen Räumen
+  const { data: neue } = await supabase
+    .from('raum_produkte')
+    .select('id')
+    .in('raum_id', raumIds)
+    .is('deleted_at', null)
+    .gt('created_at', tok.created_at)
+  const altSet = new Set(altIds)
+  const neueIds = Array.from(new Set((neue ?? []).map((r) => r.id as string))).filter((id) => !altSet.has(id))
+  if (neueIds.length === 0) return { erfolg: true, hinzugefuegt: 0 }
+
+  const { error } = await supabase
+    .from('freigabe_tokens')
+    .update({ scope_ids: [...altIds, ...neueIds] })
+    .eq('id', tokenId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Aktualisierung fehlgeschlagen. Bitte erneut versuchen.' }
+
+  revalidatePath(`/dashboard/projekte/${projektId}`)
+  return { erfolg: true, hinzugefuegt: neueIds.length }
+}
+
 export async function freigabeScopeOptionenLaden(
   projektId: string,
 ): Promise<ScopeOptionenRaum[]> {
