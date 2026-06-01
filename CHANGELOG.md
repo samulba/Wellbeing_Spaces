@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigabe-Link „Auswahl": Block-Produkte bleiben im Block & nichts verschwindet (großer Bug behoben)
+- **Behoben:** Bei „Auswahl"-Links mit ganzen Gruppen wurden einzelne Produkte, die im Projekt klar in einem Block einer Gruppe liegen, im Link teils **freistehend** angezeigt — oder **fehlten ganz**. Ursache: die Kundenseite hat die Block-/Gruppen-Zuordnung über getrennte Nachlade-Abfragen zusammengesetzt; ging dabei eine Zeile verloren, „vergaß" das Produkt seinen Block. Die Kundenseite lädt diese Zuordnung jetzt **fest mit dem Produkt** (genau wie die interne Projektansicht) — Link und Projekt können nicht mehr auseinanderlaufen.
+- Zusätzlich: Produkte, deren Block-Gruppe nicht auflösbar war, fallen jetzt sauber auf ihre eigene Gruppe zurück, statt unsichtbar zu werden.
+- Bitte den Link einmal **frisch neu laden** — die Produkte stehen dann an der richtigen Stelle.
+
 ### Freigabe-Link: Produkte bleiben in ihrem Auswahl-Block (Bug behoben)
 - **Behoben:** Produkte, die einem **Auswahl-Block innerhalb einer Gruppe** zugeordnet sind, wurden im Freigabe-Link teils **freistehend** in der Gruppe angezeigt statt im Block — vor allem, wenn vom Block gerade nur **ein** Produkt sichtbar war (z. B. weil bei einer kuratierten Auswahl nicht alle Block-Produkte mit aufgenommen wurden). Solche Blöcke werden jetzt **als Block** dargestellt, das Produkt bleibt korrekt **drin**. Einzel-Produkt-Blöcke ohne Gruppe verhalten sich unverändert (werden als normales Produkt gezeigt).
 

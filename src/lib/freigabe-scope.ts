@@ -17,7 +17,14 @@ export function bereichVonRaumProdukt(
   rp: ScopeRaumProdukt,
   blockBereich: Map<string, string | null>,
 ): string | null {
-  if (rp.produkt_gruppe_id) return blockBereich.get(rp.produkt_gruppe_id) ?? null
+  if (rp.produkt_gruppe_id) {
+    const ausBlock = blockBereich.get(rp.produkt_gruppe_id) ?? null
+    if (ausBlock != null) return ausBlock
+    // Block hat keinen/unbekannten Bereich (z. B. Block soft-deleted, das
+    // Produkt referenziert ihn aber noch) → NICHT „bereichslos" werden,
+    // sondern auf den eigenen Bereich des Produkts zurückfallen. Block-Vorrang
+    // bleibt erhalten, wenn der Block einen Bereich hat.
+  }
   return rp.bereich_id ?? null
 }
 
