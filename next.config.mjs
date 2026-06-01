@@ -26,6 +26,14 @@ const nextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
       },
+      {
+        // Öffentliche, datengetriebene Routen niemals cachen — neue/geänderte
+        // Produkte & Status sind im Freigabe-/Portal-Link sofort sichtbar.
+        source: '/(freigabe|portal)/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, max-age=0, must-revalidate' },
+        ],
+      },
     ]
   },
 }

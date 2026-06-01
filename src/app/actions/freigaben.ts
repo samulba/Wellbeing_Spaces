@@ -30,6 +30,7 @@ import type {
 } from '@/lib/supabase/types'
 
 type AdminClient = ReturnType<typeof createAdminClient>
+type ServerClient = Awaited<ReturnType<typeof createClient>>
 
 // ═══════════════════════════════════════════════════════════════
 // TOKEN ERSTELLEN MIT SCOPE
@@ -189,6 +190,63 @@ export async function freigabeScopeAktualisieren(
 
   revalidatePath(`/dashboard/projekte/${projektId}`)
   return { erfolg: true, hinzugefuegt: neueIds.length }
+}
+
+/**
+ * Hält „Auswahl"-Links automatisch aktuell: Wird ein Produkt in einen Raum
+ * aufgenommen, wird es allen aktiven Auswahl-Tokens hinzugefügt, die den Raum
+ * bereits abdecken (mind. 1 kuratiertes Produkt im Raum). Nur NACH Link-Erstellung
+ * hinzugekommene Produkte werden ergänzt → die Kuratierung bleibt erhalten.
+ * Schreibt in scope_ids (= Quelle für Anzeige UND Schreib-Guard). Fail-safe:
+ * ein Fehler hier darf das Produkt-Hinzufügen nie verhindern.
+ */
+export async function freigabeAuswahlScopeFuerRaum(
+  supabase: ServerClient,
+  orgId: string,
+  raumId: string,
+): Promise<void> {
+  try {
+    const { data: raum } = await supabase
+      .from('raeume').select('projekt_id').eq('id', raumId).eq('organisation_id', orgId).maybeSingle()
+    const projektId = raum?.projekt_id as string | undefined
+    if (!projektId) return
+
+    const { data: tokens } = await supabase
+      .from('freigabe_tokens')
+      .select('id, scope_ids, created_at')
+      .eq('projekt_id', projektId)
+      .eq('organisation_id', orgId)
+      .eq('scope_typ', 'auswahl')
+      .eq('aktiv', true)
+      .is('deleted_at', null)
+      .is('abgeschlossen_am', null)
+    if (!tokens || tokens.length === 0) return
+
+    const { data: roomRps } = await supabase
+      .from('raum_produkte').select('id, created_at').eq('raum_id', raumId).is('deleted_at', null)
+    const rps = (roomRps ?? []) as { id: string; created_at: string }[]
+    if (rps.length === 0) return
+    const roomIds = new Set(rps.map((r) => r.id))
+
+    for (const t of tokens) {
+      const scope = ((t.scope_ids as string[] | null) ?? [])
+      // Deckt dieser Token den Raum ab? (mind. 1 kuratiertes Produkt im Raum)
+      if (!scope.some((id) => roomIds.has(id))) continue
+      const scopeSet = new Set(scope)
+      const tokenTs = new Date(t.created_at as string).getTime()
+      const neu = rps
+        .filter((r) => !scopeSet.has(r.id) && new Date(r.created_at).getTime() > tokenTs)
+        .map((r) => r.id)
+      if (neu.length === 0) continue
+      await supabase
+        .from('freigabe_tokens')
+        .update({ scope_ids: [...scope, ...neu] })
+        .eq('id', t.id)
+        .eq('organisation_id', orgId)
+    }
+  } catch {
+    /* fail-safe */
+  }
 }
 
 export async function freigabeScopeOptionenLaden(

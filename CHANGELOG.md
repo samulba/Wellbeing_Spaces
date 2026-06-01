@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigabe-Link: neue Produkte erscheinen jetzt automatisch
+- **Behoben (automatisch, ohne Klick):** Produkte, die du nach dem Versenden eines Links zu einem Raum/Block hinzufügst, werden jetzt **selbsttätig** in passende „Kuratierte Auswahl"-Links übernommen — sie tauchen sofort beim Kunden auf (und sind dort entscheidbar). Deine bestehende Auswahl bleibt unverändert.
+- **Kein veralteter Stand mehr:** Die Freigabe- (und Portal-)Seiten werden jetzt **nie** vom Browser/CDN zwischengespeichert (`no-store`) — Änderungen sind nach dem Neuladen garantiert sichtbar, auch im selben Tab.
+
 ### Freigabe-Link: neue Produkte nachträglich aufnehmen
 - **Behoben:** Bei einem Link mit **kuratierter Auswahl** wurden später hinzugefügte Produkte nicht angezeigt (die Auswahl war fix). Im „Freigabe-Verlauf" gibt es jetzt pro solchem Link ein **Aktualisieren-Symbol** (↻) — ein Klick nimmt alle **neu hinzugefügten** Produkte der betroffenen Räume in den Link auf, ohne die bestehende Auswahl zu verändern.
 - Projekt- und Raum-Links zeigen neue Produkte weiterhin **automatisch** (live).
