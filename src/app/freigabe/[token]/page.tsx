@@ -24,7 +24,7 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   // 1. Token validieren — inkl. Scope + Abschluss + Soft-Delete (Mig 081)
   const { data: tokenData } = await supabase
     .from('freigabe_tokens')
-    .select('id, organisation_id, projekt_id, gueltig_bis, aktiv, scope_typ, scope_ids, abgeschlossen_am, abgeschlossen_durch, deleted_at')
+    .select('id, organisation_id, projekt_id, gueltig_bis, aktiv, scope_typ, scope_ids, abgeschlossen_am, abgeschlossen_durch, deleted_at, created_at')
     .eq('token', params.token)
     .maybeSingle()
 
@@ -90,7 +90,7 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   //    freigabe_status liegt seit Migration 076 auf raum_produkte (pro Raum eigen).
   // Scope-Filter (Migration 081): projekt=alle, raum=ein Raum, auswahl=explizite IDs
   const scopeTyp   = (tokenData.scope_typ   as 'projekt' | 'raum' | 'auswahl' | null) ?? 'projekt'
-  const scopeIds   = (tokenData.scope_ids   as string[] | null) ?? []
+  let   scopeIds   = (tokenData.scope_ids   as string[] | null) ?? []
   const raumFilter = scopeTyp === 'raum' && scopeIds[0] ? [scopeIds[0]] : raeumeDaten.map((r) => r.id)
 
   // scope_bereich_ids fail-safe nachladen (Migration 116) — Spalte könnte fehlen.
@@ -107,6 +107,43 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   // KEIN SQL-Vorfilter (alle Raum-Produkte laden, dann in JS filtern). Reine
   // Produkt-Auswahl (ohne Bereiche) nutzt weiter den effizienten .in()-Vorfilter.
   const auswahlMitBereich = scopeTyp === 'auswahl' && scopeBereichIds.length > 0
+
+  // Auto-Sync (auch für ALTE Links): Ein „Auswahl"-Link nimmt beim Öffnen die Produkte
+  // auf, die seit seiner Erstellung zu seinen abgedeckten Räumen hinzugekommen sind.
+  // So erscheinen neue Produkte automatisch — ohne den Link neu anzulegen. Die
+  // Kuratierung bleibt erhalten (nur created_at > Token; bewusst entfernte Alt-Produkte
+  // kommen nicht zurück). scope_ids ist die EINZIGE Quelle für Anzeige UND Schreib-Guard
+  // → wir persistieren die Erweiterung (außer in der Vorschau). Komplett fail-safe.
+  if (scopeTyp === 'auswahl' && scopeIds.length > 0) {
+    try {
+      const { data: rpRooms } = await supabase
+        .from('raum_produkte').select('raum_id').in('id', scopeIds).is('deleted_at', null)
+      const raumIds = Array.from(new Set((rpRooms ?? []).map((r) => r.raum_id as string)))
+      const tokenErstellt = tokenData.created_at as string | null
+      if (raumIds.length > 0 && tokenErstellt) {
+        const { data: neu } = await supabase
+          .from('raum_produkte')
+          .select('id')
+          .in('raum_id', raumIds)
+          .is('deleted_at', null)
+          .gt('created_at', tokenErstellt)
+        const vorhanden = new Set(scopeIds)
+        const neuIds = Array.from(new Set((neu ?? []).map((r) => r.id as string))).filter((id) => !vorhanden.has(id))
+        if (neuIds.length > 0) {
+          const erweitert = [...scopeIds, ...neuIds]
+          if (vorschau) {
+            scopeIds = erweitert
+          } else {
+            const { error: updErr } = await supabase
+              .from('freigabe_tokens').update({ scope_ids: erweitert }).eq('id', tokenData.id)
+            if (!updErr) scopeIds = erweitert
+          }
+        }
+      }
+    } catch {
+      /* fail-safe: Sync darf die Freigabe-Seite nie blockieren */
+    }
+  }
 
   let rpQuery = supabase
     .from('raum_produkte')

@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Freigabe „Auswahl"-Links heilen sich beim Öffnen (auch alte Projekte)
+- Ein „Kuratierte Auswahl"-Link nimmt jetzt **beim Öffnen automatisch** alle Produkte auf, die seit seiner Erstellung zu seinen Räumen hinzugefügt wurden — **auch bei alten Projekten**, ohne den Link neu anlegen zu müssen. Die ursprüngliche Auswahl bleibt erhalten (bewusst entfernte Produkte kommen nicht zurück). Projekt-/Raum-Links waren ohnehin schon live.
+
 ### Freigabe-Links: endgültig löschen + Link aus dem Archiv öffnen
 - **Endgültig löschen:** Sowohl bei aktiven Links („Löschen" neben „Deaktivieren") als auch im „Verlauf & Archiv" (Papierkorb-Symbol) kannst du Links jetzt **komplett entfernen** — nicht nur zurückziehen. (Das Entscheidungs-Protokoll bleibt erhalten.)
 - **Link aus dem Archiv öffnen:** Im „Verlauf & Archiv" öffnet ein **Klick auf den Titel** jetzt den **echten Link** in einem neuen Tab; das Augen-Symbol bleibt für die Vorschau.
