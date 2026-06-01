@@ -5,6 +5,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-01
 
+### Alternativen werfen Produkte nicht mehr aus ihrer Gruppe (großer Bug behoben)
+- **Behoben:** Wurde zu einem Produkt eine **Alternative** hinzugefügt, landete das Produkt samt Alternative bisher in einem neuen Block **„Ohne Gruppe"** — es fiel also aus seiner Gruppe. Im Freigabe-Link führte das dazu, dass das Produkt **lose** erschien und die Alternative ganz **fehlte**. Der neue Auswahl-Block **erbt jetzt die Gruppe** des Produkts; alles bleibt zusammen an seinem Platz.
+- **Bestehende Fälle werden geheilt:** Eine einmalige Reparatur ordnet bereits „verwaiste" Alternativ-Blöcke automatisch wieder ihrer ursprünglichen Gruppe zu (Migration 122). Falls einzelne Blöcke nicht eindeutig zuzuordnen sind, lassen sie sich wie gewohnt über das Gruppen-Dropdown im Block-Kopf setzen.
+
+### Kundennotizen & -wünsche schöner und vollständig sichtbar
+- Die **Kundennotiz** zu einem Auswahl-Block wird jetzt als ruhige Karte (Sandton, Icon, klare Beschriftung) statt als dünner Streifen dargestellt.
+- **Neu:** Der **Kundenwunsch** pro Produkt (Kommentar bei „Ablehnen"/„Alternative") wird jetzt direkt in der Produktzeile angezeigt — vorher war dieser Text im Dashboard gar nicht sichtbar.
+
 ### Freigabe-Link: „ganze Gruppen"-Links zeigen im Admin nicht mehr fälschlich „0 Produkte"
 - **Behoben:** Ein „Auswahl"-Link, der ganze **Gruppen** freigibt (statt einzelner Produkte), wurde in der Link-Liste fälschlich als „Auswahl: 0 Produkte" mit roter Warnung „zeigt dem Kunden nichts" angezeigt — obwohl der Link beim Kunden korrekt funktioniert. Ursache: die Gruppen-Auswahl wurde beim Laden der Liste nicht mitgelesen. Jetzt steht z. B. „Auswahl: 0 Produkte · 3 Gruppen" und die Warnung erscheint nur noch, wenn wirklich nichts gewählt ist.
 

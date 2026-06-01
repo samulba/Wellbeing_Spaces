@@ -557,8 +557,8 @@ export default function FreigabeClient({
                                   </div>
                                 )}
                                 {notiz && (
-                                  <div className="mt-2 ml-[60px] pl-3 border-l-2 border-gray-200 flex items-start gap-1.5">
-                                    <StickyNote className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                                  <div className="mt-2 ml-[60px] pl-3 border-l-2 border-wellbeing-terracotta/30 flex items-start gap-1.5">
+                                    <StickyNote className="w-3.5 h-3.5 text-wellbeing-terracotta/70 shrink-0 mt-0.5" />
                                     <p className="text-xs text-gray-500 italic leading-relaxed">&bdquo;{notiz}&ldquo;</p>
                                   </div>
                                 )}
@@ -587,7 +587,7 @@ export default function FreigabeClient({
                                   </span>
                                 </div>
                                 {st.kommentar && (
-                                  <div className="mt-1.5 ml-[60px] pl-3 border-l-2 border-gray-200">
+                                  <div className="mt-1.5 ml-[60px] pl-3 border-l-2 border-wellbeing-terracotta/30">
                                     <p className="text-xs text-gray-500 italic leading-relaxed">&bdquo;{st.kommentar}&ldquo;</p>
                                   </div>
                                 )}
