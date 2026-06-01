@@ -285,6 +285,11 @@ function neueFelder(formData: FormData) {
     bilder_urls:    parseJsonArray(formData.get('bilder_urls_json')),
     hinweis_extern:          ((formData.get('hinweis_extern') as string) || '').trim() || null,
     hinweis_extern_sichtbar: formData.get('hinweis_extern_sichtbar') === 'on',
+    // Provision (Typ/Fix) + Einkaufsrabatt (Migration 120)
+    provision_typ:          (formData.get('provision_typ') as string) === 'fix' ? 'fix'
+                            : (formData.get('provision_typ') as string) === 'prozent' ? 'prozent' : null,
+    provision_fix:          parseOptionalNumber(formData.get('provision_fix')),
+    einkaufsrabatt_prozent: parseOptionalNumber(formData.get('einkaufsrabatt_prozent')),
   }
 }
 
@@ -811,6 +816,9 @@ export async function varianteAnlegen(
       einkaufspreis: eltern.einkaufspreis,
       marge_prozent: eltern.marge_prozent,
       provision_prozent: eltern.provision_prozent,
+      provision_typ: eltern.provision_typ ?? null,
+      provision_fix: eltern.provision_fix ?? null,
+      einkaufsrabatt_prozent: eltern.einkaufsrabatt_prozent ?? null,
       verkaufspreis: eltern.verkaufspreis,
       bild_url: eltern.bild_url,
       produkt_url: eltern.produkt_url,

@@ -20,8 +20,6 @@ export async function partnerAnlegen(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
-  const provisionsWertRaw = formData.get('provisions_wert') as string
-  const provisionsmodell = (formData.get('provisionsmodell') as string) || null
   const bewertungRaw = formData.get('bewertung') as string
   const zahlungszielRaw = formData.get('zahlungsziel_tage') as string
 
@@ -35,11 +33,7 @@ export async function partnerAnlegen(
     website: websiteRaw,
     logo_url: autoFavicon,
     adresse: (formData.get('adresse') as string) || null,
-    provisionsmodell,
-    provisions_wert:
-      provisionsmodell !== 'Individuell' && provisionsWertRaw
-        ? parseFloat(provisionsWertRaw)
-        : null,
+    // Provision/Konditionen werden über partner_konditionen gepflegt (nicht mehr hier).
     einkaufskonditionen: (formData.get('einkaufskonditionen') as string) || null,
     partner_typ: (formData.get('partner_typ') as string) || null,
     zahlungsziel_tage: zahlungszielRaw ? parseInt(zahlungszielRaw) : null,
@@ -62,8 +56,6 @@ export async function partnerAktualisieren(
 ): Promise<PartnerActionState> {
   const supabase = await createClient()
 
-  const provisionsWertRaw = formData.get('provisions_wert') as string
-  const provisionsmodell = (formData.get('provisionsmodell') as string) || null
   const bewertungRaw = formData.get('bewertung') as string
   const zahlungszielRaw = formData.get('zahlungsziel_tage') as string
 
@@ -75,11 +67,7 @@ export async function partnerAktualisieren(
       // ansprechpartner/email/telefon kommen ueber syncPartnerHauptkontakt
       website: (formData.get('website') as string) || null,
       adresse: (formData.get('adresse') as string) || null,
-      provisionsmodell,
-      provisions_wert:
-        provisionsmodell !== 'Individuell' && provisionsWertRaw
-          ? parseFloat(provisionsWertRaw)
-          : null,
+      // Provision/Konditionen werden über partner_konditionen gepflegt (nicht mehr hier).
       einkaufskonditionen: (formData.get('einkaufskonditionen') as string) || null,
       partner_typ: (formData.get('partner_typ') as string) || null,
       zahlungsziel_tage: zahlungszielRaw ? parseInt(zahlungszielRaw) : null,

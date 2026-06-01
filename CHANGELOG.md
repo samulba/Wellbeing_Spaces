@@ -6,8 +6,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 ## 2026-06-01
 
 ### Kalkulation & Partner-Konditionen
-- **Angebot aus Produktliste** übernimmt jetzt **Rabatte** korrekt (identisch zu Produkttabelle, PDF und CSV) — vorher wurde ein Positions-Rabatt beim Erzeugen des Angebots ignoriert.
-- Grundlage für eine durchgängige Provisions-/Einkaufslogik gelegt (Partner-Konditionen werden zur zentralen Quelle). Migrationen **120** + **121** in Supabase ausführen; ohne sie läuft alles weiter wie bisher.
+- **Partner-Konditionen ins Produkt übernehmen:** Im Produktformular erscheint jetzt — sobald ein Partner gewählt ist — ein Hinweis mit den hinterlegten Konditionen (Provision, Einkaufsrabatt, Zahlungsziel) und ein Button **„Vom Partner übernehmen"**. Abweichungen vom Partner werden markiert. Es wird **nichts** automatisch überschrieben.
+- **Provision als Prozent ODER Fixbetrag:** Die Provision kann jetzt wahlweise als Prozentsatz (vom VK netto) oder als **Fixbetrag pro Stück** angegeben werden. Neu außerdem das Feld **Einkaufsrabatt (%)** im Produkt.
+- **Konditionen-Editor überarbeitet:** Staffelungen und Kategorie-Sätze werden über komfortable Zeilen-Eingaben gepflegt (statt JSON-Text). Eine Kondition lässt sich als **Standard** markieren (Stern) — sie wird im Produkt bevorzugt übernommen.
+- **Wirtschaftlichkeit pro Projekt & Raum (nur intern):** Projekt- und Raum-Übersicht zeigen jetzt **Einkauf, Marge, Provision und Gesamt-Ertrag** (Ertrag = Marge + Provision). Der CSV-Export enthält eine Provisions-Spalte. Für Kunden bleibt all das unsichtbar.
+- **Angebot aus Produktliste** übernimmt jetzt **Rabatte** korrekt (identisch zu Produkttabelle, PDF und CSV).
+- Die einfache Provisions-Einstellung beim Partner entfällt — Provision/Konditionen laufen vollständig über **„Konditionen"**. Migrationen **120** + **121** in Supabase ausführen; ohne sie läuft alles weiter wie bisher.
 
 ### Freigabe: mehr Entscheidungsfreiheit für Kunden (Mehrfachauswahl · Menge · Notiz)
 - **Mehrfachauswahl in Auswahl-Blöcken:** Der Kunde kann jetzt **mehrere** Produkte aus einem Block wählen (z. B. zwei verschiedene Kissen) — vorher war es genau eines. Die Optionen sind jetzt Häkchen statt Radio-Buttons.

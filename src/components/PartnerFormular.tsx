@@ -34,7 +34,6 @@ const PARTNER_TYPEN = [
 
 export default function PartnerFormular({ aktion, initialData, abbrechen }: Props) {
   const [state, formAction] = useFormState(aktion, null)
-  const [modell, setModell] = useState<string>(initialData?.provisionsmodell ?? '')
   const [bewertung, setBewertung] = useState<number>(initialData?.bewertung ?? 0)
 
   return (
@@ -154,59 +153,14 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
         </div>
       </div>
 
-      {/* Trennlinie */}
-      <div className="border-t border-gray-100 pt-1">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5">Einfache Provision</p>
-      </div>
-
-      {/* Provisionsmodell */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <div>
-          <label htmlFor="provisionsmodell" className={lbl}>Provisionsmodell</label>
-          <select
-            id="provisionsmodell" name="provisionsmodell"
-            value={modell}
-            onChange={(e) => setModell(e.target.value)}
-            className={inp}
-          >
-            <option value="">Kein Provisionsmodell</option>
-            <option value="Prozent">Prozent vom VP netto</option>
-            <option value="Fix">Fixbetrag pro Einheit (€)</option>
-            <option value="Individuell">Individuell</option>
-          </select>
-        </div>
-
-        {modell === 'Prozent' && (
-          <div>
-            <label htmlFor="provisions_wert" className={lbl}>Provisionssatz (%)</label>
-            <input
-              id="provisions_wert" name="provisions_wert"
-              type="number" min="0" step="0.1"
-              defaultValue={initialData?.provisions_wert ?? ''}
-              className={`${inp} font-mono`} placeholder="0,0"
-            />
-          </div>
-        )}
-
-        {modell === 'Fix' && (
-          <div>
-            <label htmlFor="provisions_wert" className={lbl}>Fixbetrag (€)</label>
-            <input
-              id="provisions_wert" name="provisions_wert"
-              type="number" min="0" step="0.01"
-              defaultValue={initialData?.provisions_wert ?? ''}
-              className={`${inp} font-mono`} placeholder="0,00"
-            />
-          </div>
-        )}
-
-        {modell === 'Individuell' && (
-          <div className="flex items-end">
-            <p className="text-xs text-gray-500 pb-2.5">
-              Details unter &bdquo;Konditionen&ldquo; anlegen.
-            </p>
-          </div>
-        )}
+      {/* Provision & Konditionen → eigener Bereich */}
+      <div className="border-t border-gray-100 pt-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Provision &amp; Konditionen</p>
+        <p className="text-xs text-gray-500 leading-relaxed">
+          Provision, Einkaufsrabatt, Staffelungen und Zahlungsbedingungen werden unter{' '}
+          <span className="font-medium text-gray-700">&bdquo;Konditionen&ldquo;</span> gepflegt (auf der Partner-Seite nach dem Speichern).
+          Diese lassen sich per Knopfdruck ins Produkt übernehmen.
+        </p>
       </div>
 
       {/* Zahlungsziel */}

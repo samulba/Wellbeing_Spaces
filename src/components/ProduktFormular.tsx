@@ -8,9 +8,11 @@ import {
   Package, AlertCircle, ChevronDown, Image as ImageIcon, Sparkles,
 } from 'lucide-react'
 import type { ProduktActionState } from '@/app/actions/produkte'
-import type { Partner, ProduktMitDetails } from '@/lib/supabase/types'
+import type { Partner, ProduktMitDetails, ResolvedPartnerKonditionen } from '@/lib/supabase/types'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import type { ScraperErgebnis } from '@/app/api/scrape-product/route'
+import { provisionBetrag } from '@/lib/preise'
+import { getResolvedKonditionenFuerProdukt } from '@/app/actions/partner-konditionen'
 
 // ── Konstanten ────────────────────────────────────────────────
 const MWST_DEFAULT = 0.19
@@ -645,6 +647,10 @@ export default function ProduktFormular({
   const [marge,     setMarge]     = useState(initialData?.marge_prozent ?? 0)
   const [vpNetto,   setVpNetto]   = useState(initialData?.verkaufspreis ?? 0)
   const [provision, setProvision] = useState(initialData?.provision_prozent ?? 0)
+  const [provisionTyp, setProvisionTyp] = useState<'prozent' | 'fix'>(initialData?.provision_typ === 'fix' ? 'fix' : 'prozent')
+  const [provisionFix, setProvisionFix] = useState<number>(initialData?.provision_fix ?? 0)
+  const [einkaufsrabatt, setEinkaufsrabatt] = useState<number>(initialData?.einkaufsrabatt_prozent ?? 0)
+  const [resolved, setResolved] = useState<ResolvedPartnerKonditionen | null>(null)
   const menge = initialData?.menge ?? 1  // Menge bleibt als Konstante (kein UI-Feld mehr)
 
   // Kalkulation kollabierbar
@@ -717,7 +723,10 @@ export default function ProduktFormular({
 
   // ── Preis-Logik ───────────────────────────────────────────
   const vpBrutto     = r2(vpNetto * (1 + mwst))
-  const provisionEur = r2(vpNetto * (provision / 100))
+  const provisionEur = provisionBetrag(
+    { provision_typ: provisionTyp, provision_prozent: provision, provision_fix: provisionFix },
+    vpNetto,
+  )
 
   const handleEpChange = useCallback((val: number) => {
     setEp(val); setVpNetto(r2(val * (1 + marge / 100)))
@@ -729,14 +738,42 @@ export default function ProduktFormular({
 
   const handleVpNettoChange = useCallback((val: number) => {
     setVpNetto(val)
-    if (ep > 0) setMarge(r2(((val - ep) / ep) * 100))
+    setMarge(ep > 0 ? r2(((val - ep) / ep) * 100) : 0)
   }, [ep])
 
   const handleVpBruttoChange = useCallback((val: number) => {
     const netto = r2(val / (1 + mwst))
     setVpNetto(netto)
-    if (ep > 0) setMarge(r2(((netto - ep) / ep) * 100))
+    setMarge(ep > 0 ? r2(((netto - ep) / ep) * 100) : 0)
   }, [ep, mwst])
+
+  // Partner-Konditionen für die Produkt-Kategorie auflösen (Hinweis + „Vom Partner übernehmen")
+  useEffect(() => {
+    let abbruch = false
+    if (!partnerId) { setResolved(null); return }
+    getResolvedKonditionenFuerProdukt(partnerId, kategorie || null)
+      .then((r) => { if (!abbruch) setResolved(r) })
+      .catch(() => { if (!abbruch) setResolved(null) })
+    return () => { abbruch = true }
+  }, [partnerId, kategorie])
+
+  const uebernehmePartnerKonditionen = useCallback(() => {
+    if (!resolved) return
+    if (resolved.provisionTyp === 'fix') {
+      setProvisionTyp('fix')
+      if (resolved.provisionFix != null) setProvisionFix(resolved.provisionFix)
+    } else if (resolved.provisionTyp === 'prozent') {
+      setProvisionTyp('prozent')
+      if (resolved.provisionProzent != null) setProvision(resolved.provisionProzent)
+    }
+    if (resolved.einkaufsrabattProzent != null) setEinkaufsrabatt(resolved.einkaufsrabattProzent)
+  }, [resolved])
+
+  const konditionenWeichenAb = resolved != null && (
+    (resolved.provisionTyp === 'fix' && (provisionTyp !== 'fix' || (resolved.provisionFix ?? 0) !== provisionFix)) ||
+    (resolved.provisionTyp === 'prozent' && (provisionTyp !== 'prozent' || (resolved.provisionProzent ?? 0) !== provision)) ||
+    (resolved.einkaufsrabattProzent != null && resolved.einkaufsrabattProzent !== einkaufsrabatt)
+  )
 
   // ── Bild-Upload ───────────────────────────────────────────
   // Zentrale Funktion — wird vom Datei-Dialog UND von Drag&Drop genutzt.
@@ -871,7 +908,10 @@ export default function ProduktFormular({
         <input type="hidden" name="einkaufspreis"    value={ep || ''} />
         <input type="hidden" name="marge_prozent"    value={marge || ''} />
         <input type="hidden" name="verkaufspreis"    value={vpNetto || ''} />
-        <input type="hidden" name="provision_prozent" value={provision || ''} />
+        <input type="hidden" name="provision_prozent" value={provisionTyp === 'fix' ? '' : (provision || '')} />
+        <input type="hidden" name="provision_typ"     value={provisionTyp} />
+        <input type="hidden" name="provision_fix"     value={provisionTyp === 'fix' ? (provisionFix || '') : ''} />
+        <input type="hidden" name="einkaufsrabatt_prozent" value={einkaufsrabatt || ''} />
         <input type="hidden" name="menge"            value={menge} />
         <input type="hidden" name="bild_url"         value={bilderUrls[0] ?? ''} />
         <input type="hidden" name="bilder_urls_json" value={JSON.stringify(bilderUrls)} />
@@ -1129,7 +1169,7 @@ export default function ProduktFormular({
                 <span className="text-[10px] text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full normal-case tracking-normal">Nur intern</span>
                 {ep > 0 && !kalkulationOffen && (
                   <span className="text-[10px] text-gray-400 font-normal tracking-normal normal-case">
-                    EK {eur(ep)} · Marge {marge.toFixed(1)}%{provision > 0 ? ` · Prov. ${provision}%` : ''}
+                    EK {eur(ep)} · Marge {marge.toFixed(1)}%{provisionEur > 0 ? ` · Prov. ${eur(provisionEur)}` : ''}
                   </span>
                 )}
               </button>
@@ -1143,6 +1183,13 @@ export default function ProduktFormular({
                         value={ep || ''}
                         onChange={(e) => handleEpChange(parseFloat(e.target.value) || 0)}
                         className={`${inpPreis} font-mono`} placeholder="0,00" />
+                    </div>
+                    <div>
+                      <label className={lbl}>Einkaufsrabatt (%)</label>
+                      <input type="number" min="0" step="0.1"
+                        value={einkaufsrabatt || ''}
+                        onChange={(e) => setEinkaufsrabatt(parseFloat(e.target.value) || 0)}
+                        className={`${inpPreis} font-mono`} placeholder="0,0" />
                     </div>
                     <div>
                       <label className={lbl}>Marge (%)</label>
@@ -1159,14 +1206,54 @@ export default function ProduktFormular({
                         className={`${inpPreis} font-mono font-semibold text-wellbeing-green-dark`}
                         placeholder="0,00" />
                     </div>
-                    <div>
-                      <label className={lbl}>Provision (%)</label>
-                      <input type="number" min="0" step="0.1"
-                        value={provision || ''}
-                        onChange={(e) => setProvision(parseFloat(e.target.value) || 0)}
-                        className={`${inpPreis} font-mono`} placeholder="0,0" />
+                  </div>
+
+                  {/* Provision: Prozent (vom VP netto) oder Fixbetrag pro Stück */}
+                  <div>
+                    <label className={lbl}>Provision</label>
+                    <div className="flex items-stretch gap-2">
+                      <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden shrink-0">
+                        <button type="button" onClick={() => setProvisionTyp('prozent')}
+                          className={`px-3 text-xs font-medium transition-colors ${provisionTyp === 'prozent' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>%</button>
+                        <button type="button" onClick={() => setProvisionTyp('fix')}
+                          className={`px-3 text-xs font-medium transition-colors ${provisionTyp === 'fix' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>Fix €</button>
+                      </div>
+                      {provisionTyp === 'prozent' ? (
+                        <input type="number" min="0" step="0.1"
+                          value={provision || ''}
+                          onChange={(e) => setProvision(parseFloat(e.target.value) || 0)}
+                          className={`${inpPreis} font-mono flex-1`} placeholder="Prozent vom VP netto" />
+                      ) : (
+                        <input type="number" min="0" step="0.01"
+                          value={provisionFix || ''}
+                          onChange={(e) => setProvisionFix(parseFloat(e.target.value) || 0)}
+                          className={`${inpPreis} font-mono flex-1`} placeholder="€ pro Stück" />
+                      )}
                     </div>
                   </div>
+
+                  {/* Partner-Konditionen — Hinweis + „Vom Partner übernehmen" */}
+                  {resolved && (resolved.provisionTyp || resolved.einkaufsrabattProzent != null) && (
+                    <div className="rounded-xl border border-wellbeing-green/30 bg-wellbeing-green/5 p-3 text-xs space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-wellbeing-green-dark inline-flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5" /> Partner-Konditionen
+                        </span>
+                        <button type="button" onClick={uebernehmePartnerKonditionen}
+                          className="px-2.5 py-1 rounded-lg bg-wellbeing-green text-white text-[11px] font-medium hover:bg-wellbeing-green-dark transition-colors">
+                          Vom Partner übernehmen
+                        </button>
+                      </div>
+                      <div className="text-gray-600 space-y-0.5 font-mono">
+                        {resolved.provisionTyp === 'fix' && <div>Provision: {eur(resolved.provisionFix ?? 0)} / Stück</div>}
+                        {resolved.provisionTyp === 'prozent' && <div>Provision: {resolved.provisionProzent ?? 0} %</div>}
+                        {resolved.einkaufsrabattProzent != null && <div>Einkaufsrabatt: {resolved.einkaufsrabattProzent} %</div>}
+                        {resolved.zahlungszielTage != null && <div className="text-gray-500">Zahlungsziel: {resolved.zahlungszielTage} Tage{resolved.skontoProzent != null ? ` · ${resolved.skontoProzent} % Skonto` : ''}</div>}
+                      </div>
+                      {resolved.staffelHinweis && <div className="text-amber-600">{resolved.staffelHinweis}</div>}
+                      {konditionenWeichenAb && <div className="text-amber-600 font-medium">Aktuelle Produktwerte weichen von den Partner-Konditionen ab.</div>}
+                    </div>
+                  )}
 
                   {(vpNetto > 0 || ep > 0) && (
                     <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
@@ -1174,7 +1261,7 @@ export default function ProduktFormular({
                         <KalkulationsZeile label="EK netto" wert={ep > 0 ? eur(ep) : '–'} />
                         <KalkulationsZeile label="VP netto" wert={vpNetto > 0 ? eur(vpNetto) : '–'} hervorheben />
                         <KalkulationsZeile label="VP brutto" wert={vpNetto > 0 ? eur(vpBrutto) : '–'} hervorheben />
-                        <KalkulationsZeile label="Provision" wert={provision > 0 && vpNetto > 0 ? eur(provisionEur) : '–'} />
+                        <KalkulationsZeile label="Provision" wert={provisionEur > 0 && vpNetto > 0 ? eur(provisionEur) : '–'} />
                       </div>
                     </div>
                   )}
