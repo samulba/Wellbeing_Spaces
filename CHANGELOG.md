@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-02
 
+### Freigabe-Links: „nicht verfügbar" dauerhaft behoben (Links werden eingefroren)
+- **Behoben:** Ein neu erstellter Auswahl-Freigabe-Link konnte beim Öffnen „nicht verfügbar" zeigen. Ursache war die dynamische Live-Auflösung des Link-Inhalts. Jetzt wird der Link **beim Erstellen eingefroren** — sein Produkt-Inhalt steht fest und ändert sich nicht mehr, egal was du später in den Räumen änderst. **Ein Link kann so nie mehr leer/„nicht verfügbar" werden.**
+- Beim Erstellen wird geprüft, dass **mindestens 1 Produkt** enthalten ist — ein leerer Link lässt sich gar nicht mehr anlegen.
+- Bestehende Links werden mit der Reparatur (Migration 124) ebenfalls eingefroren.
+- Hinweis zum geänderten Verhalten: Produkte, die du **nach** dem Erstellen neu in einen Raum legst, erscheinen nicht mehr automatisch in einem schon bestehenden Link — dafür einfach einen neuen Link erstellen (= nächste Freigabe). Das macht Links verlässlich und später nachweisbar.
+
 ### Auswahl-Blöcke & Gruppen: saubere, konsistente Bereich-Zuordnung (Stabilität)
 - **Verbessert/behoben:** Produkte in einem Auswahl-Block folgen jetzt **immer** dem Bereich ihres Blocks. Bisher konnten Block und Mitglieder unterschiedliche Bereiche haben → Produkte fielen „Ohne Gruppe", Gruppen wirkten leer und tauchten im Freigabe-Link nicht auf. Beim Zuordnen, „+ Alternative" und Bereich-Wechsel wird der Bereich jetzt durchgängig mitgezogen.
 - Eine einmalige Reparatur (Migration 123) heilt bestehende Fälle: verwaiste Blöcke bekommen ihren Bereich zurück, und alle Block-Mitglieder werden an den Block-Bereich angeglichen. (Erster Schritt des größeren Freigabe-Umbaus.)

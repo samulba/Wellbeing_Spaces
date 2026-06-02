@@ -21,7 +21,7 @@ import { sendMail } from '@/lib/mail'
 import { freigabeAbgeschlossenMail } from '@/lib/mail-templates'
 import { syncAutoEvent } from './timeline'
 import { autoProjektStatusVorwaerts } from './projekte'
-import { istImAuswahlScope } from '@/lib/freigabe-scope'
+import { bereichVonRaumProdukt, istImAuswahlScope } from '@/lib/freigabe-scope'
 import type {
   FreigabeAudit,
   FreigabeKanal,
@@ -31,6 +31,45 @@ import type {
 
 type AdminClient = ReturnType<typeof createAdminClient>
 type ServerClient = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * Löst eine „Auswahl" (einzelne Produkte + ganze Gruppen/Bereiche) zu einer
+ * konkreten, deduplizierten Liste von raum_produkte-IDs auf — block-first,
+ * exakt wie Picker/Anzeige. Wird beim Erstellen genutzt, um den Link
+ * EINZUFRIEREN (feste scope_ids → nie „nicht verfügbar").
+ * raum_produkte hat KEIN deleted_at → niemals darauf filtern.
+ */
+async function aufgeloesteAuswahlProduktIds(
+  supabase: ServerClient,
+  orgId: string,
+  projektId: string,
+  produktIds: string[],
+  bereichIds: string[],
+): Promise<string[]> {
+  const ergebnis = new Set<string>(produktIds) // explizit gewählte Einzelprodukte immer rein
+  if (bereichIds.length === 0) return Array.from(ergebnis)
+
+  const { data: raeume } = await supabase
+    .from('raeume').select('id').eq('projekt_id', projektId).eq('organisation_id', orgId).is('deleted_at', null)
+  const raumIds = (raeume ?? []).map((r) => r.id as string)
+  if (raumIds.length === 0) return Array.from(ergebnis)
+
+  // Block→Bereich-Map (für block-first-Auflösung), fail-safe.
+  const blockBereich = new Map<string, string | null>()
+  {
+    const { data: g } = await supabase
+      .from('produkt_gruppen').select('id, bereich_id').in('raum_id', raumIds).is('deleted_at', null)
+    for (const row of (g ?? []) as { id: string; bereich_id: string | null }[]) blockBereich.set(row.id, row.bereich_id ?? null)
+  }
+  const { data: rps } = await supabase
+    .from('raum_produkte').select('id, produkt_gruppe_id, bereich_id').in('raum_id', raumIds)
+  const bset = new Set(bereichIds)
+  for (const rp of (rps ?? []) as { id: string; produkt_gruppe_id: string | null; bereich_id: string | null }[]) {
+    const b = bereichVonRaumProdukt({ produkt_gruppe_id: rp.produkt_gruppe_id, bereich_id: rp.bereich_id }, blockBereich)
+    if (b && bset.has(b)) ergebnis.add(rp.id)
+  }
+  return Array.from(ergebnis)
+}
 
 // ═══════════════════════════════════════════════════════════════
 // TOKEN ERSTELLEN MIT SCOPE
@@ -55,13 +94,25 @@ export async function freigabeTokenErstellen(
     return { fehler: 'Auswahl-Scope braucht mindestens ein Produkt oder eine Gruppe.' }
   }
 
-  // scope_bereich_ids nur setzen, wenn Gruppen gewählt — sonst kein Risiko,
-  // falls Migration 116 (Spalte) noch fehlt.
+  // Auswahl-Links beim Erstellen EINFRIEREN: Auswahl (Einzelprodukte + ganze
+  // Gruppen/Bereiche) sofort zu festen raum_produkte-IDs auflösen. Der Link ist
+  // damit selbsttragend und kann nie „nicht verfügbar" werden (keine dynamische
+  // Live-Auflösung mehr). Mind. 1 Produkt ist Pflicht — sonst kein leerer Link.
+  let finaleScopeIds = scopeIds
+  if (scopeTyp === 'auswahl') {
+    finaleScopeIds = await aufgeloesteAuswahlProduktIds(supabase, orgId, projektId, scopeIds, bereichIds)
+    if (finaleScopeIds.length === 0) {
+      return { fehler: 'Diese Auswahl enthält aktuell keine Produkte. Bitte mindestens ein Produkt (oder eine Gruppe mit Produkten) auswählen.' }
+    }
+  }
+
+  // scope_bereich_ids nur als Anzeige-Metadaten (welche Gruppen gewählt waren).
+  // Der tatsächliche Inhalt steckt eingefroren in scope_ids.
   const insertData: Record<string, unknown> = {
     projekt_id: projektId,
     organisation_id: orgId,
     scope_typ: scopeTyp,
-    scope_ids: scopeIds,
+    scope_ids: finaleScopeIds,
   }
   if (bereichIds.length > 0) insertData.scope_bereich_ids = bereichIds
 
@@ -160,116 +211,34 @@ export interface ScopeOptionenRaum {
 }
 
 /**
- * Aktualisiert den Scope eines „Auswahl"-Links: nimmt neu hinzugekommene Produkte
- * (nach Erstellung des Links) aus den betroffenen Räumen in die Auswahl auf, ohne
- * die bestehende Kuratierung zu verändern. „Projekt"/„Raum"-Links zeigen neue Produkte
- * ohnehin live. Fail-safe + org-scoped.
+ * No-Op (Kompatibilität): Freigabe-Links werden seit „Teil 1" beim Erstellen
+ * EINGEFROREN (feste scope_ids) und wachsen nicht mehr automatisch mit neuen
+ * Produkten. Diese Aktion hat keine Aufrufer mehr und ist bewusst wirkungslos.
  */
 export async function freigabeScopeAktualisieren(
   tokenId: string,
   projektId: string,
 ): Promise<{ erfolg?: boolean; hinzugefuegt?: number; live?: boolean; fehler?: string }> {
-  const supabase = await createClient()
-  const orgId = await getOrganisationId()
-
-  const { data: tok } = await supabase
-    .from('freigabe_tokens')
-    .select('id, scope_typ, scope_ids, created_at, deleted_at, abgeschlossen_am')
-    .eq('id', tokenId)
-    .eq('organisation_id', orgId)
-    .maybeSingle()
-  if (!tok) return { fehler: 'Link nicht gefunden.' }
-  if (tok.deleted_at || tok.abgeschlossen_am) return { fehler: 'Dieser Link ist nicht mehr aktiv.' }
-
-  // Projekt-/Raum-Links sind dynamisch — neue Produkte erscheinen automatisch.
-  if (tok.scope_typ !== 'auswahl') return { erfolg: true, hinzugefuegt: 0, live: true }
-
-  const altIds: string[] = ((tok.scope_ids as string[] | null) ?? [])
-  if (altIds.length === 0) return { fehler: 'Für diesen Link ist keine Auswahl hinterlegt.' }
-
-  // Räume der bestehenden Auswahl ermitteln
-  const { data: rps } = await supabase
-    .from('raum_produkte').select('raum_id').in('id', altIds).is('deleted_at', null)
-  const raumIds = Array.from(new Set((rps ?? []).map((r) => r.raum_id as string)))
-  if (raumIds.length === 0) return { fehler: 'Die Räume der Auswahl wurden nicht gefunden.' }
-
-  // Neu hinzugekommene Produkte (nach Link-Erstellung) in diesen Räumen
-  const { data: neue } = await supabase
-    .from('raum_produkte')
-    .select('id')
-    .in('raum_id', raumIds)
-    .is('deleted_at', null)
-    .gt('created_at', tok.created_at)
-  const altSet = new Set(altIds)
-  const neueIds = Array.from(new Set((neue ?? []).map((r) => r.id as string))).filter((id) => !altSet.has(id))
-  if (neueIds.length === 0) return { erfolg: true, hinzugefuegt: 0 }
-
-  const { error } = await supabase
-    .from('freigabe_tokens')
-    .update({ scope_ids: [...altIds, ...neueIds] })
-    .eq('id', tokenId)
-    .eq('organisation_id', orgId)
-  if (error) return { fehler: 'Aktualisierung fehlgeschlagen. Bitte erneut versuchen.' }
-
-  revalidatePath(`/dashboard/projekte/${projektId}`)
-  return { erfolg: true, hinzugefuegt: neueIds.length }
+  void tokenId
+  void projektId
+  return { erfolg: true, hinzugefuegt: 0, live: true }
 }
 
 /**
- * Hält „Auswahl"-Links automatisch aktuell: Wird ein Produkt in einen Raum
- * aufgenommen, wird es allen aktiven Auswahl-Tokens hinzugefügt, die den Raum
- * bereits abdecken (mind. 1 kuratiertes Produkt im Raum). Nur NACH Link-Erstellung
- * hinzugekommene Produkte werden ergänzt → die Kuratierung bleibt erhalten.
- * Schreibt in scope_ids (= Quelle für Anzeige UND Schreib-Guard). Fail-safe:
- * ein Fehler hier darf das Produkt-Hinzufügen nie verhindern.
+ * No-Op (Kompatibilität): Auswahl-Links werden seit „Teil 1" beim Erstellen
+ * eingefroren (feste scope_ids) und wachsen NICHT mehr automatisch mit neu zum
+ * Raum hinzugefügten Produkten. Die frühere Implementierung filterte zudem
+ * `raum_produkte.deleted_at` (Spalte existiert nicht). Signatur bleibt erhalten,
+ * damit die bestehenden Aufrufer (Produkt-/Raum-/Block-Aktionen) unverändert bleiben.
  */
 export async function freigabeAuswahlScopeFuerRaum(
   supabase: ServerClient,
   orgId: string,
   raumId: string,
 ): Promise<void> {
-  try {
-    const { data: raum } = await supabase
-      .from('raeume').select('projekt_id').eq('id', raumId).eq('organisation_id', orgId).maybeSingle()
-    const projektId = raum?.projekt_id as string | undefined
-    if (!projektId) return
-
-    const { data: tokens } = await supabase
-      .from('freigabe_tokens')
-      .select('id, scope_ids, created_at')
-      .eq('projekt_id', projektId)
-      .eq('organisation_id', orgId)
-      .eq('scope_typ', 'auswahl')
-      .eq('aktiv', true)
-      .is('deleted_at', null)
-      .is('abgeschlossen_am', null)
-    if (!tokens || tokens.length === 0) return
-
-    const { data: roomRps } = await supabase
-      .from('raum_produkte').select('id, created_at').eq('raum_id', raumId).is('deleted_at', null)
-    const rps = (roomRps ?? []) as { id: string; created_at: string }[]
-    if (rps.length === 0) return
-    const roomIds = new Set(rps.map((r) => r.id))
-
-    for (const t of tokens) {
-      const scope = ((t.scope_ids as string[] | null) ?? [])
-      // Deckt dieser Token den Raum ab? (mind. 1 kuratiertes Produkt im Raum)
-      if (!scope.some((id) => roomIds.has(id))) continue
-      const scopeSet = new Set(scope)
-      const tokenTs = new Date(t.created_at as string).getTime()
-      const neu = rps
-        .filter((r) => !scopeSet.has(r.id) && new Date(r.created_at).getTime() > tokenTs)
-        .map((r) => r.id)
-      if (neu.length === 0) continue
-      await supabase
-        .from('freigabe_tokens')
-        .update({ scope_ids: [...scope, ...neu] })
-        .eq('id', t.id)
-        .eq('organisation_id', orgId)
-    }
-  } catch {
-    /* fail-safe */
-  }
+  void supabase
+  void orgId
+  void raumId
 }
 
 export async function freigabeScopeOptionenLaden(
