@@ -227,15 +227,16 @@ export async function freigabeFavoritWaehlen(
 }
 
 /**
- * Admin setzt Freigabe für einen einzelnen raum_produkte-Eintrag zurück.
- * (Nimmt jetzt raumProduktId statt produktId.)
+ * Admin setzt die Kundenentscheidung für einen einzelnen raum_produkte-Eintrag
+ * komplett zurück: Freigabe-Status → „offen", Kundenwunsch-Kommentar gelöscht UND
+ * die vom Kunden gewählte Alternative (kunde_favorit) entfernt. (Nimmt raumProduktId.)
  */
 export async function freigabeZuruecksetzenAdmin(raumProduktId: string): Promise<void> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
   await supabase
     .from('raum_produkte')
-    .update({ freigabe_status: 'ausstehend', freigabe_kommentar: null })
+    .update({ freigabe_status: 'ausstehend', freigabe_kommentar: null, kunde_favorit: false })
     .eq('id', raumProduktId)
     .eq('organisation_id', orgId)
   revalidatePath('/dashboard/freigaben')

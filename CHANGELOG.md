@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-02
 
+### Kundenwunsch / Kundenentscheidung löschen (mit Sicherheitsabfrage)
+- In der Raum-Produktliste lässt sich der **Kundenwunsch** eines Produkts jetzt wieder **löschen**: kleiner Papierkorb am Kundenwunsch-Feld, bzw. „Kundenwahl zurücksetzen" beim vom Kunden gewählten Produkt. Es erscheint eine **zweistufige Sicherheitsabfrage** (löschen → bestätigen).
+- Danach steht das Produkt wieder auf **„offen"**, der Kundenwunsch-Kommentar ist entfernt und eine vom Kunden gewählte Alternative ist aufgehoben.
+
 ### Produktliste: gewählte Alternative des Kunden ist jetzt klar erkennbar
 - Hat der Kunde im Freigabe-Link **eine andere Alternative** als die Empfehlung gewählt, stand bei den nicht gewählten Produkten nur „Andere Alternative gewählt" — **ohne** zu sagen, welche. Jetzt steht dort konkret: **„Kunde hat sich für eine andere Alternative entschieden: <Produktname>"**.
 - Das vom Kunden gewählte Produkt trägt in der Raum-Produktliste zusätzlich ein deutliches grünes Abzeichen **„Kundenwahl"** — so sieht man auf einen Blick, welche Alternative gewünscht ist.

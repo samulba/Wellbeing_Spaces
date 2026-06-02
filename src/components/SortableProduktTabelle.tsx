@@ -49,6 +49,7 @@ import {
   raumProduktZuBereichZuordnen,
 } from '@/app/actions/produkt-bereiche'
 import { ConfirmModal } from './ConfirmModal'
+import { freigabeZuruecksetzenAdmin } from '@/app/actions/freigabe'
 import Checkbox from './Checkbox'
 import ZuordnungChip from './ZuordnungChip'
 import AlternativeModal from './AlternativeModal'
@@ -202,6 +203,7 @@ function SortableProduktZeile({
   istMarkiert,
   onToggleSelect,
   kundeWahl,
+  onKundenwunschReset,
 }: {
   eintrag: RaumProduktMitDetails
   mwst: number
@@ -226,6 +228,9 @@ function SortableProduktZeile({
   // Vom Kunden gewähltes Produkt (kunde_favorit) im selben Auswahl-Block — um die
   // tatsächlich gewünschte Alternative sichtbar zu machen. null = keine Kundenwahl.
   kundeWahl?: { id: string; name: string } | null
+  // Kundenentscheidung (Status/Kommentar/gewählte Alternative) zurücksetzen — öffnet
+  // im Parent eine 2-stufige Bestätigung (ConfirmModal).
+  onKundenwunschReset: (id: string, name: string) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: eintrag.id })
@@ -418,7 +423,7 @@ function SortableProduktZeile({
           {eintrag.freigabe_kommentar && eintrag.freigabe_kommentar.trim() && (
             <div className="mt-2 flex items-start gap-2 rounded-lg border border-wellbeing-terracotta/25 bg-wellbeing-cream/60 px-2.5 py-1.5 max-w-xl" role="note">
               <MessageSquareQuote className="w-3.5 h-3.5 text-wellbeing-terracotta shrink-0 mt-0.5" />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-wellbeing-terracotta/80">Kundenwunsch</p>
                 {eintrag.freigabe_kommentar.trim() === 'Andere Alternative gewählt' && kundeWahl && kundeWahl.id !== eintrag.id ? (
                   <p className="text-[12px] leading-snug text-wellbeing-green-dark break-words">
@@ -429,7 +434,28 @@ function SortableProduktZeile({
                   <p className="text-[12px] leading-snug text-wellbeing-green-dark whitespace-pre-line break-words">{eintrag.freigabe_kommentar}</p>
                 )}
               </div>
+              <button
+                type="button"
+                onClick={() => onKundenwunschReset(eintrag.id, p.name)}
+                aria-label="Kundenwunsch löschen"
+                title="Kundenwunsch löschen (Kundenentscheidung zurücksetzen)"
+                className="shrink-0 -mr-1 -mt-0.5 p-1 text-wellbeing-terracotta/50 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
+          )}
+          {/* Kundenwahl-Reset: wenn der Kunde diese Alternative gewählt hat, aber KEIN
+              Kommentar vorliegt (sonst übernimmt der Button oben), die Wahl löschbar machen. */}
+          {kundeWahl && kundeWahl.id === eintrag.id && !(eintrag.freigabe_kommentar && eintrag.freigabe_kommentar.trim()) && (
+            <button
+              type="button"
+              onClick={() => onKundenwunschReset(eintrag.id, p.name)}
+              title="Kundenwahl zurücksetzen (Kundenentscheidung löschen)"
+              className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-red-600 transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" /> Kundenwahl zurücksetzen
+            </button>
           )}
         </td>
 
@@ -1115,6 +1141,9 @@ export default function SortableProduktTabelle({
   const [, startTransition] = useTransition()
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  // Kundenwunsch/-entscheidung zurücksetzen (2-stufige Bestätigung)
+  const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null)
+  const [isResetting, setIsResetting] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   // Reklamations-Modal-Target
   const [reklamationTarget, setReklamationTarget] = useState<{ id: string; name: string } | null>(null)
@@ -1393,6 +1422,32 @@ export default function SortableProduktTabelle({
     if (!res?.fehler) startTransition(() => router.refresh())
   }
 
+  // Kundenentscheidung (Status/Kommentar/gewählte Alternative) zurücksetzen
+  async function handleKundenwunschReset() {
+    if (!resetTarget || isResetting) return
+    setIsResetting(true)
+    const vorher = eintraege
+    setEintraege((prev) =>
+      prev.map((e) =>
+        e.id === resetTarget.id
+          ? { ...e, freigabe_status: 'ausstehend', freigabe_kommentar: null, kunde_favorit: false }
+          : e,
+      ),
+    )
+    try {
+      await freigabeZuruecksetzenAdmin(resetTarget.id)
+      setErfolgToast('Kundenwunsch zurückgesetzt')
+      setTimeout(() => setErfolgToast(null), 2500)
+      startTransition(() => router.refresh())
+    } catch {
+      setEintraege(vorher)
+      setFehlerToast('Zurücksetzen fehlgeschlagen. Bitte erneut versuchen.')
+      setTimeout(() => setFehlerToast(null), 4000)
+    }
+    setIsResetting(false)
+    setResetTarget(null)
+  }
+
   // ── Auswahl-Gruppen + Admin-Favorit (Migration 114) ───────────
   async function handleAdminFavoritChange(raumProduktId: string, aktuellFavorit: boolean) {
     const eintrag = eintraege.find((e) => e.id === raumProduktId)
@@ -1601,6 +1656,7 @@ export default function SortableProduktTabelle({
       istMarkiert={selectedIds.has(e.id)}
       onToggleSelect={toggleSelect}
       kundeWahl={e.produkt_gruppe_id ? (kundeWahlProBlock.get(e.produkt_gruppe_id) ?? null) : null}
+      onKundenwunschReset={(id, name) => setResetTarget({ id, name })}
     />
   )
 
@@ -1857,6 +1913,19 @@ export default function SortableProduktTabelle({
           onClose={() => setAlternativeFuer(null)}
         />
       )}
+
+      {/* Kundenwunsch / Kundenentscheidung zurücksetzen — 2-stufige Bestätigung */}
+      <ConfirmModal
+        isOpen={!!resetTarget}
+        onClose={() => { if (!isResetting) setResetTarget(null) }}
+        onConfirm={handleKundenwunschReset}
+        title="Kundenwunsch löschen?"
+        message={resetTarget ? `Die Kundenentscheidung für „${resetTarget.name}" wird zurückgesetzt: Freigabe-Status auf „offen", Kundenwunsch-Kommentar gelöscht und die vom Kunden gewählte Alternative entfernt. Das kann nicht rückgängig gemacht werden.` : ''}
+        confirmText="Löschen"
+        cancelText="Abbrechen"
+        variant="warning"
+        isLoading={isResetting}
+      />
 
       {/* Schwebende Auswahl-Leiste (Freigaben-Stil) */}
       {selectedIds.size > 0 && (
