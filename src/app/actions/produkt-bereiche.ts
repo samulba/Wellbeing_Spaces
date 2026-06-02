@@ -141,7 +141,9 @@ export async function produktBereichReihenfolgeSetzen(
   return {}
 }
 
-/** Auswahl-Block (produkt_gruppe) einem Bereich zuordnen (oder lösen). */
+/** Auswahl-Block (produkt_gruppe) einem Bereich zuordnen (oder lösen).
+ *  Single Source of Truth: die Mitglieder des Blocks folgen dem Block-Bereich
+ *  (raum_produkte.bereich_id wird mitgezogen) — so kann nichts auseinanderlaufen. */
 export async function produktGruppeZuBereichZuordnen(
   gruppeId: string,
   bereichId: string | null,
@@ -156,6 +158,12 @@ export async function produktGruppeZuBereichZuordnen(
     .eq('id', gruppeId)
     .eq('organisation_id', orgId)
   if (error) return { fehler: error.message }
+  // Mitglieder des Blocks an den (neuen) Block-Bereich angleichen.
+  await supabase
+    .from('raum_produkte')
+    .update({ bereich_id: bereichId })
+    .eq('produkt_gruppe_id', gruppeId)
+    .eq('organisation_id', orgId)
   revalidatePath(pfad(projektId, raumId))
   return {}
 }

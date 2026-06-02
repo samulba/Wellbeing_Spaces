@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-02
 
+### Auswahl-Blöcke & Gruppen: saubere, konsistente Bereich-Zuordnung (Stabilität)
+- **Verbessert/behoben:** Produkte in einem Auswahl-Block folgen jetzt **immer** dem Bereich ihres Blocks. Bisher konnten Block und Mitglieder unterschiedliche Bereiche haben → Produkte fielen „Ohne Gruppe", Gruppen wirkten leer und tauchten im Freigabe-Link nicht auf. Beim Zuordnen, „+ Alternative" und Bereich-Wechsel wird der Bereich jetzt durchgängig mitgezogen.
+- Eine einmalige Reparatur (Migration 123) heilt bestehende Fälle: verwaiste Blöcke bekommen ihren Bereich zurück, und alle Block-Mitglieder werden an den Block-Bereich angeglichen. (Erster Schritt des größeren Freigabe-Umbaus.)
+
 ### Budget, Marge, Provision & Ertrag auf der Projektseite rechnen wieder korrekt (Bug behoben)
 - **Behoben:** Auf der Projekt-Detailseite zeigten die **Budget-Auslastung** und der Block **„Projekt-Übersicht"** (Einkauf / Marge / Provision / Ertrag / Gesamtsumme) **0 €**, obwohl die Räume Produkte mit Preisen enthielten.
 - Ursache war dieselbe fehlerhafte Datenabfrage wie beim Freigabe-„leer"-Bug (Filter auf eine nicht vorhandene Spalte) — und sie schlug zusätzlich in der Ausweich-Abfrage zu. Jetzt rechnen Ring und Übersicht wieder mit den echten Werten. **Die Einzelpreise in der Produkttabelle waren nie betroffen** (nur die Summen/Auswertung).

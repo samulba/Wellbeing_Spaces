@@ -110,7 +110,9 @@ export async function produktGruppeLoeschen(
 }
 
 /** Produkt einer Gruppe zuordnen (oder mit null entfernen). Gruppenwechsel
- *  setzt die Favoriten-Flags der Zeile zurück. */
+ *  setzt die Favoriten-Flags der Zeile zurück. Beim Zuordnen zu einem Block
+ *  übernimmt das Produkt den Bereich des Blocks (Single Source of Truth) —
+ *  beim Lösen (null) bleibt der bisherige Bereich erhalten. */
 export async function raumProduktZuGruppeZuordnen(
   raumProduktId: string,
   gruppeId: string | null,
@@ -119,9 +121,21 @@ export async function raumProduktZuGruppeZuordnen(
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+  // Bereich des Ziel-Blocks ermitteln → Mitglied erbt ihn (keine Drift).
+  const update: { produkt_gruppe_id: string | null; admin_favorit: boolean; kunde_favorit: boolean; bereich_id?: string | null } =
+    { produkt_gruppe_id: gruppeId, admin_favorit: false, kunde_favorit: false }
+  if (gruppeId) {
+    const { data: blk } = await supabase
+      .from('produkt_gruppen')
+      .select('bereich_id')
+      .eq('id', gruppeId)
+      .eq('organisation_id', orgId)
+      .maybeSingle()
+    update.bereich_id = (blk?.bereich_id as string | null) ?? null
+  }
   const { error } = await supabase
     .from('raum_produkte')
-    .update({ produkt_gruppe_id: gruppeId, admin_favorit: false, kunde_favorit: false })
+    .update(update)
     .eq('id', raumProduktId)
     .eq('organisation_id', orgId)
   if (error) return { fehler: error.message }
@@ -200,11 +214,15 @@ export async function alternativenHinzufuegen(
 
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+  // Bereich des Blocks → Alternativen erben ihn (Single Source of Truth).
+  const { data: blk } = await supabase
+    .from('produkt_gruppen').select('bereich_id').eq('id', grp).eq('organisation_id', orgId).maybeSingle()
+  const blockBereich = (blk?.bereich_id as string | null) ?? null
   for (const id of alternativeRaumProduktIds) {
     if (id === hauptRaumProduktId) continue
     const { error } = await supabase
       .from('raum_produkte')
-      .update({ produkt_gruppe_id: grp, admin_favorit: false, kunde_favorit: false })
+      .update({ produkt_gruppe_id: grp, admin_favorit: false, kunde_favorit: false, bereich_id: blockBereich })
       .eq('id', id)
       .eq('organisation_id', orgId)
     if (error) return { fehler: error.message }
@@ -227,16 +245,20 @@ export async function bibliotheksProdukteAlsAlternative(
 
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+  // Bereich des Blocks → neue Alternativen erben ihn (Single Source of Truth).
+  const { data: blk } = await supabase
+    .from('produkt_gruppen').select('bereich_id').eq('id', grp).eq('organisation_id', orgId).maybeSingle()
+  const blockBereich = (blk?.bereich_id as string | null) ?? null
   for (const produktId of produktIds) {
     const { error: insErr } = await supabase
       .from('raum_produkte')
-      .insert({ organisation_id: orgId, raum_id: raumId, produkt_id: produktId, menge: 1, reihenfolge: 0, produkt_gruppe_id: grp })
+      .insert({ organisation_id: orgId, raum_id: raumId, produkt_id: produktId, menge: 1, reihenfolge: 0, produkt_gruppe_id: grp, bereich_id: blockBereich })
     if (insErr) {
       if (insErr.code === '23505') {
-        // Produkt schon im Raum → nur der Gruppe zuordnen
+        // Produkt schon im Raum → nur der Gruppe zuordnen (+ Bereich angleichen)
         await supabase
           .from('raum_produkte')
-          .update({ produkt_gruppe_id: grp, admin_favorit: false, kunde_favorit: false })
+          .update({ produkt_gruppe_id: grp, admin_favorit: false, kunde_favorit: false, bereich_id: blockBereich })
           .eq('raum_id', raumId)
           .eq('produkt_id', produktId)
           .eq('organisation_id', orgId)
