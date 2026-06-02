@@ -649,6 +649,49 @@ export interface FreigabeAudit {
   created_at: string
 }
 
+// Unveränderlicher Einreichungs-Beleg (Migration 125) — eingefrorener Snapshot
+// einer abgesendeten Freigabe. Append-only; überlebt spätere Raum-Änderungen.
+export interface FreigabeEinreichungPosition {
+  raum_produkt_id: string
+  produkt_name: string
+  einheit: string | null
+  raum_name: string | null
+  bereich_name: string | null
+  block_name: string | null
+  status: ProduktStatus
+  kommentar: string | null
+  ist_kundenwahl: boolean
+  menge: number
+  einzelpreis_netto: number | null
+}
+
+export interface FreigabeEinreichungSummen {
+  gesamt: number
+  freigegeben: number
+  abgelehnt: number
+  ueberarbeitung: number
+  ausstehend: number
+  summe_freigegeben_netto: number
+}
+
+export interface FreigabeEinreichung {
+  id: string
+  organisation_id: string
+  projekt_id: string
+  freigabe_token_id: string | null
+  lfd_nr: number
+  unterzeichner_name: string
+  abgesendet_am: string
+  allgemeiner_kommentar: string | null
+  scope_typ: FreigabeScopeTyp | null
+  scope_ids: string[]
+  scope_bereich_ids: string[]
+  positionen: FreigabeEinreichungPosition[]
+  summen: FreigabeEinreichungSummen
+  content_hash: string | null
+  created_at: string
+}
+
 // ── Team ──────────────────────────────────────────────────────
 export type Rolle = 'admin' | 'editor' | 'viewer'
 export type TeamStatus = 'ausstehend' | 'aktiv' | 'deaktiviert'

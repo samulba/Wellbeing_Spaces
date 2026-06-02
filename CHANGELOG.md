@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-02
 
+### Freigabe: Pflicht-Signatur + unveränderlicher Beleg beim Absenden
+- Beim Absenden einer Freigabe gibt der Kunde jetzt **Vor- und Nachname** an (Pflicht); **Datum & Uhrzeit** werden automatisch protokolliert.
+- Jede abgesendete Freigabe wird als **unveränderlicher Beleg** gespeichert — ein eingefrorener Snapshot aller Entscheidungen (Status, Kommentare, gewählte Alternative, Wunschmenge, Preis) plus Unterzeichner & Zeitstempel. Der Beleg bleibt erhalten, **egal was du später in den Räumen änderst** — so ist jederzeit nachweisbar, was auf Kundenwunsch entschieden/freigegeben wurde. (Die Ansicht zum Durchblättern + der PDF-Download folgen im nächsten Schritt.)
+
 ### Freigabe-Links: „nicht verfügbar" dauerhaft behoben (Links werden eingefroren)
 - **Behoben:** Ein neu erstellter Auswahl-Freigabe-Link konnte beim Öffnen „nicht verfügbar" zeigen. Ursache war die dynamische Live-Auflösung des Link-Inhalts. Jetzt wird der Link **beim Erstellen eingefroren** — sein Produkt-Inhalt steht fest und ändert sich nicht mehr, egal was du später in den Räumen änderst. **Ein Link kann so nie mehr leer/„nicht verfügbar" werden.**
 - Beim Erstellen wird geprüft, dass **mindestens 1 Produkt** enthalten ist — ein leerer Link lässt sich gar nicht mehr anlegen.

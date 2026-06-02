@@ -38,7 +38,8 @@ export default function FreigabeAbschlussModal({
   blockNotizen = [],
   vorschau = false,
 }: Props) {
-  const [name, setName]           = useState('')
+  const [vorname, setVorname]     = useState('')
+  const [nachname, setNachname]   = useState('')
   const [kommentar, setKommentar] = useState('')
   const [bestaetigt, setBestaetigt] = useState(false)
   const [fehler, setFehler]       = useState<string | null>(null)
@@ -50,10 +51,11 @@ export default function FreigabeAbschlussModal({
     e.preventDefault()
     setFehler(null)
     if (vorschau) { setFehler('Vorschau-Modus — in der Vorschau wird nichts gesendet.'); return }
-    if (!name.trim()) { setFehler('Bitte deinen Namen eingeben.'); return }
+    if (!vorname.trim() || !nachname.trim()) { setFehler('Bitte Vor- und Nachname eingeben.'); return }
     if (!bestaetigt) { setFehler('Bitte die Bestätigung anklicken.'); return }
+    const vollerName = `${vorname.trim()} ${nachname.trim()}`.trim()
     startTransition(async () => {
-      const result = await freigabeAbsenden(token, name.trim(), kommentar.trim() || null, entscheidungen, blockNotizen)
+      const result = await freigabeAbsenden(token, vollerName, kommentar.trim() || null, entscheidungen, blockNotizen)
       if ('erfolg' in result) onErfolg()
       else setFehler(result.fehler)
     })
@@ -101,20 +103,39 @@ export default function FreigabeAbschlussModal({
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-              Dein Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => { setName(e.target.value); setFehler(null) }}
-              placeholder="Vorname Nachname"
-              disabled={isPending}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/30 focus:border-wellbeing-green"
-              autoFocus
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                Vorname <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={vorname}
+                onChange={(e) => { setVorname(e.target.value); setFehler(null) }}
+                placeholder="Vorname"
+                disabled={isPending}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/30 focus:border-wellbeing-green"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                Nachname <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={nachname}
+                onChange={(e) => { setNachname(e.target.value); setFehler(null) }}
+                placeholder="Nachname"
+                disabled={isPending}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/30 focus:border-wellbeing-green"
+              />
+            </div>
           </div>
+          <p className="text-[11px] text-gray-400 leading-relaxed -mt-1">
+            Mit dem Absenden werden dein Name und der Zeitpunkt (Datum &amp; Uhrzeit) verbindlich
+            protokolliert und als unveränderlicher Beleg gespeichert.
+          </p>
 
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1.5">

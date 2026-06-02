@@ -22,6 +22,8 @@ import { freigabeAbgeschlossenMail } from '@/lib/mail-templates'
 import { syncAutoEvent } from './timeline'
 import { autoProjektStatusVorwaerts } from './projekte'
 import { bereichVonRaumProdukt, istImAuswahlScope } from '@/lib/freigabe-scope'
+import { effektiverVpNetto } from '@/lib/preise'
+import { createHash } from 'crypto'
 import type {
   FreigabeAudit,
   FreigabeKanal,
@@ -782,6 +784,86 @@ export async function freigabeAbsenden(
           .eq('organisation_id', tok.organisation_id)
       }
     } catch { /* kunde_notiz-Spalte fehlt → ignorieren */ }
+  }
+
+  // ── Unveränderlichen Einreichungs-Beleg schreiben (Migration 125) ──────────
+  // Eingefrorener Snapshot ALLER In-Scope-Entscheidungen (Name/Status/Kommentar/
+  // gewählte Alternative/Menge/Preis) + Unterzeichner + Zeitstempel. Überlebt
+  // spätere Änderungen an den live raum_produkte → späterer Nachweis bleibt erhalten.
+  // Fail-safe: fehlt die Tabelle (Migration 125 noch nicht eingespielt), wird der
+  // Beleg übersprungen — das Absenden funktioniert trotzdem.
+  try {
+    const { data: snapRows } = await supabase
+      .from('raum_produkte')
+      .select('id, menge, verkaufspreis_override, rabatt_prozent, kunde_favorit, kunde_menge, produkt_gruppe_id, bereich_id, freigabe_status, freigabe_kommentar, produkte(name, einheit, verkaufspreis), raeume(name)')
+      .in('id', inScopeIds)
+    const rows = (snapRows ?? []) as unknown as Array<{
+      id: string; menge: number; verkaufspreis_override: number | null; rabatt_prozent: number | null
+      kunde_favorit: boolean | null; kunde_menge: number | null; produkt_gruppe_id: string | null; bereich_id: string | null
+      freigabe_status: string; freigabe_kommentar: string | null
+      produkte: { name: string; einheit: string | null; verkaufspreis: number | null } | null
+      raeume: { name: string } | null
+    }>
+    const blockIds = Array.from(new Set(rows.map((r) => r.produkt_gruppe_id).filter(Boolean))) as string[]
+    const bereichIds = Array.from(new Set(rows.map((r) => r.bereich_id).filter(Boolean))) as string[]
+    const blockName = new Map<string, string>()
+    const bereichName = new Map<string, string>()
+    if (blockIds.length > 0) {
+      const { data } = await supabase.from('produkt_gruppen').select('id, name').in('id', blockIds)
+      for (const g of (data ?? []) as { id: string; name: string }[]) blockName.set(g.id, g.name)
+    }
+    if (bereichIds.length > 0) {
+      const { data } = await supabase.from('produkt_bereiche').select('id, name').in('id', bereichIds)
+      for (const b of (data ?? []) as { id: string; name: string }[]) bereichName.set(b.id, b.name)
+    }
+    const positionen = rows.map((r) => ({
+      raum_produkt_id: r.id,
+      produkt_name: r.produkte?.name ?? '',
+      einheit: r.produkte?.einheit ?? null,
+      raum_name: r.raeume?.name ?? null,
+      bereich_name: r.bereich_id ? (bereichName.get(r.bereich_id) ?? null) : null,
+      block_name: r.produkt_gruppe_id ? (blockName.get(r.produkt_gruppe_id) ?? null) : null,
+      status: r.freigabe_status,
+      kommentar: r.freigabe_kommentar,
+      ist_kundenwahl: !!r.kunde_favorit,
+      menge: r.kunde_menge ?? r.menge,
+      einzelpreis_netto: effektiverVpNetto(
+        { verkaufspreis_override: r.verkaufspreis_override, rabatt_prozent: r.rabatt_prozent ?? null },
+        r.produkte?.verkaufspreis ?? null,
+      ),
+    }))
+    const summen = {
+      gesamt: positionen.length,
+      freigegeben: positionen.filter((p) => p.status === 'freigegeben').length,
+      abgelehnt: positionen.filter((p) => p.status === 'abgelehnt').length,
+      ueberarbeitung: positionen.filter((p) => p.status === 'ueberarbeitung').length,
+      ausstehend: positionen.filter((p) => p.status === 'ausstehend').length,
+      summe_freigegeben_netto: positionen
+        .filter((p) => p.status === 'freigegeben')
+        .reduce((s, p) => s + (p.einzelpreis_netto ?? 0) * (p.menge || 1), 0),
+    }
+    const { count } = await supabase
+      .from('freigabe_einreichungen')
+      .select('id', { count: 'exact', head: true })
+      .eq('projekt_id', tok.projekt_id)
+    const contentHash = createHash('sha256').update(JSON.stringify(positionen)).digest('hex')
+    await supabase.from('freigabe_einreichungen').insert({
+      organisation_id:       tok.organisation_id,
+      projekt_id:            tok.projekt_id,
+      freigabe_token_id:     tok.id,
+      lfd_nr:                (count ?? 0) + 1,
+      unterzeichner_name:    name.trim(),
+      abgesendet_am:         new Date().toISOString(),
+      allgemeiner_kommentar: kommentar?.trim() || null,
+      scope_typ:             scopeTyp,
+      scope_ids:             scopeIds,
+      scope_bereich_ids:     scopeBereichIds,
+      positionen,
+      summen,
+      content_hash:          contentHash,
+    })
+  } catch (e) {
+    console.error('[freigabeAbsenden] Einreichungs-Snapshot fehlgeschlagen (fail-safe):', e)
   }
 
   // Abschluss: re-validiert, Gate (passt jetzt), markiert Token, Mail,
