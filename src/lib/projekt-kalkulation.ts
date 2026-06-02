@@ -145,6 +145,10 @@ export async function berechneProjektKalkulation(
   }
 
   // 2. Raum-Produkte mit Produkt-Details.
+  // WICHTIG: raum_produkte hat KEINE deleted_at-Spalte (harte Löschung, siehe Migration 101).
+  // Ein .is('deleted_at', null) hier lieferte einen PostgREST-Fehler → BEIDE Selects schlugen
+  // fehl → leere Produktliste → ALLE Summen 0 (Budget/Marge/Provision/Ertrag). Daher kein
+  // deleted_at-Filter (identisch zu getRaumProdukte/Kunden-View).
   // Fail-safe: provision_typ/provision_fix (Migration 120) sind ggf. noch nicht vorhanden
   // → bei Fehler ohne diese Spalten erneut laden (EK/Provision% existieren seit Mig 038).
   const rpFelder = 'raum_id, menge, verkaufspreis_override, rabatt_prozent, freigabe_status'
@@ -152,7 +156,6 @@ export async function berechneProjektKalkulation(
     .from('raum_produkte')
     .select(`${rpFelder}, produkte(verkaufspreis, einkaufspreis, provision_prozent, provision_typ, provision_fix)`)
     .in('raum_id', raumIds)
-    .is('deleted_at', null)
 
   let rpRaw: unknown[] | null = rich.data
   if (rich.error) {
@@ -160,7 +163,6 @@ export async function berechneProjektKalkulation(
       .from('raum_produkte')
       .select(`${rpFelder}, produkte(verkaufspreis, einkaufspreis, provision_prozent)`)
       .in('raum_id', raumIds)
-      .is('deleted_at', null)
     rpRaw = safe.data
   }
 

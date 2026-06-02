@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-02
 
+### Budget, Marge, Provision & Ertrag auf der Projektseite rechnen wieder korrekt (Bug behoben)
+- **Behoben:** Auf der Projekt-Detailseite zeigten die **Budget-Auslastung** und der Block **„Projekt-Übersicht"** (Einkauf / Marge / Provision / Ertrag / Gesamtsumme) **0 €**, obwohl die Räume Produkte mit Preisen enthielten.
+- Ursache war dieselbe fehlerhafte Datenabfrage wie beim Freigabe-„leer"-Bug (Filter auf eine nicht vorhandene Spalte) — und sie schlug zusätzlich in der Ausweich-Abfrage zu. Jetzt rechnen Ring und Übersicht wieder mit den echten Werten. **Die Einzelpreise in der Produkttabelle waren nie betroffen** (nur die Summen/Auswertung).
+
 ### Kundenwunsch / Kundenentscheidung löschen (mit Sicherheitsabfrage)
 - In der Raum-Produktliste lässt sich der **Kundenwunsch** eines Produkts jetzt wieder **löschen**: kleiner Papierkorb am Kundenwunsch-Feld, bzw. „Kundenwahl zurücksetzen" beim vom Kunden gewählten Produkt. Es erscheint eine **zweistufige Sicherheitsabfrage** (löschen → bestätigen).
 - Danach steht das Produkt wieder auf **„offen"**, der Kundenwunsch-Kommentar ist entfernt und eine vom Kunden gewählte Alternative ist aufgehoben.
