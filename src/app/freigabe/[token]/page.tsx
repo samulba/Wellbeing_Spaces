@@ -41,11 +41,14 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     !!tokenData.organisation_id &&
     (await getOrganisationIdOrNull()) === tokenData.organisation_id
 
-  if (!vorschau) {
-    if (!tokenData.aktiv || tokenData.deleted_at) {
-      return <Fehlerseite meldung="Dieser Freigabe-Link ist ungültig oder wurde zurückgezogen." />
-    }
+  // Deaktiviert/zurückgezogen gilt IMMER — auch in der Admin-Vorschau. Ein
+  // entfernter Link ist für alle weg; sonst bliebe ein „alter Tab" mit ?vorschau=1
+  // weiter nutzbar. Nur Ablauf/PIN/Abschluss werden in der Vorschau übersprungen.
+  if (!tokenData.aktiv || tokenData.deleted_at) {
+    return <Fehlerseite meldung="Dieser Freigabe-Link ist ungültig oder wurde zurückgezogen." />
+  }
 
+  if (!vorschau) {
     if (tokenData.gueltig_bis && new Date(tokenData.gueltig_bis) < new Date()) {
       return <Fehlerseite meldung="Dieser Freigabe-Link ist abgelaufen." />
     }

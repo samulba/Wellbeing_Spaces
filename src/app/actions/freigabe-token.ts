@@ -40,10 +40,12 @@ export async function tokenDeaktivieren(
   projektId: string
 ): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('freigabe_tokens')
     .update({ aktiv: false })
     .eq('id', tokenId)
+    .eq('organisation_id', orgId)
 
   revalidatePath(`/dashboard/projekte/${projektId}`)
 }

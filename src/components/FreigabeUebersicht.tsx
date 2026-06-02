@@ -43,7 +43,10 @@ export default function FreigabeUebersicht({ projektId, initialTokens }: Props) 
   const [confirmLoeschenId, setConfirmLoeschenId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  const archiv = tokens.filter((t) => t.deleted_at || t.abgeschlossen_am)
+  // Archiv: zurückgezogen (deleted_at), abgeschlossen ODER deaktiviert (aktiv=false).
+  // Auch deaktivierte Links müssen sichtbar bleiben — sonst „verschwinden" sie aus
+  // beiden Listen, obwohl der Token noch existiert.
+  const archiv = tokens.filter((t) => t.deleted_at || t.abgeschlossen_am || !t.aktiv)
 
   function handleAuditOeffnen(t: FreigabeToken) {
     setDrawerToken(t)
