@@ -201,6 +201,7 @@ function SortableProduktZeile({
   onBereichChange,
   istMarkiert,
   onToggleSelect,
+  kundeWahl,
 }: {
   eintrag: RaumProduktMitDetails
   mwst: number
@@ -222,6 +223,9 @@ function SortableProduktZeile({
   onBereichChange: (raumProduktId: string, bereichId: string | null) => void
   istMarkiert: boolean
   onToggleSelect: (id: string) => void
+  // Vom Kunden gewähltes Produkt (kunde_favorit) im selben Auswahl-Block — um die
+  // tatsächlich gewünschte Alternative sichtbar zu machen. null = keine Kundenwahl.
+  kundeWahl?: { id: string; name: string } | null
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: eintrag.id })
@@ -371,6 +375,14 @@ function SortableProduktZeile({
                 </span>
               )
             )}
+            {istGruppiert && kundeWahl && kundeWahl.id === eintrag.id && (
+              <span
+                className="px-1.5 py-0.5 bg-wellbeing-green text-white rounded-full font-semibold text-[10px] inline-flex items-center gap-0.5"
+                title="Diese Alternative hat der Kunde gewählt"
+              >
+                <CheckCircle2 className="w-2.5 h-2.5" /> Kundenwahl
+              </span>
+            )}
             {p.partner && <span>{p.partner.name}</span>}
             {p.kategorie && (
               <>
@@ -408,7 +420,14 @@ function SortableProduktZeile({
               <MessageSquareQuote className="w-3.5 h-3.5 text-wellbeing-terracotta shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-wellbeing-terracotta/80">Kundenwunsch</p>
-                <p className="text-[12px] leading-snug text-wellbeing-green-dark whitespace-pre-line break-words">{eintrag.freigabe_kommentar}</p>
+                {eintrag.freigabe_kommentar.trim() === 'Andere Alternative gewählt' && kundeWahl && kundeWahl.id !== eintrag.id ? (
+                  <p className="text-[12px] leading-snug text-wellbeing-green-dark break-words">
+                    Kunde hat sich für eine andere Alternative entschieden:{' '}
+                    <span className="font-semibold">{kundeWahl.name}</span>
+                  </p>
+                ) : (
+                  <p className="text-[12px] leading-snug text-wellbeing-green-dark whitespace-pre-line break-words">{eintrag.freigabe_kommentar}</p>
+                )}
               </div>
             </div>
           )}
@@ -1546,6 +1565,18 @@ export default function SortableProduktTabelle({
     })
   }
 
+  // Pro Auswahl-Block das vom Kunden gewählte Produkt (kunde_favorit) — damit auf den
+  // nicht gewählten Alternativen sichtbar wird, WELCHE Alternative der Kunde wollte.
+  const kundeWahlProBlock = useMemo(() => {
+    const m = new Map<string, { id: string; name: string }>()
+    for (const e of eintraege) {
+      if (e.kunde_favorit && e.produkt_gruppe_id) {
+        m.set(e.produkt_gruppe_id, { id: e.id, name: e.produkte.name })
+      }
+    }
+    return m
+  }, [eintraege])
+
   const renderZeile = (e: RaumProduktMitDetails, istGruppiert: boolean, isLast: boolean) => (
     <SortableProduktZeile
       key={e.id}
@@ -1569,6 +1600,7 @@ export default function SortableProduktTabelle({
       onBereichChange={handleRowBereichChange}
       istMarkiert={selectedIds.has(e.id)}
       onToggleSelect={toggleSelect}
+      kundeWahl={e.produkt_gruppe_id ? (kundeWahlProBlock.get(e.produkt_gruppe_id) ?? null) : null}
     />
   )
 

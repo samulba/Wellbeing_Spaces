@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-02
 
+### Produktliste: gewählte Alternative des Kunden ist jetzt klar erkennbar
+- Hat der Kunde im Freigabe-Link **eine andere Alternative** als die Empfehlung gewählt, stand bei den nicht gewählten Produkten nur „Andere Alternative gewählt" — **ohne** zu sagen, welche. Jetzt steht dort konkret: **„Kunde hat sich für eine andere Alternative entschieden: <Produktname>"**.
+- Das vom Kunden gewählte Produkt trägt in der Raum-Produktliste zusätzlich ein deutliches grünes Abzeichen **„Kundenwahl"** — so sieht man auf einen Blick, welche Alternative gewünscht ist.
+
 ### Freigabe-Link „Auswahl": Gruppen waren fälschlich „leer" und nicht wählbar (Bug behoben)
 - **Behoben:** Beim Erstellen eines „Auswahl"-Links stand hinter **jeder** Gruppe „leer" und die Gruppe ließ sich nicht ankreuzen — auch wenn sie mehrere Auswahl-Blöcke mit Produkten enthielt (z. B. „Lounge-Ecke" mit Kissen- und Gartenset-Block). Dadurch konnte man gar keinen gruppen-basierten Freigabelink mehr erstellen.
 - Ursache war eine fehlerhafte Datenabfrage (Filter auf eine nicht vorhandene Spalte). Jetzt zeigt jede Gruppe wieder ihre **tatsächliche Produktanzahl** und ist auswählbar — passend zur Produkttabelle des Raums.
