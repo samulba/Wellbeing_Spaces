@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params: { token: string }
-  searchParams?: { vorschau?: string }
+  searchParams?: { vorschau?: string; debug?: string }
 }
 
 export default async function FreigabePage({ params, searchParams }: Props) {
@@ -407,6 +407,49 @@ export default async function FreigabePage({ params, searchParams }: Props) {
       return { id: raum.id, name: raum.name, bereiche, gruppen, produkte: lose }
     })
     .filter((r) => r.produkte.length > 0 || (r.gruppen?.length ?? 0) > 0 || (r.bereiche?.length ?? 0) > 0)
+
+  // ─── TEMP-DIAGNOSE (nur Admin derselben Org via ?vorschau=1&debug=1) ──────────
+  // Zeigt die Scope-Auflösung, um „Link nicht verfügbar" bei Bereich-Links zu
+  // analysieren. Gated über `vorschau` (eingeloggter Nutzer derselben Org) — für
+  // anonyme Besucher NIE sichtbar. Wird nach Fix wieder entfernt.
+  if (vorschau && searchParams?.debug === '1') {
+    const probe = (rpDaten ?? []).map((rp) => {
+      const pg = rpGruppeId(rp)
+      const bi = rpBereichId(rp)
+      const pd = rp.produkte as unknown as { name?: string; deleted_at?: string | null } | null
+      return {
+        name:               pd?.name ?? '(kein Produkt)',
+        raum_id:            rp.raum_id,
+        produkt_gruppe_id:  pg,
+        bereich_id:         bi,
+        aufgeloesterBereich: bereichVonRaumProdukt({ produkt_gruppe_id: pg, bereich_id: bi }, blockBereich),
+        produktGeloescht:   !!pd?.deleted_at,
+        imScope:            istImAuswahlScope({ id: rp.id, produkt_gruppe_id: pg, bereich_id: bi }, scopeIds, scopeBereichIds, blockBereich),
+      }
+    })
+    const info = {
+      scopeTyp,
+      scopeIdsCount:      scopeIds.length,
+      scopeBereichIds,
+      auswahlMitBereich,
+      gruppenInline,
+      raumFilterCount:    raumFilter.length,
+      rpDatenCount:       (rpDaten ?? []).length,
+      gruppenDatenCount:  (gruppenDaten ?? []).length,
+      blockBereich:       Array.from(blockBereich.entries()),
+      bereicheProRaum:    Array.from(bereicheProRaum.entries()).map(([r, bs]) => ({ raum: r, bereichIds: bs.map((b) => b.id) })),
+      raeumeMitInhalt:    raeume.length,
+      imScopeCount:       probe.filter((x) => x.imScope).length,
+      produktGeloeschtCount: probe.filter((x) => x.produktGeloescht).length,
+      probe:              probe.slice(0, 40),
+    }
+    return (
+      <div className="p-6 font-mono text-xs text-gray-800">
+        <h2 className="text-sm font-bold mb-3">Freigabe-Diagnose (temporär)</h2>
+        <pre className="whitespace-pre-wrap break-all bg-gray-50 border border-gray-200 rounded-lg p-3">{JSON.stringify(info, null, 2)}</pre>
+      </div>
+    )
+  }
 
   if (raeume.length === 0) {
     // Auswahl-Link, der (aktuell) auf nichts auflöst → klare Meldung statt „keine Produkte".
