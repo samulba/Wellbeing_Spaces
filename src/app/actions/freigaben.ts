@@ -320,11 +320,14 @@ export async function freigabeScopeOptionenLaden(
   const ownBereich = new Map<string, string | null>()   // rpId -> eigener bereich_id
   const blockOf    = new Map<string, string | null>()    // rpId -> produkt_gruppe_id
   {
+    // raum_produkte hat KEINE deleted_at-Spalte (Einträge werden hart gelöscht,
+    // siehe Migration 101). Ein .is('deleted_at', null) hier liefert einen
+    // PostgREST-Fehler → die Maps blieben leer → jede Gruppe wurde fälschlich als
+    // „leer" angezeigt. Ohne den Filter (wie getRaumProdukte/Kunden-View) korrekt.
     const { data: rg, error } = await supabase
       .from('raum_produkte')
       .select('id, produkt_gruppe_id, bereich_id')
       .in('raum_id', raumIds)
-      .is('deleted_at', null)
     if (!error) for (const r of (rg ?? []) as { id: string; produkt_gruppe_id: string | null; bereich_id: string | null }[]) {
       ownBereich.set(r.id, r.bereich_id ?? null)
       blockOf.set(r.id, r.produkt_gruppe_id ?? null)

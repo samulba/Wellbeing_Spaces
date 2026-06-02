@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-06-02
+
+### Freigabe-Link „Auswahl": Gruppen waren fälschlich „leer" und nicht wählbar (Bug behoben)
+- **Behoben:** Beim Erstellen eines „Auswahl"-Links stand hinter **jeder** Gruppe „leer" und die Gruppe ließ sich nicht ankreuzen — auch wenn sie mehrere Auswahl-Blöcke mit Produkten enthielt (z. B. „Lounge-Ecke" mit Kissen- und Gartenset-Block). Dadurch konnte man gar keinen gruppen-basierten Freigabelink mehr erstellen.
+- Ursache war eine fehlerhafte Datenabfrage (Filter auf eine nicht vorhandene Spalte). Jetzt zeigt jede Gruppe wieder ihre **tatsächliche Produktanzahl** und ist auswählbar — passend zur Produkttabelle des Raums.
+
 ## 2026-06-01
 
 ### Freigabe-Link „Auswahl": Gruppen zeigen ihre Produktanzahl (Verwirrung „3 Gruppen, 0 Produkte" behoben)
