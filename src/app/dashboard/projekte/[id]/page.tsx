@@ -8,6 +8,7 @@ import FreigabeRaumPanel from '@/components/FreigabeRaumPanel'
 import { freigabeTokensAbrufenFuerProjekt } from '@/app/actions/freigaben'
 import { getFreigabeEinreichungen } from '@/app/actions/freigabe-einreichungen'
 import EingereichteFreigaben from '@/components/EingereichteFreigaben'
+import ProjektEntscheidungenReset from '@/components/ProjektEntscheidungenReset'
 import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
@@ -727,6 +728,7 @@ export default async function ProjektDetailPage({
             />
             <EingereichteFreigaben einreichungen={freigabeEinreichungen} />
             <FreigabeUebersicht projektId={projekt.id} initialTokens={alleTokens} />
+            <ProjektEntscheidungenReset projektId={projekt.id} />
             {raeume.length > 0 && (
               <FreigabeRaumPanel
                 projektId={projekt.id}

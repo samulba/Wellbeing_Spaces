@@ -149,24 +149,60 @@ export async function freigabeTokenErstellen(
   return { token: data.token }
 }
 
+/**
+ * Setzt die KUNDEN-Entscheidungen (Freigabe-Status → „offen", Kommentar,
+ * gewählte Alternative, Wunschmenge) für den Scope eines Tokens zurück.
+ * Wird beim Zurückziehen/Löschen eines Links aufgerufen → kein verwaistes
+ * (Test-)Feedback bleibt auf den live raum_produkte stehen. Verbindlich
+ * abgesendete Belege (freigabe_einreichungen) bleiben als Nachweis erhalten.
+ * `admin_favorit` (eure Empfehlung) wird NICHT angetastet. Fail-safe.
+ */
+async function entscheidungenFuerTokenScopeZuruecksetzen(
+  supabase: ServerClient,
+  orgId: string,
+  projektId: string,
+  scopeTyp: FreigabeScopeTyp,
+  scopeIds: string[],
+): Promise<void> {
+  const reset = { freigabe_status: 'ausstehend', freigabe_kommentar: null, kunde_favorit: false, kunde_menge: null }
+  if (scopeTyp === 'auswahl') {
+    if (scopeIds.length === 0) return
+    await supabase.from('raum_produkte').update(reset).in('id', scopeIds).eq('organisation_id', orgId)
+  } else if (scopeTyp === 'raum') {
+    if (!scopeIds[0]) return
+    await supabase.from('raum_produkte').update(reset).eq('raum_id', scopeIds[0]).eq('organisation_id', orgId)
+  } else {
+    const { data: raeume } = await supabase
+      .from('raeume').select('id').eq('projekt_id', projektId).eq('organisation_id', orgId).is('deleted_at', null)
+    const raumIds = (raeume ?? []).map((r) => r.id as string)
+    if (raumIds.length > 0) await supabase.from('raum_produkte').update(reset).in('raum_id', raumIds).eq('organisation_id', orgId)
+  }
+}
+
 export async function freigabeTokenZurueckziehen(
   tokenId: string,
   projektId: string,
 ): Promise<void> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+  const { data: tok } = await supabase
+    .from('freigabe_tokens').select('scope_typ, scope_ids').eq('id', tokenId).eq('organisation_id', orgId).maybeSingle()
   await supabase
     .from('freigabe_tokens')
     .update({ deleted_at: new Date().toISOString(), aktiv: false })
     .eq('id', tokenId)
     .eq('organisation_id', orgId)
+  // Kunden-Feedback des Scopes neutralisieren (Beleg bleibt als Nachweis).
+  if (tok) await entscheidungenFuerTokenScopeZuruecksetzen(
+    supabase, orgId, projektId, (tok.scope_typ as FreigabeScopeTyp) ?? 'projekt', (tok.scope_ids as string[] | null) ?? [],
+  )
   revalidatePath(`/dashboard/projekte/${projektId}`)
 }
 
 /**
- * Endgültiges Löschen eines Freigabe-Links (Hard-Delete). Anders als „zurückziehen"
- * (Soft-Delete) verschwindet der Link komplett. Das Entscheidungs-Protokoll bleibt
- * erhalten (freigabe_audit.token_id ist ON DELETE SET NULL). org-scoped, fail-safe.
+ * Endgültiges Löschen eines Freigabe-Links (Hard-Delete). Setzt zugleich die
+ * Kunden-Entscheidungen des Scopes zurück (Test-Feedback verschwindet mit dem
+ * Link). Verbindliche Belege (freigabe_einreichungen) bleiben erhalten. org-scoped.
  */
 export async function freigabeTokenLoeschen(
   tokenId: string,
@@ -174,12 +210,43 @@ export async function freigabeTokenLoeschen(
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+  const { data: tok } = await supabase
+    .from('freigabe_tokens').select('scope_typ, scope_ids').eq('id', tokenId).eq('organisation_id', orgId).maybeSingle()
   const { error } = await supabase
     .from('freigabe_tokens')
     .delete()
     .eq('id', tokenId)
     .eq('organisation_id', orgId)
   if (error) return { fehler: 'Löschen fehlgeschlagen. Bitte erneut versuchen.' }
+  if (tok) await entscheidungenFuerTokenScopeZuruecksetzen(
+    supabase, orgId, projektId, (tok.scope_typ as FreigabeScopeTyp) ?? 'projekt', (tok.scope_ids as string[] | null) ?? [],
+  )
+  revalidatePath(`/dashboard/projekte/${projektId}`)
+  return {}
+}
+
+/**
+ * Setzt ALLE Kunden-Entscheidungen eines Projekts zurück (Freigabe-Status → „offen",
+ * Kommentar, gewählte Alternative, Wunschmenge). Für Test-Aufräumen / Neustart, wenn
+ * z. B. alle Links gelöscht wurden, aber noch Feedback auf den Produkten klebt.
+ * Verbindliche Belege (freigabe_einreichungen) bleiben als Nachweis erhalten.
+ * `admin_favorit` (Empfehlung) bleibt unangetastet. org-scoped.
+ */
+export async function projektKundenEntscheidungenZuruecksetzen(
+  projektId: string,
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data: raeume } = await supabase
+    .from('raeume').select('id').eq('projekt_id', projektId).eq('organisation_id', orgId).is('deleted_at', null)
+  const raumIds = (raeume ?? []).map((r) => r.id as string)
+  if (raumIds.length === 0) return {}
+  const { error } = await supabase
+    .from('raum_produkte')
+    .update({ freigabe_status: 'ausstehend', freigabe_kommentar: null, kunde_favorit: false, kunde_menge: null })
+    .in('raum_id', raumIds)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Zurücksetzen fehlgeschlagen. Bitte erneut versuchen.' }
   revalidatePath(`/dashboard/projekte/${projektId}`)
   return {}
 }

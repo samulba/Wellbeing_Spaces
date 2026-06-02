@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-02
 
+### Freigabe: Kundenentscheidungen werden mit dem Link entfernt
+- **Behoben:** Nach dem Löschen/Zurückziehen eines Freigabe-Links blieben Kundenwünsche, gewählte Alternativen („Kundenwahl") und Status auf den Produkten stehen (z. B. von Test-Links). Jetzt werden diese beim Entfernen eines Links **automatisch zurückgesetzt** — der unveränderliche Beleg bleibt als Nachweis erhalten, eure Empfehlungen (Favoriten) bleiben unberührt.
+- Neu im Reiter **Freigaben**: Button **„Alle Kundenentscheidungen zurücksetzen"** (mit Sicherheitsabfrage), um projektweit aufzuräumen, falls noch altes Feedback klebt.
+
 ### Produkte aus der Bibliothek löschen
 - In der **Produktbibliothek** lässt sich ein Produkt jetzt **löschen** — Papierkorb auf der Karte (Raster-Ansicht) bzw. in der Tabellenzeile (erscheint beim Überfahren). Mit **zweistufiger Sicherheitsabfrage**; ist das Produkt in Räumen verwendet, wird vorher gewarnt (es verschwindet dann auch dort). Reversibel auf Datenbankebene (Soft-Delete).
 

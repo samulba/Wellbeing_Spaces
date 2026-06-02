@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params: { token: string }
-  searchParams?: { vorschau?: string; debug?: string }
+  searchParams?: { vorschau?: string }
 }
 
 export default async function FreigabePage({ params, searchParams }: Props) {
@@ -372,44 +372,6 @@ export default async function FreigabePage({ params, searchParams }: Props) {
       return { id: raum.id, name: raum.name, bereiche, gruppen, produkte: lose }
     })
     .filter((r) => r.produkte.length > 0 || (r.gruppen?.length ?? 0) > 0 || (r.bereiche?.length ?? 0) > 0)
-
-  // ─── TEMP-DIAGNOSE Block-Gruppierung (?vorschau=1&debug=1, nur Admin same-org) ──
-  if (vorschau && searchParams?.debug === '1') {
-    const info = {
-      scopeTyp,
-      scopeIdsCount: scopeIds.length,
-      scopeBereichIds,
-      auswahlMitBereich,
-      gruppenInline,
-      rpDatenCount: (rpDaten ?? []).length,
-      gruppenDatenCount: (gruppenDaten ?? []).length,
-      gruppenDaten: ((gruppenDaten ?? []) as { id: string; name: string; raum_id: string }[]).map((g) => ({ id: g.id, name: g.name, raum_id: g.raum_id })),
-      blockBereich: Array.from(blockBereich.entries()),
-      bereicheProRaum: Array.from(bereicheProRaum.entries()).map(([r, bs]) => ({ raum: r, bereiche: bs.map((b) => ({ id: b.id, name: b.name })) })),
-      probeProdukte: (rpDaten ?? []).slice(0, 40).map((rp) => ({
-        name: (rp.produkte as unknown as { name?: string } | null)?.name ?? '?',
-        raum_id: rp.raum_id,
-        produkt_gruppe_id: rpGruppeId(rp),
-        bereich_id: rpBereichId(rp),
-      })),
-      struktur: raeume.map((r) => ({
-        raum: r.name,
-        gruppen: (r.gruppen ?? []).map((g) => ({ name: g.name, n: g.produkte.length })),
-        lose: r.produkte.length,
-        bereiche: (r.bereiche ?? []).map((b) => ({
-          name: b.name,
-          bloecke: b.bloecke.map((g) => ({ name: g.name, n: g.produkte.length })),
-          lose: b.produkte.length,
-        })),
-      })),
-    }
-    return (
-      <div className="p-6 font-mono text-xs text-gray-800">
-        <h2 className="text-sm font-bold mb-3">Freigabe-Diagnose: Block-Gruppierung (temporär)</h2>
-        <pre className="whitespace-pre-wrap break-all bg-gray-50 border border-gray-200 rounded-lg p-3">{JSON.stringify(info, null, 2)}</pre>
-      </div>
-    )
-  }
 
   if (raeume.length === 0) {
     // Auswahl-Link, der (aktuell) auf nichts auflöst → klare Meldung statt „keine Produkte".
