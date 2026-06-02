@@ -561,6 +561,25 @@ export async function produktSoftDelete(
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
 }
 
+/**
+ * Produkt aus der Bibliothek löschen (Soft-Delete, org-scoped).
+ * Das Produkt verschwindet überall, wo produkte.deleted_at gefiltert wird
+ * (Bibliothek + alle Räume). Die raum_produkte-Verknüpfungen bleiben bestehen,
+ * werden aber überall ausgeblendet → reversibel (deleted_at zurücksetzen).
+ */
+export async function produktAusBibliothekLoeschen(produktId: string): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('produkte')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', produktId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: error.message }
+  revalidatePath('/dashboard/produkte')
+  return {}
+}
+
 export async function produktFuerPartnerAnlegen(
   partnerId: string,
   prevState: ProduktActionState,

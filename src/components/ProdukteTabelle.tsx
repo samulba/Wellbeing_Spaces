@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import ProduktZuweisenModal, { type ProjektOption, type RaumOption } from '@/components/ProduktZuweisenModal'
+import { ConfirmModal } from '@/components/ConfirmModal'
+import { produktAusBibliothekLoeschen } from '@/app/actions/produkte'
 import {
   type LucideIcon,
-  ExternalLink, ChevronUp, ChevronDown, Search, X,
+  ExternalLink, ChevronUp, ChevronDown, Search, X, Trash2,
   LayoutList, LayoutGrid, Grid3X3, Package,
   Sofa, Armchair, Lamp, Lightbulb, Bed, Table2, Vegan, Wind,
   Leaf, Flower, TreePine, Sunrise, Droplets, Mountain, Palmtree,
@@ -166,6 +169,13 @@ export default function ProdukteTabelle({
   const [sortKey, setSortKey]                 = useState<SortKey>('name')
   const [sortDir, setSortDir]                 = useState<SortDir>('asc')
 
+  const router = useRouter()
+  // Löschen (Soft-Delete) — 2-stufige Bestätigung + optimistisches Ausblenden
+  const [geloeschtIds, setGeloeschtIds]       = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget]       = useState<ProduktZeile | null>(null)
+  const [isDeleting, setIsDeleting]           = useState(false)
+  const [fehler, setFehler]                   = useState<string | null>(null)
+
   // localStorage für Ansicht
   useEffect(() => {
     const gespeichert = localStorage.getItem('produkte-ansicht') as Ansicht | null
@@ -200,7 +210,7 @@ export default function ProdukteTabelle({
 
   // ── Gefilterte + sortierte Liste ──────────────────────────
   const gefiltert = useMemo(() => {
-    let liste = produkte
+    let liste = produkte.filter((p) => !geloeschtIds.has(p.id))
 
     if (suche) {
       const q = suche.toLowerCase()
@@ -228,7 +238,24 @@ export default function ProdukteTabelle({
       if (sortKey === 'partner')       v = (a.partnerName ?? '').localeCompare(b.partnerName ?? '')
       return sortDir === 'asc' ? v : -v
     })
-  }, [produkte, suche, filterPartner, filterKategorie, sortKey, sortDir])
+  }, [produkte, geloeschtIds, suche, filterPartner, filterKategorie, sortKey, sortDir])
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget || isDeleting) return
+    const id = deleteTarget.id
+    setIsDeleting(true)
+    setGeloeschtIds((prev) => new Set(prev).add(id)) // optimistisch ausblenden
+    const res = await produktAusBibliothekLoeschen(id)
+    setIsDeleting(false)
+    setDeleteTarget(null)
+    if (res?.fehler) {
+      setGeloeschtIds((prev) => { const n = new Set(prev); n.delete(id); return n }) // Rollback
+      setFehler('Produkt konnte nicht gelöscht werden. Bitte erneut versuchen.')
+      setTimeout(() => setFehler(null), 4000)
+    } else {
+      router.refresh()
+    }
+  }
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -336,8 +363,17 @@ export default function ProdukteTabelle({
               return (
                 <div
                   key={p.id}
-                  className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-wellbeing-green-light hover:shadow-md transition-all flex flex-col"
+                  className="group relative bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-wellbeing-green-light hover:shadow-md transition-all flex flex-col"
                 >
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteTarget(p) }}
+                    aria-label={`${p.name} löschen`}
+                    title="Produkt löschen"
+                    className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-white/90 border border-gray-200 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-600 hover:border-red-200 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                   <Link href={produktLink(p)} className="flex-1 flex flex-col">
                     {/* Bild */}
                     <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
@@ -466,12 +502,13 @@ export default function ProdukteTabelle({
                     </button>
                   </th>
                   <th className="text-right px-4 py-3 font-medium text-gray-500 text-xs">VP brutto</th>
+                  <th className="px-4 py-3 w-10" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {gefiltert.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-14 text-center text-sm text-gray-400">
+                    <td colSpan={9} className="px-4 py-14 text-center text-sm text-gray-400">
                       Keine Produkte gefunden.
                     </td>
                   </tr>
@@ -575,6 +612,19 @@ export default function ProdukteTabelle({
                         <td className="px-4 py-3 text-right text-xs font-mono text-gray-500 whitespace-nowrap">
                           {vpBrutto != null ? eur(vpBrutto) : <span className="text-gray-300">—</span>}
                         </td>
+
+                        {/* Aktionen */}
+                        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(p)}
+                            aria-label={`${p.name} löschen`}
+                            title="Produkt löschen"
+                            className="p-1.5 rounded-lg text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
                       </tr>
                     )
                   })
@@ -582,6 +632,30 @@ export default function ProdukteTabelle({
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Löschen-Bestätigung (2-stufig) */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => { if (!isDeleting) setDeleteTarget(null) }}
+        onConfirm={handleConfirmDelete}
+        title="Produkt löschen?"
+        message={deleteTarget
+          ? `„${deleteTarget.name}" wird aus der Bibliothek gelöscht.` +
+            ((deleteTarget.verwendetInAnzahl ?? 0) > 0
+              ? ` Achtung: Es ist aktuell in ${deleteTarget.verwendetInAnzahl} ${deleteTarget.verwendetInAnzahl === 1 ? 'Raum' : 'Räumen'} verwendet und verschwindet dort ebenfalls.`
+              : '')
+          : ''}
+        confirmText="Löschen"
+        cancelText="Abbrechen"
+        variant="danger"
+        isLoading={isDeleting}
+      />
+
+      {fehler && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-red-600 text-white text-sm px-4 py-2.5 rounded-xl shadow-lg">
+          {fehler}
         </div>
       )}
     </div>

@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-02
 
+### Produkte aus der Bibliothek löschen
+- In der **Produktbibliothek** lässt sich ein Produkt jetzt **löschen** — Papierkorb auf der Karte (Raster-Ansicht) bzw. in der Tabellenzeile (erscheint beim Überfahren). Mit **zweistufiger Sicherheitsabfrage**; ist das Produkt in Räumen verwendet, wird vorher gewarnt (es verschwindet dann auch dort). Reversibel auf Datenbankebene (Soft-Delete).
+
 ### Freigabe-Belege durchblättern + als PDF (Nachweis)
 - Auf der Projektseite (Reiter **Freigaben**) gibt es jetzt den Bereich **„Eingereichte Freigaben"** — alle abgesendeten Freigaben (Freigabe 1, 2, 3 …) zum Durchblättern: mit Unterzeichner, Zeitstempel und allen Entscheidungen (Status, Kommentar, gewählte Alternative, Menge, Preis) in einer **unveränderlichen** Ansicht. Egal was du später in den Räumen änderst — der Beleg bleibt, wie der Kunde ihn abgesendet hat.
 - Jeden Beleg gibt es als **PDF-Protokoll** zum Download (Firmen-Header, Positionsliste mit Status, Unterzeichner + Zeitpunkt, Prüfsumme) — als sauberer Nachweis gegenüber dem Kunden.
