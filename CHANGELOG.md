@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-02
 
+### Freigabe-Belege durchblättern + als PDF (Nachweis)
+- Auf der Projektseite (Reiter **Freigaben**) gibt es jetzt den Bereich **„Eingereichte Freigaben"** — alle abgesendeten Freigaben (Freigabe 1, 2, 3 …) zum Durchblättern: mit Unterzeichner, Zeitstempel und allen Entscheidungen (Status, Kommentar, gewählte Alternative, Menge, Preis) in einer **unveränderlichen** Ansicht. Egal was du später in den Räumen änderst — der Beleg bleibt, wie der Kunde ihn abgesendet hat.
+- Jeden Beleg gibt es als **PDF-Protokoll** zum Download (Firmen-Header, Positionsliste mit Status, Unterzeichner + Zeitpunkt, Prüfsumme) — als sauberer Nachweis gegenüber dem Kunden.
+
 ### Freigabe: Pflicht-Signatur + unveränderlicher Beleg beim Absenden
 - Beim Absenden einer Freigabe gibt der Kunde jetzt **Vor- und Nachname** an (Pflicht); **Datum & Uhrzeit** werden automatisch protokolliert.
 - Jede abgesendete Freigabe wird als **unveränderlicher Beleg** gespeichert — ein eingefrorener Snapshot aller Entscheidungen (Status, Kommentare, gewählte Alternative, Wunschmenge, Preis) plus Unterzeichner & Zeitstempel. Der Beleg bleibt erhalten, **egal was du später in den Räumen änderst** — so ist jederzeit nachweisbar, was auf Kundenwunsch entschieden/freigegeben wurde. (Die Ansicht zum Durchblättern + der PDF-Download folgen im nächsten Schritt.)

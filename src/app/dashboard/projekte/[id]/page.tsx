@@ -6,6 +6,8 @@ import FreigabeLinkKarte from '@/components/FreigabeLinkKarte'
 import FreigabeUebersicht from '@/components/FreigabeUebersicht'
 import FreigabeRaumPanel from '@/components/FreigabeRaumPanel'
 import { freigabeTokensAbrufenFuerProjekt } from '@/app/actions/freigaben'
+import { getFreigabeEinreichungen } from '@/app/actions/freigabe-einreichungen'
+import EingereichteFreigaben from '@/components/EingereichteFreigaben'
 import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
@@ -161,7 +163,7 @@ export default async function ProjektDetailPage({
 }) {
   const { tab: tabParam } = await searchParams
   const mwstSatz = await getMwstSatz()
-  const [projekt, raeume, aktiveTokens, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten, aufgabenAlle, aufgabenPickerOptionen, serviceRaten, raumGruppen] = await Promise.all([
+  const [projekt, raeume, aktiveTokens, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten, aufgabenAlle, aufgabenPickerOptionen, serviceRaten, raumGruppen, freigabeEinreichungen] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktiveTokens(params.id),
@@ -180,6 +182,7 @@ export default async function ProjektDetailPage({
     getAufgabePickerOptionen(),
     getServiceRaten(params.id),
     raumGruppenAbrufen(params.id),
+    getFreigabeEinreichungen(params.id),
   ])
 
   if (!projekt) return notFound()
@@ -722,6 +725,7 @@ export default async function ProjektDetailPage({
               raeume={raeume.map((r) => ({ id: r.id, name: r.name }))}
               initialHatPin={!!projekt.freigabe_pin && projekt.freigabe_pin.toString().trim().length >= 4}
             />
+            <EingereichteFreigaben einreichungen={freigabeEinreichungen} />
             <FreigabeUebersicht projektId={projekt.id} initialTokens={alleTokens} />
             {raeume.length > 0 && (
               <FreigabeRaumPanel
