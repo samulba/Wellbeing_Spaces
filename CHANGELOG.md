@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-02
 
+### Freigabe-Link: Auswahl-Blöcke wurden fälschlich einzeln gezeigt (Bug behoben)
+- **Behoben:** Im Freigabe-Link erschienen Produkte eines Auswahl-Blocks (z. B. „Stuhl", „Stuhl-Kissen", „Übertopf") als Einzelprodukte statt als Block. Ursache: die Block-Zeile war intern als gelöscht markiert, obwohl ihre Produkte noch zugeordnet waren → sie fielen aus dem Block. Jetzt richtet sich die Block-Zugehörigkeit konsequent nach dem Produkt selbst — solche Produkte erscheinen wieder korrekt als Block (mit Auswahl/Empfehlung).
+- Eine einmalige Reparatur (Migration 126) macht betroffene Blöcke wieder aktiv, damit sie auch im Admin wieder als Block sichtbar sind.
+
 ### Sicherheit: Entfernte Freigabe-Links sind sofort überall gesperrt
 - **Behoben:** Ein zurückgezogener/deaktivierter Freigabe-Link ließ sich in der **Admin-Vorschau** (und damit in einem alten, offenen Tab mit Vorschau-Parameter) noch öffnen. Jetzt ist ein entfernter Link **sofort überall gesperrt** („ungültig oder zurückgezogen") — auch in der Vorschau. (Für normale Kunden war er bereits gesperrt; nur Ablauf/PIN werden in der Vorschau noch übersprungen.)
 - **Deaktivierte Links verschwinden nicht mehr spurlos:** Sie tauchen jetzt unter **„Verlauf & Archiv"** auf und bleiben dort einsehbar/verwaltbar (vorher waren sie aus aktiver Liste *und* Archiv unsichtbar, obwohl der Link noch existierte).

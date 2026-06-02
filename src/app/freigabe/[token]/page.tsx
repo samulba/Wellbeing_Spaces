@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params: { token: string }
-  searchParams?: { vorschau?: string; debug?: string }
+  searchParams?: { vorschau?: string }
 }
 
 export default async function FreigabePage({ params, searchParams }: Props) {
@@ -171,12 +171,15 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     rpDaten = (await baueRpQuery(`${RP_BASIS}, ${RP_PRODUKT}`)).data as unknown as RpZeile[] | null
   }
 
-  // 4b. Auswahl-Gruppen der in-scope Räume laden (Migration 114)
+  // 4b. Auswahl-Gruppen der in-scope Räume laden (Migration 114).
+  // KEIN deleted_at-Filter: die Block-Zugehörigkeit lebt auf raum_produkte.produkt_gruppe_id.
+  // Ist eine Block-Zeile (fälschlich) als gelöscht markiert, ihre Produkte aber noch
+  // zugeordnet, müssen sie trotzdem als Block erscheinen. Leere (echt gelöschte) Blöcke
+  // werden weiter unten ohnehin herausgefiltert (kein Mitglied im Scope).
   const { data: gruppenDaten } = await supabase
     .from('produkt_gruppen')
     .select('id, raum_id, name, beschreibung, reihenfolge')
     .in('raum_id', raumFilter)
-    .is('deleted_at', null)
     .order('reihenfolge')
     .order('created_at')
 
@@ -238,7 +241,9 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   {
     const gIds = (gruppenDaten ?? []).map((g) => (g as { id: string }).id)
     if (gIds.length > 0) {
-      const { data: gbData } = await supabase.from('produkt_gruppen').select('id, bereich_id').in('id', gIds).is('deleted_at', null)
+      // Kein deleted_at-Filter — Block-Bereich muss auch für (fälschlich) als gelöscht
+      // markierte Blöcke mit noch zugeordneten Produkten verfügbar sein (siehe oben).
+      const { data: gbData } = await supabase.from('produkt_gruppen').select('id, bereich_id').in('id', gIds)
       for (const g of (gbData ?? []) as { id: string; bereich_id: string | null }[]) blockBereich.set(g.id, g.bereich_id ?? null)
     }
   }
@@ -375,43 +380,6 @@ export default async function FreigabePage({ params, searchParams }: Props) {
       return { id: raum.id, name: raum.name, bereiche, gruppen, produkte: lose }
     })
     .filter((r) => r.produkte.length > 0 || (r.gruppen?.length ?? 0) > 0 || (r.bereiche?.length ?? 0) > 0)
-
-  // ─── TEMP-DIAGNOSE Block-Gruppierung (?debug=1, nur Admin derselben Org) ──────
-  if (searchParams?.debug === '1' && !!tokenData.organisation_id && (await getOrganisationIdOrNull()) === tokenData.organisation_id) {
-    const info = {
-      scopeTyp,
-      scopeIdsCount: scopeIds.length,
-      scopeBereichIds,
-      auswahlMitBereich,
-      gruppenInline,
-      rpDatenCount: (rpDaten ?? []).length,
-      gruppenDatenCount: (gruppenDaten ?? []).length,
-      gruppenDaten: ((gruppenDaten ?? []) as { id: string; name: string }[]).map((g) => ({ id: g.id, name: g.name })),
-      blockBereich: Array.from(blockBereich.entries()),
-      probeProdukte: (rpDaten ?? []).slice(0, 40).map((rp) => ({
-        name: (rp.produkte as unknown as { name?: string } | null)?.name ?? '?',
-        rohProduktGruppeId: (rp as { produkt_gruppe_id?: string | null }).produkt_gruppe_id ?? null,
-        rpGruppeId: rpGruppeId(rp),
-        bereich_id: rpBereichId(rp),
-      })),
-      struktur: raeume.map((r) => ({
-        raum: r.name,
-        gruppen: (r.gruppen ?? []).map((g) => ({ name: g.name, n: g.produkte.length })),
-        lose: r.produkte.length,
-        bereiche: (r.bereiche ?? []).map((b) => ({
-          name: b.name,
-          bloecke: b.bloecke.map((g) => ({ name: g.name, n: g.produkte.length })),
-          lose: b.produkte.length,
-        })),
-      })),
-    }
-    return (
-      <div className="p-6 font-mono text-xs text-gray-800">
-        <h2 className="text-sm font-bold mb-3">Freigabe-Diagnose: Block-Gruppierung (temporär)</h2>
-        <pre className="whitespace-pre-wrap break-all bg-gray-50 border border-gray-200 rounded-lg p-3">{JSON.stringify(info, null, 2)}</pre>
-      </div>
-    )
-  }
 
   if (raeume.length === 0) {
     // Auswahl-Link, der (aktuell) auf nichts auflöst → klare Meldung statt „keine Produkte".
