@@ -557,6 +557,14 @@ export async function portalProjektAbrufen(projektId: string) {
     .eq('von_kunde', false)
     .eq('gelesen', false)
 
+  // Bestell-Gate (Migration 129) — defensiv: fehlt die Spalte, bleibt es false.
+  let bestellungAusgeloest = false
+  try {
+    const { data: g } = await supabase
+      .from('projekte').select('bestellung_ausgeloest_am').eq('id', projektId).maybeSingle()
+    bestellungAusgeloest = !!(g as { bestellung_ausgeloest_am?: string | null } | null)?.bestellung_ausgeloest_am
+  } catch { bestellungAusgeloest = false }
+
   return {
     session,
     projekt,
@@ -566,6 +574,7 @@ export async function portalProjektAbrufen(projektId: string) {
     events: events ?? [],
     bestellStatusMap,
     reklamationen,
+    bestellungAusgeloest,
   }
 }
 

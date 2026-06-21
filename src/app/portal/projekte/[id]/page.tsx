@@ -5,7 +5,7 @@ import { getPortalSession }     from '@/lib/portal-auth'
 import PortalShell from '@/components/portal/PortalShell'
 import PortalProjektClient from './PortalProjektClient'
 import Link from 'next/link'
-import { ChevronLeft, MapPin, Package, Clock } from 'lucide-react'
+import { ChevronLeft, MapPin, Package, Clock, PartyPopper } from 'lucide-react'
 
 interface Props { params: { id: string } }
 
@@ -19,7 +19,7 @@ export default async function PortalProjektPage({ params }: Props) {
   if (!daten || !session) redirect('/portal/login')
   if (!daten.projekt) notFound()
 
-  const { projekt, raeume, dokumente, nachrichten, events, bestellStatusMap, reklamationen } = daten
+  const { projekt, raeume, dokumente, nachrichten, events, bestellStatusMap, reklamationen, bestellungAusgeloest } = daten
   const prim     = branding?.primary_color  ?? '#445c49'
   const gradFrom = branding?.accent_gradient_from ?? null
   const gradTo   = branding?.accent_gradient_to ?? null
@@ -115,6 +115,27 @@ export default async function PortalProjektPage({ params }: Props) {
             )}
           </div>
         </section>
+
+        {/* Glückwunsch — Bestellung ausgelöst (einmalig, Gate via projekte.bestellung_ausgeloest_am) */}
+        {bestellungAusgeloest && (
+          <div className="relative overflow-hidden rounded-2xl mb-6 md:mb-8 border border-wellbeing-green/25 bg-gradient-to-br from-wellbeing-green/[0.08] to-wellbeing-green-light/[0.12] p-5 md:p-6">
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 w-11 h-11 rounded-xl bg-wellbeing-green flex items-center justify-center shadow-sm">
+                <PartyPopper className="w-5 h-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-[15px] md:text-base font-bold text-wellbeing-green-dark leading-snug">
+                  🎉 Glückwunsch, Ihre Bestellung wurde ausgelöst!
+                </h2>
+                <p className="text-[13px] md:text-sm text-gray-600 mt-1 leading-relaxed">
+                  Ihre freigegebenen Produkte sind jetzt in Bestellung. Im Tab{' '}
+                  <span className="font-semibold text-wellbeing-green-dark">Lieferungen</span> sehen Sie ab
+                  jetzt, was wann zu Ihnen geliefert wird.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <PortalProjektClient
           projektId={projekt.id}

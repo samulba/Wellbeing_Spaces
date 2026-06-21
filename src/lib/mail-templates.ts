@@ -104,6 +104,41 @@ export function angebotVersandMail(opts: {
 }
 
 
+/** Glückwunsch — die Bestellung des Kunden wurde ausgelöst (KEINE Lieferantennamen!). */
+export function bestellAusgeloestMail(opts: {
+  empfaengerName:    string
+  projektName:       string | null
+  portalUrl:         string
+  lieferterminText?: string | null
+  branding?:         MailBranding
+}): MailTemplateResult {
+  const firmenname    = opts.branding?.firmenname    ?? DEFAULT_FIRMA
+  const primary_color = opts.branding?.primary_color ?? DEFAULT_PRIMARY
+
+  const body = `
+    <p style="font-size: 15px; color: #4b5563; line-height: 1.55; margin: 0 0 18px;">
+      großartige Neuigkeiten — Ihre Bestellung${opts.projektName ? ` für <strong>${escapeHtml(opts.projektName)}</strong>` : ''}
+      ist raus! 🎉 Wir kümmern uns ab jetzt um die Lieferung und halten Sie auf dem Laufenden.
+    </p>
+    ${opts.lieferterminText ? `<p style="font-size: 13px; color: #6b7280; margin: 0 0 8px;">${escapeHtml(opts.lieferterminText)}</p>` : ''}
+    <p style="font-size: 14px; color: #4b5563; line-height: 1.55; margin: 0 0 4px;">
+      In Ihrer Lieferübersicht sehen Sie jederzeit, was wann geliefert wird.
+    </p>`.trim()
+
+  return {
+    subject: `🎉 Ihre Bestellung${opts.projektName ? ` für ${opts.projektName}` : ''} wurde ausgelöst`,
+    html: layout({
+      firmenname,
+      primary_color,
+      anrede:   `Glückwunsch, ${opts.empfaengerName}!`,
+      bodyHtml: body,
+      ctaLabel: 'Lieferübersicht ansehen',
+      ctaUrl:   opts.portalUrl,
+    }),
+  }
+}
+
+
 /** Vertrag wartet auf Kunden-Unterschrift. */
 export function vertragSignaturMail(opts: {
   empfaengerName: string

@@ -455,7 +455,22 @@ function LieferungenTab({
   reklamationen: PortalReklamation[]
   prim: string
 }) {
-  void prim
+  // Kommende Lieferungen — datums-gruppiert, OHNE Lieferantennamen (Sourcing verborgen).
+  const kommendeListe: { datum: string; produktName: string; raumName: string }[] = []
+  for (const raum of raeume) {
+    for (const p of raum.produkte) {
+      const e = bestellStatusMap[`${raum.id}:${p.id}`]
+      if (e && (e.bestellstatus === 'bestellt' || e.bestellstatus === 'teilgeliefert') && e.liefertermin) {
+        kommendeListe.push({ datum: e.liefertermin, produktName: p.name, raumName: raum.name })
+      }
+    }
+  }
+  const kommendeGruppen = Array.from(
+    kommendeListe.reduce((m, k) => {
+      const list = m.get(k.datum) ?? []; list.push(k); m.set(k.datum, list); return m
+    }, new Map<string, { datum: string; produktName: string; raumName: string }[]>()).entries(),
+  ).sort((a, b) => a[0].localeCompare(b[0]))
+
   // Reklamationen-Lookup nach raum_produkte_id (in der Map laden wir ueber raum_id+produkt_id)
   // Da Portal mit produkte+raum_id arbeitet, mappen wir per (raum_id, produkt_id) → Reklamationen
   const rekByRaumProdukt = new Map<string, PortalReklamation[]>()
@@ -471,6 +486,33 @@ function LieferungenTab({
 
   return (
     <div className="space-y-6">
+      {/* Kommende Lieferungen — was wann (ohne Lieferantennamen) */}
+      {kommendeGruppen.length > 0 && (
+        <div className="bg-white border border-black/[0.06] rounded-2xl shadow-sm p-4">
+          <p className="text-sm font-semibold text-gray-700 mb-3 inline-flex items-center gap-2">
+            <Truck className="w-4 h-4" style={{ color: prim }} /> Kommende Lieferungen
+          </p>
+          <div className="space-y-3">
+            {kommendeGruppen.map(([datum, items]) => (
+              <div key={datum}>
+                <p className="text-xs font-medium text-gray-500 mb-1">
+                  Voraussichtlich am {new Date(datum).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
+                </p>
+                <ul className="space-y-1">
+                  {items.map((it, i) => (
+                    <li key={i} className="text-sm text-gray-700 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: prim }} />
+                      <span className="truncate">{it.produktName}</span>
+                      <span className="text-gray-400 text-xs shrink-0">· {it.raumName}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Banner mit offenen Reklamationen oben */}
       {offeneRek.length > 0 && (
         <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3">

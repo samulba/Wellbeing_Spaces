@@ -335,7 +335,27 @@ export async function bestellungAusloesen(
   const best = await bestellungBestaetigen(bestellungId)
   if (best.fehler) return { fehler: best.fehler, id: bestellungId, bestellnummer }
 
-  // Phase B: Kunden-Glückwunsch je betroffenem Projekt (fail-safe) wird hier ergänzt.
+  // Kunden-Glückwunsch je betroffenem Projekt (fail-safe). Projekte aus den
+  // Positionen ableiten (Sammelbestellung kann mehrere Projekte umfassen).
+  try {
+    const supabase = await createClient()
+    const { data: pos } = await supabase
+      .from('lieferanten_bestellung_positionen')
+      .select('raum_produkte(raeume(projekt_id))')
+      .eq('bestellung_id', bestellungId)
+    const projektIds = new Set<string>()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const p of (pos ?? []) as any[]) {
+      const pid = p.raum_produkte?.raeume?.projekt_id
+      if (pid) projektIds.add(pid)
+    }
+    const { kundeBestellungBenachrichtigen } = await import('./bestellungen-kunde')
+    for (const pid of Array.from(projektIds)) {
+      await kundeBestellungBenachrichtigen(pid, { bestellungId })
+    }
+  } catch {
+    /* Benachrichtigung darf die Bestellung nie scheitern lassen */
+  }
 
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/bestellungen')

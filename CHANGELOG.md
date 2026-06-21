@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Bestellungen: Glückwunsch fürs Kundenportal + Lieferübersicht für den Kunden (Teil 2)
+- Wenn der Admin die **erste** Bestellung eines Projekts auslöst, bekommt der Kunde im **Portal** automatisch eine freundliche Nachricht: **„🎉 Glückwunsch, Ihre Bestellung wurde ausgelöst!"** — als Banner auf der Projektseite, als Chat-Nachricht, als Glocken-Hinweis und per **E-Mail**. Die Feier erscheint **genau einmal** pro Projekt; spätere Bestellungen aktualisieren still die Lieferübersicht.
+- Der Kunde sieht im Tab **„Lieferungen"** jetzt oben **„Kommende Lieferungen"** — nach **Datum** gruppiert, mit Produkt und Raum, damit klar ist, **was wann** kommt. **Lieferantennamen bleiben für den Kunden verborgen.**
+- **Migration 129** muss in Supabase ausgeführt werden. Bis dahin funktioniert alles wie bisher (die einmalige Glückwunsch-Feier bleibt dann nur aus).
+
 ### Bestellungen: 1-Klick auslösen pro Lieferant + Lieferübersicht (Teil 1)
 - Die **Sidebar-Zahl bei „Bestellungen"** zeigt jetzt, wie viele freigegebene Produkte **zu bestellen** sind — frisch freigegebene Produkte fallen sofort auf.
 - Im Tab **„Zu bestellen"** lässt sich pro Lieferant mit einem Klick **„Bestellung auslösen"** — wahlweise die ganze Lieferanten-Gruppe oder nur **angekreuzte Produkte** (Teilbestellung); der Rest bleibt offen. Der bisherige „Als Entwurf"-Weg bleibt erhalten.
