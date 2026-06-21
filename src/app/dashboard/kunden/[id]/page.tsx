@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { portalBenutzerAbrufen } from '@/app/actions/portal'
 import { getKommunikation } from '@/app/actions/kommunikation'
 import { meineRolleAbrufen } from '@/app/actions/team'
-import { kundeStats, kundeProjekteMitStats, getKundenKontakte } from '@/app/actions/kunden'
+import { kundeStats, kundeProjekteMitStats, getKundenKontakte, getKundeOnboardings } from '@/app/actions/kunden'
 import { kundeEventsAbrufen } from '@/app/actions/timeline'
 import { istAdmin } from '@/lib/permissions'
 import KundeLoeschenModal from '@/components/KundeLoeschenModal'
@@ -17,6 +17,7 @@ import KundeProjektliste from '@/components/KundeProjektliste'
 import KundeTimelineBlock from '@/components/KundeTimelineBlock'
 import KundeKontakteBlock from '@/components/KundeKontakteBlock'
 import KundeDetailTabs from '@/components/KundeDetailTabs'
+import KundeOnboardingBlock from '@/components/KundeOnboardingBlock'
 import { kundenAnzeigeName } from '@/lib/supabase/types'
 import { Building2, User } from 'lucide-react'
 
@@ -45,7 +46,7 @@ export default async function KundeDetailPage({ params }: { params: { id: string
   if (!kunde) notFound()
 
   const istArchiviert = kunde.deleted_at != null
-  const [projekteMitStats, notizen, portalUser, kommunikation, rolle, stats, kundeEvents, kontakte] = await Promise.all([
+  const [projekteMitStats, notizen, portalUser, kommunikation, rolle, stats, kundeEvents, kontakte, onboardings] = await Promise.all([
     kundeProjekteMitStats(params.id, istArchiviert),
     getNotizen(params.id),
     portalBenutzerAbrufen(params.id),
@@ -54,6 +55,7 @@ export default async function KundeDetailPage({ params }: { params: { id: string
     kundeStats(params.id),
     kundeEventsAbrufen(params.id),
     getKundenKontakte(params.id),
+    getKundeOnboardings(params.id),
   ])
 
   const darfLoeschen = istAdmin(rolle)
@@ -132,9 +134,12 @@ export default async function KundeDetailPage({ params }: { params: { id: string
                   {kunde.kunden_typ === 'privat' ? 'Kontakt' : 'Firma'}
                 </h2>
                 <dl className="space-y-3">
+                  <InfoZeile label="Ansprechpartner" wert={kunde.ansprechpartner} />
+                  <InfoZeile label="E-Mail" wert={kunde.email} link={kunde.email ? `mailto:${kunde.email}` : undefined} />
+                  <InfoZeile label="Telefon" wert={kunde.telefon} link={kunde.telefon ? `tel:${kunde.telefon}` : undefined} />
                   <InfoZeile label="Website" wert={kunde.website} link={kunde.website ?? undefined} />
                   <InfoZeile label="Adresse" wert={kunde.adresse} />
-                  {!kunde.website && !kunde.adresse && (
+                  {!kunde.ansprechpartner && !kunde.email && !kunde.telefon && !kunde.website && !kunde.adresse && (
                     <p className="text-sm text-gray-400">Keine Daten hinterlegt.</p>
                   )}
                 </dl>
@@ -145,6 +150,9 @@ export default async function KundeDetailPage({ params }: { params: { id: string
                 initialPortalUser={portalUser}
               />
             </div>
+
+            {/* Onboarding-Angaben (Budget, Räume, Stil, Zeitrahmen, eingereichte Antworten) */}
+            <KundeOnboardingBlock onboardings={onboardings} />
 
             {/* Notizen direkt in der Uebersicht */}
             <div className="space-y-3">

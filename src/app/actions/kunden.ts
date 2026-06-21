@@ -8,7 +8,11 @@ import { meineRolleAbrufen } from '@/app/actions/team'
 import { istAdmin } from '@/lib/permissions'
 import { ableitenFaviconUrl, applyFaviconIfNeeded } from '@/lib/favicon'
 import { auditLog } from '@/lib/audit'
-import type { KommunikationTyp, KundeKontakt, ProjektStatus } from '@/lib/supabase/types'
+import { extrahiereStammdatenAusAntworten } from '@/lib/onboarding-stammdaten'
+import type {
+  KommunikationTyp, KundeKontakt, ProjektStatus,
+  OnboardingAnfrage, OnboardingVorlage, OnboardingDatei, OnboardingStatus, OnboardingTyp,
+} from '@/lib/supabase/types'
 
 export type KundeActionState = { fehler: string } | null
 
@@ -669,4 +673,135 @@ export async function kundeKontaktAlsHauptkontaktSetzen(
   revalidatePath(`/dashboard/kunden/${kundeId}`)
   revalidatePath(`/dashboard/kunden`)
   return { erfolg: true }
+}
+
+// ── Onboarding-Angaben des Kunden ─────────────────────────────────
+//    Die beim Onboarding erfassten Daten (Budget, Räume, Stil, Zeitrahmen,
+//    alle eingereichten Antworten + Uploads) liegen auf `onboarding_anfragen`,
+//    verknüpft über kunde_id (gesetzt beim "Kunde aus Onboarding anlegen").
+//    Hier laden wir sie für die Anzeige auf der Kunden-Detailseite auf.
+
+export interface KundeOnboardingEckdaten {
+  kunde_email:       string | null
+  kunde_telefon:     string | null
+  projekt_name:      string | null
+  projekt_adresse:   string | null
+  raumtypen:         string[] | null
+  budget_min:        number | null
+  budget_max:        number | null
+  zeitrahmen:        string | null
+  stil_praeferenzen: string | null
+  notizen:           string | null
+}
+
+export interface KundeOnboarding {
+  id:               string
+  status:           OnboardingStatus
+  typ:              OnboardingTyp
+  titel:            string | null
+  vorlageName:      string | null
+  created_at:       string
+  abgeschlossen_am: string | null
+  /** Zusammengefasste Eckdaten (persistierte Spalten, Fallback aus Antworten). */
+  eckdaten:         KundeOnboardingEckdaten
+  /** Aufgelöste Vorlage (Snapshot bevorzugt) für die vollständige Antwort-Anzeige. */
+  vorlage:          OnboardingVorlage | null
+  antworten:        Record<string, unknown> | null
+  dateien:          OnboardingDatei[]
+}
+
+/**
+ * Lädt alle mit dem Kunden verknüpften Onboarding-Anfragen, die tatsächlich
+ * Inhalt haben (eingereicht/abgeschlossen/in Bearbeitung oder mit Antworten).
+ * Fail-safe: gibt bei fehlenden Tabellen/Spalten einfach [] zurück, damit die
+ * Kundenseite nie crasht.
+ */
+export async function getKundeOnboardings(kundeId: string): Promise<KundeOnboarding[]> {
+  try {
+    const supabase = await createClient()
+    const orgId    = await getOrganisationId()
+
+    const { data: anfragenRaw, error } = await supabase
+      .from('onboarding_anfragen')
+      .select('*')
+      .eq('kunde_id', kundeId)
+      .eq('organisation_id', orgId)
+      .order('created_at', { ascending: false })
+    if (error || !anfragenRaw) return []
+
+    const anfragen = (anfragenRaw as unknown as OnboardingAnfrage[]).filter((a) => {
+      const hatAntworten = a.antworten != null && Object.keys(a.antworten).length > 0
+      return hatAntworten
+        || a.status === 'eingereicht'
+        || a.status === 'abgeschlossen'
+        || a.status === 'in_bearbeitung'
+    })
+    if (anfragen.length === 0) return []
+
+    // Vorlagen nachladen (nur dort wo kein Snapshot vorliegt)
+    const fehlendeVorlageIds = Array.from(new Set(
+      anfragen
+        .filter((a) => !a.vorlage_snapshot && a.vorlage_id)
+        .map((a) => a.vorlage_id as string),
+    ))
+    const vorlagenMap = new Map<string, OnboardingVorlage>()
+    if (fehlendeVorlageIds.length > 0) {
+      const { data: vorlagen } = await supabase
+        .from('onboarding_vorlagen')
+        .select('*')
+        .in('id', fehlendeVorlageIds)
+        .eq('organisation_id', orgId)
+      for (const v of (vorlagen ?? []) as OnboardingVorlage[]) vorlagenMap.set(v.id, v)
+    }
+
+    // Uploads gebündelt laden (RLS scoped Org; anfrage_ids sind bereits org-geprüft)
+    const anfrageIds  = anfragen.map((a) => a.id)
+    const dateienMap  = new Map<string, OnboardingDatei[]>()
+    const { data: dateien } = await supabase
+      .from('onboarding_dateien')
+      .select('*')
+      .in('anfrage_id', anfrageIds)
+      .order('created_at', { ascending: true })
+    for (const d of (dateien ?? []) as OnboardingDatei[]) {
+      const list = dateienMap.get(d.anfrage_id) ?? []
+      list.push(d)
+      dateienMap.set(d.anfrage_id, list)
+    }
+
+    return anfragen.map((a) => {
+      const vorlage: OnboardingVorlage | null =
+        (a.vorlage_snapshot as OnboardingVorlage | null | undefined) ??
+        (a.vorlage_id ? vorlagenMap.get(a.vorlage_id) ?? null : null)
+
+      const fallback = extrahiereStammdatenAusAntworten(vorlage, a.antworten)
+      const eckdaten: KundeOnboardingEckdaten = {
+        kunde_email:       a.kunde_email       ?? fallback.kunde_email       ?? null,
+        kunde_telefon:     a.kunde_telefon     ?? fallback.kunde_telefon     ?? null,
+        projekt_name:      a.projekt_name      ?? fallback.projekt_name      ?? null,
+        projekt_adresse:   a.projekt_adresse   ?? fallback.projekt_adresse   ?? null,
+        raumtypen:         (a.raumtypen && a.raumtypen.length > 0 ? a.raumtypen : fallback.raumtypen) ?? null,
+        budget_min:        a.budget_min        ?? fallback.budget_min        ?? null,
+        budget_max:        a.budget_max        ?? fallback.budget_max        ?? null,
+        zeitrahmen:        a.zeitrahmen        ?? fallback.zeitrahmen        ?? null,
+        stil_praeferenzen: a.stil_praeferenzen ?? fallback.stil_praeferenzen ?? null,
+        notizen:           a.notizen           ?? fallback.notizen           ?? null,
+      }
+
+      return {
+        id:               a.id,
+        status:           a.status,
+        typ:              a.typ,
+        titel:            a.titel ?? null,
+        vorlageName:      vorlage?.name ?? null,
+        created_at:       a.created_at,
+        abgeschlossen_am: a.abgeschlossen_am ?? null,
+        eckdaten,
+        vorlage,
+        antworten:        a.antworten,
+        dateien:          dateienMap.get(a.id) ?? [],
+      }
+    })
+  } catch {
+    return []
+  }
 }

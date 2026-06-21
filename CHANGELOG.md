@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Kunden-Übersicht zeigt jetzt die Onboarding-Angaben
+- Auf der Kundenseite (Reiter **Übersicht**) erscheint jetzt der Block **„Onboarding-Angaben"** — alles, was der Kunde beim Onboarding ausgefüllt hat: **Budget, Räume, Stil, Zeitrahmen, Projekt-Adresse** und seine **Wünsche/Anmerkungen** auf einen Blick. Die **vollständigen eingereichten Antworten** (inkl. hochgeladener Dateien) lassen sich pro Onboarding **aufklappen**.
+- Die Kontakt-/Firma-Karte zeigt jetzt zusätzlich **Ansprechpartner, E-Mail und Telefon** (vorher nur Website + Adresse) — E-Mail und Telefon sind direkt anklickbar.
+- Rein anzeigend, es werden keine Daten verändert; bei Kunden ohne Onboarding bleibt der Block einfach aus.
+
 ### Dashboard auf kleineren Laptops/MacBooks nicht mehr gequetscht
 - **Behoben:** Auf kleineren MacBooks/Laptops (Bildschirme mit geringer Höhe) wurde das Dashboard in die feste Fensterhöhe gepresst — die Kacheln und Listen wirkten eng zusammengequetscht. Jetzt scrollt das Dashboard auf solchen Geräten ganz normal und alles bekommt wieder Luft.
 - Auf großen Bildschirmen (breit **und** hoch genug) bleibt das aufgeräumte, bildschirmfüllende Layout unverändert erhalten.
