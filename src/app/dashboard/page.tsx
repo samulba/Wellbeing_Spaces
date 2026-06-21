@@ -290,6 +290,7 @@ async function getDashboardData() {
     zuBestellenResult,
     unterwegsResult,
     anstehendResult,
+    ueberfaelligResult,
     reklamationenResult,
   ] = await Promise.allSettled([
     // raum_produkte hat KEINE deleted_at-Spalte (Hard-Delete, Mig 101) → nicht filtern.
@@ -300,12 +301,17 @@ async function getDashboardData() {
     supabase.from('raum_produkte').select('*', { count: 'exact', head: true })
       .in('bestellstatus', ['bestellt', 'teilgeliefert'])
       .gte('liefertermin', heuteStr).lte('liefertermin', in7TagenStr),
+    // Überfällig: bestellt/teilgeliefert mit Liefertermin in der Vergangenheit.
+    supabase.from('raum_produkte').select('*', { count: 'exact', head: true })
+      .in('bestellstatus', ['bestellt', 'teilgeliefert'])
+      .lt('liefertermin', heuteStr),
     supabase.from('produkt_reklamationen').select('*', { count: 'exact', head: true })
       .neq('status', 'geloest'),
   ])
   const zuBestellen        = zuBestellenResult.status        === 'fulfilled' ? (zuBestellenResult.value.count        ?? 0) : 0
   const unterwegs          = unterwegsResult.status          === 'fulfilled' ? (unterwegsResult.value.count          ?? 0) : 0
   const anstehend7Tage     = anstehendResult.status          === 'fulfilled' ? (anstehendResult.value.count          ?? 0) : 0
+  const ueberfaellig       = ueberfaelligResult.status       === 'fulfilled' ? (ueberfaelligResult.value.count       ?? 0) : 0
   const offeneReklamationen = reklamationenResult.status     === 'fulfilled' ? (reklamationenResult.value.count      ?? 0) : 0
 
   // ── Picker-Optionen fuer 'Neue Aufgabe' direkt aus Dashboard
@@ -380,6 +386,7 @@ async function getDashboardData() {
     zuBestellen,
     unterwegs,
     anstehend7Tage,
+    ueberfaellig,
     offeneReklamationen,
     meineAufgaben,
     alleAufgaben,
@@ -395,7 +402,7 @@ export default async function DashboardPage() {
     naechsteDeadlines, anstehendeEvents, followUpEintraege,
     budgetProjekte,
     letzteProjekte,
-    zuBestellen, unterwegs, anstehend7Tage, offeneReklamationen,
+    zuBestellen, unterwegs, anstehend7Tage, ueberfaellig, offeneReklamationen,
     meineAufgaben, alleAufgaben, aufgabenPickerOptionen,
   } = await getDashboardData()
 
@@ -446,6 +453,7 @@ export default async function DashboardPage() {
             zuBestellen={zuBestellen}
             unterwegs={unterwegs}
             anstehend7Tage={anstehend7Tage}
+            ueberfaellig={ueberfaellig}
             offeneReklamationen={offeneReklamationen}
           />
         </div>

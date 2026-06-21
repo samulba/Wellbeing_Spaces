@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   Search, Package, Truck, AlertTriangle, Archive, ShoppingCart,
@@ -45,7 +45,8 @@ export type ReklamationMitProduktInfo = ProduktReklamation & {
   kunde_name: string | null
 }
 
-type Tab = 'zu_bestellen' | 'unterwegs' | 'lieferuebersicht' | 'anstehend' | 'reklamationen' | 'archiv'
+type Tab = 'zu_bestellen' | 'unterwegs' | 'lieferuebersicht' | 'anstehend' | 'ueberfaellig' | 'reklamationen' | 'archiv'
+const TABS: Tab[] = ['zu_bestellen', 'unterwegs', 'lieferuebersicht', 'anstehend', 'ueberfaellig', 'reklamationen', 'archiv']
 
 interface Props {
   zuBestellen: ZuBestellendesProdukt[]
@@ -62,14 +63,24 @@ export default function BestellungenClient({
   zuBestellen, unterwegs, entwuerfe, anstehend, archiv,
   offeneReklamationen, erledigteReklamationen, lieferuebersicht,
 }: Props) {
-  const [tab, setTab] = useState<Tab>('zu_bestellen')
+  const searchParams = useSearchParams()
+  const urlTab = searchParams.get('tab')
+  const [tab, setTab] = useState<Tab>(urlTab && TABS.includes(urlTab as Tab) ? (urlTab as Tab) : 'zu_bestellen')
   const [suche, setSuche] = useState('')
+
+  // Überfällig = ausgelöste/versandte Positionen mit Liefertermin in der Vergangenheit.
+  const heute = new Date().toISOString().split('T')[0]
+  const ueberfaelligPositionen = useMemo(
+    () => lieferuebersicht.filter((p) => p.liefertermin && p.liefertermin < heute && p.status !== 'geliefert'),
+    [lieferuebersicht, heute],
+  )
 
   const counts = {
     zu_bestellen:    zuBestellen.length + entwuerfe.length,
     unterwegs:       unterwegs.length,
     lieferuebersicht: lieferuebersicht.length,
     anstehend:       anstehend.length,
+    ueberfaellig:    ueberfaelligPositionen.length,
     reklamationen:   offeneReklamationen.length,
     archiv:          archiv.length + erledigteReklamationen.length,
   }
@@ -90,6 +101,10 @@ export default function BestellungenClient({
         <FilterTab active={tab === 'anstehend'} onClick={() => setTab('anstehend')}
           count={counts.anstehend} label="Diese Woche"
           icon={<Calendar className="w-3.5 h-3.5" />} />
+        <FilterTab active={tab === 'ueberfaellig'} onClick={() => setTab('ueberfaellig')}
+          count={counts.ueberfaellig} label="Überfällig"
+          icon={<Clock className="w-3.5 h-3.5" />}
+          dotPulse={counts.ueberfaellig > 0} />
         <FilterTab active={tab === 'reklamationen'} onClick={() => setTab('reklamationen')}
           count={counts.reklamationen} label="Reklamationen"
           icon={<AlertTriangle className="w-3.5 h-3.5" />}
@@ -124,6 +139,7 @@ export default function BestellungenClient({
       {tab === 'unterwegs' && <BestellungenListe bestellungen={unterwegs} suche={suche} leerLabel="Aktuell unterwegs ist nichts." />}
       {tab === 'lieferuebersicht' && <LieferuebersichtView positionen={lieferuebersicht} suche={suche} />}
       {tab === 'anstehend' && <ZuBestellenView produkte={anstehend} entwuerfe={[]} suche={suche} variante="anstehend" />}
+      {tab === 'ueberfaellig' && <LieferuebersichtView positionen={ueberfaelligPositionen} suche={suche} ueberfaellig leer="Keine überfälligen Lieferungen — alles im Plan. 🎉" />}
       {tab === 'reklamationen' && <ReklamationenListe reklamationen={offeneReklamationen} suche={suche} leerLabel="Keine offenen Reklamationen." />}
       {tab === 'archiv' && (
         <div className="space-y-6">
@@ -409,7 +425,12 @@ const LU_STATUS: Record<string, { label: string; cls: string }> = {
   teilretour: { label: 'Teilretoure', cls: 'bg-amber-50 text-amber-700' },
 }
 
-function LieferuebersichtView({ positionen, suche }: { positionen: LieferuebersichtPosition[]; suche: string }) {
+function LieferuebersichtView({ positionen, suche, ueberfaellig, leer }: {
+  positionen: LieferuebersichtPosition[]
+  suche: string
+  ueberfaellig?: boolean
+  leer?: string
+}) {
   const gefiltert = useMemo(() => {
     if (!suche.trim()) return positionen
     const q = suche.trim().toLowerCase()
@@ -432,7 +453,7 @@ function LieferuebersichtView({ positionen, suche }: { positionen: Lieferuebersi
   }, [gefiltert])
 
   if (gruppen.length === 0) {
-    return <EmptyState text="Noch keine ausgelösten Bestellungen — sobald du eine Bestellung auslöst, erscheint sie hier mit Lieferterminen." />
+    return <EmptyState text={leer ?? 'Noch keine ausgelösten Bestellungen — sobald du eine Bestellung auslöst, erscheint sie hier mit Lieferterminen.'} />
   }
 
   return (
@@ -460,9 +481,10 @@ function LieferuebersichtView({ positionen, suche }: { positionen: Lieferuebersi
                       {p.raum_name && <span className="text-gray-400">· {p.raum_name}</span>}
                     </div>
                   </div>
-                  <div className="text-xs text-gray-600 inline-flex items-center gap-1 shrink-0">
-                    <Calendar className="w-3 h-3 text-gray-400" />
+                  <div className={`text-xs inline-flex items-center gap-1 shrink-0 ${ueberfaellig ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                    <Calendar className={`w-3 h-3 ${ueberfaellig ? 'text-red-500' : 'text-gray-400'}`} />
                     {p.liefertermin ? new Date(p.liefertermin).toLocaleDateString('de-DE') : 'kein Termin'}
+                    {ueberfaellig && <span className="px-1.5 py-0.5 rounded bg-red-50 text-red-600 text-[10px] font-semibold">überfällig</span>}
                     {p.liefertermin_bestaetigt && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
                   </div>
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${st.cls}`}>{st.label}</span>

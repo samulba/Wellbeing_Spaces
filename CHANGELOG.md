@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Lieferverfolgung & Wareneingang
+- **Wareneingang pro Position:** In einer Bestellung lässt sich jede Position einzeln als **„Erhalten"** abhaken — auch **Teilmengen** („Teil"). Das Produkt im Raum springt automatisch auf **teilgeliefert** bzw. **geliefert**; sind alle Positionen da, wird die ganze Bestellung automatisch auf „Geliefert" gesetzt. Oben zeigt ein Zähler **„X / Y erhalten"** + ein **„Alles erhalten"**-Knopf.
+- **Überfällige Lieferungen:** Neue Dashboard-Kennzahl **„Überfällig"** und ein eigener Reiter **„Überfällig"** in den Bestellungen — Lieferungen, deren Termin vorbei ist und die noch nicht angekommen sind, fallen sofort rot auf. (Die KPI-Kacheln verlinken jetzt direkt in den passenden Reiter.)
+- **Kunde wird informiert:** Beim Versand und bei der Lieferung erhält der Kunde im **Portal** eine Info („unterwegs" / „angekommen 📦") — inkl. einer positiven **„… Produkte sind bereits angekommen ✓"**-Zeile. Weiterhin **ohne Lieferantennamen**.
+- **Migration 131** muss in Supabase ausgeführt werden. Bis dahin funktioniert alles wie bisher (nur der Teil-Wareneingang ist erst danach aktiv).
+
 ### Kritischer Fehler behoben: Produkte waren aus allen Räumen verschwunden
 - **Behoben (dringend):** Nach einer Datenbank-Aktualisierung wurden in **allen** Projekten plötzlich **keine Produkte** mehr in den Räumen angezeigt (auch in Freigaben und Bestellungen). **Es sind keine Daten verloren gegangen** — eine technische Mehrdeutigkeit blockierte nur die Anzeige. Mit einem Datenbank-Hotfix (Migration 130) sind sofort wieder alle Produkte da. Das Set-/Bundle-Feature funktioniert unverändert weiter.
 

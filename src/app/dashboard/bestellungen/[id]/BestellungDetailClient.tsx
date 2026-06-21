@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Package, Truck, CheckCircle2, AlertTriangle, Clock,
   ExternalLink, Upload, Trash2, Save, X, Loader2, FileText, Mail,
+  PackageCheck,
 } from 'lucide-react'
 import { lieferantenBestellungMail } from '@/lib/mail-templates'
 import {
   bestellungAktualisieren, bestellungAusloesen, bestellungVersandt,
   bestellungGeliefert, bestellungStornieren, bestellungLoeschen,
   bestellungDokumentHochladen, positionEntfernen,
+  positionEmpfangen, positionEmpfangZuruecksetzen,
   type BestellungMitDetails,
 } from '@/app/actions/lieferanten-bestellungen'
 
@@ -105,6 +107,28 @@ export default function BestellungDetailClient({ bestellung: initial }: Props) {
       else router.refresh()
     })
   }
+
+  function handleEmpfangen(posId: string, menge?: number) {
+    startTransition(async () => {
+      const r = await positionEmpfangen(posId, menge)
+      if (r.fehler) showToast(r.fehler, true)
+      else { showToast(r.bestellungKomplett ? 'Vollständig geliefert ✓' : 'Wareneingang gespeichert.'); router.refresh() }
+    })
+  }
+
+  function handleEmpfangReset(posId: string) {
+    startTransition(async () => {
+      const r = await positionEmpfangZuruecksetzen(posId)
+      if (r.fehler) showToast(r.fehler, true)
+      else { showToast('Zurückgesetzt.'); router.refresh() }
+    })
+  }
+
+  // Wareneingang ist möglich, sobald die Bestellung ausgelöst/versandt ist.
+  const kannEmpfangen = ['bestaetigt', 'versandt', 'geliefert', 'teilretour'].includes(b.status)
+  const istVoll = (p: BestellungMitDetails['positionen'][number]) =>
+    (p.menge_erhalten ?? 0) >= p.menge && p.menge > 0
+  const erhaltenCount = b.positionen.filter(istVoll).length
 
   async function handleDokumentUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -308,60 +332,42 @@ export default function BestellungDetailClient({ bestellung: initial }: Props) {
 
         {/* Positionen */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
             <div>
               <h2 className="text-sm font-semibold text-gray-900">Positionen</h2>
-              <p className="text-xs text-gray-500">{b.positionen.length} {b.positionen.length === 1 ? 'Eintrag' : 'Einträge'}</p>
+              <p className="text-xs text-gray-500">
+                {b.positionen.length} {b.positionen.length === 1 ? 'Eintrag' : 'Einträge'}
+                {kannEmpfangen && b.positionen.length > 0 && (
+                  <> · <span className="font-medium text-wellbeing-green-dark">{erhaltenCount}/{b.positionen.length} erhalten</span></>
+                )}
+              </p>
             </div>
+            {kannEmpfangen && b.positionen.length > 0 && erhaltenCount < b.positionen.length && (
+              <button
+                type="button"
+                onClick={() => handleStatusUebergang('geliefert')}
+                disabled={pending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50"
+              >
+                <PackageCheck className="w-3.5 h-3.5" /> Alles erhalten
+              </button>
+            )}
           </div>
           {b.positionen.length === 0 ? (
             <p className="px-5 py-8 text-sm text-gray-500 text-center">Noch keine Positionen.</p>
           ) : (
             <div className="divide-y divide-gray-100">
-              {b.positionen.map((pos) => {
-                const rp = pos.raum_produkt
-                return (
-                  <div key={pos.id} className="flex items-center gap-3 px-5 py-3">
-                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 shrink-0 flex items-center justify-center">
-                      {rp?.produkt?.bild_url ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={rp.produkt.bild_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <Package className="w-4 h-4 text-gray-400" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">{rp?.produkt?.name ?? '—'}</div>
-                      <div className="text-xs text-gray-500 truncate mt-0.5">
-                        {rp?.raum?.projekt_name && `${rp.raum.projekt_name} · `}
-                        {rp?.raum?.name}
-                      </div>
-                    </div>
-                    <div className="text-sm text-gray-700 tabular-nums shrink-0 text-right">
-                      <div>{pos.menge} {rp?.produkt?.einheit ?? 'Stk'} × {pos.einzelpreis_netto.toFixed(2)} €</div>
-                      <div className="text-xs font-medium text-gray-900">{(pos.menge * pos.einzelpreis_netto).toFixed(2)} €</div>
-                    </div>
-                    {rp?.raum && (
-                      <Link
-                        href={`/dashboard/projekte/${rp.raum.projekt_id}/raeume/${rp.raum.id}`}
-                        className="text-gray-300 hover:text-wellbeing-green transition-colors shrink-0"
-                        title="Zum Produkt im Raum"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </Link>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handlePositionEntfernen(pos.id)}
-                      disabled={pending}
-                      className="text-gray-300 hover:text-red-600 transition-colors shrink-0 p-1"
-                      title="Position entfernen"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )
-              })}
+              {b.positionen.map((pos) => (
+                <PositionRow
+                  key={pos.id}
+                  pos={pos}
+                  kannEmpfangen={kannEmpfangen}
+                  pending={pending}
+                  onEmpfangen={handleEmpfangen}
+                  onReset={handleEmpfangReset}
+                  onEntfernen={handlePositionEntfernen}
+                />
+              ))}
             </div>
           )}
           {b.versandkosten > 0 && (
@@ -376,6 +382,136 @@ export default function BestellungDetailClient({ bestellung: initial }: Props) {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function PositionRow({
+  pos, kannEmpfangen, pending, onEmpfangen, onReset, onEntfernen,
+}: {
+  pos: BestellungMitDetails['positionen'][number]
+  kannEmpfangen: boolean
+  pending: boolean
+  onEmpfangen: (posId: string, menge?: number) => void
+  onReset: (posId: string) => void
+  onEntfernen: (posId: string) => void
+}) {
+  const rp = pos.raum_produkt
+  const erhalten = pos.menge_erhalten ?? 0
+  const voll = erhalten >= pos.menge && pos.menge > 0
+  const teil = erhalten > 0 && erhalten < pos.menge
+  const [teilOffen, setTeilOffen] = useState(false)
+  const [teilWert, setTeilWert] = useState('')
+
+  return (
+    <div className={`flex items-center gap-3 px-5 py-3 ${voll ? 'bg-emerald-50/40' : ''}`}>
+      <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 shrink-0 flex items-center justify-center">
+        {rp?.produkt?.bild_url ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={rp.produkt.bild_url} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <Package className="w-4 h-4 text-gray-400" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-gray-900 truncate">{rp?.produkt?.name ?? '—'}</div>
+        <div className="text-xs text-gray-500 truncate mt-0.5">
+          {rp?.raum?.projekt_name && `${rp.raum.projekt_name} · `}
+          {rp?.raum?.name}
+        </div>
+      </div>
+      <div className="text-sm text-gray-700 tabular-nums shrink-0 text-right">
+        <div>{pos.menge} {rp?.produkt?.einheit ?? 'Stk'} × {pos.einzelpreis_netto.toFixed(2)} €</div>
+        <div className="text-xs font-medium text-gray-900">{(pos.menge * pos.einzelpreis_netto).toFixed(2)} €</div>
+      </div>
+
+      {/* Wareneingang */}
+      {kannEmpfangen && (
+        <div className="shrink-0 flex items-center gap-1.5">
+          {voll ? (
+            <button
+              type="button"
+              onClick={() => onReset(pos.id)}
+              disabled={pending}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors disabled:opacity-50"
+              title="Wareneingang zurücksetzen"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" /> Erhalten
+            </button>
+          ) : teilOffen ? (
+            <span className="inline-flex items-center gap-1">
+              <input
+                type="number"
+                min={0}
+                max={pos.menge}
+                step="0.01"
+                value={teilWert}
+                onChange={(e) => setTeilWert(e.target.value)}
+                placeholder={`${pos.menge}`}
+                className="w-16 px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-wellbeing-green"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => { onEmpfangen(pos.id, teilWert === '' ? undefined : Number(teilWert)); setTeilOffen(false); setTeilWert('') }}
+                disabled={pending}
+                className="p-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                title="Speichern"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              </button>
+              <button type="button" onClick={() => { setTeilOffen(false); setTeilWert('') }} className="p-1 text-gray-400 hover:text-gray-700" title="Abbrechen">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </span>
+          ) : (
+            <>
+              {teil && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 tabular-nums" title="Teilweise erhalten">
+                  {erhalten}/{pos.menge}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => onEmpfangen(pos.id)}
+                disabled={pending}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                title="Als vollständig erhalten markieren"
+              >
+                <PackageCheck className="w-3.5 h-3.5" /> Erhalten
+              </button>
+              <button
+                type="button"
+                onClick={() => setTeilOffen(true)}
+                disabled={pending}
+                className="px-1.5 py-1 rounded-md text-[11px] font-medium text-gray-500 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
+                title="Teilmenge erfassen"
+              >
+                Teil
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {rp?.raum && (
+        <Link
+          href={`/dashboard/projekte/${rp.raum.projekt_id}/raeume/${rp.raum.id}`}
+          className="text-gray-300 hover:text-wellbeing-green transition-colors shrink-0"
+          title="Zum Produkt im Raum"
+        >
+          <ExternalLink className="w-4 h-4" />
+        </Link>
+      )}
+      <button
+        type="button"
+        onClick={() => onEntfernen(pos.id)}
+        disabled={pending}
+        className="text-gray-300 hover:text-red-600 transition-colors shrink-0 p-1"
+        title="Position entfernen"
+      >
+        <X className="w-4 h-4" />
+      </button>
     </div>
   )
 }

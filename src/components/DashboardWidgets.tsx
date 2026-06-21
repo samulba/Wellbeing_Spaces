@@ -161,10 +161,11 @@ export function KpiKartenReihe({ aktiveKunden, laufendeProjekte, offeneAngebote,
 }
 
 // ── Bestell-KPI-Reihe ─────────────────────────────────────────
-export function BestellKpiReihe({ zuBestellen, unterwegs, anstehend7Tage, offeneReklamationen }: {
+export function BestellKpiReihe({ zuBestellen, unterwegs, anstehend7Tage, ueberfaellig, offeneReklamationen }: {
   zuBestellen:          number
   unterwegs:            number
   anstehend7Tage:       number
+  ueberfaellig:         number
   offeneReklamationen:  number
 }) {
   const kpis: KpiDaten[] = [
@@ -174,11 +175,13 @@ export function BestellKpiReihe({ zuBestellen, unterwegs, anstehend7Tage, offene
       subLabel: 'Aktive Bestellungen' },
     { label: 'Diese Woche',     wert: anstehend7Tage, href: '/dashboard/bestellungen?tab=anstehend',     icon: Package,        farbe: 'text-amber-600',   bg: 'bg-amber-50',
       subLabel: 'Lieferung erwartet' },
+    { label: 'Überfällig',      wert: ueberfaellig,   href: '/dashboard/bestellungen?tab=ueberfaellig',  icon: Clock,          farbe: 'text-red-600',     bg: 'bg-red-50',
+      subLabel: ueberfaellig > 0 ? 'Termin überschritten' : 'Alles im Plan' },
     { label: 'Reklamationen',   wert: offeneReklamationen, href: '/dashboard/bestellungen?tab=reklamationen', icon: AlertTriangle, farbe: 'text-orange-600', bg: 'bg-orange-50',
       subLabel: offeneReklamationen > 0 ? 'Offen' : 'Keine offenen' },
   ]
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
       {kpis.map((kpi) => <KpiKarte key={kpi.label} {...kpi} />)}
     </div>
   )

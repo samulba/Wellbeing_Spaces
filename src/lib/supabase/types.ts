@@ -1457,6 +1457,9 @@ export interface LieferantenBestellungPosition {
   notiz: string | null
   reihenfolge: number
   created_at: string
+  // Wareneingang (Migration 131) — optional, da Pre-131-Reads ohne diese Spalten typen.
+  menge_erhalten?: number | null
+  empfangen_am?: string | null
 }
 
 // ─── Aufgaben (Migration 102) ──────────────────────────────────

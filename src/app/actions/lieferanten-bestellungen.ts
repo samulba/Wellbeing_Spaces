@@ -385,12 +385,147 @@ export async function bestellungVersandt(
   })
   revalidatePath('/dashboard/bestellungen')
   revalidatePath(`/dashboard/bestellungen/${id}`)
+  await benachrichtigeLieferung(id, 'versandt')
   return { erfolg: true }
 }
 
 /** Bestellung als geliefert markieren — synct alle Positionen auf 'geliefert'. */
 export async function bestellungGeliefert(id: string): Promise<{ erfolg?: boolean; fehler?: string }> {
-  return statusUebergang(id, 'geliefert', 'geliefert')
+  const res = await statusUebergang(id, 'geliefert', 'geliefert')
+  if (!res.fehler) await benachrichtigeLieferung(id, 'geliefert')
+  return res
+}
+
+/** Projekt-IDs aus den Positionen einer Bestellung ableiten (Sammelbestellung-fähig). */
+async function projektIdsAusBestellung(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  bestellungId: string,
+): Promise<string[]> {
+  const { data } = await supabase
+    .from('lieferanten_bestellung_positionen')
+    .select('raum_produkte(raeume(projekt_id))')
+    .eq('bestellung_id', bestellungId)
+  const set = new Set<string>()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const p of (data ?? []) as any[]) {
+    const pid = p.raum_produkte?.raeume?.projekt_id
+    if (pid) set.add(pid)
+  }
+  return Array.from(set)
+}
+
+/** Fail-safe Kunden-Liefer-Benachrichtigung je betroffenem Projekt (nie throw). */
+async function benachrichtigeLieferung(
+  bestellungId: string,
+  milestone: 'versandt' | 'geliefert',
+): Promise<void> {
+  try {
+    const supabase = await createClient()
+    const pids = await projektIdsAusBestellung(supabase, bestellungId)
+    const { kundeLieferungBenachrichtigen } = await import('./lieferung-kunde')
+    for (const pid of pids) await kundeLieferungBenachrichtigen(pid, milestone)
+  } catch { /* Benachrichtigung darf die Statusänderung nie scheitern lassen */ }
+}
+
+/**
+ * Wareneingang einer einzelnen Position (auch Teilmenge) — Migration 131.
+ * Synct das raum_produkt auf 'geliefert' (voll) bzw. 'teilgeliefert' (Teilmenge).
+ * Sind danach ALLE Positionen voll erhalten, wird die Bestellung automatisch auf
+ * 'geliefert' gesetzt (inkl. Kunden-Benachrichtigung). `statusUebergang` bleibt
+ * unangetastet — dies ist ein eigener Pro-Positions-Pfad.
+ */
+export async function positionEmpfangen(
+  positionId: string,
+  mengeErhalten?: number,
+): Promise<{ erfolg?: boolean; fehler?: string; bestellungKomplett?: boolean }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { data: pos } = await supabase
+    .from('lieferanten_bestellung_positionen')
+    .select('id, menge, raum_produkt_id, bestellung_id')
+    .eq('id', positionId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!pos) return { fehler: 'Position nicht gefunden.' }
+
+  const menge    = Number(pos.menge) || 0
+  const erhalten = mengeErhalten == null ? menge : Math.max(0, Math.min(Number(mengeErhalten) || 0, menge))
+  const voll     = menge > 0 && erhalten >= menge
+  const heute    = new Date().toISOString().split('T')[0]
+
+  const { error: pErr } = await supabase
+    .from('lieferanten_bestellung_positionen')
+    .update({ menge_erhalten: erhalten, empfangen_am: new Date().toISOString() })
+    .eq('id', positionId)
+    .eq('organisation_id', orgId)
+  if (pErr) return { fehler: 'Wareneingang konnte nicht gespeichert werden.' }
+
+  const rpUpdate: Record<string, unknown> = {
+    bestellstatus: (voll ? 'geliefert' : 'teilgeliefert') as BestellStatus,
+  }
+  if (voll) rpUpdate.lieferung_erhalten_am = heute
+  await supabase
+    .from('raum_produkte')
+    .update(rpUpdate)
+    .eq('id', pos.raum_produkt_id)
+    .eq('organisation_id', orgId)
+
+  // Alle Positionen voll erhalten? → ganze Bestellung auf geliefert.
+  let komplett = false
+  const { data: alle } = await supabase
+    .from('lieferanten_bestellung_positionen')
+    .select('menge, menge_erhalten')
+    .eq('bestellung_id', pos.bestellung_id)
+    .eq('organisation_id', orgId)
+  const alleVoll = (alle ?? []).length > 0 && (alle ?? []).every(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (p: any) => (Number(p.menge_erhalten) || 0) >= (Number(p.menge) || 0),
+  )
+  if (alleVoll) {
+    const res = await bestellungGeliefert(pos.bestellung_id)
+    komplett = !res.fehler
+  }
+
+  await auditLog({
+    aktion:       'bestellung_aktualisiert' as string,
+    entitaet_typ: 'bestellung' as string,
+    entitaet_id:  pos.bestellung_id,
+    details:      { wareneingang_position: positionId, menge_erhalten: erhalten },
+  })
+  revalidatePath('/dashboard/bestellungen')
+  revalidatePath(`/dashboard/bestellungen/${pos.bestellung_id}`)
+  return { erfolg: true, bestellungKomplett: komplett }
+}
+
+/** Wareneingang einer Position zurücksetzen (raum_produkt zurück auf 'bestellt'). */
+export async function positionEmpfangZuruecksetzen(
+  positionId: string,
+): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data: pos } = await supabase
+    .from('lieferanten_bestellung_positionen')
+    .select('raum_produkt_id, bestellung_id')
+    .eq('id', positionId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!pos) return { fehler: 'Position nicht gefunden.' }
+
+  await supabase
+    .from('lieferanten_bestellung_positionen')
+    .update({ menge_erhalten: null, empfangen_am: null })
+    .eq('id', positionId)
+    .eq('organisation_id', orgId)
+  await supabase
+    .from('raum_produkte')
+    .update({ bestellstatus: 'bestellt' as BestellStatus, lieferung_erhalten_am: null })
+    .eq('id', pos.raum_produkt_id)
+    .eq('organisation_id', orgId)
+
+  revalidatePath(`/dashboard/bestellungen/${pos.bestellung_id}`)
+  return { erfolg: true }
 }
 
 /** Bestellung stornieren — synct alle Positionen auf 'storniert'. */

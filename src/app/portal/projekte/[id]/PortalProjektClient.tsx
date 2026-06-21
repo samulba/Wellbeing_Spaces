@@ -484,8 +484,25 @@ function LieferungenTab({
 
   const offeneRek = reklamationen.filter((r) => r.status !== 'geloest')
 
+  // Bereits angekommen (geliefert) — positive Bestätigung für den Kunden.
+  const angekommenCount = raeume.reduce(
+    (n, raum) => n + raum.produkte.filter((p) => bestellStatusMap[`${raum.id}:${p.id}`]?.bestellstatus === 'geliefert').length,
+    0,
+  )
+
   return (
     <div className="space-y-6">
+      {/* Bereits angekommen */}
+      {angekommenCount > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <p className="text-sm text-emerald-900">
+            <span className="font-semibold">{angekommenCount}</span>{' '}
+            {angekommenCount === 1 ? 'Produkt ist' : 'Produkte sind'} bereits bei Ihnen angekommen ✓
+          </p>
+        </div>
+      )}
+
       {/* Kommende Lieferungen — was wann (ohne Lieferantennamen) */}
       {kommendeGruppen.length > 0 && (
         <div className="bg-white border border-black/[0.06] rounded-2xl shadow-sm p-4">
