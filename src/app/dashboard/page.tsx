@@ -399,7 +399,7 @@ export default async function DashboardPage() {
   } = await getDashboardData()
 
   return (
-    <div className="h-full flex flex-col overflow-y-auto xl:overflow-hidden animate-fadeIn">
+    <div className="h-full flex flex-col overflow-y-auto dash:overflow-hidden animate-fadeIn">
 
       {/* Header – shrink-0 damit Content-Bereich die restliche Höhe bekommt */}
       <div className="shrink-0 bg-white border-b border-gray-100 px-6 py-4">
@@ -425,8 +425,9 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Content – auf xl+ fest 100vh, intern flex-col mit zwei „flex-1"-Zeilen */}
-      <div className="flex-1 xl:min-h-0 flex flex-col px-6 py-4 gap-4">
+      {/* Content – auf großen Screens (breit+hoch) fest 100vh, intern flex-col mit
+          zwei „flex-1"-Zeilen. Auf kleinen Laptops/MacBooks scrollt der Bereich normal. */}
+      <div className="flex-1 dash:min-h-0 flex flex-col px-6 py-4 gap-4">
 
         {/* ROW 1: KPI-Kacheln */}
         <div className="shrink-0">
@@ -449,7 +450,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* ROW 2: Deadlines + Follow-ups + Meine Aufgaben */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 min-h-[220px] xl:flex-1 xl:min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 min-h-[220px] dash:flex-1 dash:min-h-0">
           <NaechsteDeadlines projekte={naechsteDeadlines} events={anstehendeEvents} />
           <OffeneFollowUps eintraege={followUpEintraege} />
           <MeineAufgabenWidget
@@ -460,7 +461,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* ROW 3: Budget + Letzte Projekte (nebeneinander, fluid rest of viewport) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[280px] xl:flex-1 xl:min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[280px] dash:flex-1 dash:min-h-0">
           <BudgetUebersicht projekte={budgetProjekte} />
           <LetzteProjekte projekte={letzteProjekte} />
         </div>

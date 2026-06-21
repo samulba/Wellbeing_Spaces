@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-06-21
+
+### Dashboard auf kleineren Laptops/MacBooks nicht mehr gequetscht
+- **Behoben:** Auf kleineren MacBooks/Laptops (Bildschirme mit geringer Höhe) wurde das Dashboard in die feste Fensterhöhe gepresst — die Kacheln und Listen wirkten eng zusammengequetscht. Jetzt scrollt das Dashboard auf solchen Geräten ganz normal und alles bekommt wieder Luft.
+- Auf großen Bildschirmen (breit **und** hoch genug) bleibt das aufgeräumte, bildschirmfüllende Layout unverändert erhalten.
+
 ## 2026-06-02
 
 ### Freigabe-Link: Auswahl-Blöcke wurden fälschlich einzeln gezeigt (Bug behoben)

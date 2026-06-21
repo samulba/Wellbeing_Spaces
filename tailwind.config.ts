@@ -8,6 +8,13 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // Dashboard-Fixierung (festes 100vh-Layout) nur auf groß genug Bildschirmen:
+      // breit (>=1280px) UND hoch genug (>=900px). Auf kleineren Laptops/MacBooks
+      // (geringe Viewport-Höhe) scrollt das Dashboard stattdessen normal, statt
+      // alles in die Höhe zu quetschen. Wird via extend gemerged → sm/md/lg/xl/2xl bleiben.
+      screens: {
+        dash: { raw: '(min-width: 1280px) and (min-height: 900px)' },
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
