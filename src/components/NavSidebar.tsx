@@ -59,8 +59,8 @@ export default function NavSidebar({
   offeneFreigaben = 0,
   offeneAnfragen = 0,
   offeneNachrichten = 0,
-  offeneReklamationen = 0,
   offeneAufgaben = 0,
+  offeneBestellungen = 0,
   neuestesChangelogDatum = null,
 }: {
   userEmail: string
@@ -72,6 +72,7 @@ export default function NavSidebar({
   offeneNachrichten?: number
   offeneReklamationen?: number
   offeneAufgaben?: number
+  offeneBestellungen?: number
   neuestesChangelogDatum?: string | null
 }) {
   const pathname = usePathname()
@@ -99,7 +100,7 @@ export default function NavSidebar({
     { label: 'Projekte',   href: '/dashboard/projekte',   icon: FolderOpen,      badge: 0 },
     { label: 'Partner',    href: '/dashboard/partner',    icon: Handshake,       badge: 0 },
     { label: 'Produkte',   href: '/dashboard/produkte',   icon: Package,         badge: 0 },
-    { label: 'Bestellungen', href: '/dashboard/bestellungen', icon: ShoppingCart,   badge: offeneReklamationen },
+    { label: 'Bestellungen', href: '/dashboard/bestellungen', icon: ShoppingCart,   badge: offeneBestellungen },
     { label: 'Aufgaben',   href: '/dashboard/aufgaben',   icon: ListChecks,      badge: offeneAufgaben },
     { label: 'Chats',      href: '/dashboard/chats',      icon: MessageCircle,   badge: offeneNachrichten },
     { label: 'Freigaben',  href: '/dashboard/freigaben',  icon: CheckSquare,     badge: offeneFreigaben },

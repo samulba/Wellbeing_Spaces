@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getBestellungen } from '@/app/actions/lieferanten-bestellungen'
+import { getBestellungen, getLieferuebersicht } from '@/app/actions/lieferanten-bestellungen'
 import { getReklamationen } from '@/app/actions/reklamationen'
 import StickyPageHeader from '@/components/StickyPageHeader'
 import BestellungenClient, { type ZuBestellendesProdukt, type ReklamationMitProduktInfo } from './BestellungenClient'
@@ -119,11 +119,12 @@ async function getReklamationenMitProduktInfo(): Promise<ReklamationMitProduktIn
 }
 
 export default async function BestellungenPage() {
-  const [zuBestellen, anstehend, alleBestellungen, reklamationen] = await Promise.all([
+  const [zuBestellen, anstehend, alleBestellungen, reklamationen, lieferuebersicht] = await Promise.all([
     getZuBestellendeProdukte(),
     getAnstehendeLieferungen(),
     getBestellungen(),
     getReklamationenMitProduktInfo(),
+    getLieferuebersicht(),
   ])
 
   // Bestellungen nach Status filtern
@@ -151,6 +152,7 @@ export default async function BestellungenPage() {
           archiv={archiv}
           offeneReklamationen={offeneReklamationen}
           erledigteReklamationen={erledigteReklamationen}
+          lieferuebersicht={lieferuebersicht}
         />
       </div>
     </div>

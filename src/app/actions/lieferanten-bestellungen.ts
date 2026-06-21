@@ -112,6 +112,71 @@ export async function getBestellung(id: string): Promise<BestellungMitDetails | 
   } as BestellungMitDetails
 }
 
+// ── Lieferübersicht (wer liefert was wann) ────────────────────
+
+export type LieferuebersichtPosition = {
+  bestellung_id:           string
+  bestellnummer:           string | null
+  partner_id:              string | null
+  partner_name:            string
+  status:                  LieferantenBestellungStatus
+  liefertermin:            string | null
+  liefertermin_bestaetigt: boolean
+  produkt_name:            string
+  menge:                   number
+  einheit:                 string
+  raum_name:               string | null
+  projekt_id:              string | null
+  projekt_name:            string | null
+}
+
+/**
+ * Alle laufenden Bestellungen (ausgelöst/versandt/geliefert/teilretour) flach
+ * pro Position, sortiert nach geplantem Liefertermin. Für die Admin-Lieferübersicht.
+ * Optional auf ein Projekt gefiltert (Sammelbestellungen → Filter pro Position).
+ */
+export async function getLieferuebersicht(projektId?: string): Promise<LieferuebersichtPosition[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('lieferanten_bestellungen')
+    .select(`
+      id, bestellnummer, partner_id, status, liefertermin_geplant, liefertermin_bestaetigt,
+      partner(name),
+      lieferanten_bestellung_positionen(
+        menge,
+        raum_produkte(produkte(name, einheit), raeume(name, projekt_id, projekte(name)))
+      )
+    `)
+    .in('status', ['bestaetigt', 'versandt', 'geliefert', 'teilretour'])
+    .order('liefertermin_geplant', { ascending: true, nullsFirst: false })
+
+  const out: LieferuebersichtPosition[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const b of (data ?? []) as any[]) {
+    for (const pos of (b.lieferanten_bestellung_positionen ?? [])) {
+      const rp   = pos.raum_produkte
+      const raum = rp?.raeume
+      if (projektId && raum?.projekt_id !== projektId) continue
+      out.push({
+        bestellung_id:           b.id,
+        bestellnummer:           b.bestellnummer ?? null,
+        partner_id:              b.partner_id ?? null,
+        partner_name:            b.partner?.name ?? 'Unbekannt',
+        status:                  b.status,
+        liefertermin:            b.liefertermin_geplant ?? null,
+        liefertermin_bestaetigt: !!b.liefertermin_bestaetigt,
+        produkt_name:            rp?.produkte?.name ?? 'Unbekannt',
+        menge:                   pos.menge,
+        einheit:                 rp?.produkte?.einheit ?? 'Stk',
+        raum_name:               raum?.name ?? null,
+        projekt_id:              raum?.projekt_id ?? null,
+        projekt_name:            raum?.projekte?.name ?? null,
+      })
+    }
+  }
+  return out
+}
+
 // ── Anlegen ───────────────────────────────────────────────────
 
 export async function bestellungAnlegen(input: {
@@ -235,6 +300,46 @@ export async function bestellungAktualisieren(input: {
 /** Bestellung als bestaetigt markieren — synct raum_produkte auf bestellt. */
 export async function bestellungBestaetigen(id: string): Promise<{ erfolg?: boolean; fehler?: string }> {
   return statusUebergang(id, 'bestaetigt', 'bestellt')
+}
+
+/**
+ * Admin löst eine Bestellung aus (= bestätigt sie). Zwei Modi:
+ *  - { bestellungId }                 → bestätigt einen bestehenden Entwurf
+ *  - { partnerId, positionen, … }     → legt aus der Teilmenge an UND bestätigt sofort
+ * Reine Orchestrierung über die bestehenden Actions (statusUebergang unverändert).
+ * Die Kunden-Glückwunsch-Benachrichtigung wird in Phase B hier eingehängt.
+ */
+export async function bestellungAusloesen(
+  input:
+    | { bestellungId: string }
+    | {
+        partnerId: string
+        projektId?: string | null
+        positionen: Array<{ raumProduktId: string; menge: number; einzelpreisNetto: number; notiz?: string | null }>
+        liefertermin?: string | null
+        notizen?: string | null
+      },
+): Promise<{ id?: string; bestellnummer?: string; fehler?: string }> {
+  let bestellungId: string
+  let bestellnummer: string | undefined
+
+  if ('bestellungId' in input) {
+    bestellungId = input.bestellungId
+  } else {
+    const angelegt = await bestellungAnlegen(input)
+    if (angelegt.fehler || !angelegt.id) return { fehler: angelegt.fehler ?? 'Anlegen fehlgeschlagen.' }
+    bestellungId = angelegt.id
+    bestellnummer = angelegt.bestellnummer
+  }
+
+  const best = await bestellungBestaetigen(bestellungId)
+  if (best.fehler) return { fehler: best.fehler, id: bestellungId, bestellnummer }
+
+  // Phase B: Kunden-Glückwunsch je betroffenem Projekt (fail-safe) wird hier ergänzt.
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/bestellungen')
+  return { id: bestellungId, bestellnummer }
 }
 
 /** Bestellung als versandt markieren. */

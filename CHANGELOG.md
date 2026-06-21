@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Bestellungen: 1-Klick auslösen pro Lieferant + Lieferübersicht (Teil 1)
+- Die **Sidebar-Zahl bei „Bestellungen"** zeigt jetzt, wie viele freigegebene Produkte **zu bestellen** sind — frisch freigegebene Produkte fallen sofort auf.
+- Im Tab **„Zu bestellen"** lässt sich pro Lieferant mit einem Klick **„Bestellung auslösen"** — wahlweise die ganze Lieferanten-Gruppe oder nur **angekreuzte Produkte** (Teilbestellung); der Rest bleibt offen. Der bisherige „Als Entwurf"-Weg bleibt erhalten.
+- Neuer Tab **„Lieferübersicht"**: zeigt alle ausgelösten Bestellungen gruppiert nach Lieferant mit Produkt, Menge, Raum/Projekt, Liefertermin und Status („wer liefert was wann").
+- In der Bestell-Detailseite heißt „Bestätigen" jetzt **„Bestellung auslösen"** (Status-Label „Ausgelöst").
+
 ### Produkt-Sets im Kunden-Freigabe-Link (Phase 2)
 - Im **Freigabe-Link** erscheint ein Set jetzt als **eine** Karte (Set-Name, Set-Preis, „Was ist enthalten?"-Ausklapper mit allen Komponenten) statt als einzelne Positionen — genau der USP, den der Kunde verstehen soll.
 - **Eine** Entscheidung fürs ganze Set: **Set freigeben / Ablehnen / Alternative** (mit Kommentar) setzt automatisch alle Komponenten gemeinsam (all-or-nothing). Der Fortschritt zählt das Set als **eine** Position und gilt erst als freigegeben, wenn das komplette Set freigegeben ist.

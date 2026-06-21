@@ -1,14 +1,16 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Search, Package, Truck, AlertTriangle, Archive, ShoppingCart,
   Clock, CheckCircle2, Calendar, ExternalLink, ChevronRight, FolderOpen,
+  CalendarClock, Check, Loader2, PackageCheck,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
-import type { BestellungMitPartner } from '@/app/actions/lieferanten-bestellungen'
+import { bestellungAusloesen, type BestellungMitPartner, type LieferuebersichtPosition } from '@/app/actions/lieferanten-bestellungen'
 import type { ProduktReklamation } from '@/lib/supabase/types'
 
 export type ZuBestellendesProdukt = {
@@ -43,7 +45,7 @@ export type ReklamationMitProduktInfo = ProduktReklamation & {
   kunde_name: string | null
 }
 
-type Tab = 'zu_bestellen' | 'unterwegs' | 'anstehend' | 'reklamationen' | 'archiv'
+type Tab = 'zu_bestellen' | 'unterwegs' | 'lieferuebersicht' | 'anstehend' | 'reklamationen' | 'archiv'
 
 interface Props {
   zuBestellen: ZuBestellendesProdukt[]
@@ -53,21 +55,23 @@ interface Props {
   archiv: BestellungMitPartner[]
   offeneReklamationen: ReklamationMitProduktInfo[]
   erledigteReklamationen: ReklamationMitProduktInfo[]
+  lieferuebersicht: LieferuebersichtPosition[]
 }
 
 export default function BestellungenClient({
   zuBestellen, unterwegs, entwuerfe, anstehend, archiv,
-  offeneReklamationen, erledigteReklamationen,
+  offeneReklamationen, erledigteReklamationen, lieferuebersicht,
 }: Props) {
   const [tab, setTab] = useState<Tab>('zu_bestellen')
   const [suche, setSuche] = useState('')
 
   const counts = {
-    zu_bestellen:  zuBestellen.length + entwuerfe.length,
-    unterwegs:     unterwegs.length,
-    anstehend:     anstehend.length,
-    reklamationen: offeneReklamationen.length,
-    archiv:        archiv.length + erledigteReklamationen.length,
+    zu_bestellen:    zuBestellen.length + entwuerfe.length,
+    unterwegs:       unterwegs.length,
+    lieferuebersicht: lieferuebersicht.length,
+    anstehend:       anstehend.length,
+    reklamationen:   offeneReklamationen.length,
+    archiv:          archiv.length + erledigteReklamationen.length,
   }
 
   return (
@@ -80,6 +84,9 @@ export default function BestellungenClient({
         <FilterTab active={tab === 'unterwegs'} onClick={() => setTab('unterwegs')}
           count={counts.unterwegs} label="Unterwegs"
           icon={<Truck className="w-3.5 h-3.5" />} />
+        <FilterTab active={tab === 'lieferuebersicht'} onClick={() => setTab('lieferuebersicht')}
+          count={counts.lieferuebersicht} label="Lieferübersicht"
+          icon={<CalendarClock className="w-3.5 h-3.5" />} />
         <FilterTab active={tab === 'anstehend'} onClick={() => setTab('anstehend')}
           count={counts.anstehend} label="Diese Woche"
           icon={<Calendar className="w-3.5 h-3.5" />} />
@@ -115,6 +122,7 @@ export default function BestellungenClient({
         />
       )}
       {tab === 'unterwegs' && <BestellungenListe bestellungen={unterwegs} suche={suche} leerLabel="Aktuell unterwegs ist nichts." />}
+      {tab === 'lieferuebersicht' && <LieferuebersichtView positionen={lieferuebersicht} suche={suche} />}
       {tab === 'anstehend' && <ZuBestellenView produkte={anstehend} entwuerfe={[]} suche={suche} variante="anstehend" />}
       {tab === 'reklamationen' && <ReklamationenListe reklamationen={offeneReklamationen} suche={suche} leerLabel="Keine offenen Reklamationen." />}
       {tab === 'archiv' && (
@@ -187,6 +195,46 @@ function ZuBestellenView({
   suche: string
   variante?: 'anstehend'
 }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [aktivPartner, setAktivPartner] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ msg: string; err?: boolean } | null>(null)
+  const readOnly = variante === 'anstehend'
+
+  function showToast(msg: string, err = false) {
+    setToast({ msg, err })
+    setTimeout(() => setToast(null), 4000)
+  }
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id); else n.add(id)
+      return n
+    })
+  }
+
+  function ausloesen(g: { partnerId: string | null; partnerName: string; produkte: ZuBestellendesProdukt[] }) {
+    if (!g.partnerId) { showToast('Produkte ohne Lieferant können nicht bestellt werden.', true); return }
+    const ausgewaehlt = g.produkte.filter((p) => selected.has(p.raum_produkt_id))
+    const ziel = ausgewaehlt.length > 0 ? ausgewaehlt : g.produkte
+    const positionen = ziel.map((p) => ({
+      raumProduktId:    p.raum_produkt_id,
+      menge:            p.menge,
+      einzelpreisNetto: p.produkt.einkaufspreis ?? 0,
+    }))
+    const partnerId = g.partnerId
+    setAktivPartner(partnerId)
+    startTransition(async () => {
+      const res = await bestellungAusloesen({ partnerId, positionen })
+      setAktivPartner(null)
+      if (res.fehler) { showToast(res.fehler, true); return }
+      showToast(`Bestellung ${res.bestellnummer ?? ''} bei ${g.partnerName} ausgelöst (${positionen.length} Position${positionen.length === 1 ? '' : 'en'}).`)
+      setSelected(new Set())
+      router.refresh()
+    })
+  }
+
   const gefiltert = useMemo(() => {
     if (!suche.trim()) return produkte
     const q = suche.trim().toLowerCase()
@@ -217,6 +265,12 @@ function ZuBestellenView({
 
   return (
     <div className="space-y-6">
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-[100] px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium text-white ${toast.err ? 'bg-red-500' : 'bg-wellbeing-green'}`}>
+          {toast.msg}
+        </div>
+      )}
+
       {/* Entwurfs-Bestellungen oben */}
       {entwuerfe.length > 0 && (
         <div>
@@ -227,6 +281,12 @@ function ZuBestellenView({
         </div>
       )}
 
+      {!readOnly && gruppen.length > 0 && (
+        <p className="text-xs text-gray-400 -mb-2">
+          Tipp: Produkte ankreuzen, um nur eine Teilmenge zu bestellen — ohne Auswahl wird die ganze Lieferanten-Gruppe ausgelöst.
+        </p>
+      )}
+
       {gruppen.length === 0 ? (
         <EmptyState text={
           variante === 'anstehend'
@@ -234,35 +294,73 @@ function ZuBestellenView({
             : 'Aktuell muss nichts bestellt werden — alle freigegebenen Produkte sind in Bestellungen erfasst.'
         } />
       ) : (
-        gruppen.map((g) => (
+        gruppen.map((g) => {
+          const ausgewaehltInGruppe = g.produkte.filter((p) => selected.has(p.raum_produkt_id)).length
+          const istAktiv = aktivPartner === g.partnerId && pending
+          return (
           <div key={g.partnerId ?? '_'}>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <h3 className="text-sm font-semibold text-gray-700">{g.partnerName}</h3>
-              <span className="text-xs text-gray-400">({g.produkte.length} Produkte)</span>
-              {variante !== 'anstehend' && g.partnerId && (
-                <Link
-                  href={`/dashboard/bestellungen/neu?partner_id=${g.partnerId}`}
-                  className="ml-auto text-xs text-wellbeing-green hover:underline inline-flex items-center gap-1"
-                >
-                  Bestellung anlegen <ChevronRight className="w-3 h-3" />
-                </Link>
+              <span className="text-xs text-gray-400">
+                ({ausgewaehltInGruppe > 0 ? `${ausgewaehltInGruppe} von ${g.produkte.length}` : g.produkte.length} Produkte)
+              </span>
+              {!readOnly && g.partnerId && (
+                <div className="ml-auto flex items-center gap-3">
+                  <Link
+                    href={`/dashboard/bestellungen/neu?partner_id=${g.partnerId}`}
+                    className="text-xs text-gray-400 hover:text-wellbeing-green hover:underline inline-flex items-center gap-1"
+                  >
+                    Als Entwurf <ChevronRight className="w-3 h-3" />
+                  </Link>
+                  <button
+                    onClick={() => ausloesen(g)}
+                    disabled={pending}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {istAktiv ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PackageCheck className="w-3.5 h-3.5" />}
+                    {ausgewaehltInGruppe > 0 ? `${ausgewaehltInGruppe} bestellen` : 'Bestellung auslösen'}
+                  </button>
+                </div>
               )}
             </div>
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm divide-y divide-gray-100">
               {g.produkte.map((p) => (
-                <ProduktZeile key={p.raum_produkt_id} eintrag={p} />
+                <ProduktZeile
+                  key={p.raum_produkt_id}
+                  eintrag={p}
+                  selectable={!readOnly}
+                  checked={selected.has(p.raum_produkt_id)}
+                  onToggle={() => toggle(p.raum_produkt_id)}
+                />
               ))}
             </div>
           </div>
-        ))
+        )})
       )}
     </div>
   )
 }
 
-function ProduktZeile({ eintrag }: { eintrag: ZuBestellendesProdukt }) {
+function ProduktZeile({
+  eintrag, selectable, checked, onToggle,
+}: {
+  eintrag: ZuBestellendesProdukt
+  selectable?: boolean
+  checked?: boolean
+  onToggle?: () => void
+}) {
   return (
     <div className="flex items-center gap-3 px-4 py-3">
+      {selectable && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label="Produkt auswählen"
+          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? 'border-wellbeing-green bg-wellbeing-green' : 'border-gray-300 hover:border-wellbeing-green/50'}`}
+        >
+          {checked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+        </button>
+      )}
       <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 shrink-0 flex items-center justify-center">
         {eintrag.produkt.bild_url ? (
           /* eslint-disable-next-line @next/next/no-img-element */
@@ -299,6 +397,84 @@ function ProduktZeile({ eintrag }: { eintrag: ZuBestellendesProdukt }) {
       >
         <ExternalLink className="w-4 h-4" />
       </Link>
+    </div>
+  )
+}
+
+// ── Lieferübersicht (wer liefert was wann) ──────────────────────
+const LU_STATUS: Record<string, { label: string; cls: string }> = {
+  bestaetigt: { label: 'Ausgelöst',   cls: 'bg-blue-50 text-blue-700' },
+  versandt:   { label: 'Versandt',    cls: 'bg-indigo-50 text-indigo-700' },
+  geliefert:  { label: 'Geliefert',   cls: 'bg-emerald-50 text-emerald-700' },
+  teilretour: { label: 'Teilretoure', cls: 'bg-amber-50 text-amber-700' },
+}
+
+function LieferuebersichtView({ positionen, suche }: { positionen: LieferuebersichtPosition[]; suche: string }) {
+  const gefiltert = useMemo(() => {
+    if (!suche.trim()) return positionen
+    const q = suche.trim().toLowerCase()
+    return positionen.filter((p) =>
+      p.produkt_name.toLowerCase().includes(q) ||
+      p.partner_name.toLowerCase().includes(q) ||
+      (p.projekt_name?.toLowerCase().includes(q) ?? false) ||
+      (p.bestellnummer?.toLowerCase().includes(q) ?? false))
+  }, [positionen, suche])
+
+  const gruppen = useMemo(() => {
+    const m = new Map<string, { partnerName: string; positionen: LieferuebersichtPosition[] }>()
+    for (const p of gefiltert) {
+      const key = p.partner_id ?? '_'
+      const e = m.get(key)
+      if (e) e.positionen.push(p)
+      else m.set(key, { partnerName: p.partner_name, positionen: [p] })
+    }
+    return Array.from(m.values()).sort((a, b) => a.partnerName.localeCompare(b.partnerName, 'de'))
+  }, [gefiltert])
+
+  if (gruppen.length === 0) {
+    return <EmptyState text="Noch keine ausgelösten Bestellungen — sobald du eine Bestellung auslöst, erscheint sie hier mit Lieferterminen." />
+  }
+
+  return (
+    <div className="space-y-6">
+      {gruppen.map((g) => (
+        <div key={g.partnerName}>
+          <div className="flex items-center gap-2 mb-2">
+            <Truck className="w-4 h-4 text-gray-400" />
+            <h3 className="text-sm font-semibold text-gray-700">{g.partnerName}</h3>
+            <span className="text-xs text-gray-400">({g.positionen.length})</span>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm divide-y divide-gray-100">
+            {g.positionen.map((p, i) => {
+              const st = LU_STATUS[p.status] ?? { label: p.status, cls: 'bg-gray-100 text-gray-600' }
+              return (
+                <div key={`${p.bestellung_id}-${i}`} className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-900 truncate">{p.produkt_name}</span>
+                      <span className="text-[11px] text-gray-400 shrink-0">×{p.menge} {p.einheit}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 truncate mt-0.5 inline-flex items-center gap-1">
+                      {p.bestellnummer && <span className="text-gray-400">{p.bestellnummer}</span>}
+                      {p.projekt_name && <><span className="text-gray-300">·</span>{p.projekt_name}</>}
+                      {p.raum_name && <span className="text-gray-400">· {p.raum_name}</span>}
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-600 inline-flex items-center gap-1 shrink-0">
+                    <Calendar className="w-3 h-3 text-gray-400" />
+                    {p.liefertermin ? new Date(p.liefertermin).toLocaleDateString('de-DE') : 'kein Termin'}
+                    {p.liefertermin_bestaetigt && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                  </div>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${st.cls}`}>{st.label}</span>
+                  <Link href={`/dashboard/bestellungen/${p.bestellung_id}`} className="text-gray-300 hover:text-wellbeing-green shrink-0" title="Zur Bestellung">
+                    <ExternalLink className="w-4 h-4" />
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -358,7 +534,7 @@ function BestellungenListe({
 function StatusBadge({ status }: { status: BestellungMitPartner['status'] }) {
   const cfg: Record<typeof status, { bg: string; text: string; label: string; Icon: React.ComponentType<{ className?: string }> }> = {
     entwurf:    { bg: 'bg-gray-100',    text: 'text-gray-700',     label: 'Entwurf',    Icon: Clock },
-    bestaetigt: { bg: 'bg-blue-50',     text: 'text-blue-700',     label: 'Bestätigt',  Icon: CheckCircle2 },
+    bestaetigt: { bg: 'bg-blue-50',     text: 'text-blue-700',     label: 'Ausgelöst',  Icon: CheckCircle2 },
     versandt:   { bg: 'bg-indigo-50',   text: 'text-indigo-700',   label: 'Versandt',   Icon: Truck },
     geliefert:  { bg: 'bg-emerald-50',  text: 'text-emerald-700',  label: 'Geliefert',  Icon: CheckCircle2 },
     storniert:  { bg: 'bg-rose-50',     text: 'text-rose-700',     label: 'Storniert',  Icon: AlertTriangle },

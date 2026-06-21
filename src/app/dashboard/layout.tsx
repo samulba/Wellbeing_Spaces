@@ -24,6 +24,7 @@ export default async function DashboardLayout({
   let nachrichtenCount = 0
   let reklamationenCount = 0
   let aufgabenCount = 0
+  let zuBestellenCount = 0
   let rolle: Rolle   = 'viewer'
   let userAvatarUrl: string | null = null
   let userVorname:   string | null = null
@@ -31,7 +32,7 @@ export default async function DashboardLayout({
 
   try {
     const heuteIso = new Date().toISOString().slice(0, 10)
-    const [freigabenRes, anfragenRes, rolleRes, meRes, nachrichtenRes, reklamationenRes, aufgabenRes] = await Promise.allSettled([
+    const [freigabenRes, anfragenRes, rolleRes, meRes, nachrichtenRes, reklamationenRes, aufgabenRes, bestellungenRes] = await Promise.allSettled([
       // Freigaben-Badge: zaehlt PROJEKTE mit mind. einer ausstehenden Freigabe,
       // nicht jede einzelne Position (sonst wird die Zahl viel zu schnell gross).
       supabase
@@ -63,6 +64,13 @@ export default async function DashboardLayout({
         .eq('assignee_user_id', user.id)
         .neq('status', 'erledigt')
         .lt('faellig_am', heuteIso),
+      // Zu bestellen: freigegebene, noch nicht bestellte Produkte
+      supabase
+        .from('raum_produkte')
+        .select('*', { count: 'exact', head: true })
+        .eq('freigabe_status', 'freigegeben')
+        .eq('bestellstatus', 'ausstehend')
+        .is('deleted_at', null),
     ])
 
     // Freigaben-Count = Anzahl unique Projekte mit ausstehender Freigabe
@@ -82,6 +90,7 @@ export default async function DashboardLayout({
     nachrichtenCount   = nachrichtenRes.status   === 'fulfilled' ? nachrichtenRes.value : 0
     reklamationenCount = reklamationenRes.status === 'fulfilled' ? (reklamationenRes.value.count ?? 0) : 0
     aufgabenCount      = aufgabenRes.status      === 'fulfilled' ? (aufgabenRes.value.count      ?? 0) : 0
+    zuBestellenCount   = bestellungenRes.status  === 'fulfilled' ? (bestellungenRes.value.count  ?? 0) : 0
     if (meRes.status === 'fulfilled' && meRes.value.data) {
       userAvatarUrl = (meRes.value.data.avatar_url as string | null) ?? null
       userVorname   = (meRes.value.data.vorname    as string | null) ?? null
@@ -115,6 +124,7 @@ export default async function DashboardLayout({
           offeneNachrichten={nachrichtenCount}
           offeneReklamationen={reklamationenCount}
           offeneAufgaben={aufgabenCount}
+          offeneBestellungen={zuBestellenCount}
           neuestesChangelogDatum={neuestesChangelogDatum}
         />
         <main className="flex-1 overflow-hidden flex flex-col">

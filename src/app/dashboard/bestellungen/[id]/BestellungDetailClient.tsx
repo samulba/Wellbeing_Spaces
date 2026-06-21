@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { lieferantenBestellungMail } from '@/lib/mail-templates'
 import {
-  bestellungAktualisieren, bestellungBestaetigen, bestellungVersandt,
+  bestellungAktualisieren, bestellungAusloesen, bestellungVersandt,
   bestellungGeliefert, bestellungStornieren, bestellungLoeschen,
   bestellungDokumentHochladen, positionEntfernen,
   type BestellungMitDetails,
@@ -59,7 +59,7 @@ export default function BestellungDetailClient({ bestellung: initial }: Props) {
   function handleStatusUebergang(action: 'bestaetigen' | 'versandt' | 'geliefert' | 'stornieren') {
     if (action === 'stornieren' && !confirm('Bestellung wirklich stornieren? Alle Produkte werden auf „Storniert" gesetzt.')) return
     startTransition(async () => {
-      const r = action === 'bestaetigen' ? await bestellungBestaetigen(b.id)
+      const r = action === 'bestaetigen' ? await bestellungAusloesen({ bestellungId: b.id })
               : action === 'versandt'    ? await bestellungVersandt(b.id)
               : action === 'geliefert'   ? await bestellungGeliefert(b.id)
               : await bestellungStornieren(b.id)
@@ -124,7 +124,7 @@ export default function BestellungDetailClient({ bestellung: initial }: Props) {
 
   // Aktion-Buttons abhaengig vom Status
   const naechsteAktionen: Array<{ label: string; action: 'bestaetigen' | 'versandt' | 'geliefert' | 'stornieren'; primary?: boolean }> = (() => {
-    if (b.status === 'entwurf')    return [{ label: 'Bestätigen', action: 'bestaetigen', primary: true }, { label: 'Stornieren', action: 'stornieren' }]
+    if (b.status === 'entwurf')    return [{ label: 'Bestellung auslösen', action: 'bestaetigen', primary: true }, { label: 'Stornieren', action: 'stornieren' }]
     if (b.status === 'bestaetigt') return [{ label: 'Versandt markieren', action: 'versandt', primary: true }, { label: 'Stornieren', action: 'stornieren' }]
     if (b.status === 'versandt')   return [{ label: 'Geliefert markieren', action: 'geliefert', primary: true }]
     return []
@@ -392,7 +392,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function StatusBadge({ status }: { status: BestellungMitDetails['status'] }) {
   const cfg: Record<typeof status, { bg: string; text: string; label: string; Icon: React.ComponentType<{ className?: string }> }> = {
     entwurf:    { bg: 'bg-gray-100',    text: 'text-gray-700',     label: 'Entwurf',    Icon: Clock },
-    bestaetigt: { bg: 'bg-blue-50',     text: 'text-blue-700',     label: 'Bestätigt',  Icon: CheckCircle2 },
+    bestaetigt: { bg: 'bg-blue-50',     text: 'text-blue-700',     label: 'Ausgelöst',  Icon: CheckCircle2 },
     versandt:   { bg: 'bg-indigo-50',   text: 'text-indigo-700',   label: 'Versandt',   Icon: Truck },
     geliefert:  { bg: 'bg-emerald-50',  text: 'text-emerald-700',  label: 'Geliefert',  Icon: CheckCircle2 },
     storniert:  { bg: 'bg-rose-50',     text: 'text-rose-700',     label: 'Storniert',  Icon: AlertTriangle },
