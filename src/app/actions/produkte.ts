@@ -970,9 +970,25 @@ export interface BibliothekProdukt {
 export async function bibliothekProdukteAbrufen(): Promise<BibliothekProdukt[]> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+  const sel = 'id, name, artikelnummer, bild_url, verkaufspreis, kategorie_id, kategorie:kategorien(id, name, icon)'
+  // Bundles/Sets (Migration 128) aus dem Einzelprodukt-Picker ausschliessen —
+  // ein Set wird nur ueber bundleZuRaumHinzufuegen ("explodiert") hinzugefuegt.
+  // Fail-safe: existiert die Spalte ist_bundle noch nicht (Pre-128), laden wir
+  // ohne den Filter erneut, damit der Picker nie bricht.
+  const mitFilter = await supabase
+    .from('produkte')
+    .select(sel)
+    .eq('organisation_id', orgId)
+    .is('deleted_at', null)
+    .eq('ist_variante', false)
+    .eq('ist_bundle', false)
+    .order('name')
+  if (!mitFilter.error) {
+    return (mitFilter.data ?? []) as unknown as BibliothekProdukt[]
+  }
   const { data } = await supabase
     .from('produkte')
-    .select('id, name, artikelnummer, bild_url, verkaufspreis, kategorie_id, kategorie:kategorien(id, name, icon)')
+    .select(sel)
     .eq('organisation_id', orgId)
     .is('deleted_at', null)
     .eq('ist_variante', false)

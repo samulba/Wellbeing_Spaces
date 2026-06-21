@@ -6,16 +6,32 @@ import StickyPageHeader from '@/components/StickyPageHeader'
 import type { KategorieOption } from '@/components/KategorieDropdown'
 import type { ProjektOption, RaumOption } from '@/components/ProduktZuweisenModal'
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
+import { berechneBundlePreis } from '@/lib/bundle-preis'
+
+type ProduktRoh = {
+  id: string; name: string; kategorie: string | null; menge: number; einheit: string
+  verkaufspreis: number | null; bild_url: string | null; produkt_url: string | null
+  partner_id: string | null; ist_bundle?: boolean
+}
 
 async function getProdukte(): Promise<ProduktZeile[]> {
   const supabase = await createClient()
 
-  const [{ data: prodData }, { data: partnerData }, { data: raumProdData }] = await Promise.all([
-    supabase
-      .from('produkte')
-      .select('id, name, kategorie, menge, einheit, verkaufspreis, bild_url, produkt_url, partner_id')
-      .is('deleted_at', null)
-      .order('name'),
+  // produkte laden — fail-safe: mit ist_bundle (Mig 128) probieren, sonst ohne.
+  const baseCols = 'id, name, kategorie, menge, einheit, verkaufspreis, bild_url, produkt_url, partner_id'
+  let prodData: ProduktRoh[] = []
+  let hatBundleSpalte = true
+  const mitBundle = await supabase
+    .from('produkte').select(baseCols + ', ist_bundle').is('deleted_at', null).order('name')
+  if (mitBundle.error) {
+    hatBundleSpalte = false
+    const ohne = await supabase.from('produkte').select(baseCols).is('deleted_at', null).order('name')
+    prodData = (ohne.data ?? []) as unknown as ProduktRoh[]
+  } else {
+    prodData = (mitBundle.data ?? []) as unknown as ProduktRoh[]
+  }
+
+  const [{ data: partnerData }, { data: raumProdData }] = await Promise.all([
     supabase.from('partner').select('id, name').is('deleted_at', null),
     supabase.from('raum_produkte').select('produkt_id, bestellstatus'),
   ])
@@ -32,15 +48,42 @@ async function getProdukte(): Promise<ProduktZeile[]> {
     }
   }
 
-  return (prodData ?? []).map((p) => {
+  // Bundle-Infos (Komponentenzahl + Set-Preis) für Bundle-Köpfe
+  const bundleInfo = new Map<string, { anzahl: number; setPreis: number | null }>()
+  if (hatBundleSpalte) {
+    const bundleIds = prodData.filter((p) => p.ist_bundle).map((p) => p.id)
+    if (bundleIds.length > 0) {
+      const { data: bData } = await supabase
+        .from('produkte')
+        .select('id, bundle_preis_modus, bundle_rabatt_prozent, bundle_festpreis, komponenten:bundle_komponenten!bundle_id(menge, komponente:produkte!komponente_produkt_id(verkaufspreis, deleted_at))')
+        .in('id', bundleIds)
+      type BRow = {
+        id: string; bundle_preis_modus: 'summe' | 'rabatt' | 'festpreis' | null
+        bundle_rabatt_prozent: number | null; bundle_festpreis: number | null
+        komponenten: { menge: number; komponente: { verkaufspreis: number | null; deleted_at: string | null } | null }[] | null
+      }
+      for (const b of (bData ?? []) as unknown as BRow[]) {
+        const komps = (b.komponenten ?? []).filter((k) => k.komponente && k.komponente.deleted_at == null)
+        const preis = berechneBundlePreis(
+          b.bundle_preis_modus, b.bundle_rabatt_prozent, b.bundle_festpreis,
+          komps.map((k) => ({ menge: k.menge, verkaufspreis: k.komponente?.verkaufspreis ?? 0 })),
+        )
+        bundleInfo.set(b.id, { anzahl: komps.length, setPreis: preis.setPreis })
+      }
+    }
+  }
+
+  return prodData.map((p) => {
     const partner = p.partner_id ? partnerMap[p.partner_id] : null
+    const istBundle = !!p.ist_bundle
+    const info = istBundle ? bundleInfo.get(p.id) : undefined
     return {
       id:                 p.id,
       name:               p.name,
       kategorie:          p.kategorie,
       menge:              p.menge,
       einheit:            p.einheit,
-      verkaufspreis:      p.verkaufspreis,
+      verkaufspreis:      istBundle ? (info?.setPreis ?? p.verkaufspreis) : p.verkaufspreis,
       bild_url:           p.bild_url,
       produkt_url:        p.produkt_url,
       partnerName:        partner?.name ?? null,
@@ -52,6 +95,9 @@ async function getProdukte(): Promise<ProduktZeile[]> {
       kundeName:          null,
       verwendetInAnzahl:  raumAnzahlMap[p.id] ?? 0,
       gelieferteAnzahl:   geliefertMap[p.id] ?? 0,
+      istBundle,
+      komponentenAnzahl:  info?.anzahl ?? 0,
+      setPreisNetto:      info?.setPreis ?? null,
     }
   })
 }

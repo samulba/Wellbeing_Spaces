@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useState, useMemo, useTransition, useRef, useEffect } from 'react'
+import { Fragment, useState, useMemo, useTransition, useRef, useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DndContext,
@@ -24,7 +24,7 @@ import {
   Receipt, Trash2, X, CalendarDays, Truck, PackageCheck, Pencil,
   XCircle, AlertTriangle, Undo2, RotateCcw,
   Tag, ArrowRight, Calendar, Star, FolderPlus, Plus, Layers, StickyNote,
-  MessageSquareQuote,
+  MessageSquareQuote, Boxes,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -54,6 +54,7 @@ import Checkbox from './Checkbox'
 import ZuordnungChip from './ZuordnungChip'
 import AlternativeModal from './AlternativeModal'
 import { bestellstatusAendern, produktDatumAktualisieren, type ProduktDatumFeld } from '@/app/actions/produkte'
+import { bundleAusRaumEntfernen } from '@/app/actions/bundles'
 import type { RaumProduktMitDetails, BestellStatus, ProduktGruppe, ProduktBereich } from '@/lib/supabase/types'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import { effektiverVpNetto, basisVpNetto, provisionBetrag } from '@/lib/preise'
@@ -63,6 +64,52 @@ import ReklamationModal from './ReklamationModal'
 const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
+
+/**
+ * Reordnet Zeilen so, dass Komponenten desselben Sets (bundle_id) zusammenhängend
+ * am Platz ihrer ersten Komponente stehen. Einzelzeilen behalten ihre Position.
+ * Wird sowohl für die Anzeige als auch für die SortableContext-Reihenfolge genutzt
+ * (konsistent → Drag&Drop bleibt korrekt).
+ */
+function gruppiereNachBundle(rows: RaumProduktMitDetails[]): RaumProduktMitDetails[] {
+  const seen = new Set<string>()
+  const out: RaumProduktMitDetails[] = []
+  for (const r of rows) {
+    const bid = r.bundle_id
+    if (!bid) { out.push(r); continue }
+    if (seen.has(bid)) continue
+    seen.add(bid)
+    out.push(...rows.filter((x) => x.bundle_id === bid))
+  }
+  return out
+}
+
+/** Header-Zeile über den Komponenten eines Sets im Raum. */
+function SetHeaderRow({
+  name, anzahl, totalBrutto, onEntfernen,
+}: { name: string; anzahl: number; totalBrutto: string; onEntfernen: () => void }) {
+  return (
+    <tr className="bg-wellbeing-green/5 border-y border-wellbeing-green/20">
+      <td className="pl-3 pr-0 py-2" />
+      <td colSpan={7} className="px-3 py-2">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-wellbeing-green-dark">
+          <Boxes className="w-3.5 h-3.5" />
+          {name}
+          <span className="text-gray-400 font-normal">· {anzahl} Komponente{anzahl === 1 ? '' : 'n'} · Set {totalBrutto}</span>
+        </span>
+      </td>
+      <td colSpan={4} className="px-3 py-2 text-right">
+        <button
+          type="button"
+          onClick={onEntfernen}
+          className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 hover:text-red-700 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Set entfernen
+        </button>
+      </td>
+    </tr>
+  )
+}
 
 const statusBadge: Record<string, string> = {
   ausstehend:     'bg-gray-100 text-gray-600',
@@ -1122,6 +1169,7 @@ export default function SortableProduktTabelle({
   raumId,
   produktGruppen: initialGruppen = [],
   produktBereiche: initialBereiche = [],
+  bundleNamen = {},
 }: {
   eintraege: RaumProduktMitDetails[]
   mwst: number
@@ -1129,6 +1177,7 @@ export default function SortableProduktTabelle({
   raumId: string
   produktGruppen?: ProduktGruppe[]
   produktBereiche?: ProduktBereich[]
+  bundleNamen?: Record<string, string>
 }) {
   const router = useRouter()
   const [eintraege, setEintraege] = useState(initialEintraege)
@@ -1167,6 +1216,9 @@ export default function SortableProduktTabelle({
   })
   const [fehlerToast, setFehlerToast] = useState<string | null>(null)
   const [erfolgToast, setErfolgToast] = useState<string | null>(null)
+  // Set/Bundle aus dem Raum entfernen (alle Komponenten der Instanz)
+  const [bundleEntfernen, setBundleEntfernen] = useState<{ id: string; name: string } | null>(null)
+  const [isBundleEntfernen, setIsBundleEntfernen] = useState(false)
 
   // Sync mit Server-Daten NUR wenn sich die ID-Liste oder Reihenfolge ändert
   // (z.B. nach Filter-Wechsel oder Add/Remove). Wir resetten NICHT bei jedem
@@ -1222,13 +1274,13 @@ export default function SortableProduktTabelle({
       buckets.push({
         bereich: b,
         bloecke: sortierteGruppen.filter((g) => g.bereich_id === b.id).map((g) => ({ gruppe: g, rows: rowsOf(g) })),
-        standalone: eintraege.filter((e) => istUngrouped(e) && e.bereich_id === b.id),
+        standalone: gruppiereNachBundle(eintraege.filter((e) => istUngrouped(e) && e.bereich_id === b.id)),
       })
     }
     const ohneBloecke = sortierteGruppen
       .filter((g) => !g.bereich_id || !bereichIds.has(g.bereich_id))
       .map((g) => ({ gruppe: g, rows: rowsOf(g) }))
-    const ohneStandalone = eintraege.filter((e) => istUngrouped(e) && (!e.bereich_id || !bereichIds.has(e.bereich_id)))
+    const ohneStandalone = gruppiereNachBundle(eintraege.filter((e) => istUngrouped(e) && (!e.bereich_id || !bereichIds.has(e.bereich_id))))
     if (ohneBloecke.length > 0 || ohneStandalone.length > 0) {
       buckets.push({ bereich: null, bloecke: ohneBloecke, standalone: ohneStandalone })
     }
@@ -1419,6 +1471,24 @@ export default function SortableProduktTabelle({
     }
     setIsDeleting(false)
     setDeleteTarget(null)
+    if (!res?.fehler) startTransition(() => router.refresh())
+  }
+
+  // Komplettes Set (alle Komponenten der Instanz) aus dem Raum entfernen
+  async function handleBundleEntfernen() {
+    if (!bundleEntfernen || isBundleEntfernen) return
+    setIsBundleEntfernen(true)
+    const bid = bundleEntfernen.id
+    const vorher = eintraege
+    setEintraege((prev) => prev.filter((e) => e.bundle_id !== bid))
+    const res = await bundleAusRaumEntfernen(raumId, bid, projektId)
+    if (res?.fehler) {
+      setEintraege(vorher)
+      setFehlerToast('Set konnte nicht entfernt werden.')
+      setTimeout(() => setFehlerToast(null), 4000)
+    }
+    setIsBundleEntfernen(false)
+    setBundleEntfernen(null)
     if (!res?.fehler) startTransition(() => router.refresh())
   }
 
@@ -1660,6 +1730,33 @@ export default function SortableProduktTabelle({
     />
   )
 
+  // Rendert Einzelzeilen; Komponenten eines Sets (bundle_id) werden unter einem
+  // Set-Header zusammengefasst (Reihen sind bereits via gruppiereNachBundle
+  // zusammenhängend). Set-Header ist eine nicht-sortierbare Zeile → DnD bleibt intakt.
+  const renderStandaloneRows = (rows: RaumProduktMitDetails[]) => {
+    const out: ReactNode[] = []
+    for (let i = 0; i < rows.length; i++) {
+      const e = rows[i]
+      const bid = e.bundle_id ?? null
+      const prevBid = i > 0 ? (rows[i - 1].bundle_id ?? null) : null
+      if (bid && bid !== prevBid) {
+        const blockRows = rows.filter((x) => x.bundle_id === bid)
+        const totalNetto = blockRows.reduce((s, x) => s + effektiverVpNetto(x, x.produkte.verkaufspreis) * x.menge, 0)
+        out.push(
+          <SetHeaderRow
+            key={`set-${bid}`}
+            name={bundleNamen[bid] ?? 'Set'}
+            anzahl={blockRows.length}
+            totalBrutto={eur(r2(totalNetto * (1 + mwst)))}
+            onEntfernen={() => setBundleEntfernen({ id: bid, name: bundleNamen[bid] ?? 'Set' })}
+          />,
+        )
+      }
+      out.push(renderZeile(e, false, false))
+    }
+    return out
+  }
+
   // Rendert den Inhalt eines Bereich-Buckets: Auswahl-Blöcke (Header + Zeilen),
   // danach die Einzelprodukte. Wird mit/ohne Bereich-Header verwendet.
   const renderBucket = (bucket: RenderBucket) => (
@@ -1702,7 +1799,7 @@ export default function SortableProduktTabelle({
               </td>
             </tr>
           )}
-          {bucket.standalone.map((e) => renderZeile(e, false, false))}
+          {renderStandaloneRows(bucket.standalone)}
         </>
       )}
     </>
@@ -1819,7 +1916,7 @@ export default function SortableProduktTabelle({
                 ) : hatGruppen ? (
                   layout.length > 0 ? renderBucket(layout[0]) : null
                 ) : (
-                  eintraege.map((e, i) => renderZeile(e, false, i === eintraege.length - 1))
+                  renderStandaloneRows(gruppiereNachBundle(eintraege))
                 )}
               </tbody>
             </table>
@@ -1925,6 +2022,19 @@ export default function SortableProduktTabelle({
         cancelText="Abbrechen"
         variant="warning"
         isLoading={isResetting}
+      />
+
+      {/* Set komplett aus dem Raum entfernen — 2-stufige Bestätigung */}
+      <ConfirmModal
+        isOpen={!!bundleEntfernen}
+        onClose={() => { if (!isBundleEntfernen) setBundleEntfernen(null) }}
+        onConfirm={handleBundleEntfernen}
+        title="Set entfernen?"
+        message={bundleEntfernen ? `Alle Komponenten des Sets „${bundleEntfernen.name}" werden aus diesem Raum entfernt. Die Produkte bleiben in der Bibliothek erhalten.` : ''}
+        confirmText="Set entfernen"
+        cancelText="Abbrechen"
+        variant="danger"
+        isLoading={isBundleEntfernen}
       />
 
       {/* Schwebende Auswahl-Leiste (Freigaben-Stil) */}

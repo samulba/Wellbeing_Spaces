@@ -5,6 +5,13 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Produkt-Sets / Bundles in der Bibliothek (Phase 1)
+- **Neu:** In der Produktbibliothek lassen sich jetzt **Sets/Bundles** anlegen — mehrere Produkte mit Mengen als Komplett-Set (z. B. „LED-Strip-Komplettset" = Strips + Profile + Trafo + Verstärker + Fernbedienung). Über **Neues Produkt → „Set / Bundle anlegen"**: Komponenten aus der Bibliothek wählen, Mengen setzen, Live-Preis sehen.
+- **Set-Preis:** Summe der Komponenten, optional mit **Set-Rabatt %** oder **Festpreis** (Set günstiger als Einzelteile anbieten).
+- **In ein Projekt einfügen:** Im Raum über **Produkt hinzufügen → „Set / Bundle hinzufügen"** wird das Set mit einem Klick in seine Einzelkomponenten „aufgeteilt" (richtige Mengen × Anzahl Sets), sichtbar als **Set gruppiert** mit „Set entfernen". Jede Komponente bleibt einzeln bestell- und nachverfolgbar; der Set-Rabatt wird automatisch auf jede Komponente angewendet, sodass **Summen, Budget und PDF/CSV-Exporte** ohne Weiteres stimmen.
+- In der Bibliothek sind Sets mit **„Set"-Badge**, Komponentenzahl und einem **Sets-Filter** erkennbar.
+- **Migration 128** muss in Supabase ausgeführt werden. Bis dahin funktioniert alles wie bisher (Sets erscheinen einfach noch nicht).
+
 ### Kunden-Übersicht als Kopier-Zentrale (Bestellprozess) + getrennte Adresse
 - Die Kontakt-/Firma-Karte in der **Übersicht** ist jetzt aufgeräumt und auf **schnelles Kopieren** ausgelegt: hinter **jedem** Feld (Name, Firma, Ansprechpartner, E-Mail, Telefon, Straße, PLZ, Ort, Website) sitzt ein **Copy-Symbol** — ein Klick kopiert den Wert (kurzes „✓ Kopiert"-Feedback). Oben rechts **„Alles kopieren"** legt Name + Adresse + Telefon + E-Mail als fertigen Block in die Zwischenablage (ideal für Bestellformulare).
 - **Adresse jetzt getrennt** in **Straße & Hausnummer / PLZ / Ort** — so lassen sich die Teile einzeln kopieren. Im Bearbeiten-Formular pflegbar; bei Bestandskunden wird die bisher gespeicherte Adresse als Hinweis angezeigt, bis du sie einmal aufteilst (es geht nichts verloren).

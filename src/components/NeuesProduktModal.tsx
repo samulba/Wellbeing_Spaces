@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { Plus, FolderOpen, Package, X, ChevronRight } from 'lucide-react'
+import { Plus, FolderOpen, Package, X, ChevronRight, Boxes } from 'lucide-react'
 
 export default function NeuesProduktModal() {
   const [offen, setOffen] = useState(false)
@@ -83,6 +83,25 @@ export default function NeuesProduktModal() {
               </p>
               <p className="text-xs text-gray-500 mt-0.5">
                 Projekt → Raum auswählen, dann anlegen
+              </p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-wellbeing-green-light transition-colors shrink-0" />
+          </button>
+
+          {/* Option 3 — Set / Bundle */}
+          <button
+            onClick={() => navigate('/dashboard/produkte/bundles/neu')}
+            className="w-full flex items-center gap-4 px-4 py-4 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-left group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 group-hover:bg-wellbeing-cream transition-colors">
+              <Boxes className="w-5 h-5 text-gray-500 group-hover:text-wellbeing-green transition-colors" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 group-hover:text-wellbeing-green-dark transition-colors">
+                Set / Bundle anlegen
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Mehrere Produkte als Komplett-Set bündeln
               </p>
             </div>
             <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-wellbeing-green-light transition-colors shrink-0" />

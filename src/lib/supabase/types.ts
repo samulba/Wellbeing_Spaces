@@ -531,9 +531,43 @@ export interface Produkt {
   ist_variante: boolean
   eltern_produkt_id: string | null
   varianten_attribute: Json | null  // z.B. {"farbe": "Eiche", "groesse": "120x80"}
+  // Bundles / Sets (Migration 128) — optional, da Reads aus Pre-128-DB diese
+  // Spalten ggf. nicht selektieren. ist_bundle=true → Bundle-Kopf in der Bibliothek.
+  ist_bundle?: boolean
+  bundle_preis_modus?: BundlePreisModus | null
+  bundle_rabatt_prozent?: number | null
+  bundle_festpreis?: number | null
   deleted_at: string | null
   created_at: string
   updated_at: string
+}
+
+// ── Bundles / Sets (Migration 128) ────────────────────────────
+export type BundlePreisModus = 'summe' | 'rabatt' | 'festpreis'
+
+export interface BundleKomponente {
+  id: string
+  organisation_id: string
+  bundle_id: string
+  komponente_produkt_id: string
+  menge: number
+  reihenfolge: number
+  created_at: string
+}
+
+export type BundleKomponenteMitProdukt = BundleKomponente & {
+  komponente: Pick<
+    Produkt,
+    'id' | 'name' | 'verkaufspreis' | 'einkaufspreis' | 'bild_url' | 'einheit' | 'kategorie'
+  > | null
+}
+
+/** Bundle-Kopf + Komponenten inkl. berechneter Preise (compute-on-read). */
+export type BundleMitKomponenten = Produkt & {
+  komponenten: BundleKomponenteMitProdukt[]
+  listenpreis_netto: number          // Σ(komponente.verkaufspreis × menge)
+  effektiver_rabatt_prozent: number
+  set_preis_netto: number            // listenpreis × (1 − rabatt/100)
 }
 
 // ── Varianten-Definitionen (Migration 041) ────────────────────
@@ -582,6 +616,9 @@ export interface RaumProdukt {
   // Bereich (Migration 116) — "Gruppe" eines EINZELprodukts. Bei Produkten in
   // einem Block ignoriert (Bereich kommt dann vom Block).
   bereich_id: string | null
+  // Bundle-Instanz-Gruppierung (Migration 128) — NULL = normale Einzelzeile,
+  // sonst = produkte.id des Bundle-Kopfes, dessen Komponente diese Zeile ist.
+  bundle_id?: string | null
   // Migration 100 — Lifecycle-Datums-Felder
   storniert_am?: string | null
   mangel_gemeldet_am?: string | null

@@ -12,6 +12,7 @@ import { getRaumProdukte } from '@/app/actions/raum-produkte'
 import { effektiverVpNetto, provisionBetrag } from '@/lib/preise'
 import { produktGruppenAbrufen } from '@/app/actions/produkt-gruppen'
 import { produktBereicheAbrufen } from '@/app/actions/produkt-bereiche'
+import { getBundleNamen } from '@/app/actions/bundles'
 import { raumEventsAbrufen } from '@/app/actions/timeline'
 import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
@@ -90,6 +91,12 @@ export default async function RaumDetailPage({
   ])
 
   if (!raum) notFound()
+
+  // Bundle-Köpfe (Namen) für die Set-Header in der Produkttabelle — fail-safe.
+  const bundleIds = Array.from(new Set(
+    alleEintraege.map((e) => e.bundle_id).filter(Boolean) as string[],
+  ))
+  const bundleNamen = await getBundleNamen(bundleIds)
 
   const eintraege = filtern(alleEintraege, searchParams)
   const projekt   = raum.projekte
@@ -240,6 +247,7 @@ export default async function RaumDetailPage({
               raumId={params.raumId}
               produktGruppen={produktGruppen}
               produktBereiche={produktBereiche}
+              bundleNamen={bundleNamen}
             />
 
             {/* Summenzeile */}

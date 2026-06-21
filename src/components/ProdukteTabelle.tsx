@@ -7,10 +7,11 @@ import Image from 'next/image'
 import ProduktZuweisenModal, { type ProjektOption, type RaumOption } from '@/components/ProduktZuweisenModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { produktAusBibliothekLoeschen } from '@/app/actions/produkte'
+import { bundleAusBibliothekLoeschen } from '@/app/actions/bundles'
 import {
   type LucideIcon,
   ExternalLink, ChevronUp, ChevronDown, Search, X, Trash2,
-  LayoutList, LayoutGrid, Grid3X3, Package,
+  LayoutList, LayoutGrid, Grid3X3, Package, Boxes,
   Sofa, Armchair, Lamp, Lightbulb, Bed, Table2, Vegan, Wind,
   Leaf, Flower, TreePine, Sunrise, Droplets, Mountain, Palmtree,
   Home, Building, Building2, Hotel, Layers, Grid, DoorOpen, Bath, BedDouble,
@@ -120,6 +121,10 @@ export type ProduktZeile = {
   kundeName: string | null
   verwendetInAnzahl?: number
   gelieferteAnzahl?:  number
+  // Bundles / Sets (Migration 128)
+  istBundle?:         boolean
+  komponentenAnzahl?: number
+  setPreisNetto?:     number | null
 }
 
 const eur = (n: number) =>
@@ -166,6 +171,7 @@ export default function ProdukteTabelle({
   const [suche, setSuche]                     = useState('')
   const [filterPartner, setFilterPartner]     = useState('')
   const [filterKategorie, setFilterKategorie] = useState('')
+  const [filterTyp, setFilterTyp]             = useState<'alle' | 'produkte' | 'sets'>('alle')
   const [sortKey, setSortKey]                 = useState<SortKey>('name')
   const [sortDir, setSortDir]                 = useState<SortDir>('asc')
 
@@ -231,6 +237,9 @@ export default function ProdukteTabelle({
 
     if (filterKategorie) liste = liste.filter((p) => p.kategorie === filterKategorie)
 
+    if (filterTyp === 'sets')     liste = liste.filter((p) => p.istBundle)
+    else if (filterTyp === 'produkte') liste = liste.filter((p) => !p.istBundle)
+
     return [...liste].sort((a, b) => {
       let v = 0
       if (sortKey === 'name')          v = a.name.localeCompare(b.name)
@@ -238,14 +247,16 @@ export default function ProdukteTabelle({
       if (sortKey === 'partner')       v = (a.partnerName ?? '').localeCompare(b.partnerName ?? '')
       return sortDir === 'asc' ? v : -v
     })
-  }, [produkte, geloeschtIds, suche, filterPartner, filterKategorie, sortKey, sortDir])
+  }, [produkte, geloeschtIds, suche, filterPartner, filterKategorie, filterTyp, sortKey, sortDir])
 
   async function handleConfirmDelete() {
     if (!deleteTarget || isDeleting) return
     const id = deleteTarget.id
     setIsDeleting(true)
     setGeloeschtIds((prev) => new Set(prev).add(id)) // optimistisch ausblenden
-    const res = await produktAusBibliothekLoeschen(id)
+    const res = deleteTarget.istBundle
+      ? await bundleAusBibliothekLoeschen(id)
+      : await produktAusBibliothekLoeschen(id)
     setIsDeleting(false)
     setDeleteTarget(null)
     if (res?.fehler) {
@@ -271,10 +282,42 @@ export default function ProdukteTabelle({
 
   const activeFilters = [filterPartner, filterKategorie].filter(Boolean).length
 
-  const produktLink = (_p: ProduktZeile) => `/dashboard/produkte/${_p.id}/bearbeiten`
+  const produktLink = (_p: ProduktZeile) =>
+    _p.istBundle
+      ? `/dashboard/produkte/bundles/${_p.id}/bearbeiten`
+      : `/dashboard/produkte/${_p.id}/bearbeiten`
+
+  const hatSets = useMemo(() => produkte.some((p) => p.istBundle), [produkte])
+
+  const anzahlProdukte = useMemo(() => produkte.filter((p) => !p.istBundle && !geloeschtIds.has(p.id)).length, [produkte, geloeschtIds])
+  const anzahlSets     = useMemo(() => produkte.filter((p) => p.istBundle && !geloeschtIds.has(p.id)).length, [produkte, geloeschtIds])
 
   return (
     <div className="space-y-5">
+
+      {/* ── Typ-Filter (Produkte / Sets) — nur wenn Sets existieren ── */}
+      {hatSets && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {([
+            ['alle', 'Alle', produkte.filter((p) => !geloeschtIds.has(p.id)).length],
+            ['produkte', 'Produkte', anzahlProdukte],
+            ['sets', 'Sets', anzahlSets],
+          ] as const).map(([id, label, count]) => {
+            const aktiv = filterTyp === id
+            return (
+              <button
+                key={id}
+                onClick={() => setFilterTyp(id)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${aktiv ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300'}`}
+              >
+                {id === 'sets' && <Boxes className="w-3.5 h-3.5" />}
+                {label}
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${aktiv ? 'bg-white/20' : 'bg-gray-100'}`}>{count}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* ── Filter-Bar + View-Switcher ─────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -394,14 +437,23 @@ export default function ProdukteTabelle({
                         {p.name}
                       </p>
 
-                      {p.kategorie && (
-                        <span className="inline-block text-[10px] px-1.5 py-0.5 bg-wellbeing-cream text-wellbeing-green rounded-full font-medium">
-                          {p.kategorie}
-                        </span>
-                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {p.istBundle && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-wellbeing-green text-white rounded-full font-medium">
+                            <Boxes className="w-3 h-3" /> Set
+                          </span>
+                        )}
+                        {p.kategorie && (
+                          <span className="inline-block text-[10px] px-1.5 py-0.5 bg-wellbeing-cream text-wellbeing-green rounded-full font-medium">
+                            {p.kategorie}
+                          </span>
+                        )}
+                      </div>
 
                       <p className="text-[11px] text-gray-400 truncate">
-                        {p.partnerName ?? <span className="text-gray-300">Kein Partner</span>}
+                        {p.istBundle
+                          ? `${p.komponentenAnzahl ?? 0} Komponenten`
+                          : (p.partnerName ?? <span className="text-gray-300">Kein Partner</span>)}
                       </p>
 
                       <div className="pt-1.5 border-t border-gray-100">
@@ -413,8 +465,8 @@ export default function ProdukteTabelle({
                     </div>
                   </Link>
 
-                  {/* Zuweisen-Button für Bibliotheksprodukte */}
-                  {isBibliothek && projekte.length > 0 && (
+                  {/* Zuweisen-Button für Bibliotheksprodukte (nicht für Sets) */}
+                  {isBibliothek && !p.istBundle && projekte.length > 0 && (
                     <div className="px-3 pb-3 pt-1">
                       <ProduktZuweisenModal
                         produktId={p.id}
@@ -525,6 +577,11 @@ export default function ProdukteTabelle({
                         {/* Name */}
                         <td className="px-4 py-3 max-w-[200px]">
                           <div className="flex items-start gap-1.5">
+                            {p.istBundle && (
+                              <span className="shrink-0 mt-0.5 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-wellbeing-green text-white rounded-full font-medium">
+                                <Boxes className="w-3 h-3" /> Set
+                              </span>
+                            )}
                             <Link
                               href={produktLink(p)}
                               className="font-medium text-gray-900 hover:text-wellbeing-green transition-colors leading-snug line-clamp-2"
@@ -568,6 +625,10 @@ export default function ProdukteTabelle({
                                 </span>
                               )}
                             </div>
+                          ) : p.istBundle ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] bg-wellbeing-cream text-wellbeing-green-dark rounded-full font-medium whitespace-nowrap">
+                              <Boxes className="w-3 h-3" /> {p.komponentenAnzahl ?? 0} Komponenten
+                            </span>
                           ) : (
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                               <span className="inline-block px-2 py-0.5 text-[11px] bg-gray-100 text-gray-500 rounded-full font-medium whitespace-nowrap">
