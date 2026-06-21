@@ -39,12 +39,14 @@ export async function kundeBestellungBenachrichtigen(
     //    Eigener try/catch: fehlt die Spalte (Pre-129), bleibt erstmalig=false.
     let erstmalig = false
     try {
-      const { data: gated } = await supabase
+      let gate = supabase
         .from('projekte')
         .update({ bestellung_ausgeloest_am: new Date().toISOString() })
         .eq('id', projektId)
         .is('bestellung_ausgeloest_am', null)
-        .select('id')
+      // Defense-in-Depth (Admin-Client → kein RLS): zusätzlich org-scopen.
+      if (projekt.organisation_id) gate = gate.eq('organisation_id', projekt.organisation_id)
+      const { data: gated } = await gate.select('id')
       erstmalig = (gated?.length ?? 0) > 0
     } catch { erstmalig = false }
 

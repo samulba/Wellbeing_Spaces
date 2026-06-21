@@ -77,7 +77,8 @@ export async function kundeLieferungBenachrichtigen(
     }
 
     revalidatePath(`/portal/projekte/${projektId}`)
-  } catch {
-    // Nie werfen.
+  } catch (e) {
+    // Nie werfen — die Statusänderung der Bestellung darf hieran nie scheitern.
+    console.error('[kundeLieferungBenachrichtigen]', e)
   }
 }

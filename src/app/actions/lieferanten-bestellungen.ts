@@ -484,8 +484,21 @@ export async function positionEmpfangen(
     (p: any) => (Number(p.menge_erhalten) || 0) >= (Number(p.menge) || 0),
   )
   if (alleVoll) {
-    const res = await bestellungGeliefert(pos.bestellung_id)
-    komplett = !res.fehler
+    // Nur auslösen, wenn die Bestellung NICHT bereits 'geliefert' ist — sonst würde
+    // ein erneuter "Erhalten"-Klick die Kunden-Benachrichtigung („📦 angekommen")
+    // ein zweites Mal feuern.
+    const { data: best } = await supabase
+      .from('lieferanten_bestellungen')
+      .select('status')
+      .eq('id', pos.bestellung_id)
+      .eq('organisation_id', orgId)
+      .maybeSingle()
+    if (best?.status !== 'geliefert') {
+      const res = await bestellungGeliefert(pos.bestellung_id)
+      komplett = !res.fehler
+    } else {
+      komplett = true
+    }
   }
 
   await auditLog({
@@ -523,6 +536,23 @@ export async function positionEmpfangZuruecksetzen(
     .update({ bestellstatus: 'bestellt' as BestellStatus, lieferung_erhalten_am: null })
     .eq('id', pos.raum_produkt_id)
     .eq('organisation_id', orgId)
+
+  // War die Bestellung bereits 'geliefert', ist sie nach dem Reset nicht mehr
+  // vollständig → ohne Benachrichtigung zurück auf 'versandt' (KEIN statusUebergang,
+  // damit die übrigen Positionen ihren Status behalten).
+  const { data: best } = await supabase
+    .from('lieferanten_bestellungen')
+    .select('status')
+    .eq('id', pos.bestellung_id)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (best?.status === 'geliefert') {
+    await supabase
+      .from('lieferanten_bestellungen')
+      .update({ status: 'versandt' as LieferantenBestellungStatus })
+      .eq('id', pos.bestellung_id)
+      .eq('organisation_id', orgId)
+  }
 
   revalidatePath(`/dashboard/bestellungen/${pos.bestellung_id}`)
   return { erfolg: true }

@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Wareneingang – Feinschliff (nach Code-Audit)
+- **Behoben:** Beim erneuten Abhaken einer bereits vollständig gelieferten Bestellung wurde dem Kunden die **„📦 angekommen"-Nachricht ein zweites Mal** geschickt — passiert jetzt nur noch genau einmal.
+- **Behoben:** Wird der Wareneingang einer Position **zurückgesetzt**, springt die Bestellung von „Geliefert" sauber zurück auf „Versandt" (vorher konnte „Bestellung geliefert" + „Position bestellt" gleichzeitig stehen).
+
 ### Set-Katalog & Empfehlungen
 - **Sets kuratieren:** Im Set-Editor lässt sich ein Set jetzt als **„⭐ empfohlen"** markieren und mit einem **Einsatzbereich** beschreiben (z. B. „LED-Strip-Installation") — damit man auch ohne Fachwissen sofort das richtige Set findet.
 - **Set-Katalog beim Hinzufügen:** Unter **Produkt hinzufügen → Set/Bundle** gibt es jetzt eine **Suche**, eine **„Empfohlen"-Sektion** ganz oben und eine Gruppierung **nach Kategorie**. Pro Set zeigt **„Was ist enthalten?"** auf einen Klick alle Komponenten mit Mengen und Preisen.
