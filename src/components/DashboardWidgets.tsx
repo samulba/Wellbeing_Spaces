@@ -73,7 +73,8 @@ export interface BudgetProjekt {
 export interface AktivitaetsEintrag {
   id: string
   aktion: string
-  tabelle: string
+  entitaetTyp: string
+  entitaetName: string | null
   created_at: string
 }
 
@@ -490,29 +491,44 @@ export function BudgetUebersicht({ projekte }: { projekte: BudgetProjekt[] }) {
 
 // ── Letzte Aktivitäten ────────────────────────────────────────
 
-const tabelleLabel: Record<string, string> = {
-  kunden:     'Kunde',
-  projekte:   'Projekt',
-  angebote:   'Angebot',
-  vertraege:  'Vertrag',
-  raeume:     'Raum',
-  produkte:   'Produkt',
-  partner:    'Partner',
+// entitaet_typ ist singular (audit_log, Mig 036) — passende deutsche Labels.
+const ENTITAET_LABEL: Record<string, string> = {
+  kunde:         'Kunde',
+  projekt:       'Projekt',
+  angebot:       'Angebot',
+  vertrag:       'Vertrag',
+  raum:          'Raum',
+  produkt:       'Produkt',
+  partner:       'Partner',
+  bestellung:    'Bestellung',
+  reklamation:   'Reklamation',
+  aufgabe:       'Aufgabe',
   kommunikation: 'Kommunikation',
+  team_mitglied: 'Team',
+  freigabe:      'Freigabe',
+}
+
+function entitaetLabel(typ: string): string {
+  return ENTITAET_LABEL[typ] ?? typ.replace(/_/g, ' ')
 }
 
 function aktionFarbe(aktion: string): string {
-  if (aktion.includes('insert') || aktion.includes('create')) return 'bg-emerald-50 text-emerald-700'
-  if (aktion.includes('update')) return 'bg-blue-50 text-blue-700'
-  if (aktion.includes('delete')) return 'bg-red-50 text-red-600'
+  const a = aktion.toLowerCase()
+  if (/(erstellt|angelegt|insert|create)/.test(a)) return 'bg-emerald-50 text-emerald-700'
+  if (/(geloescht|delete|storniert)/.test(a))      return 'bg-red-50 text-red-600'
+  if (/(aktualisiert|geaendert|bearbeitet|update)/.test(a)) return 'bg-blue-50 text-blue-700'
   return 'bg-gray-100 text-gray-600'
 }
 
-function aktionLabel(aktion: string): string {
-  if (aktion.includes('insert') || aktion.includes('create')) return 'Erstellt'
-  if (aktion.includes('update')) return 'Geändert'
-  if (aktion.includes('delete')) return 'Gelöscht'
-  return aktion
+/** Aktion menschenlesbar: bekannte CRUD-Verben übersetzen, sonst Domain-Event
+ *  humanisieren (Entitäts-Präfix strippen, Unterstriche → Leerzeichen). */
+function aktionLabel(aktion: string, entitaetTyp: string): string {
+  const a = aktion.toLowerCase()
+  if (/(erstellt|angelegt|insert|create)/.test(a)) return 'Erstellt'
+  if (/(geloescht|delete)/.test(a))                return 'Gelöscht'
+  if (/(aktualisiert|geaendert|bearbeitet|update)/.test(a)) return 'Geändert'
+  const rest = aktion.replace(new RegExp(`^${entitaetTyp}_`), '').replace(/_/g, ' ').trim()
+  return rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : 'Aktivität'
 }
 
 function zeitDiff(iso: string): string {
@@ -545,10 +561,11 @@ export function LetzteAktivitaeten({ eintraege }: { eintraege: AktivitaetsEintra
           {eintraege.map((e) => (
             <li key={e.id} className="flex items-center gap-3 px-5 py-2.5">
               <span className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded ${aktionFarbe(e.aktion)}`}>
-                {aktionLabel(e.aktion)}
+                {aktionLabel(e.aktion, e.entitaetTyp)}
               </span>
               <p className="text-xs text-gray-600 flex-1 truncate">
-                {tabelleLabel[e.tabelle] ?? e.tabelle}
+                <span className="text-gray-400">{entitaetLabel(e.entitaetTyp)}</span>
+                {e.entitaetName && <span className="font-medium text-gray-700"> {e.entitaetName}</span>}
               </p>
               <span className="text-[10px] text-gray-400 shrink-0">{zeitDiff(e.created_at)}</span>
             </li>

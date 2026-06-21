@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Dashboard – Aktivitäten-Widget + präziserer Monatsumsatz
+- **Neu: „Letzte Aktivitäten"** auf dem Dashboard (3. Spalte) — zeigt die jüngsten Änderungen in der Organisation (wer hat was erstellt/geändert/geliefert …), inkl. Name des betroffenen Eintrags. Gut für den Team-Überblick.
+- **Monatsumsatz genauer:** zählt jetzt nach **Annahme-Datum** des Angebots statt nach Erstell-Datum — ein letzten Monat erstelltes, diesen Monat angenommenes Angebot zählt korrekt für diesen Monat. (Das Annahme-Datum wird ab jetzt beim Status „angenommen" gespeichert.)
+
 ### Dashboard – 3 Bugs behoben
 - **Doppelte Deadlines:** Eine Projekt-Deadline erschien im Widget „Anstehende Deadlines" **doppelt** (einmal als Projekt-Deadline, einmal als automatisch erzeugter Timeline-Meilenstein) — jetzt nur noch einmal.
 - **Budget-Balken:** Die „Budget-Übersicht" zählte **Rabatte und Set-Preise nicht mit** und war dadurch zu hoch; jetzt rechnet sie wie die Projektseite (effektiver Verkaufspreis inkl. Rabatt, ohne gelöschte Produkte).

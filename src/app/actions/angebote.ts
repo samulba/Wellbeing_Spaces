@@ -190,9 +190,11 @@ export async function angebotStatusAendern(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
-  // Zusatzfeld gesendet_am bei status='gesendet'
+  // Zusatzfelder: gesendet_am bei 'gesendet', beantwortet_am bei 'angenommen'
+  // (Annahme-Datum — u. a. für den Monatsumsatz im Dashboard).
   const update: Record<string, unknown> = { status }
-  if (status === 'gesendet') update.gesendet_am = new Date().toISOString()
+  if (status === 'gesendet')   update.gesendet_am    = new Date().toISOString()
+  if (status === 'angenommen') update.beantwortet_am = new Date().toISOString()
 
   const { error } = await supabase.from('angebote').update(update).eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }

@@ -10,7 +10,9 @@ import {
   OffeneFollowUps,
   BudgetUebersicht,
   LetzteProjekte,
+  LetzteAktivitaeten,
   MeineAufgabenWidget,
+  type AktivitaetsEintrag,
   type DeadlineProjekt,
   type DeadlineEvent,
   type DeadlineEventTyp,
@@ -142,16 +144,22 @@ async function getDashboardData() {
           .select('*', { count: 'exact', head: true })
           .in('status', ['entwurf', 'gesendet'])
       ),
+      // Monatsumsatz nach ANNAHME-Datum (beantwortet_am), Fallback created_at
+      // für Altdaten — Summierung im Code (robuster als ein PostgREST-or-Filter).
       safeQuery(() =>
         supabase
           .from('angebote')
-          .select('brutto_summe')
+          .select('brutto_summe, created_at, beantwortet_am')
           .eq('status', 'angenommen')
-          .gte('created_at', monatsStart)
       ),
     ])
     offeneAngebote = r1.count ?? 0
-    monatsumsatz   = ((r2.data ?? []) as { brutto_summe: number | null }[])
+    const monatsStartMs = new Date(monatsStart).getTime()
+    monatsumsatz   = ((r2.data ?? []) as { brutto_summe: number | null; created_at: string; beantwortet_am: string | null }[])
+      .filter((a) => {
+        const datum = a.beantwortet_am ?? a.created_at
+        return datum != null && new Date(datum).getTime() >= monatsStartMs
+      })
       .reduce((sum, a) => sum + (a.brutto_summe ?? 0), 0)
   } catch { /* angebote-Tabelle noch nicht migriert */ }
 
@@ -238,6 +246,26 @@ async function getDashboardData() {
       tageVerbleibend: Math.floor((new Date(e.follow_up_datum).getTime() - Date.now()) / 86_400_000),
     }))
   } catch { /* tabelle existiert noch nicht */ }
+
+  // Letzte Aktivitäten (audit_log, Mig 036) — fail-safe, RLS org-scoped
+  let aktivitaeten: AktivitaetsEintrag[] = []
+  try {
+    const r = await safeQuery(() =>
+      supabase
+        .from('audit_log')
+        .select('id, aktion, entitaet_typ, entitaet_name, created_at')
+        .order('created_at', { ascending: false })
+        .limit(8)
+    )
+    type AuditRaw = { id: string; aktion: string; entitaet_typ: string; entitaet_name: string | null; created_at: string }
+    aktivitaeten = ((r.data ?? []) as unknown as AuditRaw[]).map((a) => ({
+      id:           a.id,
+      aktion:       a.aktion,
+      entitaetTyp:  a.entitaet_typ,
+      entitaetName: a.entitaet_name,
+      created_at:   a.created_at,
+    }))
+  } catch { /* audit_log evtl. nicht vorhanden */ }
 
   // ── Berechnungen ───────────────────────────────────────────
 
@@ -399,6 +427,7 @@ async function getDashboardData() {
     followUpEintraege,
     budgetProjekte,
     letzteProjekte,
+    aktivitaeten,
     zuBestellen,
     unterwegs,
     anstehend7Tage,
@@ -418,6 +447,7 @@ export default async function DashboardPage() {
     naechsteDeadlines, anstehendeEvents, followUpEintraege,
     budgetProjekte,
     letzteProjekte,
+    aktivitaeten,
     zuBestellen, unterwegs, anstehend7Tage, ueberfaellig, offeneReklamationen,
     meineAufgaben, alleAufgaben, aufgabenPickerOptionen,
   } = await getDashboardData()
@@ -485,9 +515,10 @@ export default async function DashboardPage() {
           />
         </div>
 
-        {/* ROW 3: Budget + Letzte Projekte (nebeneinander, fluid rest of viewport) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[280px] dash:flex-1 dash:min-h-0">
+        {/* ROW 3: Budget + Aktivitäten + Letzte Projekte (3 Spalten auf xl) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 min-h-[280px] dash:flex-1 dash:min-h-0">
           <BudgetUebersicht projekte={budgetProjekte} />
+          <LetzteAktivitaeten eintraege={aktivitaeten} />
           <LetzteProjekte projekte={letzteProjekte} />
         </div>
 
