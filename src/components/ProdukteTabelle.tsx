@@ -125,6 +125,7 @@ export type ProduktZeile = {
   istBundle?:         boolean
   komponentenAnzahl?: number
   setPreisNetto?:     number | null
+  empfohlen?:         boolean   // Set-Katalog (Migration 132)
 }
 
 const eur = (n: number) =>
@@ -443,6 +444,11 @@ export default function ProdukteTabelle({
                             <Boxes className="w-3 h-3" /> Set
                           </span>
                         )}
+                        {p.istBundle && p.empfohlen && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded-full font-medium">
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-500" /> Empfohlen
+                          </span>
+                        )}
                         {p.kategorie && (
                           <span className="inline-block text-[10px] px-1.5 py-0.5 bg-wellbeing-cream text-wellbeing-green rounded-full font-medium">
                             {p.kategorie}
@@ -581,6 +587,9 @@ export default function ProdukteTabelle({
                               <span className="shrink-0 mt-0.5 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-wellbeing-green text-white rounded-full font-medium">
                                 <Boxes className="w-3 h-3" /> Set
                               </span>
+                            )}
+                            {p.istBundle && p.empfohlen && (
+                              <Star className="shrink-0 mt-1 w-3.5 h-3.5 fill-amber-400 text-amber-500" aria-label="Empfohlenes Set" />
                             )}
                             <Link
                               href={produktLink(p)}

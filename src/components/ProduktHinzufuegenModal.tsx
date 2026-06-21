@@ -4,7 +4,7 @@ import { useId, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus, X, ChevronRight, BookOpen, PlusCircle,
-  Search, ChevronDown, Package, Check, Boxes,
+  Search, ChevronDown, Package, Check, Boxes, Star,
 } from 'lucide-react'
 import { bibliothekProdukteAbrufen, type BibliothekProdukt } from '@/app/actions/produkte'
 import { produktZuRaumHinzufuegen } from '@/app/actions/raum-produkte'
@@ -32,6 +32,11 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
 
   const [bundles, setBundles]         = useState<BundleMitKomponenten[]>([])
   const [setAnzahl, setSetAnzahl]     = useState<Record<string, number>>({})
+  const [setSuche, setSetSuche]       = useState('')
+  const [offeneSets, setOffeneSets]   = useState<Set<string>>(new Set())
+  function toggleSetOffen(id: string) {
+    setOffeneSets((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  }
 
   const choiceTitleId  = useId()
   const libraryTitleId = useId()
@@ -179,6 +184,24 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
   const eur = (n: number) =>
     new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
+  // Set-Katalog: filtern (Name + Einsatzbereich + Kategorie), Empfohlen oben, sonst nach Kategorie.
+  const setQ = setSuche.trim().toLowerCase()
+  const gefilterteSets = bundles.filter((b) =>
+    !setQ ||
+    b.name.toLowerCase().includes(setQ) ||
+    (b.bundle_einsatzbereich ?? '').toLowerCase().includes(setQ) ||
+    (b.kategorie ?? '').toLowerCase().includes(setQ),
+  )
+  const empfohleneSets = gefilterteSets.filter((b) => b.bundle_empfohlen)
+  const kategorieGruppen = (() => {
+    const m = new Map<string, BundleMitKomponenten[]>()
+    for (const b of gefilterteSets.filter((x) => !x.bundle_empfohlen)) {
+      const key = b.kategorie?.trim() || 'Weitere Sets'
+      const list = m.get(key) ?? []; list.push(b); m.set(key, list)
+    }
+    return Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0], 'de'))
+  })()
+
   const isWorking = adding
 
   return (
@@ -294,6 +317,21 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
               </button>
             </div>
 
+            {!loading && bundles.length > 0 && (
+              <div className="px-4 py-3 border-b border-gray-100">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={setSuche}
+                    onChange={(e) => setSetSuche(e.target.value)}
+                    placeholder="Set, Einsatzbereich oder Kategorie suchen…"
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/30 focus:border-wellbeing-green transition-colors"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto p-4">
               {loading ? (
                 <div className="flex items-center justify-center py-16">
@@ -310,36 +348,52 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
                     <Plus className="w-3.5 h-3.5" /> Set anlegen
                   </button>
                 </div>
+              ) : gefilterteSets.length === 0 ? (
+                <div className="text-center py-16">
+                  <Search className="w-9 h-9 text-gray-200 mx-auto mb-3" />
+                  <p className="text-sm text-gray-400">Kein passendes Set gefunden.</p>
+                </div>
               ) : (
-                <ul className="space-y-2">
-                  {bundles.map((b) => (
-                    <li key={b.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl">
-                      <div className="w-11 h-11 rounded-lg bg-wellbeing-green/10 flex items-center justify-center shrink-0">
-                        <Boxes className="w-5 h-5 text-wellbeing-green" />
+                <div className="space-y-5">
+                  {empfohleneSets.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-2 inline-flex items-center gap-1.5">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" /> Empfohlen
+                      </p>
+                      <div className="space-y-2">
+                        {empfohleneSets.map((b) => (
+                          <SetKarte
+                            key={b.id} b={b} eur={eur}
+                            anzahl={setAnzahl[b.id] ?? 1}
+                            onAnzahl={(v) => setSetAnzahl((prev) => ({ ...prev, [b.id]: v }))}
+                            onAdd={() => handleAddSet(b.id)}
+                            adding={adding}
+                            offen={offeneSets.has(b.id)}
+                            onToggle={() => toggleSetOffen(b.id)}
+                          />
+                        ))}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{b.name}</p>
-                        <p className="text-xs text-gray-400">
-                          {b.komponenten.length} Komponenten · {eur(b.set_preis_netto)} netto
-                        </p>
+                    </div>
+                  )}
+                  {kategorieGruppen.map(([kat, list]) => (
+                    <div key={kat}>
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">{kat}</p>
+                      <div className="space-y-2">
+                        {list.map((b) => (
+                          <SetKarte
+                            key={b.id} b={b} eur={eur}
+                            anzahl={setAnzahl[b.id] ?? 1}
+                            onAnzahl={(v) => setSetAnzahl((prev) => ({ ...prev, [b.id]: v }))}
+                            onAdd={() => handleAddSet(b.id)}
+                            adding={adding}
+                            offen={offeneSets.has(b.id)}
+                            onToggle={() => toggleSetOffen(b.id)}
+                          />
+                        ))}
                       </div>
-                      <input
-                        type="number" min={1} step={1}
-                        value={setAnzahl[b.id] ?? 1}
-                        onChange={(e) => setSetAnzahl((prev) => ({ ...prev, [b.id]: Math.max(1, parseInt(e.target.value) || 1) }))}
-                        className="w-16 px-2 py-1.5 text-sm text-right border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20"
-                        aria-label="Anzahl Sets"
-                      />
-                      <button
-                        onClick={() => handleAddSet(b.id)}
-                        disabled={adding || b.komponenten.length === 0}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-40"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Hinzufügen
-                      </button>
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
 
@@ -537,5 +591,74 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
         </div>
       )}
     </>
+  )
+}
+
+// ── Set-Katalog-Karte (mit „Was ist enthalten?"-Ausklapper) ─────
+function SetKarte({
+  b, eur, anzahl, onAnzahl, onAdd, adding, offen, onToggle,
+}: {
+  b: BundleMitKomponenten
+  eur: (n: number) => string
+  anzahl: number
+  onAnzahl: (v: number) => void
+  onAdd: () => void
+  adding: boolean
+  offen: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className="flex items-center gap-3 p-3">
+        <div className="w-11 h-11 rounded-lg bg-wellbeing-green/10 flex items-center justify-center shrink-0">
+          <Boxes className="w-5 h-5 text-wellbeing-green" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-medium text-gray-900 truncate">{b.name}</p>
+            {b.bundle_empfohlen && <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500 shrink-0" />}
+          </div>
+          {b.bundle_einsatzbereich && (
+            <p className="text-xs text-gray-500 truncate">{b.bundle_einsatzbereich}</p>
+          )}
+          <button
+            type="button"
+            onClick={onToggle}
+            className="text-[11px] text-gray-400 hover:text-wellbeing-green inline-flex items-center gap-0.5 mt-0.5"
+          >
+            {offen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            {b.komponenten.length} Komponenten · {eur(b.set_preis_netto)} netto
+          </button>
+        </div>
+        <input
+          type="number" min={1} step={1}
+          value={anzahl}
+          onChange={(e) => onAnzahl(Math.max(1, parseInt(e.target.value) || 1))}
+          className="w-16 px-2 py-1.5 text-sm text-right border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20"
+          aria-label="Anzahl Sets"
+        />
+        <button
+          onClick={onAdd}
+          disabled={adding || b.komponenten.length === 0}
+          className="inline-flex items-center gap-1.5 px-3 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-40"
+        >
+          <Plus className="w-3.5 h-3.5" /> Hinzufügen
+        </button>
+      </div>
+      {offen && (
+        <div className="px-3 pb-3">
+          <div className="bg-gray-50 rounded-lg border border-gray-100 divide-y divide-gray-100">
+            {b.komponenten.map((k) => (
+              <div key={k.id} className="flex items-center justify-between gap-2 px-3 py-1.5 text-xs">
+                <span className="text-gray-600 truncate">{k.menge}× {k.komponente?.name ?? 'Unbekannt'}</span>
+                <span className="text-gray-400 font-mono shrink-0">
+                  {k.komponente?.verkaufspreis != null ? eur(k.komponente.verkaufspreis * k.menge) : '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

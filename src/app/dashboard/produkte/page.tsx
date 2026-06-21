@@ -50,9 +50,20 @@ async function getProdukte(): Promise<ProduktZeile[]> {
 
   // Bundle-Infos (Komponentenzahl + Set-Preis) für Bundle-Köpfe
   const bundleInfo = new Map<string, { anzahl: number; setPreis: number | null }>()
+  const empfohlenSet = new Set<string>()
   if (hatBundleSpalte) {
     const bundleIds = prodData.filter((p) => p.ist_bundle).map((p) => p.id)
     if (bundleIds.length > 0) {
+      // Empfohlen-Flag (Mig 132) — eigene fail-safe Query, damit fehlende Mig 132
+      // die Set-Preis-Berechnung nicht kippt.
+      try {
+        const { data: eData, error: eErr } = await supabase
+          .from('produkte').select('id, bundle_empfohlen').in('id', bundleIds)
+        if (!eErr) for (const r of (eData ?? []) as { id: string; bundle_empfohlen: boolean | null }[]) {
+          if (r.bundle_empfohlen) empfohlenSet.add(r.id)
+        }
+      } catch { /* Mig 132 noch nicht eingespielt */ }
+
       const { data: bData } = await supabase
         .from('produkte')
         .select('id, bundle_preis_modus, bundle_rabatt_prozent, bundle_festpreis, komponenten:bundle_komponenten!bundle_id(menge, komponente:produkte!komponente_produkt_id(verkaufspreis, deleted_at))')
@@ -98,6 +109,7 @@ async function getProdukte(): Promise<ProduktZeile[]> {
       istBundle,
       komponentenAnzahl:  info?.anzahl ?? 0,
       setPreisNetto:      info?.setPreis ?? null,
+      empfohlen:          istBundle && empfohlenSet.has(p.id),
     }
   })
 }

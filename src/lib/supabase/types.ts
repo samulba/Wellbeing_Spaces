@@ -543,6 +543,9 @@ export interface Produkt {
   bundle_preis_modus?: BundlePreisModus | null
   bundle_rabatt_prozent?: number | null
   bundle_festpreis?: number | null
+  // Set-Katalog (Migration 132) — optional, da Pre-132-Reads ohne diese Spalten typen.
+  bundle_empfohlen?: boolean
+  bundle_einsatzbereich?: string | null
   deleted_at: string | null
   created_at: string
   updated_at: string

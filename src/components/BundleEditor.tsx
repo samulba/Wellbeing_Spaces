@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Boxes, ArrowLeft, Plus, Trash2, X, Search, Check, AlertCircle,
+  Boxes, ArrowLeft, Plus, Trash2, X, Search, Check, AlertCircle, Star,
 } from 'lucide-react'
 import {
   bundleAnlegen, bundleAktualisieren,
@@ -52,6 +52,8 @@ export default function BundleEditor({
   const [modus, setModus]             = useState<BundlePreisModus>(bundle?.bundle_preis_modus ?? 'summe')
   const [rabatt, setRabatt]           = useState<number>(bundle?.bundle_rabatt_prozent ?? 0)
   const [festpreis, setFestpreis]     = useState<number>(bundle?.bundle_festpreis ?? 0)
+  const [einsatzbereich, setEinsatzbereich] = useState(bundle?.bundle_einsatzbereich ?? '')
+  const [empfohlen, setEmpfohlen]     = useState<boolean>(bundle?.bundle_empfohlen ?? false)
 
   // ── Komponenten (nur bearbeiten) ────────────────────────────
   const [komponenten, setKomponenten] = useState<KompZeile[]>(
@@ -100,6 +102,7 @@ export default function BundleEditor({
       const daten = {
         name, beschreibung, kategorie, bild_url: bildUrl,
         preisModus: modus, rabattProzent: rabatt, festpreis,
+        empfohlen, einsatzbereich,
       }
       if (mode === 'neu') {
         const res = await bundleAnlegen(daten)
@@ -212,6 +215,24 @@ export default function BundleEditor({
                 <input id="b-bild" className={inp} value={bildUrl} onChange={(e) => setBildUrl(e.target.value)} placeholder="https://…" />
               </div>
             </div>
+            <div>
+              <label htmlFor="b-einsatz" className={lbl}>Einsatzbereich / Anwendungsfall</label>
+              <input id="b-einsatz" className={inp} value={einsatzbereich} onChange={(e) => setEinsatzbereich(e.target.value)} placeholder="z. B. LED-Strip-Installation" />
+              <p className="text-[11px] text-gray-400 mt-1">Hilft beim Finden im Set-Katalog — kurz beschreiben, wofür das Set ist.</p>
+            </div>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <button
+                type="button" role="switch" aria-checked={empfohlen}
+                onClick={() => setEmpfohlen((v) => !v)}
+                className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${empfohlen ? 'bg-wellbeing-green' : 'bg-gray-200'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${empfohlen ? 'translate-x-4' : ''}`} />
+              </button>
+              <span className="text-sm text-gray-700 inline-flex items-center gap-1.5">
+                <Star className={`w-4 h-4 ${empfohlen ? 'text-amber-500 fill-amber-400' : 'text-gray-400'}`} />
+                Als empfohlenes Set markieren
+              </span>
+            </label>
           </div>
 
           {/* Komponenten */}

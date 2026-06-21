@@ -121,6 +121,26 @@ export interface BundleStammdaten {
   preisModus: BundlePreisModus
   rabattProzent?: number | null
   festpreis?: number | null
+  // Katalog-Felder (Migration 132) — best-effort, brechen das Anlegen nie.
+  empfohlen?: boolean
+  einsatzbereich?: string | null
+}
+
+/** Schreibt die Set-Katalog-Felder best-effort (Migration 132). Fehlt die Migration
+ *  noch, no-op'd der Update still — Anlegen/Bearbeiten bricht dadurch nie. */
+async function schreibeBundleKatalogFelder(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orgId: string,
+  bundleId: string,
+  daten: { empfohlen?: boolean; einsatzbereich?: string | null },
+): Promise<void> {
+  const felder: Record<string, unknown> = {}
+  if (daten.empfohlen !== undefined)      felder.bundle_empfohlen = !!daten.empfohlen
+  if (daten.einsatzbereich !== undefined) felder.bundle_einsatzbereich = daten.einsatzbereich?.trim() || null
+  if (Object.keys(felder).length === 0) return
+  try {
+    await supabase.from('produkte').update(felder).eq('id', bundleId).eq('organisation_id', orgId)
+  } catch { /* Mig 132 evtl. noch nicht eingespielt — bewusst ignoriert */ }
 }
 
 export async function bundleAnlegen(daten: BundleStammdaten): Promise<{ id?: string; fehler?: string }> {
@@ -162,6 +182,11 @@ export async function bundleAnlegen(daten: BundleStammdaten): Promise<{ id?: str
     organisation_id: orgId,
   })
 
+  await schreibeBundleKatalogFelder(supabase, orgId, data.id as string, {
+    empfohlen: daten.empfohlen,
+    einsatzbereich: daten.einsatzbereich,
+  })
+
   revalidatePath('/dashboard/produkte')
   return { id: data.id as string }
 }
@@ -197,6 +222,12 @@ export async function bundleAktualisieren(
     .is('deleted_at', null)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
+
+  await schreibeBundleKatalogFelder(supabase, orgId, bundleId, {
+    empfohlen: daten.empfohlen,
+    einsatzbereich: daten.einsatzbereich,
+  })
+
   revalidatePath('/dashboard/produkte')
   revalidatePath(`/dashboard/produkte/bundles/${bundleId}/bearbeiten`)
   return {}

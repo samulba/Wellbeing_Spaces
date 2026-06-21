@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Set-Katalog & Empfehlungen
+- **Sets kuratieren:** Im Set-Editor lässt sich ein Set jetzt als **„⭐ empfohlen"** markieren und mit einem **Einsatzbereich** beschreiben (z. B. „LED-Strip-Installation") — damit man auch ohne Fachwissen sofort das richtige Set findet.
+- **Set-Katalog beim Hinzufügen:** Unter **Produkt hinzufügen → Set/Bundle** gibt es jetzt eine **Suche**, eine **„Empfohlen"-Sektion** ganz oben und eine Gruppierung **nach Kategorie**. Pro Set zeigt **„Was ist enthalten?"** auf einen Klick alle Komponenten mit Mengen und Preisen.
+- In der Produktbibliothek tragen empfohlene Sets ein **„Empfohlen"-Sternchen**.
+- **Migration 132** muss in Supabase ausgeführt werden. Bis dahin funktioniert alles wie bisher (nur „empfohlen"/Einsatzbereich sind erst danach aktiv).
+
 ### Lieferverfolgung & Wareneingang
 - **Wareneingang pro Position:** In einer Bestellung lässt sich jede Position einzeln als **„Erhalten"** abhaken — auch **Teilmengen** („Teil"). Das Produkt im Raum springt automatisch auf **teilgeliefert** bzw. **geliefert**; sind alle Positionen da, wird die ganze Bestellung automatisch auf „Geliefert" gesetzt. Oben zeigt ein Zähler **„X / Y erhalten"** + ein **„Alles erhalten"**-Knopf.
 - **Überfällige Lieferungen:** Neue Dashboard-Kennzahl **„Überfällig"** und ein eigener Reiter **„Überfällig"** in den Bestellungen — Lieferungen, deren Termin vorbei ist und die noch nicht angekommen sind, fallen sofort rot auf. (Die KPI-Kacheln verlinken jetzt direkt in den passenden Reiter.)
