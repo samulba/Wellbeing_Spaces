@@ -1,4 +1,10 @@
-'use server'
+// KEIN 'use server' — dies ist ein reines SERVER-Modul (kein Client-aufrufbarer
+// Endpunkt). Grund: kundeBestellungBenachrichtigen nutzt den Admin-Client
+// (RLS-Bypass) und nimmt eine projektId entgegen; als Server-Action wäre sie
+// direkt vom Client mit fremder projektId aufrufbar (IDOR → fremde Celebration/
+// Mail/Gate). `server-only` erzwingt das zur Build-Zeit. Aufruf ausschließlich
+// server→server aus bestellungAusloesen.
+import 'server-only'
 
 /**
  * Kunden-Glückwunsch + Lieferübersicht-Anstoß, wenn eine Bestellung ausgelöst wird.

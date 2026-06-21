@@ -110,7 +110,7 @@ async function erzeugeBestellungsEntwuerfe(projektId: string, supabase: any) {
       .eq('raeume.projekt_id', projektId)
       .eq('freigabe_status', 'freigegeben')
       .eq('bestellstatus', 'ausstehend')
-      .is('deleted_at', null)
+      // raum_produkte hat KEINE deleted_at-Spalte (Hard-Delete, Mig 101) → nicht filtern.
     if (!rps || rps.length === 0) return
 
     // Gruppieren nach Partner-ID

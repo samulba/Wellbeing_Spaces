@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Kritischer Fehler behoben: Produkte waren aus allen Räumen verschwunden
+- **Behoben (dringend):** Nach einer Datenbank-Aktualisierung wurden in **allen** Projekten plötzlich **keine Produkte** mehr in den Räumen angezeigt (auch in Freigaben und Bestellungen). **Es sind keine Daten verloren gegangen** — eine technische Mehrdeutigkeit blockierte nur die Anzeige. Mit einem Datenbank-Hotfix (Migration 130) sind sofort wieder alle Produkte da. Das Set-/Bundle-Feature funktioniert unverändert weiter.
+
+### Bestellungen-Ansichten waren leer — behoben
+- **Behoben:** Die Bereiche **„Zu bestellen"** und **„Anstehende Lieferungen"**, die **Kandidatenliste** beim Anlegen einer Partner-Bestellung, die **Dashboard-Kennzahlen** und das **Sidebar-Badge** zeigten fälschlich nichts/0 an, obwohl freigegebene Produkte zum Bestellen vorlagen. Ebenso wurden beim Unterschreiben eines Vertrags **keine Bestell-Entwürfe** automatisch erzeugt. Alle diese Ansichten füllen sich jetzt wieder korrekt.
+
 ### Bestellungen: Glückwunsch fürs Kundenportal + Lieferübersicht für den Kunden (Teil 2)
 - Wenn der Admin die **erste** Bestellung eines Projekts auslöst, bekommt der Kunde im **Portal** automatisch eine freundliche Nachricht: **„🎉 Glückwunsch, Ihre Bestellung wurde ausgelöst!"** — als Banner auf der Projektseite, als Chat-Nachricht, als Glocken-Hinweis und per **E-Mail**. Die Feier erscheint **genau einmal** pro Projekt; spätere Bestellungen aktualisieren still die Lieferübersicht.
 - Der Kunde sieht im Tab **„Lieferungen"** jetzt oben **„Kommende Lieferungen"** — nach **Datum** gruppiert, mit Produkt und Raum, damit klar ist, **was wann** kommt. **Lieferantennamen bleiben für den Kunden verborgen.**

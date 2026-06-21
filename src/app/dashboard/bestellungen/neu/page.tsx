@@ -21,7 +21,7 @@ async function getKandidaten(partnerId: string): Promise<ProduktKandidat[]> {
     .eq('produkte.partner_id', partnerId)
     .eq('freigabe_status', 'freigegeben')
     .eq('bestellstatus', 'ausstehend')
-    .is('deleted_at', null)
+    // raum_produkte hat KEINE deleted_at-Spalte (Hard-Delete, Mig 101) → nicht filtern.
   // Fail-safe: einkaufsrabatt_prozent (Migration 120) ggf. noch nicht vorhanden.
   let res = await lade(', einkaufsrabatt_prozent')
   if (res.error) res = await lade('')

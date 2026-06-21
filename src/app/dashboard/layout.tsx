@@ -64,13 +64,14 @@ export default async function DashboardLayout({
         .eq('assignee_user_id', user.id)
         .neq('status', 'erledigt')
         .lt('faellig_am', heuteIso),
-      // Zu bestellen: freigegebene, noch nicht bestellte Produkte
+      // Zu bestellen: freigegebene, noch nicht bestellte Produkte.
+      // raum_produkte hat KEINE deleted_at-Spalte (Hard-Delete, Mig 101) → nicht filtern
+      // (RLS scoped die Query bereits org-seitig).
       supabase
         .from('raum_produkte')
         .select('*', { count: 'exact', head: true })
         .eq('freigabe_status', 'freigegeben')
-        .eq('bestellstatus', 'ausstehend')
-        .is('deleted_at', null),
+        .eq('bestellstatus', 'ausstehend'),
     ])
 
     // Freigaben-Count = Anzahl unique Projekte mit ausstehender Freigabe

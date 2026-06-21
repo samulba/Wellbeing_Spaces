@@ -292,13 +292,14 @@ async function getDashboardData() {
     anstehendResult,
     reklamationenResult,
   ] = await Promise.allSettled([
+    // raum_produkte hat KEINE deleted_at-Spalte (Hard-Delete, Mig 101) → nicht filtern.
     supabase.from('raum_produkte').select('*', { count: 'exact', head: true })
-      .eq('freigabe_status', 'freigegeben').eq('bestellstatus', 'ausstehend').is('deleted_at', null),
+      .eq('freigabe_status', 'freigegeben').eq('bestellstatus', 'ausstehend'),
     supabase.from('lieferanten_bestellungen').select('*', { count: 'exact', head: true })
       .in('status', ['bestaetigt', 'versandt']),
     supabase.from('raum_produkte').select('*', { count: 'exact', head: true })
       .in('bestellstatus', ['bestellt', 'teilgeliefert'])
-      .gte('liefertermin', heuteStr).lte('liefertermin', in7TagenStr).is('deleted_at', null),
+      .gte('liefertermin', heuteStr).lte('liefertermin', in7TagenStr),
     supabase.from('produkt_reklamationen').select('*', { count: 'exact', head: true })
       .neq('status', 'geloest'),
   ])

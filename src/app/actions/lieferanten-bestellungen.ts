@@ -137,6 +137,7 @@ export type LieferuebersichtPosition = {
  */
 export async function getLieferuebersicht(projektId?: string): Promise<LieferuebersichtPosition[]> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const { data } = await supabase
     .from('lieferanten_bestellungen')
     .select(`
@@ -147,6 +148,7 @@ export async function getLieferuebersicht(projektId?: string): Promise<Lieferueb
         raum_produkte(produkte(name, einheit), raeume(name, projekt_id, projekte(name)))
       )
     `)
+    .eq('organisation_id', orgId)
     .in('status', ['bestaetigt', 'versandt', 'geliefert', 'teilretour'])
     .order('liefertermin_geplant', { ascending: true, nullsFirst: false })
 
@@ -232,8 +234,8 @@ export async function bestellungAnlegen(input: {
     .from('lieferanten_bestellung_positionen')
     .insert(positionenRows)
   if (posErr) {
-    // Cleanup: Bestellung loeschen wenn Positionen scheitern
-    await supabase.from('lieferanten_bestellungen').delete().eq('id', bestellung.id)
+    // Cleanup: Bestellung loeschen wenn Positionen scheitern (org-scoped, defense-in-depth)
+    await supabase.from('lieferanten_bestellungen').delete().eq('id', bestellung.id).eq('organisation_id', orgId)
     return { fehler: 'Positionen konnten nicht angelegt werden.' }
   }
 

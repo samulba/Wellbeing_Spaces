@@ -20,7 +20,7 @@ async function getZuBestellendeProdukte(): Promise<ZuBestellendesProdukt[]> {
     `)
     .eq('freigabe_status', 'freigegeben')
     .eq('bestellstatus', 'ausstehend')
-    .is('deleted_at', null)
+    // raum_produkte hat KEINE deleted_at-Spalte (Hard-Delete, Mig 101) → nicht filtern.
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((data ?? []) as any[]).map((rp) => ({
@@ -62,7 +62,7 @@ async function getAnstehendeLieferungen(): Promise<ZuBestellendesProdukt[]> {
     .in('bestellstatus', ['bestellt' as BestellStatus, 'teilgeliefert' as BestellStatus])
     .gte('liefertermin', heute)
     .lte('liefertermin', in7tagen)
-    .is('deleted_at', null)
+    // raum_produkte hat KEINE deleted_at-Spalte (Hard-Delete, Mig 101) → nicht filtern.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((data ?? []) as any[]).map((rp) => ({
     raum_produkt_id: rp.id,
