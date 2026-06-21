@@ -95,7 +95,12 @@ export interface Kunde {
   ansprechpartner: string | null
   email: string | null
   telefon: string | null
+  /** Zusammengesetzte Adresse (Backward-Compat: Verträge/PDFs lesen dieses Feld). */
   adresse: string | null
+  // Strukturierte Adresse (Migration 127) — optional, da Spalten ggf. noch nicht migriert.
+  strasse?: string | null
+  plz?: string | null
+  ort?: string | null
   website: string | null
   notizen: string | null
   status: KundeStatus

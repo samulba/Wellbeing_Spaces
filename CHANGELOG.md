@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Kunden-Übersicht als Kopier-Zentrale (Bestellprozess) + getrennte Adresse
+- Die Kontakt-/Firma-Karte in der **Übersicht** ist jetzt aufgeräumt und auf **schnelles Kopieren** ausgelegt: hinter **jedem** Feld (Name, Firma, Ansprechpartner, E-Mail, Telefon, Straße, PLZ, Ort, Website) sitzt ein **Copy-Symbol** — ein Klick kopiert den Wert (kurzes „✓ Kopiert"-Feedback). Oben rechts **„Alles kopieren"** legt Name + Adresse + Telefon + E-Mail als fertigen Block in die Zwischenablage (ideal für Bestellformulare).
+- **Adresse jetzt getrennt** in **Straße & Hausnummer / PLZ / Ort** — so lassen sich die Teile einzeln kopieren. Im Bearbeiten-Formular pflegbar; bei Bestandskunden wird die bisher gespeicherte Adresse als Hinweis angezeigt, bis du sie einmal aufteilst (es geht nichts verloren).
+- **Migration 127** legt die neuen Adressfelder an (additiv) — **muss in Supabase ausgeführt werden**. Bis dahin funktioniert alles weiter (es wird die bisherige Adresse angezeigt).
+
 ### Kunden-Übersicht zeigt jetzt die Onboarding-Angaben
 - Auf der Kundenseite (Reiter **Übersicht**) erscheint jetzt der Block **„Onboarding-Angaben"** — alles, was der Kunde beim Onboarding ausgefüllt hat: **Budget, Räume, Stil, Zeitrahmen, Projekt-Adresse** und seine **Wünsche/Anmerkungen** auf einen Blick. Die **vollständigen eingereichten Antworten** (inkl. hochgeladener Dateien) lassen sich pro Onboarding **aufklappen**.
 - Die Kontakt-/Firma-Karte zeigt jetzt zusätzlich **Ansprechpartner, E-Mail und Telefon** (vorher nur Website + Adresse) — E-Mail und Telefon sind direkt anklickbar.

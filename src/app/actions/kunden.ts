@@ -64,6 +64,53 @@ function parseKundeFelder(formData: FormData): {
   }
 }
 
+/**
+ * Liest die strukturierten Adressfelder (Straße/PLZ/Ort) aus dem Formular und
+ * setzt daraus die zusammengesetzte `adresse` zusammen (Backward-Compat: Verträge
+ * und PDF-Exporte lesen weiter `kunden.adresse`). `hatStruktur` ist true sobald
+ * mindestens ein Teil ausgefüllt ist.
+ */
+function parseAdresseFelder(formData: FormData): {
+  strasse: string | null
+  plz:     string | null
+  ort:     string | null
+  hatStruktur: boolean
+  adresseKomponiert: string | null
+} {
+  const strasse = ((formData.get('strasse') as string) || '').trim()
+  const plz     = ((formData.get('plz')     as string) || '').trim()
+  const ort     = ((formData.get('ort')     as string) || '').trim()
+  const hatStruktur = !!(strasse || plz || ort)
+  const ortZeile = [plz, ort].filter(Boolean).join(' ')
+  const adresseKomponiert = hatStruktur
+    ? [strasse, ortZeile].filter(Boolean).join(', ')
+    : null
+  return { strasse: strasse || null, plz: plz || null, ort: ort || null, hatStruktur, adresseKomponiert }
+}
+
+/**
+ * Schreibt die strukturierten Adress-Spalten (Migration 127) best-effort.
+ * Wenn die Spalten noch nicht existieren (Migration nicht eingespielt), wird der
+ * Fehler ignoriert — die zusammengesetzte `adresse` bleibt die Quelle der Wahrheit,
+ * sodass Kunde-Anlegen/Bearbeiten auch ohne Migration nie bricht.
+ */
+async function schreibeStrukturierteAdresse(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  id: string,
+  orgId: string,
+  adr: { strasse: string | null; plz: string | null; ort: string | null },
+): Promise<void> {
+  try {
+    await supabase
+      .from('kunden')
+      .update({ strasse: adr.strasse, plz: adr.plz, ort: adr.ort })
+      .eq('id', id)
+      .eq('organisation_id', orgId)
+  } catch {
+    // Spalten evtl. noch nicht migriert — bewusst ignoriert.
+  }
+}
+
 export async function kundeAnlegen(
   prevState: KundeActionState,
   formData: FormData
@@ -77,6 +124,8 @@ export async function kundeAnlegen(
   const felder = parseKundeFelder(formData)
   if (felder.fehler) return { fehler: felder.fehler }
 
+  const adr = parseAdresseFelder(formData)
+
   // Hinweis: ansprechpartner/email/telefon werden ab Migration 091 nicht mehr
   // direkt ueber das Formular gepflegt, sondern vom Hauptkontakt im Kontakte-
   // Block via syncKundeHauptkontakt() gespiegelt.
@@ -84,13 +133,16 @@ export async function kundeAnlegen(
     name:        felder.name,
     firmenname:  felder.firmenname,
     kunden_typ:  felder.kunden_typ,
-    adresse:     (formData.get('adresse') as string) || null,
+    adresse:     adr.adresseKomponiert,
     website:     websiteRaw,
     logo_url:    autoFavicon,
     organisation_id: orgId,
   }).select('id').single()
 
   if (error || !angelegt) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
+
+  // Strukturierte Adress-Spalten best-effort (Migration 127)
+  await schreibeStrukturierteAdresse(supabase, angelegt.id as string, orgId, adr)
 
   await auditLog({
     aktion:        'kunde_angelegt',
@@ -114,21 +166,30 @@ export async function kundeAktualisieren(
   const felder = parseKundeFelder(formData)
   if (felder.fehler) return { fehler: felder.fehler }
 
-  // ansprechpartner/email/telefon kommen ueber syncKundeHauptkontakt
+  const adr = parseAdresseFelder(formData)
+
+  // ansprechpartner/email/telefon kommen ueber syncKundeHauptkontakt.
+  // `adresse` (zusammengesetzt) nur überschreiben, wenn strukturierte Felder
+  // ausgefüllt sind — sonst Legacy-Freitext (Bestandskunden) erhalten.
+  const updateFelder: Record<string, unknown> = {
+    name:       felder.name,
+    firmenname: felder.firmenname,
+    kunden_typ: felder.kunden_typ,
+    website: (formData.get('website') as string) || null,
+  }
+  if (adr.hatStruktur) updateFelder.adresse = adr.adresseKomponiert
+
   const { error } = await supabase
     .from('kunden')
-    .update({
-      name:       felder.name,
-      firmenname: felder.firmenname,
-      kunden_typ: felder.kunden_typ,
-      adresse: (formData.get('adresse') as string) || null,
-      website: (formData.get('website') as string) || null,
-    })
+    .update(updateFelder)
     .eq('id', id)
     .eq('organisation_id', orgId)
     .is('deleted_at', null)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren. Bitte erneut versuchen.' }
+
+  // Strukturierte Adress-Spalten best-effort (Migration 127)
+  await schreibeStrukturierteAdresse(supabase, id, orgId, adr)
 
   // Auto-Favicon: wenn Website geaendert wurde und kein eigenes Logo gesetzt ist
   await applyFaviconIfNeeded(supabase, 'kunden', id, orgId)

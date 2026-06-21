@@ -141,17 +141,50 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
         </p>
       </div>
 
-      {/* Adresse */}
-      <div>
-        <label htmlFor="adresse" className={lbl}>Adresse</label>
-        <input
-          id="adresse"
-          name="adresse"
-          type="text"
-          defaultValue={initialData?.adresse ?? ''}
-          className={inp}
-          placeholder="Musterstraße 1, 12345 Berlin"
-        />
+      {/* Adresse — strukturiert (Straße / PLZ / Ort), damit Teile einzeln kopierbar sind */}
+      <div className="space-y-3">
+        <div>
+          <label htmlFor="strasse" className={lbl}>Straße & Hausnummer</label>
+          <input
+            id="strasse"
+            name="strasse"
+            type="text"
+            defaultValue={initialData?.strasse ?? ''}
+            className={inp}
+            placeholder="Musterstraße 1"
+          />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label htmlFor="plz" className={lbl}>PLZ</label>
+            <input
+              id="plz"
+              name="plz"
+              type="text"
+              inputMode="numeric"
+              defaultValue={initialData?.plz ?? ''}
+              className={inp}
+              placeholder="12345"
+            />
+          </div>
+          <div className="col-span-2">
+            <label htmlFor="ort" className={lbl}>Ort</label>
+            <input
+              id="ort"
+              name="ort"
+              type="text"
+              defaultValue={initialData?.ort ?? ''}
+              className={inp}
+              placeholder="Berlin"
+            />
+          </div>
+        </div>
+        {/* Bestandskunden: bisher gespeicherte Freitext-Adresse als Hinweis, falls noch nicht aufgeteilt */}
+        {!initialData?.strasse && !initialData?.plz && !initialData?.ort && initialData?.adresse && (
+          <p className="text-[11px] text-gray-400">
+            Bisher gespeichert: <span className="text-gray-600">{initialData.adresse}</span> — bitte auf Straße / PLZ / Ort aufteilen.
+          </p>
+        )}
       </div>
 
       {/* Aktionen */}

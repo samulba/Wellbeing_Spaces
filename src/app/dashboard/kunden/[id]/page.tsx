@@ -18,6 +18,7 @@ import KundeTimelineBlock from '@/components/KundeTimelineBlock'
 import KundeKontakteBlock from '@/components/KundeKontakteBlock'
 import KundeDetailTabs from '@/components/KundeDetailTabs'
 import KundeOnboardingBlock from '@/components/KundeOnboardingBlock'
+import KundeKopierKarte from '@/components/KundeKopierKarte'
 import { kundenAnzeigeName } from '@/lib/supabase/types'
 import { Building2, User } from 'lucide-react'
 
@@ -129,21 +130,19 @@ export default async function KundeDetailPage({ params }: { params: { id: string
           <div className="space-y-6">
             <KundeStatsBand stats={stats} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
-                  {kunde.kunden_typ === 'privat' ? 'Kontakt' : 'Firma'}
-                </h2>
-                <dl className="space-y-3">
-                  <InfoZeile label="Ansprechpartner" wert={kunde.ansprechpartner} />
-                  <InfoZeile label="E-Mail" wert={kunde.email} link={kunde.email ? `mailto:${kunde.email}` : undefined} />
-                  <InfoZeile label="Telefon" wert={kunde.telefon} link={kunde.telefon ? `tel:${kunde.telefon}` : undefined} />
-                  <InfoZeile label="Website" wert={kunde.website} link={kunde.website ?? undefined} />
-                  <InfoZeile label="Adresse" wert={kunde.adresse} />
-                  {!kunde.ansprechpartner && !kunde.email && !kunde.telefon && !kunde.website && !kunde.adresse && (
-                    <p className="text-sm text-gray-400">Keine Daten hinterlegt.</p>
-                  )}
-                </dl>
-              </div>
+              <KundeKopierKarte
+                titel={kunde.kunden_typ === 'privat' ? 'Kontakt & Adresse' : 'Firma & Adresse'}
+                name={kunde.name}
+                firma={kunde.firmenname}
+                ansprechpartner={kunde.ansprechpartner}
+                email={kunde.email}
+                telefon={kunde.telefon}
+                strasse={kunde.strasse ?? null}
+                plz={kunde.plz ?? null}
+                ort={kunde.ort ?? null}
+                adresseLegacy={kunde.adresse}
+                website={kunde.website}
+              />
               <KundenPortalSection
                 kundeId={kunde.id}
                 kundeName={kunde.name}
@@ -186,18 +185,6 @@ export default async function KundeDetailPage({ params }: { params: { id: string
           <KommunikationBlock kundeId={kunde.id} initialEintraege={kommunikation} />
         }
       />
-    </div>
-  )
-}
-
-function InfoZeile({ label, wert, link }: { label: string; wert: string | null; link?: string }) {
-  if (!wert) return null
-  return (
-    <div>
-      <dt className="text-xs text-gray-500 mb-0.5">{label}</dt>
-      <dd className="text-sm text-gray-700 select-text">
-        {link ? <a href={link} className="hover:text-wellbeing-green transition-colors select-text">{wert}</a> : wert}
-      </dd>
     </div>
   )
 }
