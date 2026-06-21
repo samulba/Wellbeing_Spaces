@@ -260,6 +260,23 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     for (const r of (kmData ?? []) as { id: string; kunde_menge: number | null }[]) kundeMengeMap.set(r.id, r.kunde_menge ?? null)
   }
 
+  // 4g. Bundle-Instanz je Produkt (Migration 128) — EIGENE fail-safe Query (nicht
+  // im Rich-Select), damit ein fehlendes Mig 128 NIE die Block-/Bereich-Ladung kippt.
+  // Fehlt die Spalte → bErr → leere Map → keine Sets, alles andere unberührt.
+  const bundleIdMap = new Map<string, string | null>()
+  if (rpIds.length > 0) {
+    const { data: bData, error: bErr } = await supabase.from('raum_produkte').select('id, bundle_id').in('id', rpIds)
+    if (!bErr) for (const r of (bData ?? []) as { id: string; bundle_id: string | null }[]) bundleIdMap.set(r.id, r.bundle_id ?? null)
+  }
+
+  // Namen der Set-Köpfe (für die Set-Karte) — Admin-Client (anon-safe), einmal vorab.
+  const bundleNamen = new Map<string, string>()
+  const alleBundleIds = Array.from(new Set(Array.from(bundleIdMap.values()).filter(Boolean) as string[]))
+  if (alleBundleIds.length > 0) {
+    const { data: bnData } = await supabase.from('produkte').select('id, name').in('id', alleBundleIds)
+    for (const b of (bnData ?? []) as { id: string; name: string }[]) bundleNamen.set(b.id, b.name)
+  }
+
   // Gruppierungs-Accessoren: lesen aus der rpDaten-Zeile (Normalpfad, atomar) oder
   // aus den Backfill-Maps (Fallback). EINE Quelle für Scope-Filter UND gerendertes
   // Objekt → Anzeige kann nie „lose vs. im Block" widersprüchlich werden.
@@ -273,6 +290,7 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     gruppenInline ? !!rp.admin_favorit : (favMap.get(rp.id)?.admin_favorit ?? false)
   const rpKundeFavorit = (rp: RpZeile): boolean =>
     gruppenInline ? !!rp.kunde_favorit : (favMap.get(rp.id)?.kunde_favorit ?? false)
+  const rpBundleId = (rp: RpZeile): string | null => bundleIdMap.get(rp.id) ?? null
 
   // 5. Struktur aufbauen: Räume mit Bereichen → Auswahl-Blöcke + Einzelprodukte
   const raeume: FreigabeRaum[] = raeumeDaten
@@ -331,6 +349,7 @@ export default async function FreigabePage({ params, searchParams }: Props) {
             admin_favorit: rpAdminFavorit(rp),
             kunde_favorit: rpKundeFavorit(rp),
             bereich_id: rpBereichId(rp),
+            bundle_id: rpBundleId(rp),
           }
         })
 
@@ -352,7 +371,33 @@ export default async function FreigabePage({ params, searchParams }: Props) {
         // → loses Einzelprodukt (S75).
         .filter((grp) => grp.produkte.length >= 2 || (grp.produkte.length >= 1 && (blockBereich.get(grp.id) ?? null) !== null))
       const echteGruppenIds = new Set(gruppen.map((g) => g.id))
-      const lose = alleProdukte.filter((p) => !p.produkt_gruppe_id || !echteGruppenIds.has(p.produkt_gruppe_id))
+      let lose = alleProdukte.filter((p) => !p.produkt_gruppe_id || !echteGruppenIds.has(p.produkt_gruppe_id))
+
+      // Set/Bundle (Mig 128, Phase 2): lose Produkte mit gleicher bundle_id zu EINER
+      // synthetischen Set-Gruppe bündeln (AND-Semantik, kein 1-von-N). Die Gruppe
+      // reitet auf der bestehenden Block-Pipeline mit (ist_bundle=true).
+      const bundleMap = new Map<string, FreigabeProdukt[]>()
+      const loseOhneBundle: FreigabeProdukt[] = []
+      for (const p of lose) {
+        if (p.bundle_id) {
+          const arr = bundleMap.get(p.bundle_id) ?? []
+          arr.push(p)
+          bundleMap.set(p.bundle_id, arr)
+        } else {
+          loseOhneBundle.push(p)
+        }
+      }
+      for (const [bid, komponenten] of Array.from(bundleMap.entries())) {
+        gruppen.push({
+          id: bid,
+          name: bundleNamen.get(bid) ?? 'Set',
+          beschreibung: null,
+          ist_bundle: true,
+          bundle_set_preis_netto: komponenten.reduce((s, p) => s + (p.verkaufspreis ?? 0) * p.menge, 0),
+          produkte: komponenten,
+        })
+      }
+      lose = loseOhneBundle
 
       // Bereiche/"Gruppen" bauen (Migration 116): je Bereich seine Auswahl-Blöcke
       // (Block-bereich_id == Bereich) + Einzelprodukte (resolveBereich == Bereich).

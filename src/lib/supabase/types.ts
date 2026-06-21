@@ -445,6 +445,8 @@ export interface FreigabeProdukt {
   kunde_favorit?: boolean
   // Bereich/"Gruppe" (Migration 116). Optional/fail-safe.
   bereich_id?: string | null
+  // Bundle/Set-Instanz (Migration 128) — gleiche bundle_id = Komponenten desselben Sets.
+  bundle_id?: string | null
 }
 
 // Auswahl-Set innerhalb eines Raums (Migration 114) — mehrere Alternativen,
@@ -456,6 +458,10 @@ export interface FreigabeProduktGruppe {
   produkte: FreigabeProdukt[]
   // Sammelnotiz des Kunden für diesen Block (Migration 119). Optional/fail-safe.
   kunde_notiz?: string | null
+  // Bundle/Set (Migration 128, Phase 2): wenn true, ist dieser "Block" ein Set —
+  // AND-Semantik (alle Komponenten gehören zusammen), NICHT 1-von-N.
+  ist_bundle?: boolean
+  bundle_set_preis_netto?: number | null
 }
 
 // Bereich/"Gruppe" (Migration 116) — organisatorischer Abschnitt im Raum.

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft, Plus, Minus, StickyNote, Maximize2 } from 'lucide-react'
+import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft, Plus, Minus, StickyNote, Maximize2, Boxes } from 'lucide-react'
 import { freigabeBearbeitungMarkieren, type FreigabeEntscheidung, type FreigabeBlockNotiz } from '@/app/actions/freigaben'
 import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus, Branding } from '@/lib/supabase/types'
 import HinweisBanner from '@/components/HinweisBanner'
@@ -265,8 +265,14 @@ export default function FreigabeClient({
         const members = g.produkte.filter((p) => state[p.id])
         if (members.length === 0) continue
         total++
-        if (members.some((p) => state[p.id]?.status === 'freigegeben')) freigegebenCount++
-        else offenCount++
+        if (g.ist_bundle) {
+          // Set = all-or-nothing: freigegeben nur wenn ALLE Komponenten freigegeben.
+          if (members.every((p) => state[p.id]?.status === 'freigegeben')) freigegebenCount++
+          else if (members.some((p) => state[p.id]?.status === 'abgelehnt' || state[p.id]?.status === 'ueberarbeitung')) abgelehntCount++
+          else offenCount++
+        } else if (members.some((p) => state[p.id]?.status === 'freigegeben')) {
+          freigegebenCount++
+        } else offenCount++
       }
     }
   }
@@ -398,7 +404,14 @@ export default function FreigabeClient({
       }
       for (const g of b.bloecke) {
         const members = g.produkte.filter((p) => state[p.id])
-        if (members.length && members.some((p) => state[p.id]?.status === 'freigegeben')) revFrei++
+        if (members.length === 0) continue
+        if (g.ist_bundle) {
+          if (members.every((p) => state[p.id]?.status === 'freigegeben')) revFrei++
+          else if (members.some((p) => state[p.id]?.status === 'abgelehnt')) revAbl++
+          else if (members.some((p) => state[p.id]?.status === 'ueberarbeitung')) revAend++
+        } else if (members.some((p) => state[p.id]?.status === 'freigegeben')) {
+          revFrei++
+        }
       }
     }
 
@@ -528,6 +541,37 @@ export default function FreigabeClient({
 
                           {/* Auswahl-Blöcke → alle gewählten Optionen (Mehrfachauswahl) */}
                           {b.bloecke.filter((g) => g.produkte.some((p) => state[p.id])).map((g) => {
+                            // Set/Bundle: als EINE Zeile mit all-or-nothing-Status (kein kundeFavorit).
+                            if (g.ist_bundle) {
+                              const members = g.produkte.filter((p) => state[p.id])
+                              const allFrei = members.length > 0 && members.every((p) => state[p.id]?.status === 'freigegeben')
+                              const anyAbl  = members.some((p) => state[p.id]?.status === 'abgelehnt')
+                              const anyAend = members.some((p) => state[p.id]?.status === 'ueberarbeitung')
+                              const label = allFrei ? 'Komplett freigegeben' : anyAbl ? 'Abgelehnt' : anyAend ? 'Änderung gewünscht' : 'Offen'
+                              const pill  = allFrei ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                                          : anyAbl  ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
+                                          : anyAend ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
+                                          : 'bg-gray-100 text-gray-500 ring-1 ring-gray-200'
+                              const kommentar = (state[members[0]?.id]?.kommentar ?? '').trim()
+                              return (
+                                <div key={g.id} className="py-2">
+                                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">{g.name} · Set</p>
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0"><Boxes className="w-5 h-5" style={{ color: prim }} /></div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium text-gray-900 truncate">{g.produkte.length} Komponenten</p>
+                                    </div>
+                                    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 ${pill}`}>{label}</span>
+                                  </div>
+                                  {kommentar && (
+                                    <div className="mt-2 ml-[60px] pl-3 border-l-2 border-wellbeing-terracotta/30 flex items-start gap-1.5">
+                                      <StickyNote className="w-3.5 h-3.5 text-wellbeing-terracotta/70 shrink-0 mt-0.5" />
+                                      <p className="text-xs text-gray-500 italic leading-relaxed">&bdquo;{kommentar}&ldquo;</p>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            }
                             const gewaehlte = g.produkte.filter((p) => state[p.id]?.kundeFavorit)
                             const notiz = (blockNotizen[g.id] ?? '').trim()
                             return (
@@ -840,7 +884,19 @@ export default function FreigabeClient({
                 </div>
               )}
               <div className="space-y-4">
-                {gruppen.map((g) => (
+                {gruppen.map((g) => g.ist_bundle ? (
+                  <BundleKarte
+                    key={g.id}
+                    bundle={g}
+                    states={state}
+                    isPending={isPending}
+                    mwst={mwst}
+                    prim={prim}
+                    onSetStatus={(status, kommentar) => {
+                      for (const p of g.produkte) speichereStatus(p.id, status, kommentar)
+                    }}
+                  />
+                ) : (
                   <ProduktGruppeKarte
                     key={g.id}
                     gruppe={g}
@@ -1213,6 +1269,148 @@ function ProduktKarte({
                 disabled={isPending}
                 className="px-5 py-3.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl bg-white transition-colors"
               >
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Set/Bundle-Karte (Migration 128, Phase 2) — EINE Karte, all-or-nothing ──
+function BundleKarte({
+  bundle, states, isPending, mwst, prim, onSetStatus,
+}: {
+  bundle: FreigabeProduktGruppe
+  states: Record<string, ProduktState>
+  isPending: boolean
+  mwst: number
+  prim: string
+  onSetStatus: (status: ProduktStatus, kommentar: string) => void
+}) {
+  const [offen, setOffen] = useState(false)
+  const [aktiveAktion, setAktiveAktion] = useState<'ablehnen' | 'alternative' | null>(null)
+  const [kommentarEingabe, setKommentarEingabe] = useState('')
+
+  const statusOf = (id: string): ProduktStatus => states[id]?.status ?? 'ausstehend'
+  const komp = bundle.produkte
+  const alleFrei = komp.length > 0 && komp.every((p) => statusOf(p.id) === 'freigegeben')
+  const anyAbl   = komp.some((p) => statusOf(p.id) === 'abgelehnt')
+  const anyAend  = komp.some((p) => statusOf(p.id) === 'ueberarbeitung')
+  const setStatus: ProduktStatus = alleFrei ? 'freigegeben' : anyAbl ? 'abgelehnt' : anyAend ? 'ueberarbeitung' : 'ausstehend'
+
+  const statusCfg = {
+    ausstehend:     { rand: 'border-gray-200',    bg: 'bg-white',         badgeCls: 'bg-gray-100 text-gray-500',       label: 'Ausstehend' },
+    freigegeben:    { rand: 'border-emerald-200', bg: 'bg-emerald-50/40', badgeCls: 'bg-emerald-100 text-emerald-700', label: 'Freigegeben' },
+    abgelehnt:      { rand: 'border-red-200',     bg: 'bg-red-50/40',     badgeCls: 'bg-red-100 text-red-600',         label: 'Abgelehnt' },
+    ueberarbeitung: { rand: 'border-amber-200',   bg: 'bg-amber-50/40',   badgeCls: 'bg-amber-100 text-amber-700',     label: 'Änderung' },
+  }
+  const cfg = statusCfg[setStatus] ?? statusCfg.ausstehend
+
+  const setNetto  = bundle.bundle_set_preis_netto ?? komp.reduce((s, p) => s + (p.verkaufspreis ?? 0) * p.menge, 0)
+  const setBrutto = r2(setNetto * (1 + mwst))
+  const vorhandenerKommentar = states[komp[0]?.id]?.kommentar || null
+
+  const bestaetigeKommentar = () => {
+    onSetStatus(aktiveAktion === 'ablehnen' ? 'abgelehnt' : 'ueberarbeitung', kommentarEingabe)
+    setAktiveAktion(null)
+    setKommentarEingabe('')
+  }
+
+  return (
+    <div className={`border ${cfg.rand} ${cfg.bg} rounded-2xl overflow-hidden shadow-sm transition-all`}>
+      <div className="p-5">
+        {/* Kopf */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: prim }}>
+                <Boxes className="w-3.5 h-3.5" /> Set
+              </span>
+              <h3 className="text-base font-semibold text-gray-900 leading-snug">{bundle.name}</h3>
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5">{komp.length} Komponenten · komplett als Set</p>
+          </div>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${cfg.badgeCls}`}>{cfg.label}</span>
+        </div>
+
+        {/* Set-Preis */}
+        <div className="grid grid-cols-2 gap-2 mb-3 bg-gray-50 rounded-xl px-4 py-3">
+          <PreisZeile label="Set netto" wert={eur(setNetto)} />
+          <PreisZeile label="Set brutto" wert={eur(setBrutto)} hervorheben />
+        </div>
+
+        {/* Komponenten (ausklappbar) */}
+        <button type="button" onClick={() => setOffen((v) => !v)} className="w-full flex items-center justify-between gap-2 mb-3 text-left">
+          <span className="text-sm font-medium text-gray-700">Was ist enthalten?</span>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${offen ? 'rotate-180' : ''}`} />
+        </button>
+        {offen && (
+          <ul className="mb-4 divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
+            {komp.map((p) => {
+              const zeileBrutto = r2((p.verkaufspreis ?? 0) * (1 + mwst) * p.menge)
+              return (
+                <li key={p.id} className="flex items-center gap-3 px-4 py-2.5 bg-white">
+                  <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                    {p.bild_url && <Image src={p.bild_url} alt="" width={40} height={40} className="w-full h-full object-cover" unoptimized />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-800 truncate">{p.name}</p>
+                    <p className="text-[11px] text-gray-400">{p.menge} {p.einheit}</p>
+                  </div>
+                  <span className="text-xs font-mono text-gray-600">{eur(zeileBrutto)}</span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        {/* vorhandener Kommentar */}
+        {vorhandenerKommentar && !aktiveAktion && (
+          <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl">
+            <p className="text-xs font-semibold text-amber-700 mb-0.5">Ihr Kommentar</p>
+            <p className="text-sm text-amber-900 leading-relaxed">{vorhandenerKommentar}</p>
+          </div>
+        )}
+
+        {/* Aktions-Buttons (für das ganze Set) */}
+        {!aktiveAktion && (
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <button onClick={() => onSetStatus('freigegeben', '')} disabled={isPending}
+              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${setStatus === 'freigegeben' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'}`}>
+              <Check className="w-4 h-4" /> Set freigeben
+            </button>
+            <button onClick={() => { setAktiveAktion('ablehnen'); setKommentarEingabe(vorhandenerKommentar ?? '') }} disabled={isPending}
+              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${setStatus === 'abgelehnt' ? 'bg-red-600 text-white shadow-sm shadow-red-200' : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'}`}>
+              <X className="w-4 h-4" /> Ablehnen
+            </button>
+            <button onClick={() => { setAktiveAktion('alternative'); setKommentarEingabe(vorhandenerKommentar ?? '') }} disabled={isPending}
+              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${setStatus === 'ueberarbeitung' ? 'bg-amber-500 text-white shadow-sm shadow-amber-200' : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'}`}>
+              <RefreshCw className="w-4 h-4" /> Alternative
+            </button>
+          </div>
+        )}
+
+        {/* Kommentar-Eingabe */}
+        {aktiveAktion && (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                {aktiveAktion === 'ablehnen' ? 'Grund für Ablehnung (optional)' : 'Was wünschen Sie stattdessen?'}
+              </label>
+              <textarea autoFocus rows={3} value={kommentarEingabe} onChange={(e) => setKommentarEingabe(e.target.value)}
+                placeholder={aktiveAktion === 'ablehnen' ? 'z. B. Set passt nicht…' : 'z. B. Bitte andere Komponenten…'}
+                className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none" />
+            </div>
+            <div className="flex gap-2.5">
+              <button onClick={bestaetigeKommentar} disabled={isPending}
+                className="flex-1 py-3.5 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all active:scale-[0.98]">
+                {isPending ? 'Wird gespeichert…' : 'Bestätigen'}
+              </button>
+              <button onClick={() => { setAktiveAktion(null); setKommentarEingabe('') }} disabled={isPending}
+                className="px-5 py-3.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl bg-white transition-colors">
                 Abbrechen
               </button>
             </div>

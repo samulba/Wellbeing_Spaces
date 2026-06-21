@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Produkt-Sets im Kunden-Freigabe-Link (Phase 2)
+- Im **Freigabe-Link** erscheint ein Set jetzt als **eine** Karte (Set-Name, Set-Preis, „Was ist enthalten?"-Ausklapper mit allen Komponenten) statt als einzelne Positionen — genau der USP, den der Kunde verstehen soll.
+- **Eine** Entscheidung fürs ganze Set: **Set freigeben / Ablehnen / Alternative** (mit Kommentar) setzt automatisch alle Komponenten gemeinsam (all-or-nothing). Der Fortschritt zählt das Set als **eine** Position und gilt erst als freigegeben, wenn das komplette Set freigegeben ist.
+- Rein additiv: bestehende Auswahl-Blöcke (1-von-N), lose Produkte, PIN, Beleg/Unterschrift und Protokoll bleiben unverändert. Keine neue Migration.
+
 ### Produkt-Sets / Bundles in der Bibliothek (Phase 1)
 - **Neu:** In der Produktbibliothek lassen sich jetzt **Sets/Bundles** anlegen — mehrere Produkte mit Mengen als Komplett-Set (z. B. „LED-Strip-Komplettset" = Strips + Profile + Trafo + Verstärker + Fernbedienung). Über **Neues Produkt → „Set / Bundle anlegen"**: Komponenten aus der Bibliothek wählen, Mengen setzen, Live-Preis sehen.
 - **Set-Preis:** Summe der Komponenten, optional mit **Set-Rabatt %** oder **Festpreis** (Set günstiger als Einzelteile anbieten).
