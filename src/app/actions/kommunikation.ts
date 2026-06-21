@@ -107,10 +107,12 @@ export async function getKommunikation(
   limit = 50
 ): Promise<Kommunikation[]> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { data } = await supabase
     .from('kommunikation')
     .select('*')
+    .eq('organisation_id', orgId)
     .eq('kunde_id', kundeId)
     .order('datum', { ascending: false })
     .limit(limit)
@@ -120,10 +122,12 @@ export async function getKommunikation(
 
 export async function getOffeneFollowUps(): Promise<(Kommunikation & { kunden: { id: string; name: string } | null })[]> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { data } = await supabase
     .from('kommunikation')
     .select('*, kunden(id, name)')
+    .eq('organisation_id', orgId)
     .eq('erledigt', false)
     .not('follow_up_datum', 'is', null)
     .order('follow_up_datum', { ascending: true })

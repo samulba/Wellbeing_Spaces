@@ -8,6 +8,7 @@ import { meineRolleAbrufen } from '@/app/actions/team'
 import { istAdmin } from '@/lib/permissions'
 import { ableitenFaviconUrl, applyFaviconIfNeeded } from '@/lib/favicon'
 import { auditLog } from '@/lib/audit'
+import { effektiverVpNetto } from '@/lib/preise'
 import { extrahiereStammdatenAusAntworten } from '@/lib/onboarding-stammdaten'
 import type {
   KommunikationTyp, KundeKontakt, ProjektStatus,
@@ -505,15 +506,16 @@ export async function kundeProjekteMitStats(
   const rpRes = raumIds.length > 0
     ? await supabase
         .from('raum_produkte')
-        .select('raum_id, menge, verkaufspreis_override, freigabe_status, produkte(verkaufspreis)')
+        .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, freigabe_status, produkte(verkaufspreis, deleted_at)')
         .in('raum_id', raumIds)
         .eq('organisation_id', orgId)
     : { data: [] as const }
 
   type RpRow = {
     raum_id: string; menge: number; verkaufspreis_override: number | null
+    rabatt_prozent: number | null
     freigabe_status: string | null
-    produkte: { verkaufspreis: number | null } | { verkaufspreis: number | null }[] | null
+    produkte: { verkaufspreis: number | null; deleted_at: string | null } | { verkaufspreis: number | null; deleted_at: string | null }[] | null
   }
   const rpListe = (rpRes.data ?? []) as unknown as RpRow[]
 
@@ -523,13 +525,18 @@ export async function kundeProjekteMitStats(
 
     let gesamt = 0, freigegeben = 0, ausstehend = 0, abgelehnt = 0, vpNetto = 0
     for (const rp of eintraegeDiesesProjekts) {
+      const prod = Array.isArray(rp.produkte) ? rp.produkte[0] : rp.produkte
+      if (prod?.deleted_at != null) continue   // soft-gelöschte Produkte komplett überspringen (wie Projekt-/Dashboard-Sicht)
       gesamt += 1
       const s = rp.freigabe_status ?? 'ausstehend'
       if (s === 'freigegeben')    freigegeben += 1
       else if (s === 'abgelehnt') abgelehnt += 1
       else                        ausstehend += 1
-      const prod = Array.isArray(rp.produkte) ? rp.produkte[0] : rp.produkte
-      const vp = rp.verkaufspreis_override ?? prod?.verkaufspreis ?? 0
+      // Effektiver VP netto inkl. Rabatt/Set-Preis (konsistent zur Projektseite).
+      const vp = effektiverVpNetto(
+        { verkaufspreis_override: rp.verkaufspreis_override, rabatt_prozent: rp.rabatt_prozent },
+        prod?.verkaufspreis ?? null,
+      )
       vpNetto += vp * (rp.menge ?? 0)
     }
     return {

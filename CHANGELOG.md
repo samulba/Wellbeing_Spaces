@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Kunden – 2 Bugs behoben
+- **Kunden-Detailseite Budget:** Die Projekt-/Budgetsummen in der Kundenübersicht zählten **Rabatte und Set-Preise nicht mit** (zu hoch); jetzt konsistent zur Projektseite (effektiver Verkaufspreis inkl. Rabatt, ohne gelöschte Produkte).
+- **Heutige Follow-ups:** Ein Follow-up mit Datum **heute** wurde nachmittags fälschlich als **überfällig** (rot) angezeigt — jetzt erst ab morgen.
+
 ### Dashboard – Aktivitäten-Widget + präziserer Monatsumsatz
 - **Neu: „Letzte Aktivitäten"** auf dem Dashboard (3. Spalte) — zeigt die jüngsten Änderungen in der Organisation (wer hat was erstellt/geändert/geliefert …), inkl. Name des betroffenen Eintrags. Gut für den Team-Überblick.
 - **Monatsumsatz genauer:** zählt jetzt nach **Annahme-Datum** des Angebots statt nach Erstell-Datum — ein letzten Monat erstelltes, diesen Monat angenommenes Angebot zählt korrekt für diesen Monat. (Das Annahme-Datum wird ab jetzt beim Status „angenommen" gespeichert.)

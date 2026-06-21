@@ -33,7 +33,11 @@ function formatDatum(iso: string) {
 }
 
 function isOverdue(datum: string) {
-  return new Date(datum) < new Date()
+  // follow_up_datum ist ein DATE-String (yyyy-mm-dd). Überfällig = strikt VOR heute
+  // (lokaler Kalendertag) — sonst erscheinen heutige Follow-ups nachmittags rot.
+  const n = new Date()
+  const heute = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+  return datum.slice(0, 10) < heute
 }
 
 // ── Haupt-Komponente ──────────────────────────────────────────
