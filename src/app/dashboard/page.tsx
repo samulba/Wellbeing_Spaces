@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { differenceInCalendarDays } from 'date-fns'
+import { effektiverVpNetto } from '@/lib/preise'
 import type { ProjektMitKunde } from '@/lib/supabase/types'
 import {
   KpiKartenReihe,
@@ -22,7 +24,11 @@ import { getAufgabePickerOptionen, type AufgabePickerOptionen } from '@/app/acti
 // ── Hilfsfunktionen ───────────────────────────────────────────
 
 function tageDiff(isoDate: string): number {
-  return Math.floor((new Date(isoDate).getTime() - Date.now()) / 86_400_000)
+  // Date-only-Strings (yyyy-mm-dd) als LOKALE Mitternacht interpretieren — sonst
+  // werden sie als UTC-Mitternacht gelesen und heutige Deadlines erscheinen
+  // nachmittags fälschlich als „1d überfällig". Kalendertag-genau via date-fns.
+  const d = isoDate.length === 10 ? new Date(`${isoDate}T00:00:00`) : new Date(isoDate)
+  return differenceInCalendarDays(d, new Date())
 }
 
 /** Führt einen Supabase-Query sicher aus und gibt null zurück wenn er fehlschlägt. */
@@ -108,7 +114,7 @@ async function getDashboardData() {
     safeQuery(() =>
       supabase
         .from('raum_produkte')
-        .select('menge, verkaufspreis_override, raeume!inner(projekt_id), produkte!inner(verkaufspreis)')
+        .select('menge, verkaufspreis_override, rabatt_prozent, raeume!inner(projekt_id), produkte!inner(verkaufspreis, deleted_at)')
     ),
 
     // Aktive Projekte mit Budget
@@ -160,7 +166,7 @@ async function getDashboardData() {
     const r = await safeQuery(() =>
       supabase
         .from('timeline_events')
-        .select('id, titel, typ, start_datum, erinnerung_tage, projekt_id, projekte(id, name)')
+        .select('id, titel, typ, start_datum, erinnerung_tage, quelle, projekt_id, projekte(id, name)')
         .neq('status', 'abgeschlossen')
         .gte('start_datum', vor7Str)
         .lte('start_datum', in30Str)
@@ -173,10 +179,14 @@ async function getDashboardData() {
       typ: string
       start_datum: string
       erinnerung_tage: number | null
+      quelle: string | null
       projekt_id: string
       projekte: { id: string; name: string } | null
     }
     anstehendeEvents = ((r.data ?? []) as unknown as EventRaw[])
+      // Auto-Deadline-Events ausblenden — die Projekt-Deadlines erscheinen bereits
+      // über `naechsteDeadlines` (sonst doppelt im Widget).
+      .filter((e) => e.quelle !== 'deadline')
       .map((e) => {
         const tage = tageDiff(e.start_datum)
         return {
@@ -245,15 +255,21 @@ async function getDashboardData() {
   type KostenRaw = {
     menge: number
     verkaufspreis_override: number | null
+    rabatt_prozent: number | null
     raeume:   { projekt_id: string } | null
-    produkte: { verkaufspreis: number | null } | null
+    produkte: { verkaufspreis: number | null; deleted_at: string | null } | null
   }
   const kostenByProjekt = new Map<string, number>()
   for (const e of (produkteKostenResult.data ?? []) as unknown as KostenRaw[]) {
     if (!e.raeume) continue
-    const ep    = e.verkaufspreis_override ?? e.produkte?.verkaufspreis ?? 0
-    const prev  = kostenByProjekt.get(e.raeume.projekt_id) ?? 0
-    kostenByProjekt.set(e.raeume.projekt_id, prev + ep * e.menge)
+    if (e.produkte?.deleted_at != null) continue   // soft-gelöschte Produkte nicht zählen
+    // Effektiver VP netto inkl. Rabatt/Set-Preis (wie auf der Projektseite).
+    const vp   = effektiverVpNetto(
+      { verkaufspreis_override: e.verkaufspreis_override, rabatt_prozent: e.rabatt_prozent },
+      e.produkte?.verkaufspreis ?? null,
+    )
+    const prev = kostenByProjekt.get(e.raeume.projekt_id) ?? 0
+    kostenByProjekt.set(e.raeume.projekt_id, prev + vp * e.menge)
   }
 
   const budgetProjekte: BudgetProjekt[] = (

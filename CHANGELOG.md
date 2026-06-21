@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-21
 
+### Dashboard – 3 Bugs behoben
+- **Doppelte Deadlines:** Eine Projekt-Deadline erschien im Widget „Anstehende Deadlines" **doppelt** (einmal als Projekt-Deadline, einmal als automatisch erzeugter Timeline-Meilenstein) — jetzt nur noch einmal.
+- **Budget-Balken:** Die „Budget-Übersicht" zählte **Rabatte und Set-Preise nicht mit** und war dadurch zu hoch; jetzt rechnet sie wie die Projektseite (effektiver Verkaufspreis inkl. Rabatt, ohne gelöschte Produkte).
+- **Heutige Termine:** Deadlines/Termine **von heute** wurden nachmittags fälschlich als „1 Tag überfällig" angezeigt (Zeitzonen-Rundung) — jetzt korrekt „Heute".
+
 ### Wareneingang – Feinschliff (nach Code-Audit)
 - **Behoben:** Beim erneuten Abhaken einer bereits vollständig gelieferten Bestellung wurde dem Kunden die **„📦 angekommen"-Nachricht ein zweites Mal** geschickt — passiert jetzt nur noch genau einmal.
 - **Behoben:** Wird der Wareneingang einer Position **zurückgesetzt**, springt die Bestellung von „Geliefert" sauber zurück auf „Versandt" (vorher konnte „Bestellung geliefert" + „Position bestellt" gleichzeitig stehen).

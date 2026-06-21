@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText, Flag, Truck, Layers, Info, ShoppingCart, AlertTriangle, Package, ListChecks, Check, Plus } from 'lucide-react'
 import { aufgabeStatusAendern, type AufgabePickerOptionen } from '@/app/actions/aufgaben'
 import { useRouter } from 'next/navigation'
+import { differenceInCalendarDays } from 'date-fns'
 import AufgabeAnlegenModal from '@/components/AufgabeAnlegenModal'
 
 // ── Typen ─────────────────────────────────────────────────────
@@ -90,6 +91,12 @@ export interface LetzesProjekt {
 
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+
+/** Kalendertage bis zu einem Date-only-String (lokal, nicht UTC) — heute = 0. */
+function tageBis(isoDate: string): number {
+  const d = isoDate.length === 10 ? new Date(`${isoDate}T00:00:00`) : new Date(isoDate)
+  return differenceInCalendarDays(d, new Date())
+}
 
 
 const typIcon: Record<string, React.ElementType> = {
@@ -592,7 +599,7 @@ export function LetzteProjekte({ projekte }: { projekte: LetzesProjekt[] }) {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {projekte.map((p) => {
-                const dl = p.deadline ? Math.floor((new Date(p.deadline).getTime() - Date.now()) / 86_400_000) : null
+                const dl = p.deadline ? tageBis(p.deadline) : null
                 return (
                   <tr key={p.id} className="hover:bg-gray-50 transition-colors group">
                     <td className="px-5 py-3">
