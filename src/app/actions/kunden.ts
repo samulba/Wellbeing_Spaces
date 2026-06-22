@@ -15,7 +15,13 @@ import type {
   OnboardingAnfrage, OnboardingVorlage, OnboardingDatei, OnboardingStatus, OnboardingTyp,
 } from '@/lib/supabase/types'
 
-export type KundeActionState = { fehler: string } | null
+export type KundeDuplikat = { id: string; name: string; firmenname: string | null }
+export type KundeActionState = { fehler?: string; duplikate?: KundeDuplikat[] } | null
+
+/** Escaped die ILIKE-Wildcards (% _ \), damit Namen mit diesen Zeichen exakt (ci) verglichen werden. */
+function escapeIlike(v: string): string {
+  return v.replace(/[%_\\]/g, '\\$&')
+}
 
 export interface KundeImpact {
   projekte:      number
@@ -124,6 +130,35 @@ export async function kundeAnlegen(
 
   const felder = parseKundeFelder(formData)
   if (felder.fehler) return { fehler: felder.fehler }
+
+  // Dubletten-Warnung (nicht-blockierend): schon ein Kunde mit gleichem Namen?
+  // Abgleich nur über Name + Firmenname (E-Mail wird im Formular nicht erfasst).
+  // Mit "Trotzdem anlegen" (ignoriere_duplikat=true) wird der Check übersprungen.
+  if (formData.get('ignoriere_duplikat') !== 'true') {
+    const treffer = new Map<string, KundeDuplikat>()
+
+    const { data: nameTreffer } = await supabase
+      .from('kunden')
+      .select('id, name, firmenname')
+      .eq('organisation_id', orgId)
+      .is('deleted_at', null)
+      .ilike('name', escapeIlike(felder.name))
+      .limit(5)
+    for (const k of nameTreffer ?? []) treffer.set(k.id as string, k as KundeDuplikat)
+
+    if (felder.firmenname) {
+      const { data: firmaTreffer } = await supabase
+        .from('kunden')
+        .select('id, name, firmenname')
+        .eq('organisation_id', orgId)
+        .is('deleted_at', null)
+        .ilike('firmenname', escapeIlike(felder.firmenname))
+        .limit(5)
+      for (const k of firmaTreffer ?? []) treffer.set(k.id as string, k as KundeDuplikat)
+    }
+
+    if (treffer.size > 0) return { duplikate: Array.from(treffer.values()) }
+  }
 
   const adr = parseAdresseFelder(formData)
 

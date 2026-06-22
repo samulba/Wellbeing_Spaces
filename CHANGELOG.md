@@ -3,6 +3,11 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-06-22
+
+### Kunden – Dubletten-Warnung beim Anlegen
+- Beim Anlegen eines neuen Kunden wird jetzt geprüft, ob es bereits einen Kunden mit **gleichem Namen oder gleicher Firma** gibt. Falls ja, erscheint ein Hinweis mit Links zu den bestehenden Kunden — versehentliche Doppel-Anlagen werden so vermieden. Mit **„Trotzdem anlegen"** kann man den Kunden bei Bedarf bewusst doppelt anlegen.
+
 ## 2026-06-21
 
 ### Kunden – 2 Bugs behoben

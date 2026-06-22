@@ -1,20 +1,35 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { useState } from 'react'
-import { User, Building2, Users as UsersIcon } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { User, Building2, Users as UsersIcon, AlertTriangle } from 'lucide-react'
 import type { KundeActionState } from '@/app/actions/kunden'
 import type { Kunde, KundenTyp } from '@/lib/supabase/types'
 
-function SpeichernButton() {
+function SpeichernButton({ onClick }: { onClick?: () => void }) {
   const { pending } = useFormStatus()
   return (
     <button
       type="submit"
       disabled={pending}
+      onClick={onClick}
       className="px-5 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
     >
       {pending ? 'Wird gespeichert…' : 'Speichern'}
+    </button>
+  )
+}
+
+function TrotzdemAnlegenButton({ onClick }: { onClick: () => void }) {
+  const { pending } = useFormStatus()
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      onClick={onClick}
+      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+    >
+      {pending ? 'Wird angelegt…' : 'Trotzdem anlegen'}
     </button>
   )
 }
@@ -33,6 +48,7 @@ const TYP_OPTIONEN: { id: KundenTyp; label: string; beschreibung: string; icon: 
 
 export default function KundeFormular({ aktion, initialData, abbrechen }: Props) {
   const [state, formAction] = useFormState(aktion, null)
+  const ignoriereRef = useRef<HTMLInputElement>(null)
   const [typ, setTyp]                 = useState<KundenTyp>(initialData?.kunden_typ ?? 'firma')
   const [kundenname, setKundenname]   = useState<string>(initialData?.kunden_typ === 'firma' ? '' : (initialData?.name ?? ''))
   const [firmenname, setFirmenname]   = useState<string>(initialData?.firmenname ?? (initialData?.kunden_typ === 'firma' ? (initialData?.name ?? '') : ''))
@@ -42,9 +58,44 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
 
   return (
     <form action={formAction} className="space-y-5">
+      {/* Flag: bei "Trotzdem anlegen" auf 'true' gesetzt → Dubletten-Check wird übersprungen */}
+      <input type="hidden" name="ignoriere_duplikat" ref={ignoriereRef} defaultValue="false" />
+
       {state?.fehler && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
           {state.fehler}
+        </div>
+      )}
+
+      {state?.duplikate && state.duplikate.length > 0 && (
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 space-y-2.5">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-sm font-medium text-amber-800">
+              Es gibt bereits {state.duplikate.length === 1 ? 'einen Kunden' : `${state.duplikate.length} Kunden`} mit
+              diesem Namen:
+            </p>
+          </div>
+          <ul className="space-y-1 pl-6">
+            {state.duplikate.map((d) => (
+              <li key={d.id}>
+                <a
+                  href={`/dashboard/kunden/${d.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-amber-900 underline decoration-amber-300 underline-offset-2 hover:text-amber-700"
+                >
+                  {d.name}
+                  {d.firmenname && d.firmenname !== d.name ? ` · ${d.firmenname}` : ''}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <div className="pl-6 pt-0.5">
+            <TrotzdemAnlegenButton
+              onClick={() => { if (ignoriereRef.current) ignoriereRef.current.value = 'true' }}
+            />
+          </div>
         </div>
       )}
 
@@ -189,7 +240,9 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
 
       {/* Aktionen */}
       <div className="flex items-center gap-3 pt-2">
-        <SpeichernButton />
+        <SpeichernButton
+          onClick={() => { if (ignoriereRef.current) ignoriereRef.current.value = 'false' }}
+        />
         <a
           href={abbrechen}
           className="px-5 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
