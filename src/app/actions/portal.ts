@@ -485,13 +485,23 @@ export async function portalProjektAbrufen(projektId: string) {
     .order('start_datum')
 
   // ── Bestell-/Liefer-Status pro Produkt (Migration 076 + 100) ──
-  // Lookup-Map raum_id:produkt_id → Status
+  // Lookup-Map raum_id:produkt_id → Status. Das Portal zeigt Produkte pro
+  // produkt_id (eine Zeile je Produkt). Seit Mig 134 kann derselbe Artikel
+  // MEHRFACH in einem Raum liegen → bei mehreren raum_produkte-Zeilen den
+  // WEITESTEN Lieferstatus behalten (deterministisch, zeigt den Fortschritt),
+  // statt der zufällig letzten Zeile.
   const bestellStatusMap: Record<string, {
     bestellstatus:           string
     bestellt_am:             string | null
     liefertermin:            string | null
     lieferung_erhalten_am:   string | null
   }> = {}
+  // Höherer Rang = weiter fortgeschritten (für den Kunden relevanter zu sehen).
+  const lieferRang = (s: string | null): number => ({
+    ausstehend: 0, storniert: 0, bestellt: 1, mangel_gemeldet: 1,
+    retoure_unterwegs: 2, retoure_erhalten: 2, teilgeliefert: 3,
+    geliefert: 4, rechnung_erhalten: 5,
+  }[s ?? 'ausstehend'] ?? 0)
   if (raumIds.length > 0) {
     const { data: rps } = await supabase
       .from('raum_produkte')
@@ -499,7 +509,10 @@ export async function portalProjektAbrufen(projektId: string) {
       .in('raum_id', raumIds)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const rp of ((rps ?? []) as any[])) {
-      bestellStatusMap[`${rp.raum_id}:${rp.produkt_id}`] = {
+      const key = `${rp.raum_id}:${rp.produkt_id}`
+      const vorhanden = bestellStatusMap[key]
+      if (vorhanden && lieferRang(rp.bestellstatus) <= lieferRang(vorhanden.bestellstatus)) continue
+      bestellStatusMap[key] = {
         bestellstatus:         rp.bestellstatus ?? 'ausstehend',
         bestellt_am:           rp.bestellt_am ?? null,
         liefertermin:          rp.liefertermin ?? null,

@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Kundenportal – Lieferstatus bei mehrfachen Produkten korrekt
+- Liegt ein Produkt jetzt **mehrfach in einem Raum** (neue Funktion), zeigt das Kundenportal den **weitesten Lieferstatus** (z. B. „geliefert", sobald eine der Instanzen geliefert ist) statt eines zufälligen Einzelstatus. *(Folge-Korrektur zur Mehrfach-Produkt-Funktion.)*
+
 ### Freigaben – Freigegeben-Stempel (wann & von wem)
 - Jedes freigegebene Produkt trägt jetzt einen **Stempel** „Freigegeben {Datum, Uhrzeit} · {Name}" — sichtbar in der **Raum-Produkttabelle** und in der **Freigaben-Übersicht**. So ist jederzeit nachvollziehbar, wann und durch wen eine Freigabe erteilt wurde. *(Benötigt Migration 135; vorhandene Freigaben werden aus dem Protokoll automatisch nachgetragen.)*
 
