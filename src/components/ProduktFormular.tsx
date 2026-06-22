@@ -728,24 +728,37 @@ export default function ProduktFormular({
     vpNetto,
   )
 
+  // Preis-Kaskade (smart & nicht-destruktiv). Leitwert ist der VERKAUFSPREIS
+  // (Kundenpreis). Regeln:
+  //  • EK ändern   → VK bleibt unverändert, Marge wird neu abgeleitet.
+  //  • Marge ändern → VK aus EK × (1+Marge) berechnen (nur wenn EK > 0).
+  //  • VK ändern    → Marge neu ableiten (EK bleibt).
+  // Damit „zerschießt" das Eingeben des EK den Verkaufspreis NICHT mehr.
+  const margeAusVk = (vk: number, ek: number) => (ek > 0 ? r2(((vk - ek) / ek) * 100) : 0)
+
   const handleEpChange = useCallback((val: number) => {
-    setEp(val); setVpNetto(r2(val * (1 + marge / 100)))
-  }, [marge])
+    setEp(val)
+    setMarge(margeAusVk(vpNetto, val))
+  }, [vpNetto])
 
   const handleMargeChange = useCallback((val: number) => {
-    setMarge(val); setVpNetto(r2(ep * (1 + val / 100)))
+    setMarge(val)
+    if (ep > 0) setVpNetto(r2(ep * (1 + val / 100)))
   }, [ep])
 
   const handleVpNettoChange = useCallback((val: number) => {
     setVpNetto(val)
-    setMarge(ep > 0 ? r2(((val - ep) / ep) * 100) : 0)
+    setMarge(margeAusVk(val, ep))
   }, [ep])
 
   const handleVpBruttoChange = useCallback((val: number) => {
     const netto = r2(val / (1 + mwst))
     setVpNetto(netto)
-    setMarge(ep > 0 ? r2(((netto - ep) / ep) * 100) : 0)
+    setMarge(margeAusVk(netto, ep))
   }, [ep, mwst])
+
+  // Absolute Marge (€) = VK netto − EK netto (informativ)
+  const margeEur = r2(vpNetto - ep)
 
   // Partner-Konditionen für die Produkt-Kategorie auflösen (Hinweis + „Vom Partner übernehmen")
   useEffect(() => {
@@ -1176,6 +1189,11 @@ export default function ProduktFormular({
 
               {kalkulationOffen && (
                 <div className="mt-3 space-y-3">
+                  <p className="text-[11px] text-gray-500 leading-snug bg-wellbeing-cream/40 border border-wellbeing-green/15 rounded-lg px-3 py-2">
+                    <span className="font-medium text-wellbeing-green-dark">Verkaufspreis = Kundenpreis.</span>{' '}
+                    <span className="font-medium">EK</span> eingeben lässt den Verkaufspreis unverändert und passt die Marge an.
+                    Eine <span className="font-medium">Marge</span> eingeben berechnet den Verkaufspreis aus dem EK.
+                  </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className={lbl}>EK netto (€)</label>
@@ -1257,8 +1275,9 @@ export default function ProduktFormular({
 
                   {(vpNetto > 0 || ep > 0) && (
                     <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         <KalkulationsZeile label="EK netto" wert={ep > 0 ? eur(ep) : '–'} />
+                        <KalkulationsZeile label="Marge" wert={ep > 0 && vpNetto > 0 ? eur(margeEur) : '–'} />
                         <KalkulationsZeile label="VP netto" wert={vpNetto > 0 ? eur(vpNetto) : '–'} hervorheben />
                         <KalkulationsZeile label="VP brutto" wert={vpNetto > 0 ? eur(vpBrutto) : '–'} hervorheben />
                         <KalkulationsZeile label="Provision" wert={provisionEur > 0 && vpNetto > 0 ? eur(provisionEur) : '–'} />

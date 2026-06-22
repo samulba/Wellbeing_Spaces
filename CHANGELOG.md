@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Produkte – Preislogik überarbeitet (EK-Bug behoben)
+- **Bug behoben:** Das Eingeben des **Einkaufspreises (EK netto)** hat bisher den **Verkaufspreis** des Kunden überschrieben/„zerschossen". Jetzt ist der **Verkaufspreis der Leitwert**: EK eingeben lässt den Verkaufspreis **unverändert** und berechnet nur die **Marge** neu. Eine **Marge** eingeben berechnet den Verkaufspreis aus dem EK; den **Verkaufspreis** (netto oder brutto) ändern passt die Marge an. Ein kurzer Hinweis im Kalkulations-Bereich erklärt das Verhalten.
+- Die interne Kalkulations-Übersicht zeigt jetzt zusätzlich die **Marge in € (= Verkaufspreis − EK)** neben EK, Verkaufspreis netto/brutto und Provision.
+
 ### Räume – Produkt-Übersicht als PDF (Proof für Lieferant)
 - Auf jeder Raum-Seite gibt es jetzt einen **„PDF"-Button**: er erzeugt eine **Produkt-Übersicht** des Raums (Produkt, Art.-Nr., Hersteller, Gruppe, Menge) — **bewusst ohne Verkaufspreise**, ideal als Proof an den Lieferanten (z. B. Paulmann) zum Gegencheck **vor** der Kundenfreigabe.
 
