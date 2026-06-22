@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Chats – Suche & Filter
+- Die Chat-Übersicht hat jetzt eine **Suche** (nach Projekt oder Kunde), einen **„Ungelesen"**-Filter (mit Gesamtzähler) und die Sortierung **„Ungelesen zuerst"** — so findet man bei vielen Portal-Kunden den richtigen Chat sofort.
+
 ### Bestellungen – Bestellung als PDF
 - Auf der Bestell-Detailseite gibt es jetzt einen **„PDF"**-Button: er erzeugt ein sauberes **Bestelldokument** (Lieferant + Adresse, Positionen mit Artikel-Nr./Menge/Einkaufspreis, Liefertermin, Netto + Versand + Gesamt) im gewohnten Layout der Angebots-/Vertrags-PDFs — zum Ausdrucken oder Senden an den Lieferanten.
 
