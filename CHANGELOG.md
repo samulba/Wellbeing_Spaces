@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Aufgaben – Bug behoben
+- **Wieder-Öffnen per Drag&Drop:** Zieht man eine erledigte Aufgabe auf dem Board zurück (z. B. nach „In Arbeit"), wird jetzt ihr Erledigt-Zeitpunkt korrekt entfernt — vorher behielt sie ihren alten Abschluss-Zeitpunkt und wirkte gleichzeitig erledigt und aktiv. Umsortieren innerhalb der Erledigt-Spalte ändert den Zeitpunkt nicht.
+
 ### Chats – Suche & Filter
 - Die Chat-Übersicht hat jetzt eine **Suche** (nach Projekt oder Kunde), einen **„Ungelesen"**-Filter (mit Gesamtzähler) und die Sortierung **„Ungelesen zuerst"** — so findet man bei vielen Portal-Kunden den richtigen Chat sofort.
 

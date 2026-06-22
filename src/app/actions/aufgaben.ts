@@ -691,13 +691,25 @@ export async function aufgabeReihenfolgeAendern(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
+  // Alte Status laden, um erledigt_am nur bei echtem Wechsel zu setzen/leeren — sonst
+  // würde Umsortieren INNERHALB von „Erledigt" den Abschluss-Zeitpunkt überschreiben und
+  // ein aus „Erledigt" herausgezogener Task behielte seinen alten Abschluss-Zeitpunkt.
+  const { data: alte } = await supabase
+    .from('aufgaben')
+    .select('id, status')
+    .eq('organisation_id', orgId)
+    .in('id', updates.map((u) => u.id))
+  const alterStatus = new Map((alte ?? []).map((a) => [a.id as string, a.status as AufgabeStatus]))
+
   // Sequentielle Updates — Supabase JS hat keine Bulk-Update-API
   for (const u of updates) {
     const update: Record<string, unknown> = {
       status:      u.status,
       reihenfolge: u.reihenfolge,
     }
-    if (u.status === 'erledigt') update.erledigt_am = new Date().toISOString()
+    const prev = alterStatus.get(u.id)
+    if (u.status === 'erledigt' && prev !== 'erledigt')      update.erledigt_am = new Date().toISOString()
+    else if (u.status !== 'erledigt' && prev === 'erledigt') update.erledigt_am = null
     const { error } = await supabase
       .from('aufgaben')
       .update(update)
