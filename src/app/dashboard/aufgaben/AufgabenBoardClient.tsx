@@ -45,6 +45,8 @@ const PRIO_BORDER: Record<AufgabePrioritaet, string> = {
 type ZeitFilter    = 'alle' | 'mir' | 'heute' | 'woche' | 'ueberfaellig'
 type KontextFilter = 'alle' | 'mit_projekt' | 'intern'
 
+const selCls = 'text-sm px-2 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-600 max-w-[160px] focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20'
+
 export default function AufgabenBoardClient({
   initialeAufgaben,
   pickerOptionen,
@@ -62,6 +64,11 @@ export default function AufgabenBoardClient({
   const [kontextFilter, setKontextFilter] = useState<KontextFilter>('alle')
   const [suche, setSuche] = useState('')
   const [view, setView] = useState<'board' | 'liste' | 'kalender'>('board')
+  // Erweiterte Filter (Zuständig / Label / Projekt) — wirken über das gemeinsame
+  // `gefiltert` automatisch in Board, Liste und Kalender.
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('alle')  // 'alle' | user_id | 'niemand'
+  const [labelFilter, setLabelFilter]       = useState<string>('alle')  // 'alle' | label_id
+  const [projektFilter, setProjektFilter]   = useState<string>('alle')  // 'alle' | projekt_id | 'ohne'
   const [neuOffen, setNeuOffen] = useState<AufgabeStatus | null>(null)
   const [neuTitel, setNeuTitel] = useState('')
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -88,6 +95,16 @@ export default function AufgabenBoardClient({
     setAufgaben(initialeAufgaben)
   }, [initialeAufgaben])
 
+  // Bevorzugte Ansicht (Board/Liste/Kalender) merken
+  useEffect(() => {
+    const v = localStorage.getItem('aufgaben-view')
+    if (v === 'board' || v === 'liste' || v === 'kalender') setView(v)
+  }, [])
+  function setViewGespeichert(v: 'board' | 'liste' | 'kalender') {
+    setView(v)
+    try { localStorage.setItem('aufgaben-view', v) } catch { /* ignore */ }
+  }
+
   // Filtern (clientseitig fuer schnelle Reaktion)
   const heute = new Date().toISOString().slice(0, 10)
   const inEinerWoche = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
@@ -113,6 +130,20 @@ export default function AufgabenBoardClient({
       } else if (kontextFilter === 'intern') {
         if (a.projekt_id || a.kunde_id) return false
       }
+      // Zuständig-Filter
+      if (assigneeFilter === 'niemand') {
+        if (a.assignee_user_id || a.assignee_kunde) return false
+      } else if (assigneeFilter !== 'alle') {
+        if (a.assignee_user_id !== assigneeFilter) return false
+      }
+      // Label-Filter
+      if (labelFilter !== 'alle' && !(a.label_ids ?? []).includes(labelFilter)) return false
+      // Projekt-Filter
+      if (projektFilter === 'ohne') {
+        if (a.projekt_id) return false
+      } else if (projektFilter !== 'alle') {
+        if (a.projekt_id !== projektFilter) return false
+      }
       // Volltext-Suche ueber Titel + Beschreibung + Tags + Projekt + Kunde
       if (sucheNorm) {
         const haystack = [
@@ -126,7 +157,7 @@ export default function AufgabenBoardClient({
       }
       return true
     })
-  }, [aufgaben, zeitFilter, kontextFilter, heute, inEinerWoche, currentUserId, sucheNorm])
+  }, [aufgaben, zeitFilter, kontextFilter, assigneeFilter, labelFilter, projektFilter, heute, inEinerWoche, currentUserId, sucheNorm])
 
   // Spalten-Mapping
   const spaltenInhalt = useMemo(() => {
@@ -252,7 +283,7 @@ export default function AufgabenBoardClient({
             {/* View-Toggle: Board / Liste / Kalender */}
             <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
               <button
-                onClick={() => setView('board')}
+                onClick={() => setViewGespeichert('board')}
                 title="Kanban-Board"
                 aria-label="Kanban-Board"
                 className={
@@ -261,7 +292,7 @@ export default function AufgabenBoardClient({
                 }
               ><LayoutGrid size={14} /></button>
               <button
-                onClick={() => setView('liste')}
+                onClick={() => setViewGespeichert('liste')}
                 title="Liste"
                 aria-label="Liste"
                 className={
@@ -270,7 +301,7 @@ export default function AufgabenBoardClient({
                 }
               ><List size={14} /></button>
               <button
-                onClick={() => setView('kalender')}
+                onClick={() => setViewGespeichert('kalender')}
                 title="Kalender"
                 aria-label="Kalender"
                 className={
@@ -348,6 +379,32 @@ export default function AufgabenBoardClient({
             )
           })}
         </div>
+
+        {/* Erweiterte Filter: Zuständig / Label / Projekt */}
+        {(!!pickerOptionen?.team?.length || !!pickerOptionen?.labels?.length || !!pickerOptionen?.projekte?.length) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {!!pickerOptionen?.team?.length && (
+              <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} title="Zuständig" className={selCls}>
+                <option value="alle">Alle Zuständigen</option>
+                <option value="niemand">Niemand zugewiesen</option>
+                {pickerOptionen.team.map((t) => <option key={t.user_id} value={t.user_id}>{t.name}</option>)}
+              </select>
+            )}
+            {!!pickerOptionen?.labels?.length && (
+              <select value={labelFilter} onChange={(e) => setLabelFilter(e.target.value)} title="Label" className={selCls}>
+                <option value="alle">Alle Labels</option>
+                {pickerOptionen.labels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            )}
+            {!!pickerOptionen?.projekte?.length && (
+              <select value={projektFilter} onChange={(e) => setProjektFilter(e.target.value)} title="Projekt" className={selCls}>
+                <option value="alle">Alle Projekte</option>
+                <option value="ohne">Ohne Projekt</option>
+                {pickerOptionen.projekte.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            )}
+          </div>
+        )}
         <div className="relative flex-1 max-w-[340px] ml-auto">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <input
