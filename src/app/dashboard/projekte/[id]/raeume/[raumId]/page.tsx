@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
+import { FileText } from 'lucide-react'
 
 // Muss dynamisch sein — sonst werden die Raum-Produkte und Timeline-Events
 // zwischen Sync-Aufrufen gecacht und Änderungen sind erst nach Hard-Refresh sichtbar.
@@ -168,6 +169,15 @@ export default async function RaumDetailPage({
           )}
         </div>
         <div className="flex items-center gap-2">
+          <a
+            href={`/api/raeume/${params.raumId}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+            title="Produkt-Übersicht als PDF (Proof für Lieferant — ohne Preise)"
+          >
+            <FileText className="w-4 h-4" /> PDF
+          </a>
           <ProduktHinzufuegenModal raumId={params.raumId} projektId={params.id} />
         </div>
       </div>

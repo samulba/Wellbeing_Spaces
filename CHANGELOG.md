@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Räume – Produkt-Übersicht als PDF (Proof für Lieferant)
+- Auf jeder Raum-Seite gibt es jetzt einen **„PDF"-Button**: er erzeugt eine **Produkt-Übersicht** des Raums (Produkt, Art.-Nr., Hersteller, Gruppe, Menge) — **bewusst ohne Verkaufspreise**, ideal als Proof an den Lieferanten (z. B. Paulmann) zum Gegencheck **vor** der Kundenfreigabe.
+
 ### Räume – Gleiches Produkt mehrfach pro Raum
 - Ein Produkt kann jetzt **mehrfach in denselben Raum** gelegt werden (z. B. ein Controller je Lichtgruppe). Neuer **„Duplizieren"**-Button (Kopier-Symbol) pro Produktzeile legt eine eigene, unabhängige Position an (Menge/Preis/Notiz übernommen). Status, Freigabe und Zuordnungen sind je Position getrennt; die „In X Räumen"-Anzeige zählt weiterhin nur echte Räume. *(Benötigt Migration 134.)*
 
