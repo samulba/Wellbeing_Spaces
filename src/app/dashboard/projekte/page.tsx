@@ -9,7 +9,9 @@ async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
 
   // Wir laden raum_produkte (Junction) + produkte zusammen — deckt Bibliotheks-
   // Produkte, die erst via raum_produkte in einen Raum verlinkt sind, korrekt ab.
-  const [{ data: projekte }, { data: raeume }, { data: rps }] = await Promise.all([
+  // Fail-safe: ein einzelner fehlschlagender Query darf die ganze Projektliste nicht
+  // crashen (Promise.allSettled statt Promise.all → leeres Ergebnis als Fallback).
+  const [pRes, rRes, rpRes] = await Promise.allSettled([
     supabase.from('projekte').select('*, kunden(id, name, logo_url)').is('deleted_at', null).order('archiviert').order('created_at', { ascending: false }),
     supabase.from('raeume').select('id, projekt_id').is('deleted_at', null),
     supabase
@@ -18,6 +20,9 @@ async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
       // NICHT mehr auf produkte/produktstatus — sonst zeigen die Karten veraltete Werte.
       .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, bestellstatus, freigabe_status, produkte(verkaufspreis, deleted_at)'),
   ])
+  const projekte = pRes.status  === 'fulfilled' ? pRes.value.data  : null
+  const raeume   = rRes.status  === 'fulfilled' ? rRes.value.data  : null
+  const rps      = rpRes.status === 'fulfilled' ? rpRes.value.data : null
 
   // raum_id → projekt_id
   const raumProjektMap: Record<string, string> = {}

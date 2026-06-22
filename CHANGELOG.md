@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Projekte – Über-Budget sichtbar + stabilere Seiten
+- **Über-Budget auf einen Blick:** Projekte, deren Produktsumme das Budget übersteigt, tragen jetzt eine rote **„Über Budget"**-Markierung (Karte + Liste). In der Toolbar gibt es einen Filter **„⚠ Über Budget (N)"**, der nur die überzogenen Projekte zeigt (erscheint nur, wenn es welche gibt).
+- **Stabilere Projekt-Seiten:** Projekt-Übersicht und Projekt-Detailseite stürzen nicht mehr komplett ab, wenn ein einzelner Datenbereich nicht lädt — der betroffene Block zeigt dann seinen leeren Zustand, der Rest der Seite bleibt nutzbar.
+
 ### Projekte – Bugs behoben
 - **Projekt duplizieren kopierte keine Produkte:** Beim Duplizieren mit „Produkte kopieren" blieben die Räume **leer**, weil die Produkte am alten Speicherort gesucht wurden. Jetzt werden die Raum-Produkte korrekt in die neuen Räume übernommen. Zusätzlich werden jetzt auch **Produkt-Budget, Service-/Abrechnungseinstellungen** sowie pro Raum **Budget, Maße und Grundriss** mitkopiert.
 - **Projekte-Übersicht zeigte veralteten Fortschritt:** Die Balken **Freigabe / Bestellt / Geliefert** auf den Projektkarten (und in der Listenansicht) lasen einen alten Status-Speicherort und zeigten dadurch falsche Werte — jetzt der aktuelle Stand wie auf der Projekt-Detailseite.

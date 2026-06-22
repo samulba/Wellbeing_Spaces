@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { differenceInCalendarDays } from 'date-fns'
-import { Search, LayoutGrid, List, MapPin, DoorOpen, Archive, Clock, CheckCircle2, Package, Truck } from 'lucide-react'
+import { Search, LayoutGrid, List, MapPin, DoorOpen, Archive, Clock, CheckCircle2, Package, Truck, AlertTriangle } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type ProjektMitStats = {
@@ -35,6 +35,11 @@ const avatarFarben = [
 ]
 function avatarFarbe(s: string) { return avatarFarben[(s.charCodeAt(0) || 0) % avatarFarben.length] }
 function initials(name: string) { return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) }
+
+/** Projekt überschreitet das Budget (gleiche Basis wie der BudgetRing: gesamtbudget). */
+function istUeberBudget(p: ProjektMitStats): boolean {
+  return p.gesamtbudget != null && p.gesamtbudget > 0 && p.vpGesamt > p.gesamtbudget
+}
 
 function deadlineChip(deadline: string): { label: string; cls: string; Icon: typeof Clock } {
   // deadline ist eine DATE-Spalte (YYYY-MM-DD) → als lokale Mitternacht lesen,
@@ -123,6 +128,7 @@ function BudgetRing({ vp, budget, size = 54 }: { vp: number; budget: number; siz
 export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[] }) {
   const [suche,      setSuche]      = useState('')
   const [archivAnsicht, setArchivAnsicht] = useState(false)
+  const [nurUeberBudget, setNurUeberBudget] = useState(false)
   const [ansicht,    setAnsicht]    = useState<'grid' | 'list'>('grid')
 
   useEffect(() => {
@@ -139,13 +145,15 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
   const archivierteProjekte = projekte.filter((p) => p.archiviert)
   const anzeigePool = archivAnsicht ? archivierteProjekte : aktiveProjekte
 
-  const gefiltert = anzeigePool.filter((p) => {
+  const gesucht = anzeigePool.filter((p) => {
     if (!suche.trim()) return true
     const q = suche.toLowerCase()
     return p.name.toLowerCase().includes(q)
       || (p.kunden?.name.toLowerCase().includes(q) ?? false)
       || (p.standort?.toLowerCase().includes(q) ?? false)
   })
+  const ueberBudgetCount = gesucht.filter(istUeberBudget).length
+  const gefiltert = nurUeberBudget ? gesucht.filter(istUeberBudget) : gesucht
 
   return (
     <>
@@ -197,6 +205,24 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
 
         <span className="text-sm text-gray-400">{gefiltert.length} {gefiltert.length === 1 ? 'Eintrag' : 'Einträge'}</span>
 
+        {ueberBudgetCount > 0 && (
+          <button
+            onClick={() => setNurUeberBudget((v) => !v)}
+            title="Nur Projekte über Budget anzeigen"
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
+              nurUeberBudget
+                ? 'bg-red-50 text-red-600 border-red-200'
+                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Über Budget
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${nurUeberBudget ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+              {ueberBudgetCount}
+            </span>
+          </button>
+        )}
+
         <div className="ml-auto flex items-center border border-gray-200 rounded-lg overflow-hidden">
           <button onClick={() => toggleAnsicht('grid')} title="Kachelansicht"
             className={`px-3 py-2 transition-colors ${ansicht === 'grid' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
@@ -245,6 +271,11 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
                     )}
 
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {!p.archiviert && istUeberBudget(p) && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-red-50 text-red-600 border-red-100">
+                          <AlertTriangle className="w-2.5 h-2.5" /> Über Budget
+                        </span>
+                      )}
                       {deadline && DeadlineIcon && !p.archiviert && (
                         <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${deadline.cls}`}>
                           <DeadlineIcon className="w-2.5 h-2.5" />
@@ -358,7 +389,17 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
                     </td>
                     <td className="px-4 py-3.5 text-gray-600">{p.kunden?.name ?? '–'}</td>
                     <td className="px-4 py-3.5 text-center font-mono text-gray-600">{p.gesamtbudget != null ? eur(p.gesamtbudget) : '–'}</td>
-                    <td className="px-4 py-3.5 text-center font-mono text-wellbeing-green font-semibold">{p.vpGesamt > 0 ? eur(p.vpGesamt) : '–'}</td>
+                    <td className="px-4 py-3.5 text-center font-mono font-semibold">
+                      {p.vpGesamt > 0 ? (
+                        <span
+                          title={istUeberBudget(p) ? 'Über Budget' : undefined}
+                          className={`inline-flex items-center gap-1 ${istUeberBudget(p) ? 'text-red-600' : 'text-wellbeing-green'}`}
+                        >
+                          {istUeberBudget(p) && <AlertTriangle className="w-3 h-3" />}
+                          {eur(p.vpGesamt)}
+                        </span>
+                      ) : <span className="text-wellbeing-green">–</span>}
+                    </td>
                     <td className="px-4 py-3.5 text-center text-gray-500">{p.raeumCount}</td>
                     <td className="px-4 py-3.5 text-center tabular-nums text-gray-600">
                       {p.produkteGesamt > 0 ? `${p.freigegeben}/${p.produkteGesamt}` : <span className="text-gray-300">–</span>}

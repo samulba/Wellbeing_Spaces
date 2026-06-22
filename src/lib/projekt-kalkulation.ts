@@ -328,7 +328,7 @@ export async function berechneProjektKalkulation(
   }
 }
 
-function leereKalkulation(projektId: string, mwstSatz: number): ProjektKalkulation {
+export function leereKalkulation(projektId: string, mwstSatz: number): ProjektKalkulation {
   return {
     projektId,
     mwstSatz,

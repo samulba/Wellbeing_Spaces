@@ -32,7 +32,7 @@ import { getKategorien } from '@/app/actions/einstellungen'
 import { getZeiterfassung, getZeitSumme } from '@/app/actions/zeiterfassung'
 import { getRaumBudgetDetails } from '@/app/actions/raeume'
 import { effektiverVpNetto } from '@/lib/preise'
-import { berechneProjektKalkulation } from '@/lib/projekt-kalkulation'
+import { berechneProjektKalkulation, leereKalkulation } from '@/lib/projekt-kalkulation'
 import ProjektGesamtuebersicht from '@/components/ProjektGesamtuebersicht'
 import { getMwstSatz } from '@/app/actions/einstellungen'
 import { getServiceRaten } from '@/app/actions/service-raten'
@@ -164,7 +164,15 @@ export default async function ProjektDetailPage({
 }) {
   const { tab: tabParam } = await searchParams
   const mwstSatz = await getMwstSatz()
-  const [projekt, raeume, aktiveTokens, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten, aufgabenAlle, aufgabenPickerOptionen, serviceRaten, raumGruppen, freigabeEinreichungen] = await Promise.all([
+  // Fail-safe: ein einzelner fehlschlagender Loader darf die Detailseite nicht
+  // crashen. Promise.allSettled + typisierter val()-Helper → jeder Wert fällt im
+  // Fehlerfall auf einen leeren/Default-Wert zurück (tsc erzwingt den Fallback-Typ).
+  const [
+    projektR, raeumeR, aktiveTokensR, alleTokensR, dateienR, statsR, notizenR,
+    raumtypenR, kundenR, zeitEintraegeR, zeitSummeR, alleEventsR, raumBudgetDetailsR,
+    nachrichtenR, aufgabenAlleR, aufgabenPickerOptionenR, serviceRatenR, raumGruppenR,
+    freigabeEinreichungenR,
+  ] = await Promise.allSettled([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktiveTokens(params.id),
@@ -186,7 +194,34 @@ export default async function ProjektDetailPage({
     getFreigabeEinreichungen(params.id),
   ])
 
+  const val = <T,>(r: PromiseSettledResult<T>, fb: T): T => (r.status === 'fulfilled' ? r.value : fb)
+
+  const projekt = val(projektR, null)
   if (!projekt) return notFound()
+
+  const raeume                 = val(raeumeR, [])
+  const aktiveTokens           = val(aktiveTokensR, [])
+  const alleTokens             = val(alleTokensR, [])
+  const dateien                = val(dateienR, [])
+  const stats                  = val(statsR, {
+    gesamtkosten: 0, ausstehend: 0, freigegeben: 0, abgelehnt: 0,
+    ueberarbeitung: 0, produkteGesamt: 0, kalk: leereKalkulation(params.id, mwstSatz),
+  })
+  const notizen                = val(notizenR, [])
+  const raumtypen              = val(raumtypenR, [])
+  const kunden                 = val(kundenR, [])
+  const zeitEintraege          = val(zeitEintraegeR, [])
+  const zeitSumme              = val(zeitSummeR, { stunden: 0, abrechenbarStunden: 0 })
+  const alleEvents             = val(alleEventsR, [])
+  const raumBudgetDetails      = val(raumBudgetDetailsR, [])
+  const nachrichten            = val(nachrichtenR, [])
+  const aufgabenAlle           = val(aufgabenAlleR, [])
+  const aufgabenPickerOptionen = val(aufgabenPickerOptionenR, {
+    projekte: [], kunden: [], raeume: [], team: [], labels: [], currentUserId: null,
+  })
+  const serviceRaten           = val(serviceRatenR, [])
+  const raumGruppen            = val(raumGruppenR, [])
+  const freigabeEinreichungen  = val(freigabeEinreichungenR, [])
 
   // Hat der Kunde einen Portal-Zugang? (Voraussetzung für Chat)
   let hatPortal = false
