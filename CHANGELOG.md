@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Produkte – Daten-Check / Marge-Warnung
+- In der Produktbibliothek werden Produkte jetzt markiert, bei denen etwas nicht stimmt: **„Verlust"** (Verkaufspreis liegt unter dem Einkaufspreis) oder **„Kein Preis"** (kein Verkaufspreis hinterlegt) — als Badge in allen Ansichten. Ein neuer Filter **„⚠ Prüfen (N)"** zeigt auf einen Klick nur diese Produkte. So fallen Verlust-Produkte und unvollständige Einträge sofort auf.
+
 ### Produkte – Bugs behoben
 - **Gelöschte Produkte verschwinden jetzt aus den Räumen:** Ein aus der Bibliothek gelöschtes Produkt blieb bisher in den Räumen sichtbar, in denen es verwendet wurde — und verfälschte dort die Summen. Solche Produkte werden jetzt überall korrekt ausgeblendet (die Verknüpfung bleibt rückholbar erhalten).
 - **Sicherheit (URL-Import):** Der Produkt-Import per URL (AutoFill) blockiert jetzt auch interne **IPv6**-Adressen (vorher nur IPv4) — Schutz gegen Zugriffe auf interne Dienste.

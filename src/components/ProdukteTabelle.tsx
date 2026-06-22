@@ -10,7 +10,7 @@ import { produktAusBibliothekLoeschen } from '@/app/actions/produkte'
 import { bundleAusBibliothekLoeschen } from '@/app/actions/bundles'
 import {
   type LucideIcon,
-  ExternalLink, ChevronUp, ChevronDown, Search, X, Trash2,
+  ExternalLink, ChevronUp, ChevronDown, Search, X, Trash2, AlertTriangle,
   LayoutList, LayoutGrid, Grid3X3, Package, Boxes,
   Sofa, Armchair, Lamp, Lightbulb, Bed, Table2, Vegan, Wind,
   Leaf, Flower, TreePine, Sunrise, Droplets, Mountain, Palmtree,
@@ -110,6 +110,7 @@ export type ProduktZeile = {
   menge: number
   einheit: string
   verkaufspreis: number | null
+  einkaufspreis?: number | null
   bild_url: string | null
   produkt_url: string | null
   partnerName: string | null
@@ -132,6 +133,31 @@ const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
 const MWST_DEFAULT = 0.19
+
+// ── Daten-Check / Marge-Warnung ───────────────────────────────
+// Sets (Bundles) haben keinen eigenen EP/VP → ausgenommen.
+type Warnung = 'verlust' | 'kein_preis' | null
+function produktWarnung(p: ProduktZeile): Warnung {
+  if (p.istBundle) return null
+  const vp = p.verkaufspreis
+  const ep = p.einkaufspreis
+  if (vp == null || vp <= 0) return 'kein_preis'
+  if (ep != null && ep > 0 && vp < ep) return 'verlust'   // VK unter EK = Verlustgeschäft
+  return null
+}
+
+function WarnBadge({ p }: { p: ProduktZeile }) {
+  const w = produktWarnung(p)
+  if (!w) return null
+  const cls = w === 'verlust' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'
+  const label = w === 'verlust' ? 'Verlust' : 'Kein Preis'
+  const title = w === 'verlust' ? 'Verkaufspreis liegt unter dem Einkaufspreis' : 'Kein Verkaufspreis hinterlegt'
+  return (
+    <span title={title} className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${cls}`}>
+      <AlertTriangle className="w-3 h-3" /> {label}
+    </span>
+  )
+}
 
 type SortKey = 'name' | 'verkaufspreis' | 'partner'
 type SortDir = 'asc' | 'desc'
@@ -173,6 +199,7 @@ export default function ProdukteTabelle({
   const [filterPartner, setFilterPartner]     = useState('')
   const [filterKategorie, setFilterKategorie] = useState('')
   const [filterTyp, setFilterTyp]             = useState<'alle' | 'produkte' | 'sets'>('alle')
+  const [nurPruefen, setNurPruefen]           = useState(false)
   const [sortKey, setSortKey]                 = useState<SortKey>('name')
   const [sortDir, setSortDir]                 = useState<SortDir>('asc')
 
@@ -241,6 +268,8 @@ export default function ProdukteTabelle({
     if (filterTyp === 'sets')     liste = liste.filter((p) => p.istBundle)
     else if (filterTyp === 'produkte') liste = liste.filter((p) => !p.istBundle)
 
+    if (nurPruefen) liste = liste.filter((p) => produktWarnung(p) != null)
+
     return [...liste].sort((a, b) => {
       let v = 0
       if (sortKey === 'name')          v = a.name.localeCompare(b.name)
@@ -248,7 +277,12 @@ export default function ProdukteTabelle({
       if (sortKey === 'partner')       v = (a.partnerName ?? '').localeCompare(b.partnerName ?? '')
       return sortDir === 'asc' ? v : -v
     })
-  }, [produkte, geloeschtIds, suche, filterPartner, filterKategorie, filterTyp, sortKey, sortDir])
+  }, [produkte, geloeschtIds, suche, filterPartner, filterKategorie, filterTyp, nurPruefen, sortKey, sortDir])
+
+  const pruefenCount = useMemo(
+    () => produkte.filter((p) => !geloeschtIds.has(p.id) && produktWarnung(p) != null).length,
+    [produkte, geloeschtIds],
+  )
 
   async function handleConfirmDelete() {
     if (!deleteTarget || isDeleting) return
@@ -353,6 +387,21 @@ export default function ProdukteTabelle({
           onChange={setFilterKategorie}
         />
 
+        {/* Daten-Check: Produkte ohne Preis / mit Verlust-Marge */}
+        {pruefenCount > 0 && (
+          <button
+            onClick={() => setNurPruefen((v) => !v)}
+            title="Nur Produkte mit Preis-/Marge-Problemen anzeigen"
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
+              nurPruefen ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Prüfen
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${nurPruefen ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>{pruefenCount}</span>
+          </button>
+        )}
+
         {/* Filter zurücksetzen */}
         {(activeFilters > 0 || suche) && (
           <button
@@ -439,6 +488,7 @@ export default function ProdukteTabelle({
                       </p>
 
                       <div className="flex flex-wrap gap-1">
+                        <WarnBadge p={p} />
                         {p.istBundle && (
                           <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-wellbeing-green text-white rounded-full font-medium">
                             <Boxes className="w-3 h-3" /> Set
@@ -503,8 +553,16 @@ export default function ProdukteTabelle({
                   key={p.id}
                   href={produktLink(p)}
                   title={tooltip || p.name}
-                  className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-wellbeing-green-light hover:shadow-md transition-all flex flex-col"
+                  className="group relative bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-wellbeing-green-light hover:shadow-md transition-all flex flex-col"
                 >
+                  {produktWarnung(p) && (
+                    <span
+                      title={produktWarnung(p) === 'verlust' ? 'Verkaufspreis unter Einkaufspreis' : 'Kein Verkaufspreis'}
+                      className={`absolute top-1 right-1 z-10 w-4 h-4 rounded-full flex items-center justify-center ${produktWarnung(p) === 'verlust' ? 'bg-red-500' : 'bg-amber-500'}`}
+                    >
+                      <AlertTriangle className="w-2.5 h-2.5 text-white" />
+                    </span>
+                  )}
                   <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
                     {p.bild_url ? (
                       <Image
@@ -605,6 +663,7 @@ export default function ProdukteTabelle({
                               </a>
                             )}
                           </div>
+                          <div className="mt-1"><WarnBadge p={p} /></div>
                         </td>
 
                         {/* Kategorie */}

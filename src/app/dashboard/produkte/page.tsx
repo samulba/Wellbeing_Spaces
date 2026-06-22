@@ -10,7 +10,7 @@ import { berechneBundlePreis } from '@/lib/bundle-preis'
 
 type ProduktRoh = {
   id: string; name: string; kategorie: string | null; menge: number; einheit: string
-  verkaufspreis: number | null; bild_url: string | null; produkt_url: string | null
+  verkaufspreis: number | null; einkaufspreis: number | null; bild_url: string | null; produkt_url: string | null
   partner_id: string | null; ist_bundle?: boolean
 }
 
@@ -18,7 +18,7 @@ async function getProdukte(): Promise<ProduktZeile[]> {
   const supabase = await createClient()
 
   // produkte laden — fail-safe: mit ist_bundle (Mig 128) probieren, sonst ohne.
-  const baseCols = 'id, name, kategorie, menge, einheit, verkaufspreis, bild_url, produkt_url, partner_id'
+  const baseCols = 'id, name, kategorie, menge, einheit, verkaufspreis, einkaufspreis, bild_url, produkt_url, partner_id'
   let prodData: ProduktRoh[] = []
   let hatBundleSpalte = true
   const mitBundle = await supabase
@@ -95,6 +95,7 @@ async function getProdukte(): Promise<ProduktZeile[]> {
       menge:              p.menge,
       einheit:            p.einheit,
       verkaufspreis:      istBundle ? (info?.setPreis ?? p.verkaufspreis) : p.verkaufspreis,
+      einkaufspreis:      p.einkaufspreis,
       bild_url:           p.bild_url,
       produkt_url:        p.produkt_url,
       partnerName:        partner?.name ?? null,
