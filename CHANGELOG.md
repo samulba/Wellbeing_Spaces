@@ -8,6 +8,8 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 ### Partner – Verbesserungen
 - **Echte Provision in der Liste:** Die Partnerliste zeigt jetzt die tatsächliche Provision und den EK-Rabatt aus den **Konditionen** (Standard-Kondition) statt des alten, ggf. veralteten Provisionsfeldes.
 - **Filter nach Partner-Typ** (Lieferant / Hersteller / Handwerker / Planer / Sonstiges) und neue Sortierung **„Neueste"** in der Partnerliste.
+- **„So wird gerechnet"-Vorschau:** Im Konditionen-Tab eines Partners zeigt eine neue Tabelle, welche Provision / EK-Rabatt / Zahlungsziel / Skonto heute tatsächlich greift — als Standard und für abweichende Kategorien.
+- **Bestellungen auf der Partnerseite:** Die Partner-Übersicht listet jetzt die **Bestellungen** bei diesem Partner (Nummer, Status, Datum, Liefertermin, Summe) mit Direktlink zur jeweiligen Bestellung.
 
 ### Partner – Bugs behoben
 - **Konditions-Gültigkeit (Zeitzonen-Bug):** Eine Partner-Kondition, die **heute** endet (oder heute beginnt), wurde nachmittags fälschlich als abgelaufen/noch-nicht-gültig behandelt und floss dann nicht in die Produkt-Kalkulation ein — jetzt korrekt, Start- und Endtag zählen voll mit.

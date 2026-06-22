@@ -14,6 +14,8 @@ import PartnerDetailTabs from '@/components/PartnerDetailTabs'
 import PartnerProdukteTab, { type SortimentEintrag, type EinsatzEintrag } from '@/components/PartnerProdukteTab'
 import PartnerKontakteBlock from '@/components/PartnerKontakteBlock'
 import PartnerAltNotizBanner from '@/components/PartnerAltNotizBanner'
+import PartnerKonditionenVorschau from '@/components/PartnerKonditionenVorschau'
+import PartnerBestellungenKarte, { type PartnerBestellungZeile } from '@/components/PartnerBestellungenKarte'
 import { vertraegeAbrufen } from '@/app/actions/partner-vertraege'
 import {
   ExternalLink, Mail, Phone, Smartphone, Globe, Star, MapPin, BadgeCheck, Users,
@@ -37,6 +39,26 @@ async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
     .is('deleted_at', null)
     .order('erstellt_am', { ascending: false })
   return (data ?? []) as Notiz[]
+}
+
+/** Lieferanten-Bestellungen bei diesem Partner (org-scoped, neueste zuerst). */
+async function getPartnerBestellungen(partnerId: string, orgId: string): Promise<PartnerBestellungZeile[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('lieferanten_bestellungen')
+    .select('id, bestellnummer, status, bestellt_am, created_at, liefertermin_geplant, gesamtpreis_netto, versandkosten')
+    .eq('partner_id', partnerId)
+    .eq('organisation_id', orgId)
+    .order('created_at', { ascending: false })
+    .limit(12)
+  return (data ?? []).map((b) => ({
+    id:            b.id as string,
+    bestellnummer: b.bestellnummer as string | null,
+    status:        b.status as string,
+    datum:         (b.bestellt_am as string | null) ?? (b.created_at as string | null),
+    liefertermin:  b.liefertermin_geplant as string | null,
+    summe:         (Number(b.gesamtpreis_netto) || 0) + (Number(b.versandkosten) || 0),
+  }))
 }
 
 export default async function PartnerDetailPage({ params }: { params: { id: string } }) {
@@ -102,13 +124,14 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
     (e) => e.raeume && !e.raeume.deleted_at && e.raeume.projekte && !e.raeume.projekte.deleted_at,
   )
 
-  // Notizen / Konditionen / Verträge / Kontakte parallel
-  const [notizen, konditionen, vertraege, kontakte, kategorienDB] = await Promise.all([
+  // Notizen / Konditionen / Verträge / Kontakte / Bestellungen parallel
+  const [notizen, konditionen, vertraege, kontakte, kategorienDB, bestellungen] = await Promise.all([
     getPartnerNotizen(params.id),
     getPartnerKonditionen(params.id),
     vertraegeAbrufen(params.id),
     getPartnerKontakte(params.id),
     getKategorien('produktkategorie'),
+    getPartnerBestellungen(params.id, partner.organisation_id),
   ])
   const hauptkontakt = kontakte.find((k) => k.ist_hauptkontakt) ?? kontakte[0] ?? null
 
@@ -403,8 +426,9 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
               </div>
             </div>
 
-            {/* Rechte Spalte: Notizen + Einkaufskonditionen + Alt-Notiz-Banner */}
+            {/* Rechte Spalte: Bestellungen + Notizen + Einkaufskonditionen + Alt-Notiz-Banner */}
             <div className="space-y-4">
+              <PartnerBestellungenKarte bestellungen={bestellungen} />
               {partner.einkaufskonditionen && (
                 <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                   <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Einkaufskonditionen</h2>
@@ -422,7 +446,10 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
           <PartnerKontakteBlock partnerId={partner.id} initialKontakte={kontakte} />
         }
         konditionen={
-          <PartnerKonditionenBlock partnerId={partner.id} initialKonditionen={konditionen} kategorien={kategorienDB.map((k) => ({ name: k.name }))} />
+          <div className="space-y-6">
+            <PartnerKonditionenBlock partnerId={partner.id} initialKonditionen={konditionen} kategorien={kategorienDB.map((k) => ({ name: k.name }))} />
+            <PartnerKonditionenVorschau konditionen={konditionen} kategorien={kategorienDB.map((k) => ({ name: k.name }))} />
+          </div>
         }
         vertraege={
           <PartnerVertraegeBlock partnerId={partner.id} initialVertraege={vertraege} />
