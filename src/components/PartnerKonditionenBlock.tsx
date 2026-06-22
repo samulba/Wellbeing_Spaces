@@ -180,6 +180,10 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen,
 
   function handleSpeichern() {
     const daten = formZuDaten(form)
+    if (daten.gueltig_von && daten.gueltig_bis && daten.gueltig_von > daten.gueltig_bis) {
+      setFehler('„Gültig von" muss vor „Gültig bis" liegen.')
+      return
+    }
     startTransition(async () => {
       let zielId = bearbeitenId
       if (bearbeitenId) {
@@ -217,7 +221,10 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen,
       // Standard setzen, falls gewünscht (eigene fail-safe Action)
       if (form.ist_standard && zielId) {
         const sres = await konditionAlsStandardSetzen(zielId, partnerId)
-        if (!sres.fehler) {
+        if (sres.fehler) {
+          // Kondition wurde gespeichert, nur das Standard-Flag schlug fehl → Hinweis statt stiller Fehler
+          setListFehler('Kondition gespeichert, aber „Als Standard" konnte nicht gesetzt werden.')
+        } else {
           setKonditionen((prev) => prev.map((k) => ({ ...k, ist_standard: k.id === zielId })))
         }
       }
@@ -226,11 +233,11 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen,
   }
 
   function handleLoeschen(id: string) {
+    setListFehler(null)
     startTransition(async () => {
       const res = await konditionLoeschen(id, partnerId)
-      if (!res.fehler) {
-        setKonditionen((prev) => prev.filter((k) => k.id !== id))
-      }
+      if (res.fehler) { setListFehler(res.fehler); return }
+      setKonditionen((prev) => prev.filter((k) => k.id !== id))
     })
   }
 

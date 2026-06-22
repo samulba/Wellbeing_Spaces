@@ -86,8 +86,12 @@ function matchKategorie(map: Record<string, number>, kategorieName: string): num
 
 function istGueltig(k: PartnerKondition, am: Date): boolean {
   if (k.aktiv === false) return false
-  if (k.gueltig_von) { const d = new Date(k.gueltig_von); if (!isNaN(d.getTime()) && d > am) return false }
-  if (k.gueltig_bis) { const d = new Date(k.gueltig_bis); if (!isNaN(d.getTime()) && d < am) return false }
+  // gueltig_von/bis sind DATE-Werte (YYYY-MM-DD) → als lokale Kalendertage vergleichen
+  // (Start- UND Endtag inklusive). `new Date(dateOnly)` wäre UTC-Mitternacht → eine heute
+  // endende Kondition erschiene nachmittags als abgelaufen. String-Vergleich ist tz-sicher.
+  const heute = `${am.getFullYear()}-${String(am.getMonth() + 1).padStart(2, '0')}-${String(am.getDate()).padStart(2, '0')}`
+  if (k.gueltig_von && k.gueltig_von.slice(0, 10) > heute) return false
+  if (k.gueltig_bis && k.gueltig_bis.slice(0, 10) < heute) return false
   return true
 }
 

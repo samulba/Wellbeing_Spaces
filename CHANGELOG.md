@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Partner – Bugs behoben
+- **Konditions-Gültigkeit (Zeitzonen-Bug):** Eine Partner-Kondition, die **heute** endet (oder heute beginnt), wurde nachmittags fälschlich als abgelaufen/noch-nicht-gültig behandelt und floss dann nicht in die Produkt-Kalkulation ein — jetzt korrekt, Start- und Endtag zählen voll mit.
+- **Konditionen-Dialog:** „Gültig von" nach „Gültig bis" wird jetzt mit einer Meldung abgefangen (statt eine dauerhaft unwirksame Kondition zu speichern). Fehler beim **Löschen** einer Kondition oder beim Setzen als **Standard** werden jetzt angezeigt, statt stillschweigend verschluckt zu werden.
+
 ### Projekte – Über-Budget sichtbar + stabilere Seiten
 - **Über-Budget auf einen Blick:** Projekte, deren Produktsumme das Budget übersteigt, tragen jetzt eine rote **„Über Budget"**-Markierung (Karte + Liste). In der Toolbar gibt es einen Filter **„⚠ Über Budget (N)"**, der nur die überzogenen Projekte zeigt (erscheint nur, wenn es welche gibt).
 - **Stabilere Projekt-Seiten:** Projekt-Übersicht und Projekt-Detailseite stürzen nicht mehr komplett ab, wenn ein einzelner Datenbereich nicht lädt — der betroffene Block zeigt dann seinen leeren Zustand, der Rest der Seite bleibt nutzbar.
