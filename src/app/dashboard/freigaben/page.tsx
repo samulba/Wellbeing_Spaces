@@ -144,6 +144,23 @@ async function getAlleProdukte(): Promise<FreigabeEintrag[]> {
     e.bereich_farbe = bd?.farbe ?? null
   }
 
+  // Freigabe-Stempel (Mig 135) — SEPARAT + fail-safe nachladen (NICHT in RP_BASIS,
+  // sonst kippt ein fehlendes Mig 135 den ganzen Select → Übersicht leer).
+  if (rpIds.length > 0) {
+    const { data: stempel, error } = await supabase
+      .from('raum_produkte')
+      .select('id, freigegeben_am, freigegeben_von')
+      .in('id', rpIds)
+    if (!error && stempel) {
+      const sm = new Map(stempel.map((s) => [s.id as string, s]))
+      for (const e of basis) {
+        const s = sm.get(e.id)
+        e.freigegeben_am  = (s?.freigegeben_am as string | null) ?? null
+        e.freigegeben_von = (s?.freigegeben_von as string | null) ?? null
+      }
+    }
+  }
+
   return basis
 }
 

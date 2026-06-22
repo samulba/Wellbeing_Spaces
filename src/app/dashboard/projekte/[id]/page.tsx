@@ -5,7 +5,7 @@ import RaumHinzufuegen from '@/components/RaumHinzufuegen'
 import FreigabeLinkKarte from '@/components/FreigabeLinkKarte'
 import FreigabeUebersicht from '@/components/FreigabeUebersicht'
 import FreigabeRaumPanel from '@/components/FreigabeRaumPanel'
-import { freigabeTokensAbrufenFuerProjekt } from '@/app/actions/freigaben'
+import { freigabeTokensAbrufenFuerProjekt, getFreigabeBaum } from '@/app/actions/freigaben'
 import { getFreigabeEinreichungen } from '@/app/actions/freigabe-einreichungen'
 import EingereichteFreigaben from '@/components/EingereichteFreigaben'
 import ProjektEntscheidungenReset from '@/components/ProjektEntscheidungenReset'
@@ -171,7 +171,7 @@ export default async function ProjektDetailPage({
     projektR, raeumeR, aktiveTokensR, alleTokensR, dateienR, statsR, notizenR,
     raumtypenR, kundenR, zeitEintraegeR, zeitSummeR, alleEventsR, raumBudgetDetailsR,
     nachrichtenR, aufgabenAlleR, aufgabenPickerOptionenR, serviceRatenR, raumGruppenR,
-    freigabeEinreichungenR,
+    freigabeEinreichungenR, freigabeBaumR,
   ] = await Promise.allSettled([
     getProjekt(params.id),
     getRaeume(params.id),
@@ -192,6 +192,7 @@ export default async function ProjektDetailPage({
     getServiceRaten(params.id),
     raumGruppenAbrufen(params.id),
     getFreigabeEinreichungen(params.id),
+    getFreigabeBaum(params.id),
   ])
 
   const val = <T,>(r: PromiseSettledResult<T>, fb: T): T => (r.status === 'fulfilled' ? r.value : fb)
@@ -222,6 +223,7 @@ export default async function ProjektDetailPage({
   const serviceRaten           = val(serviceRatenR, [])
   const raumGruppen            = val(raumGruppenR, [])
   const freigabeEinreichungen  = val(freigabeEinreichungenR, [])
+  const freigabeBaum           = val(freigabeBaumR, {} as Record<string, import('@/lib/supabase/types').FreigabeBaumBereich[]>)
 
   // Hat der Kunde einen Portal-Zugang? (Voraussetzung für Chat)
   let hatPortal = false
@@ -770,6 +772,7 @@ export default async function ProjektDetailPage({
                 raeume={raeume}
                 raumStats={raumStats}
                 raumGruppen={raumGruppen}
+                baum={freigabeBaum}
               />
             )}
           </div>

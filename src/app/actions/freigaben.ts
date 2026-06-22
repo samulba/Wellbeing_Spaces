@@ -29,6 +29,10 @@ import type {
   FreigabeKanal,
   FreigabeScopeTyp,
   FreigabeToken,
+  FreigabeBaumBereich,
+  FreigabeBaumBlock,
+  FreigabeBaumProdukt,
+  ProduktStatus,
 } from '@/lib/supabase/types'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -469,7 +473,30 @@ export async function freigabeStatusSetzen(
     kanal:           input.kanal,
   })
 
+  // Freigabe-Stempel (Migration 135) — best-effort, separate Update, damit eine
+  // fehlende Spalte (vor der Migration) den Freigabe-Flow NIE bricht.
+  await stempleFreigabe(supabase, input.raumProduktId, input.status, input.kontext.geaendertVon)
+
   return { erfolg: true }
+}
+
+/**
+ * Setzt/löscht den Freigabe-Stempel (freigegeben_am/von, Migration 135) auf einem
+ * raum_produkte-Eintrag. Best-effort: fehlt die Spalte (vor der Migration), wird der
+ * Fehler verschluckt — der eigentliche Freigabe-Status ist bereits gespeichert.
+ */
+async function stempleFreigabe(
+  supabase: AdminClient,
+  raumProduktId: string,
+  status: 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung',
+  geaendertVon: string,
+): Promise<void> {
+  try {
+    const patch = status === 'freigegeben'
+      ? { freigegeben_am: new Date().toISOString(), freigegeben_von: geaendertVon }
+      : { freigegeben_am: null, freigegeben_von: null }
+    await supabase.from('raum_produkte').update(patch).eq('id', raumProduktId)
+  } catch { /* Spalten fehlen (Mig 135) → Stempel überspringen */ }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1001,4 +1028,126 @@ export async function freigabeAuditFuerToken(tokenId: string): Promise<FreigabeA
     .eq('token_id', tokenId)
     .order('created_at', { ascending: false })
   return (data ?? []) as FreigabeAudit[]
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FREIGABE-BAUM (Projekt-Tab „Freigaben"): Raum → Bereich → Block → Produkt
+// ═══════════════════════════════════════════════════════════════
+
+type RpBaumRow = {
+  id: string
+  raum_id: string
+  produkt_gruppe_id: string | null
+  bereich_id: string | null
+  freigabe_status: string | null
+  kunde_favorit: boolean | null
+  freigegeben_am?: string | null
+  freigegeben_von?: string | null
+  produkte: { name: string; bild_url: string | null; deleted_at: string | null } | null
+}
+
+/**
+ * Lädt für ein Projekt die Blöcke/Gruppen-Struktur je Raum (Bereich → Block → Produkt)
+ * inkl. Freigabe-Status + Stempel (Mig 135). Für den Projekt-Tab „Freigaben", damit man
+ * die Blöcke/Gruppen sieht „wie bei den Räumen". Org-scoped + komplett fail-safe (jeder
+ * Fehler → {} → Panel fällt auf die reine Raum-Liste zurück). Block-first Bereich-Auflösung
+ * (Block-Bereich gewinnt), soft-gelöschte Produkte werden gefiltert. raum_produkte hat KEIN
+ * deleted_at — niemals darauf filtern.
+ */
+export async function getFreigabeBaum(projektId: string): Promise<Record<string, FreigabeBaumBereich[]>> {
+  try {
+    const supabase = await createClient()
+    const orgId = await getOrganisationId()
+
+    const { data: raeumeData } = await supabase
+      .from('raeume').select('id').eq('projekt_id', projektId).eq('organisation_id', orgId).is('deleted_at', null)
+    const raumIds = (raeumeData ?? []).map((r) => r.id as string)
+    if (raumIds.length === 0) return {}
+
+    // raum_produkte — Stempel-Spalten fail-safe (fehlen vor Mig 135 → Fallback-Select)
+    const RP_VOLL = 'id, raum_id, produkt_gruppe_id, bereich_id, freigabe_status, kunde_favorit, freigegeben_am, freigegeben_von, produkte(name, bild_url, deleted_at)'
+    const RP_BASIS = 'id, raum_id, produkt_gruppe_id, bereich_id, freigabe_status, kunde_favorit, produkte(name, bild_url, deleted_at)'
+    let rpData: unknown
+    const richRp = await supabase.from('raum_produkte').select(RP_VOLL).in('raum_id', raumIds).order('reihenfolge')
+    if (richRp.error) {
+      rpData = (await supabase.from('raum_produkte').select(RP_BASIS).in('raum_id', raumIds).order('reihenfolge')).data
+    } else {
+      rpData = richRp.data
+    }
+    const rpRows = ((rpData ?? []) as RpBaumRow[]).filter((r) => r.produkte && r.produkte.deleted_at == null)
+
+    // Bereich-/Block-Namen (ohne deleted_at-Filter — Zugehörigkeit folgt raum_produkte, S90)
+    const [berRes, grpRes] = await Promise.all([
+      supabase.from('produkt_bereiche').select('id, raum_id, name, farbe').in('raum_id', raumIds).order('reihenfolge').order('name'),
+      supabase.from('produkt_gruppen').select('id, raum_id, name, bereich_id').in('raum_id', raumIds).order('name'),
+    ])
+    const bereichMeta = new Map<string, { raum_id: string; name: string; farbe: string | null }>(
+      (berRes.data ?? []).map((b) => [b.id as string, { raum_id: b.raum_id as string, name: b.name as string, farbe: (b.farbe as string | null) ?? null }]),
+    )
+    const blockMeta = new Map<string, { raum_id: string; name: string; bereich_id: string | null }>(
+      (grpRes.data ?? []).map((g) => [g.id as string, { raum_id: g.raum_id as string, name: g.name as string, bereich_id: (g.bereich_id as string | null) ?? null }]),
+    )
+
+    const toProdukt = (r: RpBaumRow): FreigabeBaumProdukt => ({
+      id: r.id,
+      name: r.produkte!.name,
+      bild_url: r.produkte!.bild_url,
+      status: (r.freigabe_status ?? 'ausstehend') as ProduktStatus,
+      kunde_favorit: !!r.kunde_favorit,
+      freigegeben_am: r.freigegeben_am ?? null,
+      freigegeben_von: r.freigegeben_von ?? null,
+    })
+
+    // Pro Raum: Bereich (block-first) → Block → Produkt; „lose" = ohne Block.
+    const baum: Record<string, FreigabeBaumBereich[]> = {}
+    for (const raumId of raumIds) {
+      const zeilen = rpRows.filter((r) => r.raum_id === raumId)
+      if (zeilen.length === 0) continue
+
+      // Reihenfolge der Bereiche dieses Raums (echte zuerst, dann synthetisch „Ohne Gruppe")
+      const bereichReihen: string[] = (berRes.data ?? []).filter((b) => b.raum_id === raumId).map((b) => b.id as string)
+      const bereiche = new Map<string, FreigabeBaumBereich>()
+      const blockIndex = new Map<string, FreigabeBaumBlock>()  // key = `${bereichKey}::${blockId}`
+
+      const holeBereich = (key: string): FreigabeBaumBereich => {
+        let b = bereiche.get(key)
+        if (!b) {
+          const meta = key === '__lose__' ? null : bereichMeta.get(key)
+          b = { id: key, name: meta?.name ?? 'Ohne Gruppe', farbe: meta?.farbe ?? null, bloecke: [], lose: [] }
+          bereiche.set(key, b)
+        }
+        return b
+      }
+
+      for (const r of zeilen) {
+        const block = r.produkt_gruppe_id ? blockMeta.get(r.produkt_gruppe_id) ?? null : null
+        const effBereichId = block ? block.bereich_id : r.bereich_id
+        const bereichKey = effBereichId && bereichMeta.has(effBereichId) ? effBereichId : '__lose__'
+        const bereich = holeBereich(bereichKey)
+        if (block && r.produkt_gruppe_id) {
+          const bk = `${bereichKey}::${r.produkt_gruppe_id}`
+          let blk = blockIndex.get(bk)
+          if (!blk) {
+            blk = { id: r.produkt_gruppe_id, name: block.name, produkte: [] }
+            blockIndex.set(bk, blk)
+            bereich.bloecke.push(blk)
+          }
+          blk.produkte.push(toProdukt(r))
+        } else {
+          bereich.lose.push(toProdukt(r))
+        }
+      }
+
+      // Geordnete Ausgabe: echte Bereiche in DB-Reihenfolge, „Ohne Gruppe" zuletzt.
+      const geordnet: FreigabeBaumBereich[] = []
+      for (const id of bereichReihen) if (bereiche.has(id)) geordnet.push(bereiche.get(id)!)
+      for (const [key, b] of Array.from(bereiche.entries())) if (key !== '__lose__' && !bereichReihen.includes(key)) geordnet.push(b)
+      if (bereiche.has('__lose__')) geordnet.push(bereiche.get('__lose__')!)
+      baum[raumId] = geordnet
+    }
+
+    return baum
+  } catch {
+    return {}
+  }
 }

@@ -13,6 +13,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 import { freigabeZuruecksetzenAdmin, freigabeBulkStatusAendernAdmin } from '@/app/actions/freigabe'
+import { stempelText } from '@/lib/freigabe-stempel'
 import Checkbox from '@/components/Checkbox'
 import StickyPageHeader from '@/components/StickyPageHeader'
 
@@ -49,6 +50,9 @@ export type FreigabeEintrag = {
   bereich_name?: string | null
   bereich_farbe?: string | null
   block_kunde_notiz?: string | null
+  // Freigabe-Stempel (Mig 135) — WANN & VON WEM freigegeben (fail-safe nachgeladen)
+  freigegeben_am?: string | null
+  freigegeben_von?: string | null
 }
 
 type Tab = 'offen' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung' | 'alle'
@@ -683,6 +687,17 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                 </Link>
               </div>
             </div>
+
+            {/* Freigabe-Stempel (Mig 135): wann & von wem freigegeben */}
+            {status === 'freigegeben' && e.freigegeben_am && (
+              <p
+                className="mt-1 inline-flex items-center gap-1 text-[10px] text-emerald-600"
+                title={`Freigegeben von ${e.freigegeben_von ?? 'Kunde'}`}
+              >
+                <CheckCircle2 className="w-3 h-3 shrink-0" />
+                {stempelText(e.freigegeben_am, e.freigegeben_von)}
+              </p>
+            )}
           </div>
         </div>
       </li>

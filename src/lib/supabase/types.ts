@@ -615,6 +615,10 @@ export interface RaumProdukt {
   lieferung_erhalten_am: string | null
   freigabe_status: ProduktStatus
   freigabe_kommentar: string | null
+  // Freigabe-Stempel (Migration 135) — WANN & VON WEM freigegeben. Optional, da
+  // Reads vor der Migration die Spalten nicht kennen. NULL wenn nicht freigegeben.
+  freigegeben_am?: string | null
+  freigegeben_von?: string | null
   // Auswahl-Gruppe + Favoriten (Migration 114). admin_favorit/kunde_favorit
   // sind nur innerhalb einer produkt_gruppe relevant (UI ignoriert sie sonst).
   produkt_gruppe_id: string | null
@@ -640,6 +644,31 @@ export interface RaumProdukt {
 
 export type RaumProduktMitDetails = RaumProdukt & {
   produkte: ProduktMitDetails
+}
+
+// ── Freigabe-Baum (Projekt-Tab „Freigaben"): Raum → Bereich → Block → Produkt ──
+// Read-only Struktur, um die Blöcke/Gruppen eines Projekts im Freigabe-Kontext zu
+// zeigen — analog zur Raum-Produkttabelle, inkl. Freigabe-Status + Stempel (Mig 135).
+export interface FreigabeBaumProdukt {
+  id: string
+  name: string
+  bild_url: string | null
+  status: ProduktStatus
+  kunde_favorit: boolean
+  freigegeben_am: string | null
+  freigegeben_von: string | null
+}
+export interface FreigabeBaumBlock {
+  id: string
+  name: string
+  produkte: FreigabeBaumProdukt[]
+}
+export interface FreigabeBaumBereich {
+  id: string            // '__lose__' = synthetischer „Ohne Gruppe"-Bereich
+  name: string
+  farbe: string | null
+  bloecke: FreigabeBaumBlock[]
+  lose: FreigabeBaumProdukt[]
 }
 
 // Externe Ansicht – nur diese Felder an Kunden übergeben

@@ -123,7 +123,30 @@ export async function freigabeStatusAendern(
 
   if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
 
+  // Freigabe-Stempel (Mig 135) best-effort — der finale Absende-Schritt überschreibt
+  // den „von" ohnehin mit dem eingegebenen Namen. Hier nur konsistent halten.
+  await setzeFreigabeStempel(supabase, raumProduktId, status, 'Kunde (Freigabe-Link)')
+
   return { erfolg: true }
+}
+
+/**
+ * Best-effort Freigabe-Stempel (freigegeben_am/von, Migration 135). Fehlt die Spalte
+ * (vor der Migration), wird der Fehler verschluckt — der Freigabe-Status ist bereits
+ * gespeichert. Wird von allen direkten raum_produkte-Status-Writes in dieser Datei genutzt.
+ */
+async function setzeFreigabeStempel(
+  supabase: ReturnType<typeof createAdminClient> | Awaited<ReturnType<typeof createClient>>,
+  raumProduktId: string,
+  status: ProduktStatus,
+  geaendertVon: string,
+): Promise<void> {
+  try {
+    const patch = status === 'freigegeben'
+      ? { freigegeben_am: new Date().toISOString(), freigegeben_von: geaendertVon }
+      : { freigegeben_am: null, freigegeben_von: null }
+    await supabase.from('raum_produkte').update(patch).eq('id', raumProduktId)
+  } catch { /* Spalten fehlen (Mig 135) → Stempel überspringen */ }
 }
 
 /**
@@ -239,6 +262,8 @@ export async function freigabeZuruecksetzenAdmin(raumProduktId: string): Promise
     .update({ freigabe_status: 'ausstehend', freigabe_kommentar: null, kunde_favorit: false })
     .eq('id', raumProduktId)
     .eq('organisation_id', orgId)
+  // Freigabe-Stempel mit zurücksetzen (Mig 135, best-effort)
+  await setzeFreigabeStempel(supabase, raumProduktId, 'ausstehend', '')
   revalidatePath('/dashboard/freigaben')
 }
 
@@ -282,6 +307,14 @@ export async function freigabeBulkStatusAendernAdmin(
     .eq('organisation_id', orgId)
 
   if (error) return { erfolg: false, anzahl: 0, fehler: 'Bulk-Update fehlgeschlagen: ' + error.message }
+
+  // Freigabe-Stempel (Mig 135) best-effort — gesetzt bei „freigegeben", sonst geleert.
+  try {
+    const stempel = neuerStatus === 'freigegeben'
+      ? { freigegeben_am: new Date().toISOString(), freigegeben_von: akteur }
+      : { freigegeben_am: null, freigegeben_von: null }
+    await supabase.from('raum_produkte').update(stempel).in('id', raumProduktIds).eq('organisation_id', orgId)
+  } catch { /* Spalten fehlen (Mig 135) → Stempel überspringen */ }
 
   // Bulk-Audit-Insert (ein Eintrag pro Item)
   try {

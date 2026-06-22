@@ -51,6 +51,7 @@ import {
 } from '@/app/actions/produkt-bereiche'
 import { ConfirmModal } from './ConfirmModal'
 import { freigabeZuruecksetzenAdmin } from '@/app/actions/freigabe'
+import { stempelText } from '@/lib/freigabe-stempel'
 import Checkbox from './Checkbox'
 import ZuordnungChip from './ZuordnungChip'
 import AlternativeModal from './AlternativeModal'
@@ -506,6 +507,16 @@ function SortableProduktZeile({
             >
               <RotateCcw className="w-3 h-3" /> Kundenwahl zurücksetzen
             </button>
+          )}
+          {/* Freigabe-Stempel (Mig 135): WANN & VON WEM freigegeben — Nachverfolgung */}
+          {status === 'freigegeben' && eintrag.freigegeben_am && (
+            <div
+              className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700"
+              title={`Freigegeben von ${eintrag.freigegeben_von ?? 'Kunde'}`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="break-words">{stempelText(eintrag.freigegeben_am, eintrag.freigegeben_von)}</span>
+            </div>
           )}
         </td>
 
@@ -1522,7 +1533,7 @@ export default function SortableProduktTabelle({
     setEintraege((prev) =>
       prev.map((e) =>
         e.id === resetTarget.id
-          ? { ...e, freigabe_status: 'ausstehend', freigabe_kommentar: null, kunde_favorit: false }
+          ? { ...e, freigabe_status: 'ausstehend', freigabe_kommentar: null, kunde_favorit: false, freigegeben_am: null, freigegeben_von: null }
           : e,
       ),
     )

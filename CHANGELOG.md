@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Freigaben – Freigegeben-Stempel (wann & von wem)
+- Jedes freigegebene Produkt trägt jetzt einen **Stempel** „Freigegeben {Datum, Uhrzeit} · {Name}" — sichtbar in der **Raum-Produkttabelle** und in der **Freigaben-Übersicht**. So ist jederzeit nachvollziehbar, wann und durch wen eine Freigabe erteilt wurde. *(Benötigt Migration 135; vorhandene Freigaben werden aus dem Protokoll automatisch nachgetragen.)*
+
+### Freigaben – Blöcke & Gruppen im Projekt sichtbar
+- Im Projekt-Tab **„Freigaben"** lässt sich jeder Raum jetzt **aufklappen** und zeigt die **Blöcke/Gruppen** (Bereich → Auswahl-Block → Produkt) mit Freigabe-Status und Stempel — genau wie in der Raum-Ansicht. So sieht man die Struktur und den Fortschritt direkt im Projekt, ohne in jeden Raum einzeln springen zu müssen.
+
 ### Produkte – Preislogik überarbeitet (EK-Bug behoben)
 - **Bug behoben:** Das Eingeben des **Einkaufspreises (EK netto)** hat bisher den **Verkaufspreis** des Kunden überschrieben/„zerschossen". Jetzt ist der **Verkaufspreis der Leitwert**: EK eingeben lässt den Verkaufspreis **unverändert** und berechnet nur die **Marge** neu. Eine **Marge** eingeben berechnet den Verkaufspreis aus dem EK; den **Verkaufspreis** (netto oder brutto) ändern passt die Marge an. Ein kurzer Hinweis im Kalkulations-Bereich erklärt das Verhalten.
 - Die interne Kalkulations-Übersicht zeigt jetzt zusätzlich die **Marge in € (= Verkaufspreis − EK)** neben EK, Verkaufspreis netto/brutto und Provision.
