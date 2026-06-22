@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Bestellungen – Bestellung als PDF
+- Auf der Bestell-Detailseite gibt es jetzt einen **„PDF"**-Button: er erzeugt ein sauberes **Bestelldokument** (Lieferant + Adresse, Positionen mit Artikel-Nr./Menge/Einkaufspreis, Liefertermin, Netto + Versand + Gesamt) im gewohnten Layout der Angebots-/Vertrags-PDFs — zum Ausdrucken oder Senden an den Lieferanten.
+
 ### Bestellungen – Bugs behoben
 - **„Alles erhalten" konsistent:** Wird eine ganze Bestellung auf „Geliefert" gesetzt, stimmt jetzt auch die Positions-Anzeige **„X/Y erhalten"** — die einzelnen Positionen werden mit erfasst. Vorher konnte die Bestellung „geliefert" sein, während die Positionszähler noch auf 0 standen.
 - **Keine doppelte „angekommen"-Nachricht:** Werden mehrere Positionen einer Bestellung fast gleichzeitig abgehakt, erhält der Kunde die **„📦 angekommen"**-Info jetzt garantiert nur einmal.

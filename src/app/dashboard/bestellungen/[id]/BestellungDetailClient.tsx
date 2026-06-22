@@ -174,6 +174,16 @@ export default function BestellungDetailClient({ bestellung: initial }: Props) {
             <StatusBadge status={b.status} />
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href={`/api/bestellungen/${b.id}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              title="Bestellung als PDF herunterladen"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              PDF
+            </a>
             {b.partner && (
               <button
                 type="button"
