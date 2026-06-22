@@ -371,12 +371,16 @@ export async function bestellungVersandt(
 ): Promise<{ erfolg?: boolean; fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
-  const { error } = await supabase
+  // Idempotent: nur ein echter Wechsel auf 'versandt' benachrichtigt den Kunden.
+  const { data: changedRows, error } = await supabase
     .from('lieferanten_bestellungen')
     .update({ status: 'versandt' as LieferantenBestellungStatus, versandt_am: versandtAm ?? new Date().toISOString().split('T')[0] })
     .eq('id', id)
     .eq('organisation_id', orgId)
+    .neq('status', 'versandt')
+    .select('id')
   if (error) return { fehler: 'Aktualisierung fehlgeschlagen.' }
+  const geaendert = (changedRows ?? []).length > 0
 
   await auditLog({
     aktion:        'bestellung_versandt' as string,
@@ -385,14 +389,20 @@ export async function bestellungVersandt(
   })
   revalidatePath('/dashboard/bestellungen')
   revalidatePath(`/dashboard/bestellungen/${id}`)
-  await benachrichtigeLieferung(id, 'versandt')
+  if (geaendert) await benachrichtigeLieferung(id, 'versandt')
   return { erfolg: true }
 }
 
 /** Bestellung als geliefert markieren — synct alle Positionen auf 'geliefert'. */
 export async function bestellungGeliefert(id: string): Promise<{ erfolg?: boolean; fehler?: string }> {
   const res = await statusUebergang(id, 'geliefert', 'geliefert')
-  if (!res.fehler) await benachrichtigeLieferung(id, 'geliefert')
+  if (res.fehler) return res
+  if (res.geaendert) {
+    // Positionen-Wareneingang nachziehen (v. a. „Alles erhalten"-Pfad), damit
+    // menge_erhalten zum Order-Status passt (X/Y-Zähler + Teil-Reset konsistent).
+    await ziehePositionenWareneingangNach(id)
+    await benachrichtigeLieferung(id, 'geliefert')
+  }
   return res
 }
 
@@ -567,7 +577,7 @@ async function statusUebergang(
   id: string,
   bestellStatus: LieferantenBestellungStatus,
   raumProduktStatus: BestellStatus,
-): Promise<{ erfolg?: boolean; fehler?: string }> {
+): Promise<{ erfolg?: boolean; fehler?: string; geaendert?: boolean }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
   const heute = new Date().toISOString().split('T')[0]
@@ -585,12 +595,19 @@ async function statusUebergang(
   const dF = datumFeld[bestellStatus]
   if (dF) update[dF] = heute
 
-  const { error } = await supabase
+  // Atomar + idempotent: nur ein ECHTER Statuswechsel (Status != Ziel) führt die
+  // Seiteneffekte + Kunden-Benachrichtigung aus. So feuern z. B. zwei parallele
+  // „Erhalten"-Klicks, die die Bestellung gleichzeitig komplettieren, die
+  // „📦 angekommen"-Nachricht trotzdem nur EINMAL.
+  const { data: changedRows, error } = await supabase
     .from('lieferanten_bestellungen')
     .update(update)
     .eq('id', id)
     .eq('organisation_id', orgId)
+    .neq('status', bestellStatus)
+    .select('id')
   if (error) return { fehler: 'Aktualisierung fehlgeschlagen.' }
+  if ((changedRows ?? []).length === 0) return { erfolg: true, geaendert: false }
 
   // Alle raum_produkte der Positionen auf neuen Status setzen
   const { data: positionen } = await supabase
@@ -662,7 +679,30 @@ async function statusUebergang(
 
   revalidatePath('/dashboard/bestellungen')
   revalidatePath(`/dashboard/bestellungen/${id}`)
-  return { erfolg: true }
+  return { erfolg: true, geaendert: true }
+}
+
+/** Setzt menge_erhalten=menge für alle noch nicht voll erfassten Positionen einer Bestellung. */
+async function ziehePositionenWareneingangNach(bestellungId: string): Promise<void> {
+  try {
+    const supabase = await createClient()
+    const orgId = await getOrganisationId()
+    const { data: posList } = await supabase
+      .from('lieferanten_bestellung_positionen')
+      .select('id, menge, menge_erhalten')
+      .eq('bestellung_id', bestellungId)
+      .eq('organisation_id', orgId)
+    const jetzt = new Date().toISOString()
+    for (const p of (posList ?? []) as { id: string; menge: number | null; menge_erhalten: number | null }[]) {
+      if ((Number(p.menge_erhalten) || 0) < (Number(p.menge) || 0)) {
+        await supabase
+          .from('lieferanten_bestellung_positionen')
+          .update({ menge_erhalten: p.menge, empfangen_am: jetzt })
+          .eq('id', p.id)
+          .eq('organisation_id', orgId)
+      }
+    }
+  } catch (e) { console.error('[ziehePositionenWareneingangNach]', e) }
 }
 
 export async function bestellungLoeschen(id: string): Promise<{ erfolg?: boolean; fehler?: string }> {

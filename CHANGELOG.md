@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Bestellungen – Bugs behoben
+- **„Alles erhalten" konsistent:** Wird eine ganze Bestellung auf „Geliefert" gesetzt, stimmt jetzt auch die Positions-Anzeige **„X/Y erhalten"** — die einzelnen Positionen werden mit erfasst. Vorher konnte die Bestellung „geliefert" sein, während die Positionszähler noch auf 0 standen.
+- **Keine doppelte „angekommen"-Nachricht:** Werden mehrere Positionen einer Bestellung fast gleichzeitig abgehakt, erhält der Kunde die **„📦 angekommen"**-Info jetzt garantiert nur einmal.
+
 ### Produkte – Daten-Check / Marge-Warnung
 - In der Produktbibliothek werden Produkte jetzt markiert, bei denen etwas nicht stimmt: **„Verlust"** (Verkaufspreis liegt unter dem Einkaufspreis) oder **„Kein Preis"** (kein Verkaufspreis hinterlegt) — als Badge in allen Ansichten. Ein neuer Filter **„⚠ Prüfen (N)"** zeigt auf einen Klick nur diese Produkte. So fallen Verlust-Produkte und unvollständige Einträge sofort auf.
 
