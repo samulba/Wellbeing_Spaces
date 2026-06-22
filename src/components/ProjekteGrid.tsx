@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { differenceInCalendarDays } from 'date-fns'
 import { Search, LayoutGrid, List, MapPin, DoorOpen, Archive, Clock, CheckCircle2, Package, Truck } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
@@ -36,10 +37,10 @@ function avatarFarbe(s: string) { return avatarFarben[(s.charCodeAt(0) || 0) % a
 function initials(name: string) { return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) }
 
 function deadlineChip(deadline: string): { label: string; cls: string; Icon: typeof Clock } {
-  const now = new Date()
-  const d   = new Date(deadline)
-  const diffMs   = d.getTime() - now.getTime()
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+  // deadline ist eine DATE-Spalte (YYYY-MM-DD) → als lokale Mitternacht lesen,
+  // sonst erscheint eine heute fällige Deadline morgens als „in 1T" (UTC-Versatz).
+  const d        = deadline.length === 10 ? new Date(`${deadline}T00:00:00`) : new Date(deadline)
+  const diffDays = differenceInCalendarDays(d, new Date())
   if (diffDays < 0) {
     return { label: `${Math.abs(diffDays)}T überfällig`, cls: 'bg-red-50 text-red-600 border-red-100', Icon: Clock }
   }

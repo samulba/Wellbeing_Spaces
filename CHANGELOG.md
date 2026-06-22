@@ -9,6 +9,7 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Projekt duplizieren kopierte keine Produkte:** Beim Duplizieren mit „Produkte kopieren" blieben die Räume **leer**, weil die Produkte am alten Speicherort gesucht wurden. Jetzt werden die Raum-Produkte korrekt in die neuen Räume übernommen. Zusätzlich werden jetzt auch **Produkt-Budget, Service-/Abrechnungseinstellungen** sowie pro Raum **Budget, Maße und Grundriss** mitkopiert.
 - **Projekte-Übersicht zeigte veralteten Fortschritt:** Die Balken **Freigabe / Bestellt / Geliefert** auf den Projektkarten (und in der Listenansicht) lasen einen alten Status-Speicherort und zeigten dadurch falsche Werte — jetzt der aktuelle Stand wie auf der Projekt-Detailseite.
 - **Duplizieren-Dialog:** Tritt beim Duplizieren ein Fehler auf, erscheint jetzt eine Meldung im Dialog (vorher blieb der Dialog ohne Rückmeldung stehen). Außerdem ist das Duplizieren jetzt strikt auf die eigene Organisation beschränkt.
+- **Deadline-Chip:** Eine **heute fällige** Deadline auf den Projektkarten wurde morgens fälschlich als „in 1 Tag" angezeigt (Zeitzonen-Versatz) — jetzt korrekt „Heute fällig".
 
 ### Kunden – Dubletten-Warnung beim Anlegen
 - Beim Anlegen eines neuen Kunden wird jetzt geprüft, ob es bereits einen Kunden mit **gleichem Namen oder gleicher Firma** gibt. Falls ja, erscheint ein Hinweis mit Links zu den bestehenden Kunden — versehentliche Doppel-Anlagen werden so vermieden. Mit **„Trotzdem anlegen"** kann man den Kunden bei Bedarf bewusst doppelt anlegen.
