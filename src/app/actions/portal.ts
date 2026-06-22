@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPortalSession } from '@/lib/portal-auth'
 import { sendMail } from '@/lib/mail'
+import { effektiverVpNetto } from '@/lib/preise'
 
 /**
  * Ermittelt die Base-URL der App zuverlässig — zuerst aus NEXT_PUBLIC_APP_URL,
@@ -351,19 +352,21 @@ export async function portalDashboardDaten() {
     for (const r of raeume ?? []) raumMap[r.id] = r.projekt_id
 
     if (raumIds.length > 0) {
-      const { data: produkte } = await supabase
-        .from('produkte')
-        .select('raum_id, freigabe_status')
+      // Freigabe-Status liegt seit Mig 076 auf raum_produkte (nicht produkte).
+      const { data: rps } = await supabase
+        .from('raum_produkte')
+        .select('raum_id, freigabe_status, produkte(deleted_at)')
         .in('raum_id', raumIds)
-        .is('deleted_at', null)
 
-      for (const p of produkte ?? []) {
-        const pid = raumMap[p.raum_id]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const rp of ((rps ?? []) as any[])) {
+        if (rp.produkte?.deleted_at != null) continue
+        const pid = raumMap[rp.raum_id]
         if (!pid) continue
         if (!statsMap[pid]) statsMap[pid] = { gesamt: 0, ausstehend: 0, freigegeben: 0 }
         statsMap[pid].gesamt++
-        if (!p.freigabe_status || p.freigabe_status === 'ausstehend') statsMap[pid].ausstehend++
-        if (p.freigabe_status === 'freigegeben') statsMap[pid].freigegeben++
+        if (!rp.freigabe_status || rp.freigabe_status === 'ausstehend') statsMap[pid].ausstehend++
+        if (rp.freigabe_status === 'freigegeben') statsMap[pid].freigegeben++
       }
     }
   }
@@ -400,14 +403,15 @@ export async function portalDashboardDaten() {
 // ── PORTAL: PROJEKT-DATEN ─────────────────────────────────────
 
 export interface PortalProdukt {
-  id: string
+  id: string            // produkte.id (eine Zeile je Produkt; Lieferstatus-Lookup nutzt raum_id:id)
+  produkt_id: string
   name: string
   beschreibung: string | null
-  image_url: string | null
+  bild_url: string | null
   kategorie: string | null
   menge: number | null
   einheit: string | null
-  verkaufspreis: number | null
+  verkaufspreis: number | null    // effektiver Pro-Raum-Netto-Preis (Override + Rabatt)
   freigabe_status: string | null
   raum_id: string
 }
@@ -444,16 +448,60 @@ export async function portalProjektAbrufen(projektId: string) {
 
   const raumIds = (raeume ?? []).map((r) => r.id)
 
-  // Produkte (KEINE internen Felder!)
+  // Produkte (KEINE internen Felder!). Quelle ist die Junction `raum_produkte`
+  // (seit Mig 038), NICHT die Legacy-Spalte produkte.raum_id. Pro (raum_id,
+  // produkt_id) wird zu EINER Karte zusammengefasst (Mig 134 erlaubt Mehrfach-
+  // Produkte): Menge summiert, Freigabe-Status konservativ aggregiert, Preis =
+  // effektiver Pro-Raum-Netto (Override + Rabatt). raum_produkte hat KEIN
+  // deleted_at → nur produkte.deleted_at filtern.
   let produkte: PortalProdukt[] = []
   if (raumIds.length > 0) {
     const { data } = await supabase
-      .from('produkte')
-      .select('id, name, beschreibung, image_url, kategorie, menge, einheit, verkaufspreis, freigabe_status, raum_id')
+      .from('raum_produkte')
+      .select('raum_id, produkt_id, menge, verkaufspreis_override, rabatt_prozent, freigabe_status, produkte(id, name, beschreibung, bild_url, kategorie, einheit, verkaufspreis, deleted_at, reihenfolge)')
       .in('raum_id', raumIds)
-      .is('deleted_at', null)
-      .order('reihenfolge')
-    produkte = (data ?? []) as PortalProdukt[]
+      .order('reihenfolge', { referencedTable: 'produkte' })
+
+    // Status-Aggregation: nur freigegeben, wenn ALLE Instanzen freigegeben sind.
+    const statusRang = (s: string | null): number =>
+      ({ ausstehend: 0, abgelehnt: 1, ueberarbeitung: 2, freigegeben: 3 }[s ?? 'ausstehend'] ?? 0)
+    const aggStatus = (a: string | null, b: string | null): string => {
+      // 'ausstehend' dominiert; sonst der „niedrigste" Status (offen vor erledigt).
+      if (a === 'ausstehend' || b === 'ausstehend') return 'ausstehend'
+      return statusRang(a) <= statusRang(b) ? (a ?? 'ausstehend') : (b ?? 'ausstehend')
+    }
+
+    const byKey = new Map<string, PortalProdukt>()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const rp of ((data ?? []) as any[])) {
+      const p = rp.produkte
+      if (!p || p.deleted_at != null) continue
+      const key = `${rp.raum_id}:${rp.produkt_id}`
+      const vpNetto = effektiverVpNetto(
+        { verkaufspreis_override: rp.verkaufspreis_override, rabatt_prozent: rp.rabatt_prozent },
+        p.verkaufspreis ?? null,
+      )
+      const vorhanden = byKey.get(key)
+      if (vorhanden) {
+        vorhanden.menge = (vorhanden.menge ?? 0) + (rp.menge ?? 0)
+        vorhanden.freigabe_status = aggStatus(vorhanden.freigabe_status, rp.freigabe_status)
+      } else {
+        byKey.set(key, {
+          id:              p.id,
+          produkt_id:      p.id,
+          name:            p.name,
+          beschreibung:    p.beschreibung ?? null,
+          bild_url:        p.bild_url ?? null,
+          kategorie:       p.kategorie ?? null,
+          menge:           rp.menge ?? 0,
+          einheit:         p.einheit ?? null,
+          verkaufspreis:   vpNetto,
+          freigabe_status: rp.freigabe_status ?? 'ausstehend',
+          raum_id:         rp.raum_id,
+        })
+      }
+    }
+    produkte = Array.from(byKey.values())
   }
 
   const raeumeMitProdukten: PortalRaum[] = (raeume ?? []).map((r) => ({
@@ -591,73 +639,10 @@ export async function portalProjektAbrufen(projektId: string) {
   }
 }
 
-// ── PORTAL: PRODUKT FREIGEBEN ─────────────────────────────────
-
-export async function portalProduktFreigeben(
-  produktId: string,
-  status: string
-): Promise<void> {
-  const session = await requireSession()
-  const supabase = createAdminClient()
-
-  // Ownership-Prüfung: Produkt → Raum → Projekt → Kunde
-  const { data: produkt } = await supabase
-    .from('produkte')
-    .select('raum_id, raeume(projekt_id, projekte(kunde_id))')
-    .eq('id', produktId)
-    .maybeSingle()
-
-  const raumData = Array.isArray(produkt?.raeume) ? produkt?.raeume[0] : produkt?.raeume
-  const raw = raumData as { projekt_id: string; projekte: { kunde_id: string } | { kunde_id: string }[] | null } | null
-  if (!raw) return
-  const projekteRaw = raw.projekte
-  const kundeId = Array.isArray(projekteRaw) ? projekteRaw[0]?.kunde_id : projekteRaw?.kunde_id
-  if (kundeId !== session.kundeId) return
-
-  await supabase
-    .from('produkte')
-    .update({ freigabe_status: status })
-    .eq('id', produktId)
-
-  // Aktivität loggen
-  await supabase.from('client_aktivitaeten').insert({
-    projekt_id:  raw.projekt_id,
-    kunde_id:    session.kundeId,
-    typ:         'freigabe',
-    titel:       status === 'freigegeben' ? 'Produkt freigegeben' : status === 'abgelehnt' ? 'Produkt abgelehnt' : 'Produkt kommentiert',
-  })
-}
-
-export async function portalAlleFreigeben(projektId: string): Promise<void> {
-  const session = await requireSession()
-  const supabase = createAdminClient()
-
-  // Projekt gehört zum Kunden?
-  const { data: projekt } = await supabase
-    .from('projekte')
-    .select('id')
-    .eq('id', projektId)
-    .eq('kunde_id', session.kundeId)
-    .maybeSingle()
-  if (!projekt) return
-
-  // Räume → Produkte
-  const { data: raeume } = await supabase
-    .from('raeume')
-    .select('id')
-    .eq('projekt_id', projektId)
-    .is('deleted_at', null)
-
-  const raumIds = (raeume ?? []).map((r) => r.id)
-  if (raumIds.length === 0) return
-
-  await supabase
-    .from('produkte')
-    .update({ freigabe_status: 'freigegeben' })
-    .in('raum_id', raumIds)
-    .is('deleted_at', null)
-    .or('freigabe_status.is.null,freigabe_status.eq.ausstehend')
-}
+// Produkt-Freigaben im Portal laufen ausschließlich über den geprüften
+// Freigabe-Link (/freigabe/[token]); die Portal-Produktansicht ist read-only.
+// Die früheren portalProduktFreigeben/portalAlleFreigeben schrieben in eine
+// nicht existierende produkte.freigabe_status-Spalte (No-Op) und wurden entfernt.
 
 // ── PORTAL: NACHRICHTEN ───────────────────────────────────────
 

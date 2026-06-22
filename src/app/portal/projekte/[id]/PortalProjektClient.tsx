@@ -1,17 +1,15 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   CheckCircle2, MessageSquare, FileText, CalendarDays,
-  LayoutGrid, Check, X, ChevronDown, ChevronUp, Download,
+  LayoutGrid, X, ChevronDown, ChevronUp, Download,
   Clock, Flag, Truck, Info, ZoomIn,
   Package as PackageIcon, AlertTriangle,
 } from 'lucide-react'
 import Image from 'next/image'
 import {
-  portalProduktFreigeben,
-  portalAlleFreigeben,
   portalNachrichtSenden,
   portalAnhangSignedUrl,
 } from '@/app/actions/portal'
@@ -94,10 +92,10 @@ const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
 const FREIGABE_STATUS: Record<string, { label: string; farbe: string }> = {
-  ausstehend:  { label: 'Ausstehend',  farbe: 'bg-gray-100 text-gray-500' },
-  freigegeben: { label: 'Freigegeben', farbe: 'bg-emerald-100 text-emerald-700' },
-  abgelehnt:   { label: 'Abgelehnt',   farbe: 'bg-red-100 text-red-600' },
-  alternativ:  { label: 'Alternative', farbe: 'bg-amber-100 text-amber-700' },
+  ausstehend:     { label: 'Ausstehend',    farbe: 'bg-gray-100 text-gray-500' },
+  freigegeben:    { label: 'Freigegeben',   farbe: 'bg-emerald-100 text-emerald-700' },
+  abgelehnt:      { label: 'Abgelehnt',     farbe: 'bg-red-100 text-red-600' },
+  ueberarbeitung: { label: 'Überarbeitung', farbe: 'bg-amber-100 text-amber-700' },
 }
 
 const EVENT_TYP: Record<string, { farbe: string; icon: React.ReactNode }> = {
@@ -112,37 +110,26 @@ const EVENT_TYP: Record<string, { farbe: string; icon: React.ReactNode }> = {
 function ProduktKarte({
   produkt,
   preiseAnzeigen,
-  onUpdate,
 }: {
-  produkt: PortalProdukt & { localStatus?: string }
+  produkt: PortalProdukt
   preiseAnzeigen: boolean
-  onUpdate: (id: string, status: string) => void
 }) {
-  const [isPending, startTransition] = useTransition()
   const [zoom, setZoom] = useState(false)
-  const status = produkt.localStatus ?? produkt.freigabe_status ?? 'ausstehend'
+  const status = produkt.freigabe_status ?? 'ausstehend'
   const info   = FREIGABE_STATUS[status] ?? FREIGABE_STATUS.ausstehend
-
-  function waehlen(s: string) {
-    if (isPending) return
-    onUpdate(produkt.id, s)
-    startTransition(async () => {
-      await portalProduktFreigeben(produkt.id, s)
-    })
-  }
 
   return (
     <>
-      {zoom && produkt.image_url && (
+      {zoom && produkt.bild_url && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setZoom(false)}>
-          <Image src={produkt.image_url} alt={produkt.name} width={800} height={600} className="max-h-[80vh] w-auto rounded-xl object-contain" />
+          <Image src={produkt.bild_url} alt={produkt.name} width={800} height={600} className="max-h-[80vh] w-auto rounded-xl object-contain" />
         </div>
       )}
-      <div className={`bg-white border rounded-2xl overflow-hidden transition-all ${isPending ? 'opacity-60' : ''} ${status === 'freigegeben' ? 'border-emerald-200' : status === 'abgelehnt' ? 'border-red-200' : 'border-gray-100'}`}>
+      <div className={`bg-white border rounded-2xl overflow-hidden transition-all ${status === 'freigegeben' ? 'border-emerald-200' : status === 'abgelehnt' ? 'border-red-200' : 'border-gray-100'}`}>
         {/* Bild */}
-        {produkt.image_url ? (
+        {produkt.bild_url ? (
           <div className="relative h-40 bg-gray-50 cursor-pointer" onClick={() => setZoom(true)}>
-            <Image src={produkt.image_url} alt={produkt.name} fill className="object-contain p-2" />
+            <Image src={produkt.bild_url} alt={produkt.name} fill className="object-contain p-2" />
             <div className="absolute top-2 right-2 bg-black/20 rounded-lg p-1">
               <ZoomIn className="w-3 h-3 text-white" />
             </div>
@@ -163,48 +150,17 @@ function ProduktKarte({
           {produkt.kategorie && (
             <p className="text-xs text-gray-400 mb-1">{produkt.kategorie}</p>
           )}
-          {preiseAnzeigen && produkt.verkaufspreis != null && (
-            <p className="text-sm font-bold text-gray-800 mb-2">{eur(produkt.verkaufspreis)}</p>
-          )}
-          {produkt.beschreibung && (
-            <p className="text-xs text-gray-500 leading-relaxed mb-3 line-clamp-2">{produkt.beschreibung}</p>
-          )}
-
-          {/* Aktionen */}
-          <div className="grid grid-cols-2 gap-1.5">
-            <button onClick={() => waehlen('freigegeben')} disabled={isPending}
-              className={`flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-xl border transition-all ${
-                status === 'freigegeben'
-                  ? 'bg-emerald-500 text-white border-emerald-500'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-              }`}>
-              <Check className="w-3.5 h-3.5" /> Freigeben
-            </button>
-            <button onClick={() => waehlen('abgelehnt')} disabled={isPending}
-              className={`flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-xl border transition-all ${
-                status === 'abgelehnt'
-                  ? 'bg-red-500 text-white border-red-500'
-                  : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
-              }`}>
-              <X className="w-3.5 h-3.5" /> Ablehnen
-            </button>
-            <button onClick={() => waehlen('alternativ')} disabled={isPending}
-              className={`flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-xl border transition-all ${
-                status === 'alternativ'
-                  ? 'bg-amber-400 text-white border-amber-400'
-                  : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-              }`}>
-              <MessageSquare className="w-3.5 h-3.5" /> Alternative
-            </button>
-            <button onClick={() => waehlen('ausstehend')} disabled={isPending}
-              className={`flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-xl border transition-all ${
-                status === 'ausstehend'
-                  ? 'bg-gray-200 text-gray-600 border-gray-200'
-                  : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-              }`}>
-              <Clock className="w-3.5 h-3.5" /> Offen
-            </button>
+          <div className="flex items-center gap-2 mb-2">
+            {produkt.menge != null && produkt.menge > 0 && (
+              <span className="text-xs text-gray-500">{produkt.menge} {produkt.einheit ?? 'Stk'}</span>
+            )}
+            {preiseAnzeigen && produkt.verkaufspreis != null && (
+              <span className="text-sm font-bold text-gray-800">{eur(produkt.verkaufspreis)}</span>
+            )}
           </div>
+          {produkt.beschreibung && (
+            <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{produkt.beschreibung}</p>
+          )}
         </div>
       </div>
     </>
@@ -216,17 +172,13 @@ function ProduktKarte({
 function RaumBlock({
   raum,
   preiseAnzeigen,
-  statusMap,
-  onUpdate,
 }: {
   raum: PortalRaum
   preiseAnzeigen: boolean
-  statusMap: Record<string, string>
-  onUpdate: (id: string, status: string) => void
 }) {
   const [offen, setOffen] = useState(true)
   const ausstehend = raum.produkte.filter(
-    (p) => !statusMap[p.id] && (!p.freigabe_status || p.freigabe_status === 'ausstehend')
+    (p) => !p.freigabe_status || p.freigabe_status === 'ausstehend'
   ).length
 
   return (
@@ -250,9 +202,8 @@ function RaumBlock({
           {raum.produkte.map((p) => (
             <ProduktKarte
               key={p.id}
-              produkt={{ ...p, localStatus: statusMap[p.id] }}
+              produkt={p}
               preiseAnzeigen={preiseAnzeigen}
-              onUpdate={onUpdate}
             />
           ))}
         </div>
@@ -562,9 +513,9 @@ function LieferungenTab({
                 return (
                   <div key={p.id} className="flex items-start gap-3 px-4 py-3">
                     <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 shrink-0 flex items-center justify-center">
-                      {p.image_url ? (
+                      {p.bild_url ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={p.image_url} alt="" className="w-full h-full object-cover" />
+                        <img src={p.bild_url} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <PackageIcon className="w-5 h-5 text-gray-400" />
                       )}
@@ -688,33 +639,11 @@ export default function PortalProjektClient({
   preiseAnzeigen, vorname,
 }: Props) {
   const [aktuellerTab, setAktuellerTab] = useState<Tab>('freigaben')
-  const [statusMap, setStatusMap]       = useState<Record<string, string>>({})
-  const [alleFreigeben, setAlleFreigeben] = useState(false)
-  const [, startTransition] = useTransition()
 
   const alleProdukteFlach = raeume.flatMap((r) => r.produkte)
   const ausstehend = alleProdukteFlach.filter(
-    (p) => { const s = statusMap[p.id] ?? p.freigabe_status; return !s || s === 'ausstehend' }
+    (p) => !p.freigabe_status || p.freigabe_status === 'ausstehend'
   ).length
-
-  function updateStatus(id: string, status: string) {
-    setStatusMap((prev) => ({ ...prev, [id]: status }))
-  }
-
-  function handleAlleFreigeben() {
-    setAlleFreigeben(true)
-    const neueMap: Record<string, string> = {}
-    alleProdukteFlach.forEach((p) => {
-      if (!statusMap[p.id] && (!p.freigabe_status || p.freigabe_status === 'ausstehend')) {
-        neueMap[p.id] = 'freigegeben'
-      }
-    })
-    setStatusMap((prev) => ({ ...prev, ...neueMap }))
-    startTransition(async () => {
-      await portalAlleFreigeben(projektId)
-      setAlleFreigeben(false)
-    })
-  }
 
   // Hat das Projekt überhaupt Bestell-/Liefer-Aktivität?
   const lieferungenAktiv = Object.values(bestellStatusMap).some(
@@ -777,35 +706,27 @@ export default function PortalProjektClient({
             <EmptyState
               Icon={Info}
               title="Noch keine Produkte im Projekt"
-              text="Sobald dein Designer Produkte hinzufügt, erscheinen sie hier zur Freigabe."
+              text="Sobald dein Designer Produkte hinzufügt, erscheinen sie hier."
               prim={prim}
             />
           ) : (
             <>
               {ausstehend > 0 && (
-                <div className="flex items-center justify-between gap-3 mb-5 p-4 rounded-2xl border"
+                <div className="flex items-start gap-2.5 mb-5 p-4 rounded-2xl border"
                   style={{
                     background: `rgba(var(--brand-primary-rgb),0.04)`,
                     borderColor: `rgba(var(--brand-primary-rgb),0.15)`,
                   }}
                 >
+                  <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: prim }} />
                   <p className="text-sm font-medium" style={{ color: prim }}>
-                    {ausstehend} Produkt{ausstehend !== 1 ? 'e' : ''} wartet auf deine Entscheidung
+                    {ausstehend} Produkt{ausstehend !== 1 ? 'e' : ''} noch offen — die Freigabe erfolgt über den Freigabe-Link, den dir dein Designer schickt.
                   </p>
-                  <button
-                    onClick={handleAlleFreigeben} disabled={alleFreigeben}
-                    className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white rounded-xl transition-all hover:brightness-95 disabled:opacity-60"
-                    style={{ background: prim }}
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    {alleFreigeben ? 'Wird freigegeben…' : 'Alle freigeben'}
-                  </button>
                 </div>
               )}
               <div className="space-y-5">
                 {raeume.map((r) => (
-                  <RaumBlock key={r.id} raum={r} preiseAnzeigen={preiseAnzeigen}
-                    statusMap={statusMap} onUpdate={updateStatus} />
+                  <RaumBlock key={r.id} raum={r} preiseAnzeigen={preiseAnzeigen} />
                 ))}
               </div>
             </>

@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Kundenportal – Produkte werden wieder angezeigt
+- Die Produktansicht im Kundenportal war faktisch leer: Sie las Produkte aus einer veralteten Stelle, an der seit Längerem keine Produkte mehr liegen. Jetzt werden die Produkte je Raum **korrekt angezeigt** — mit **Pro-Raum-Menge**, **effektivem Preis** (inkl. Rabatt/Sonderpreis) und dem **richtigen Freigabe-/Lieferstatus**. Auch die „Offene Freigaben"-Zahl im Portal-Dashboard stimmt jetzt.
+- Die Produktansicht im Portal ist **reine Anzeige**: Freigaben laufen wie gewohnt über den **Freigabe-Link** (mit Beleg/Stempel). Die alten, wirkungslosen „Freigeben"-Buttons im Portal wurden entfernt.
+
 ### Kundenportal – Lieferstatus bei mehrfachen Produkten korrekt
 - Liegt ein Produkt jetzt **mehrfach in einem Raum** (neue Funktion), zeigt das Kundenportal den **weitesten Lieferstatus** (z. B. „geliefert", sobald eine der Instanzen geliefert ist) statt eines zufälligen Einzelstatus. *(Folge-Korrektur zur Mehrfach-Produkt-Funktion.)*
 
