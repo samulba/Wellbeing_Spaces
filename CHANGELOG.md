@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Räume – Gleiches Produkt mehrfach pro Raum
+- Ein Produkt kann jetzt **mehrfach in denselben Raum** gelegt werden (z. B. ein Controller je Lichtgruppe). Neuer **„Duplizieren"**-Button (Kopier-Symbol) pro Produktzeile legt eine eigene, unabhängige Position an (Menge/Preis/Notiz übernommen). Status, Freigabe und Zuordnungen sind je Position getrennt; die „In X Räumen"-Anzeige zählt weiterhin nur echte Räume. *(Benötigt Migration 134.)*
+
 ### Aufgaben – Verbesserungen
 - **Erweiterte Filter:** Das Board lässt sich jetzt zusätzlich nach **Zuständig** (Teammitglied / „Niemand"), **Label** und **Projekt** (inkl. „Ohne Projekt") filtern — die Filter wirken in Board-, Listen- und Kalenderansicht. Die gewählte **Ansicht** (Board/Liste/Kalender) wird jetzt gemerkt.
 - **Wiederkehrende Aufgaben:** Eine Aufgabe kann auf **täglich / wöchentlich / monatlich** gestellt werden (Auswahl im Aufgaben-Detail). Beim Erledigen wird automatisch die **nächste Aufgabe** mit vorgerücktem Fälligkeitsdatum erstellt; wiederkehrende Aufgaben tragen ein **🔁**-Symbol. *(Benötigt Migration 133.)*

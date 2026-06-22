@@ -21,7 +21,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, ChevronDown, ChevronRight, Clock, Package, CheckCircle2,
-  Receipt, Trash2, X, CalendarDays, Truck, PackageCheck, Pencil,
+  Receipt, Trash2, X, CalendarDays, Truck, PackageCheck, Pencil, Copy,
   XCircle, AlertTriangle, Undo2, RotateCcw,
   Tag, ArrowRight, Calendar, Star, FolderPlus, Plus, Layers, StickyNote,
   MessageSquareQuote, Boxes,
@@ -34,6 +34,7 @@ import {
   raumProdukteAktualisieren,
   adminFavoritSetzen,
   adminFavoritEntfernen,
+  raumProduktDuplizieren,
 } from '@/app/actions/raum-produkte'
 import {
   produktGruppeAnlegen,
@@ -236,6 +237,7 @@ function SortableProduktZeile({
   onToggleExpand,
   onBestellstatusChange,
   onDeleteRequest,
+  onDuplizieren,
   onReklamationRequest,
   onDatumChange,
   onRabattChange,
@@ -259,6 +261,7 @@ function SortableProduktZeile({
   onToggleExpand: () => void
   onBestellstatusChange: (raumProduktId: string, status: BestellStatus) => void
   onDeleteRequest: (id: string, name: string) => void
+  onDuplizieren: (id: string) => void
   onReklamationRequest: (id: string, name: string) => void
   onDatumChange: (raumProduktId: string, feld: ProduktDatumFeld, wert: string | null) => void
   onRabattChange: (raumProduktId: string, rabatt: number | null) => void
@@ -630,6 +633,15 @@ function SortableProduktZeile({
             >
               <Pencil className="w-3.5 h-3.5" />
             </Link>
+            <button
+              type="button"
+              onClick={() => onDuplizieren(eintrag.id)}
+              aria-label="Produkt duplizieren"
+              title="Produkt duplizieren (gleiches Produkt nochmal im Raum)"
+              className="p-1.5 text-gray-400 hover:text-wellbeing-green rounded-md hover:bg-wellbeing-green/10 transition-colors"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
             <button
               type="button"
               onClick={() => onReklamationRequest(eintrag.id, p.name)}
@@ -1458,6 +1470,16 @@ export default function SortableProduktTabelle({
     }
   }
 
+  async function handleDuplizieren(id: string) {
+    const res = await raumProduktDuplizieren(id, projektId)
+    if (res?.fehler) {
+      setFehlerToast(res.fehler)
+      setTimeout(() => setFehlerToast(null), 4000)
+    } else {
+      router.refresh()
+    }
+  }
+
   async function handleConfirmDelete() {
     if (!deleteTarget || isDeleting) return
     setIsDeleting(true)
@@ -1712,6 +1734,7 @@ export default function SortableProduktTabelle({
       onToggleExpand={() => toggleExpand(e.id)}
       onBestellstatusChange={handleBestellstatusChange}
       onDeleteRequest={(id, name) => setDeleteTarget({ id, name })}
+      onDuplizieren={handleDuplizieren}
       onReklamationRequest={(id, name) => setReklamationTarget({ id, name })}
       onDatumChange={handleDatumChange}
       onRabattChange={handleRabattChange}

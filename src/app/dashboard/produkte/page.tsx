@@ -33,20 +33,24 @@ async function getProdukte(): Promise<ProduktZeile[]> {
 
   const [{ data: partnerData }, { data: raumProdData }] = await Promise.all([
     supabase.from('partner').select('id, name').is('deleted_at', null),
-    supabase.from('raum_produkte').select('produkt_id, bestellstatus'),
+    supabase.from('raum_produkte').select('produkt_id, raum_id, bestellstatus'),
   ])
 
   const partnerMap = Object.fromEntries((partnerData ?? []).map((p) => [p.id, p]))
 
-  // Anzahl Räume + Anzahl erfolgreich gelieferte raum_produkte pro Produkt
-  const raumAnzahlMap: Record<string, number> = {}
+  // Anzahl DISTINCT Räume (ein Produkt kann seit Mig 134 mehrfach im selben Raum
+  // liegen → über raum_id deduplizieren, sonst „In 3 Räumen" statt „In 1 Raum")
+  // + Anzahl gelieferter Instanzen pro Produkt.
+  const raumSetMap: Record<string, Set<string>> = {}
   const geliefertMap: Record<string, number> = {}
-  for (const rp of raumProdData ?? []) {
-    raumAnzahlMap[rp.produkt_id] = (raumAnzahlMap[rp.produkt_id] ?? 0) + 1
+  for (const rp of (raumProdData ?? []) as { produkt_id: string; raum_id: string; bestellstatus: string | null }[]) {
+    ;(raumSetMap[rp.produkt_id] ??= new Set()).add(rp.raum_id)
     if (rp.bestellstatus === 'geliefert' || rp.bestellstatus === 'rechnung_erhalten') {
       geliefertMap[rp.produkt_id] = (geliefertMap[rp.produkt_id] ?? 0) + 1
     }
   }
+  const raumAnzahlMap: Record<string, number> = {}
+  for (const [pid, set] of Object.entries(raumSetMap)) raumAnzahlMap[pid] = set.size
 
   // Bundle-Infos (Komponentenzahl + Set-Preis) für Bundle-Köpfe
   const bundleInfo = new Map<string, { anzahl: number; setPreis: number | null }>()

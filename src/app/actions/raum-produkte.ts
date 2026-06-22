@@ -40,6 +40,57 @@ export async function produktZuRaumHinzufuegen(
   return {}
 }
 
+/**
+ * Eine Raum-Produkt-Zeile duplizieren (gleiches Produkt nochmal im selben Raum,
+ * seit Migration 134 erlaubt) — z. B. ein Controller je Lichtgruppe.
+ * Kopiert Menge/Preis-Override/Rabatt/Notiz; die Kopie ist eine FRISCHE,
+ * unabhängige Instanz (kein Block/Bundle/Favorit/Status/Freigabe übernommen).
+ */
+export async function raumProduktDuplizieren(
+  raumProduktId: string,
+  projektId: string,
+): Promise<{ id?: string; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { data: orig } = await supabase
+    .from('raum_produkte')
+    .select('raum_id, produkt_id, menge, verkaufspreis_override, rabatt_prozent, notizen')
+    .eq('id', raumProduktId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!orig) return { fehler: 'Produkt nicht gefunden.' }
+
+  const { data: maxRow } = await supabase
+    .from('raum_produkte')
+    .select('reihenfolge')
+    .eq('raum_id', orig.raum_id)
+    .eq('organisation_id', orgId)
+    .order('reihenfolge', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const reihenfolge = (maxRow?.reihenfolge ?? -1) + 1
+
+  const { data: neu, error } = await supabase
+    .from('raum_produkte')
+    .insert({
+      organisation_id:        orgId,
+      raum_id:                orig.raum_id,
+      produkt_id:             orig.produkt_id,
+      menge:                  orig.menge,
+      verkaufspreis_override: orig.verkaufspreis_override,
+      rabatt_prozent:         orig.rabatt_prozent,
+      notizen:                orig.notizen,
+      reihenfolge,
+    })
+    .select('id')
+    .single()
+  if (error || !neu) return { fehler: 'Konnte Produkt nicht duplizieren.' }
+
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${orig.raum_id}`)
+  return { id: neu.id }
+}
+
 /** Verknüpfung entfernen – Produkt bleibt in der Bibliothek. */
 export async function produktAusRaumEntfernen(
   raumProduktId: string,
