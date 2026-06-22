@@ -160,7 +160,13 @@ export async function getRaumProdukte(raumId: string): Promise<RaumProduktMitDet
     .eq('raum_id', raumId)
     .order('reihenfolge')
     .order('created_at')
-  return (data ?? []) as RaumProduktMitDetails[]
+  // Soft-gelöschte Bibliotheksprodukte ausblenden: die raum_produkte-Verknüpfung
+  // bleibt bestehen (S87, reversibel), darf aber nirgends mehr angezeigt oder
+  // mitgerechnet werden — sonst Geister-Zeilen + zu hohe Raumsummen.
+  return ((data ?? []) as RaumProduktMitDetails[]).filter((rp) => {
+    const p = rp.produkte as unknown as { deleted_at?: string | null } | null
+    return p != null && p.deleted_at == null
+  })
 }
 
 /**

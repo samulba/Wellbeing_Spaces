@@ -83,14 +83,24 @@ function parseMasseAusText(text: string): { breite_cm: number | null; tiefe_cm: 
 }
 
 // ── SSRF-Schutz ──────────────────────────────────────────────
-const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254']
-const BLOCKED_PREFIXES = ['10.', '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.', '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.', '192.168.']
+const BLOCKED_HOSTS = ['localhost', '0.0.0.0']
+// IPv4: ganzes Loopback-/8, Link-local (Metadata 169.254.169.254), private Bereiche.
+const BLOCKED_PREFIXES = ['10.', '127.', '169.254.', '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.', '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.', '192.168.']
 
 function isSafeUrl(raw: string): boolean {
   try {
     const parsed = new URL(raw)
     if (!['http:', 'https:'].includes(parsed.protocol)) return false
-    const h = parsed.hostname
+    let h = parsed.hostname.toLowerCase()
+    // IPv6 kommt mit eckigen Klammern (z. B. "[::1]") → entpacken und prüfen.
+    if (h.startsWith('[') && h.endsWith(']')) {
+      const v6 = h.slice(1, -1)
+      if (v6 === '::1' || v6 === '::') return false   // Loopback / unspezifiziert
+      if (/^fe[89ab]/.test(v6)) return false          // Link-local fe80::/10
+      if (/^f[cd]/.test(v6)) return false             // Unique-local fc00::/7
+      // IPv4-mapped/-compatible (::ffff:127.0.0.1 / ::127.0.0.1) → eingebettete IPv4 prüfen.
+      h = v6.replace(/^::ffff:/i, '').replace(/^::/, '')
+    }
     if (BLOCKED_HOSTS.includes(h)) return false
     if (BLOCKED_PREFIXES.some((p) => h.startsWith(p))) return false
     return true

@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Produkte – Bugs behoben
+- **Gelöschte Produkte verschwinden jetzt aus den Räumen:** Ein aus der Bibliothek gelöschtes Produkt blieb bisher in den Räumen sichtbar, in denen es verwendet wurde — und verfälschte dort die Summen. Solche Produkte werden jetzt überall korrekt ausgeblendet (die Verknüpfung bleibt rückholbar erhalten).
+- **Sicherheit (URL-Import):** Der Produkt-Import per URL (AutoFill) blockiert jetzt auch interne **IPv6**-Adressen (vorher nur IPv4) — Schutz gegen Zugriffe auf interne Dienste.
+
 ### Partner – Verbesserungen
 - **Echte Provision in der Liste:** Die Partnerliste zeigt jetzt die tatsächliche Provision und den EK-Rabatt aus den **Konditionen** (Standard-Kondition) statt des alten, ggf. veralteten Provisionsfeldes.
 - **Filter nach Partner-Typ** (Lieferant / Hersteller / Handwerker / Planer / Sonstiges) und neue Sortierung **„Neueste"** in der Partnerliste.
