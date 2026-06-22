@@ -4,12 +4,17 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Search, LayoutGrid, List, ExternalLink, Star } from 'lucide-react'
-import type { Partner } from '@/lib/supabase/types'
+import type { Partner, PartnerTyp } from '@/lib/supabase/types'
 
-const modellBadge: Record<string, string> = {
-  Prozent:     'bg-wellbeing-cream text-wellbeing-green-dark',
-  Fix:         'bg-emerald-50 text-emerald-700',
-  Individuell: 'bg-gray-100 text-gray-600',
+/** Aufgelöste Konditions-Kurzinfo pro Partner (aus partner_konditionen, SSOT seit S78). */
+export type KonditionInfo = { provision: string | null; rabatt: string | null }
+
+const TYP_LABELS: Record<PartnerTyp, string> = {
+  lieferant:  'Lieferant',
+  hersteller: 'Hersteller',
+  handwerker: 'Handwerker',
+  planer:     'Planer',
+  sonstiges:  'Sonstiges',
 }
 
 const avatarFarben = [
@@ -19,15 +24,20 @@ const avatarFarben = [
 function avatarFarbe(name: string) { return avatarFarben[name.charCodeAt(0) % avatarFarben.length] }
 function initials(name: string) { return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) }
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
+/** Provision + EK-Rabatt zu einem kurzen Badge-Text zusammenfassen. */
+function konditionBadgeText(info?: KonditionInfo): string | null {
+  if (!info) return null
+  const teile = [info.provision, info.rabatt].filter(Boolean)
+  return teile.length ? teile.join(' · ') : null
+}
 
-type Sortierung = 'name-asc' | 'bewertung-desc' | 'bewertung-asc'
+type Sortierung = 'name-asc' | 'bewertung-desc' | 'bewertung-asc' | 'neueste'
 
-export default function PartnerGrid({ partner }: { partner: Partner[] }) {
+export default function PartnerGrid({ partner, konditionInfo = {} }: { partner: Partner[]; konditionInfo?: Record<string, KonditionInfo> }) {
   const [suche,      setSuche]      = useState('')
   const [ansicht,    setAnsicht]    = useState<'grid' | 'list'>('grid')
   const [sterneMin,  setSterneMin]  = useState<number>(0)
+  const [typFilter,  setTypFilter]  = useState<PartnerTyp | 'alle'>('alle')
   const [sortierung, setSortierung] = useState<Sortierung>('name-asc')
 
   useEffect(() => {
@@ -47,15 +57,17 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
         return false
       }
       if (sterneMin > 0 && (p.bewertung ?? 0) < sterneMin) return false
+      if (typFilter !== 'alle' && p.partner_typ !== typFilter) return false
       return true
     })
     liste = [...liste].sort((a, b) => {
       if (sortierung === 'bewertung-desc') return (b.bewertung ?? 0) - (a.bewertung ?? 0) || a.name.localeCompare(b.name)
       if (sortierung === 'bewertung-asc')  return (a.bewertung ?? 0) - (b.bewertung ?? 0) || a.name.localeCompare(b.name)
+      if (sortierung === 'neueste')        return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
       return a.name.localeCompare(b.name)
     })
     return liste
-  }, [partner, suche, sterneMin, sortierung])
+  }, [partner, suche, sterneMin, typFilter, sortierung])
 
   return (
     <>
@@ -94,6 +106,19 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
           ))}
         </div>
 
+        {/* Partner-Typ-Filter */}
+        <select
+          value={typFilter}
+          onChange={(e) => setTypFilter(e.target.value as PartnerTyp | 'alle')}
+          className="text-sm px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:border-wellbeing-green focus:ring-2 focus:ring-wellbeing-green/20"
+          title="Partner-Typ"
+        >
+          <option value="alle">Alle Typen</option>
+          {(Object.keys(TYP_LABELS) as PartnerTyp[]).map((t) => (
+            <option key={t} value={t}>{TYP_LABELS[t]}</option>
+          ))}
+        </select>
+
         {/* Sortierung */}
         <select
           value={sortierung}
@@ -104,6 +129,7 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
           <option value="name-asc">Name (A–Z)</option>
           <option value="bewertung-desc">Bewertung ↓</option>
           <option value="bewertung-asc">Bewertung ↑</option>
+          <option value="neueste">Neueste</option>
         </select>
 
         <span className="text-sm text-gray-400">{gefiltert.length} {gefiltert.length === 1 ? 'Eintrag' : 'Einträge'}</span>
@@ -154,11 +180,9 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
                     )}
                   </div>
                 </div>
-                {p.provisionsmodell && (
-                  <span className={`shrink-0 ml-2 text-[10px] px-2 py-0.5 rounded-full font-medium ${modellBadge[p.provisionsmodell] ?? 'bg-gray-100 text-gray-600'}`}>
-                    {p.provisionsmodell}
-                    {p.provisions_wert != null && p.provisionsmodell === 'Prozent' && ` ${p.provisions_wert}%`}
-                    {p.provisions_wert != null && p.provisionsmodell === 'Fix' && ` ${eur(p.provisions_wert)}`}
+                {konditionBadgeText(konditionInfo[p.id]) && (
+                  <span className="shrink-0 ml-2 text-[10px] px-2 py-0.5 rounded-full font-medium bg-wellbeing-cream text-wellbeing-green-dark whitespace-nowrap">
+                    {konditionBadgeText(konditionInfo[p.id])}
                   </span>
                 )}
               </div>
@@ -193,7 +217,7 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className={th + ' text-left'}>Partnername</th>
                 <th className={th}>Bewertung</th>
-                <th className={th}>Provisionsmodell</th>
+                <th className={th}>Provision</th>
                 <th className={th + ' text-left'}>Konditionen</th>
                 <th className={th}>Website</th>
                 <th className="w-16" />
@@ -231,11 +255,9 @@ export default function PartnerGrid({ partner }: { partner: Partner[] }) {
                     )}
                   </td>
                   <td className="px-5 py-3.5 text-center">
-                    {p.provisionsmodell ? (
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${modellBadge[p.provisionsmodell] ?? ''}`}>
-                        {p.provisionsmodell}
-                        {p.provisions_wert != null && p.provisionsmodell === 'Prozent' && ` · ${p.provisions_wert} %`}
-                        {p.provisions_wert != null && p.provisionsmodell === 'Fix' && ` · ${eur(p.provisions_wert)}`}
+                    {konditionBadgeText(konditionInfo[p.id]) ? (
+                      <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-wellbeing-cream text-wellbeing-green-dark">
+                        {konditionBadgeText(konditionInfo[p.id])}
                       </span>
                     ) : <span className="text-gray-300">–</span>}
                   </td>

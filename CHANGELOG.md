@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Partner – Verbesserungen
+- **Echte Provision in der Liste:** Die Partnerliste zeigt jetzt die tatsächliche Provision und den EK-Rabatt aus den **Konditionen** (Standard-Kondition) statt des alten, ggf. veralteten Provisionsfeldes.
+- **Filter nach Partner-Typ** (Lieferant / Hersteller / Handwerker / Planer / Sonstiges) und neue Sortierung **„Neueste"** in der Partnerliste.
+
 ### Partner – Bugs behoben
 - **Konditions-Gültigkeit (Zeitzonen-Bug):** Eine Partner-Kondition, die **heute** endet (oder heute beginnt), wurde nachmittags fälschlich als abgelaufen/noch-nicht-gültig behandelt und floss dann nicht in die Produkt-Kalkulation ein — jetzt korrekt, Start- und Endtag zählen voll mit.
 - **Konditionen-Dialog:** „Gültig von" nach „Gültig bis" wird jetzt mit einer Meldung abgefangen (statt eine dauerhaft unwirksame Kondition zu speichern). Fehler beim **Löschen** einer Kondition oder beim Setzen als **Standard** werden jetzt angezeigt, statt stillschweigend verschluckt zu werden.
