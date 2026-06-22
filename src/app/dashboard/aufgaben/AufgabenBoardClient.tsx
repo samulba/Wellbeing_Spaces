@@ -658,8 +658,8 @@ function Karte({ aufgabe, dragging, team, labels }: {
     }>
       {/* Body */}
       <div className="px-3 pt-3 pb-2.5">
-        {/* Top-Row: Labels + Auto-Badge */}
-        {(aktiveLabels.length > 0 || istAuto) && (
+        {/* Top-Row: Labels + Wiederholung + Auto-Badge */}
+        {(aktiveLabels.length > 0 || istAuto || !!aufgabe.wiederholung) && (
           <div className="flex items-center gap-1.5 mb-2 flex-wrap">
             {aktiveLabels.slice(0, 4).map((l) => (
               <span
@@ -671,6 +671,9 @@ function Karte({ aufgabe, dragging, team, labels }: {
             ))}
             {aktiveLabels.length > 4 && (
               <span className="text-[10px] text-gray-400">+{aktiveLabels.length - 4}</span>
+            )}
+            {aufgabe.wiederholung && (
+              <span title="Wiederkehrend" className="inline-flex items-center text-[10px] bg-wellbeing-cream text-wellbeing-green-dark px-1.5 py-0.5 rounded">🔁</span>
             )}
             {istAuto && (
               <span

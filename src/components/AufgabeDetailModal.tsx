@@ -27,7 +27,7 @@ import AufgabeKommentarInput from '@/components/AufgabeKommentarInput'
 import ConfirmModal from '@/components/ConfirmModal'
 import type {
   AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet,
-  AufgabeChecklistItem, AufgabeAnhang, AufgabeKommentar,
+  AufgabeChecklistItem, AufgabeAnhang, AufgabeKommentar, AufgabeWiederholung,
 } from '@/lib/supabase/types'
 
 const STATI: { id: AufgabeStatus; label: string; klasse: string }[] = [
@@ -76,6 +76,7 @@ export default function AufgabeDetailModal({
   const [status, setStatus] = useState<AufgabeStatus>('backlog')
   const [prioritaet, setPrioritaet] = useState<AufgabePrioritaet>('normal')
   const [faelligAm, setFaelligAm] = useState<string>('')
+  const [wiederholung, setWiederholung] = useState<AufgabeWiederholung | ''>('')
   const [checklist, setChecklist] = useState<AufgabeChecklistItem[]>([])
   const [neuesItem, setNeuesItem] = useState('')
   const [kommentare, setKommentare] = useState<AufgabeKommentar[]>([])
@@ -96,6 +97,7 @@ export default function AufgabeDetailModal({
     setStatus(aufgabe.status)
     setPrioritaet(aufgabe.prioritaet)
     setFaelligAm(aufgabe.faellig_am ?? '')
+    setWiederholung(aufgabe.wiederholung ?? '')
     setChecklist(aufgabe.checklist ?? [])
     setFehler(null)
     let cancelled = false
@@ -580,6 +582,30 @@ export default function AufgabeDetailModal({
                   onBlur={() => faelligAm !== (aufgabe.faellig_am ?? '') && speichern({ faellig_am: faelligAm || null })}
                   className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-wellbeing-green-light"
                 />
+              </div>
+
+              {/* Wiederholung */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-2">
+                  🔁 Wiederholung
+                </label>
+                <select
+                  value={wiederholung}
+                  onChange={(e) => {
+                    const v = (e.target.value || '') as AufgabeWiederholung | ''
+                    setWiederholung(v)
+                    speichern({ wiederholung: v || null })
+                  }}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-wellbeing-green-light bg-white"
+                >
+                  <option value="">Keine</option>
+                  <option value="taeglich">Täglich</option>
+                  <option value="woechentlich">Wöchentlich</option>
+                  <option value="monatlich">Monatlich</option>
+                </select>
+                {wiederholung && (
+                  <p className="mt-1 text-[11px] text-gray-400">Beim Erledigen wird automatisch die nächste Aufgabe erstellt.</p>
+                )}
               </div>
 
               {/* Verknuepfungen */}

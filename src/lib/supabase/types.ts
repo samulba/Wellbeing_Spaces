@@ -1468,6 +1468,7 @@ export interface LieferantenBestellungPosition {
 // ─── Aufgaben (Migration 102) ──────────────────────────────────
 export type AufgabeStatus     = 'backlog' | 'in_arbeit' | 'review' | 'erledigt'
 export type AufgabePrioritaet = 'niedrig' | 'normal' | 'hoch' | 'dringend'
+export type AufgabeWiederholung = 'taeglich' | 'woechentlich' | 'monatlich'
 export type AufgabeQuelle     =
   | 'manuell'
   | 'reklamation'
@@ -1514,6 +1515,7 @@ export interface Aufgabe {
   bestellung_id:       string | null
   quelle:              AufgabeQuelle
   quelle_id:           string | null
+  wiederholung?:       AufgabeWiederholung | null
   checklist:           AufgabeChecklistItem[]
   anhang_urls:         AufgabeAnhang[]
   erstellt_von:        string | null

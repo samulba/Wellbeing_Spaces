@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-22
 
+### Aufgaben – Verbesserungen
+- **Erweiterte Filter:** Das Board lässt sich jetzt zusätzlich nach **Zuständig** (Teammitglied / „Niemand"), **Label** und **Projekt** (inkl. „Ohne Projekt") filtern — die Filter wirken in Board-, Listen- und Kalenderansicht. Die gewählte **Ansicht** (Board/Liste/Kalender) wird jetzt gemerkt.
+- **Wiederkehrende Aufgaben:** Eine Aufgabe kann auf **täglich / wöchentlich / monatlich** gestellt werden (Auswahl im Aufgaben-Detail). Beim Erledigen wird automatisch die **nächste Aufgabe** mit vorgerücktem Fälligkeitsdatum erstellt; wiederkehrende Aufgaben tragen ein **🔁**-Symbol. *(Benötigt Migration 133.)*
+
 ### Aufgaben – Bug behoben
 - **Wieder-Öffnen per Drag&Drop:** Zieht man eine erledigte Aufgabe auf dem Board zurück (z. B. nach „In Arbeit"), wird jetzt ihr Erledigt-Zeitpunkt korrekt entfernt — vorher behielt sie ihren alten Abschluss-Zeitpunkt und wirkte gleichzeitig erledigt und aktiv. Umsortieren innerhalb der Erledigt-Spalte ändert den Zeitpunkt nicht.
 

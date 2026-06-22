@@ -18,9 +18,11 @@ import { auditLog } from '@/lib/audit'
 import { sendMail } from '@/lib/mail'
 import { aufgabeZuweisungInternMail, aufgabeZuweisungKundeMail, aufgabeMentionMail } from '@/lib/mail-templates'
 import crypto from 'crypto'
+import { addDays, addWeeks, addMonths } from 'date-fns'
 import type {
   Aufgabe, AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet,
   AufgabeQuelle, AufgabeChecklistItem, AufgabeAnhang, AufgabeKommentar,
+  AufgabeWiederholung,
 } from '@/lib/supabase/types'
 
 // ── Helper: App-URL ermitteln ────────────────────────────────
@@ -514,6 +516,7 @@ export interface AufgabeInput {
   raum_produkte_id?:   string | null
   bestellung_id?:      string | null
   checklist?:          AufgabeChecklistItem[]
+  wiederholung?:       AufgabeWiederholung | null
 }
 
 /** Neue Aufgabe anlegen. */
@@ -561,6 +564,8 @@ export async function aufgabeAnlegen(input: AufgabeInput): Promise<{ id?: string
       label_ids:           input.label_ids ?? [],
       quelle:              'manuell',
       erstellt_von:        user?.id ?? null,
+      // wiederholung nur referenzieren, wenn gesetzt → normaler Flow läuft auch ohne Mig 133
+      ...(input.wiederholung ? { wiederholung: input.wiederholung } : {}),
     })
     .select('id')
     .single()
@@ -640,6 +645,70 @@ export async function aufgabeAktualisieren(
 }
 
 /** Status (Spalte) aendern und optional auch sortieren. */
+// ── Wiederkehrende Aufgaben (Migration 133) ───────────────────
+
+function naechsteFaelligkeit(basis: string | null, wdh: AufgabeWiederholung): string {
+  const d = basis && basis.length >= 10 ? new Date(`${basis.slice(0, 10)}T00:00:00`) : new Date()
+  const next = wdh === 'taeglich' ? addDays(d, 1) : wdh === 'woechentlich' ? addWeeks(d, 1) : addMonths(d, 1)
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Beim Erledigen einer wiederkehrenden Aufgabe die nächste Instanz erzeugen.
+ * Hand-off-Modell: die Wiederholung „wandert" zur neuen Aufgabe (erledigte Aufgabe
+ * → wiederholung=null), das verhindert Doppel-Spawn bei Wieder-Öffnen+Erneut-Erledigen.
+ * Nie throw; fehlende Mig 133 → No-Op (a.wiederholung undefined).
+ */
+async function wiederholungSpawnen(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orgId: string,
+  aufgabeId: string,
+): Promise<void> {
+  try {
+    const { data: a } = await supabase
+      .from('aufgaben').select('*').eq('id', aufgabeId).eq('organisation_id', orgId).maybeSingle()
+    const wdh = (a?.wiederholung ?? null) as AufgabeWiederholung | null
+    if (!a || !wdh) return
+
+    const { data: maxRow } = await supabase
+      .from('aufgaben').select('reihenfolge')
+      .eq('organisation_id', orgId).eq('status', 'backlog')
+      .order('reihenfolge', { ascending: false }).limit(1).maybeSingle()
+    const reihenfolge = (maxRow?.reihenfolge ?? -1) + 1
+
+    const checklist = Array.isArray(a.checklist)
+      ? (a.checklist as AufgabeChecklistItem[]).map((c) => ({ ...c, erledigt: false }))
+      : []
+
+    await supabase.from('aufgaben').insert({
+      organisation_id:     orgId,
+      titel:               a.titel,
+      beschreibung:        a.beschreibung ?? null,
+      status:              'backlog',
+      reihenfolge,
+      prioritaet:          a.prioritaet ?? 'normal',
+      faellig_am:          naechsteFaelligkeit(a.faellig_am ?? null, wdh),
+      assignee_user_id:    a.assignee_user_id ?? null,
+      assignee_kunde:      a.assignee_kunde ?? false,
+      sichtbar_fuer_kunde: a.sichtbar_fuer_kunde ?? false,
+      tags:                a.tags ?? [],
+      label_ids:           a.label_ids ?? [],
+      kunde_id:            a.kunde_id ?? null,
+      projekt_id:          a.projekt_id ?? null,
+      raum_id:             a.raum_id ?? null,
+      checklist,
+      wiederholung:        wdh,
+      quelle:              'manuell',
+    })
+
+    // Hand-off: die erledigte Aufgabe trägt die Wiederholung nicht mehr.
+    await supabase.from('aufgaben').update({ wiederholung: null })
+      .eq('id', aufgabeId).eq('organisation_id', orgId)
+  } catch (e) {
+    console.error('[wiederholungSpawnen]', e)
+  }
+}
+
 export async function aufgabeStatusAendern(
   id: string,
   neuerStatus: AufgabeStatus,
@@ -667,6 +736,11 @@ export async function aufgabeStatusAendern(
     .eq('id', id)
     .eq('organisation_id', orgId)
   if (error) return { fehler: 'Status konnte nicht aktualisiert werden.' }
+
+  // Wiederkehrend: beim echten Übergang in „erledigt" nächste Instanz erzeugen
+  if (neuerStatus === 'erledigt' && aktuell.status !== 'erledigt') {
+    await wiederholungSpawnen(supabase, orgId, id)
+  }
 
   await auditLog({
     aktion:        'aufgabe_status_geaendert',
@@ -718,6 +792,10 @@ export async function aufgabeReihenfolgeAendern(
     if (error) {
       console.error('[aufgabeReihenfolgeAendern]', error.message)
       return { fehler: 'Konnte Reihenfolge nicht speichern.' }
+    }
+    // Wiederkehrend: beim Drag in „erledigt" nächste Instanz erzeugen
+    if (u.status === 'erledigt' && prev !== 'erledigt') {
+      await wiederholungSpawnen(supabase, orgId, u.id)
     }
   }
 
