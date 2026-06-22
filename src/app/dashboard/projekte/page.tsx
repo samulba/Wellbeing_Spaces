@@ -14,7 +14,9 @@ async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
     supabase.from('raeume').select('id, projekt_id').is('deleted_at', null),
     supabase
       .from('raum_produkte')
-      .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, produkte(verkaufspreis, deleted_at, bestellstatus, produktstatus(status))'),
+      // Bestell-/Freigabe-Status liegen seit S71 (Mig 076) auf raum_produkte selbst,
+      // NICHT mehr auf produkte/produktstatus — sonst zeigen die Karten veraltete Werte.
+      .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, bestellstatus, freigabe_status, produkte(verkaufspreis, deleted_at)'),
   ])
 
   // raum_id → projekt_id
@@ -36,11 +38,11 @@ async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
     menge: number
     verkaufspreis_override: number | null
     rabatt_prozent: number | null
+    bestellstatus: string | null
+    freigabe_status: string | null
     produkte: {
       verkaufspreis: number | null
       deleted_at: string | null
-      bestellstatus: string | null
-      produktstatus: { status: string } | { status: string }[] | null
     } | null
   }
   for (const e of (rps ?? []) as unknown as Row[]) {
@@ -57,16 +59,14 @@ async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
     const vp = Math.round(basis * (1 - rabatt / 100) * 100) / 100
     vpGesamt[pid] = (vpGesamt[pid] ?? 0) + vp * e.menge
 
-    // Freigabe
-    const psRaw = prod.produktstatus
-    const ps = Array.isArray(psRaw) ? psRaw[0] : psRaw
-    if (ps?.status === 'freigegeben') {
+    // Freigabe (Status auf raum_produkte)
+    if (e.freigabe_status === 'freigegeben') {
       freigegebenCount[pid] = (freigegebenCount[pid] ?? 0) + 1
     }
 
-    // Bestell-/Liefer-Status
-    const bs = prod.bestellstatus ?? 'ausstehend'
-    if (bs === 'bestellt' || bs === 'geliefert' || bs === 'rechnung_erhalten') {
+    // Bestell-/Liefer-Status (auf raum_produkte; teilgeliefert zählt als bestellt)
+    const bs = e.bestellstatus ?? 'ausstehend'
+    if (bs === 'bestellt' || bs === 'teilgeliefert' || bs === 'geliefert' || bs === 'rechnung_erhalten') {
       bestelltCount[pid] = (bestelltCount[pid] ?? 0) + 1
     }
     if (bs === 'geliefert' || bs === 'rechnung_erhalten') {

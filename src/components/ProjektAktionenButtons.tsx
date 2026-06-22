@@ -31,18 +31,25 @@ function DuplizierenModal({
   const [kundeId, setKundeId]               = useState(aktuellerKundeId)
   const [kopiereRaeume, setKopiereRaeume]   = useState(true)
   const [kopiereProdukte, setKopiereProdukte] = useState(true)
+  const [fehler, setFehler]                 = useState<string | null>(null)
   const [isPending, startTransition]        = useTransition()
 
   function handleDuplizieren() {
+    setFehler(null)
     startTransition(async () => {
-      const { id } = await projektDuplizieren(projektId, {
-        neuerName: name.trim() || `${projektName} (Kopie)`,
-        kundeId,
-        kopiereRaeume,
-        kopiereProdukte: kopiereRaeume && kopiereProdukte,
-      })
-      onClose()
-      router.push(`/dashboard/projekte/${id}`)
+      try {
+        const { id } = await projektDuplizieren(projektId, {
+          neuerName: name.trim() || `${projektName} (Kopie)`,
+          kundeId,
+          kopiereRaeume,
+          kopiereProdukte: kopiereRaeume && kopiereProdukte,
+        })
+        onClose()
+        router.push(`/dashboard/projekte/${id}`)
+      } catch (err) {
+        console.error('[DuplizierenModal]', err)
+        setFehler('Das Projekt konnte nicht dupliziert werden. Bitte erneut versuchen.')
+      }
     })
   }
 
@@ -84,7 +91,10 @@ function DuplizierenModal({
               <span className="text-sm text-gray-700">Produkte kopieren</span>
             </label>
           </div>
-          <p className="text-xs text-gray-400">Nicht kopiert: Freigabe-Links, Notizen, Dateien.</p>
+          <p className="text-xs text-gray-400">Nicht kopiert: Freigabe-Links, Kundenentscheidungen, Bestellstatus, Notizen, Dateien.</p>
+          {fehler && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{fehler}</p>
+          )}
         </div>
 
         <div className="flex items-center gap-3 mt-6">

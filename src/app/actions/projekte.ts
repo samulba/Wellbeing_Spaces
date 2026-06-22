@@ -204,6 +204,7 @@ export async function projektSoftDelete(id: string): Promise<void> {
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
     .eq('organisation_id', orgId)
+    .is('deleted_at', null)
 
   await auditLog({
     aktion:        'projekt_geloescht',
@@ -271,27 +272,32 @@ export async function projektDuplizieren(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
-  // Quellprojekt laden
+  // Quellprojekt laden (org-scoped — kein Zugriff auf fremde Organisationen)
   const { data: quelle } = await supabase
     .from('projekte')
     .select('*')
     .eq('id', quellId)
+    .eq('organisation_id', orgId)
     .is('deleted_at', null)
     .single()
   if (!quelle) throw new Error('Quellprojekt nicht gefunden')
 
-  // Neues Projekt anlegen
+  // Neues Projekt anlegen (inkl. Budget- und Service-Abrechnungs-Feldern)
   const { data: neuesProjekt, error: pErr } = await supabase
     .from('projekte')
     .insert({
-      name:            optionen.neuerName,
-      kunde_id:        optionen.kundeId,
-      beschreibung:    quelle.beschreibung,
-      standort:        quelle.standort,
-      projektart:      quelle.projektart,
-      gesamtbudget:    quelle.gesamtbudget,
-      status:          'in_bearbeitung',
-      organisation_id: orgId,
+      name:                optionen.neuerName,
+      kunde_id:            optionen.kundeId,
+      beschreibung:        quelle.beschreibung,
+      standort:            quelle.standort,
+      projektart:          quelle.projektart,
+      gesamtbudget:        quelle.gesamtbudget,
+      produkt_budget:      quelle.produkt_budget,
+      service_modell:      quelle.service_modell,
+      service_pauschale:   quelle.service_pauschale,
+      service_stundensatz: quelle.service_stundensatz,
+      status:              'in_bearbeitung',
+      organisation_id:     orgId,
     })
     .select('id')
     .single()
@@ -303,11 +309,12 @@ export async function projektDuplizieren(
     return { id: neuesProjekt.id }
   }
 
-  // Räume laden + kopieren
+  // Räume laden + kopieren (org-scoped)
   const { data: quellenRaeume } = await supabase
     .from('raeume')
     .select('*')
     .eq('projekt_id', quellId)
+    .eq('organisation_id', orgId)
     .is('deleted_at', null)
     .order('reihenfolge')
 
@@ -316,7 +323,10 @@ export async function projektDuplizieren(
     return { id: neuesProjekt.id }
   }
 
-  // Räume einfügen + Mapping alte ID → neue ID
+  // Räume einfügen + Mapping alte ID → neue ID.
+  // Raum-intrinsische Felder werden mitkopiert (Budget, Icon, Grundriss-Maße/-Plan).
+  // Bewusst NICHT kopiert: raum_gruppe_id (projektgebundene Gruppe der Quelle) und
+  // freigabe_token (Raumplan-Freigabe) — die Kopie startet ohne diese Bindungen.
   const raumIdMap: Record<string, string> = {}
   for (const raum of quellenRaeume) {
     const { data: neuerRaum } = await supabase
@@ -325,7 +335,13 @@ export async function projektDuplizieren(
         projekt_id:      neuesProjekt.id,
         name:            raum.name,
         beschreibung:    raum.beschreibung,
+        icon:            raum.icon,
         reihenfolge:     raum.reihenfolge,
+        budget:          raum.budget,
+        breite_m:        raum.breite_m,
+        laenge_m:        raum.laenge_m,
+        hoehe_m:         raum.hoehe_m,
+        grundriss_json:  raum.grundriss_json,
         organisation_id: orgId,
       })
       .select('id')
@@ -338,38 +354,35 @@ export async function projektDuplizieren(
     return { id: neuesProjekt.id }
   }
 
-  // Produkte für alle Quell-Räume laden
+  // Produkte: die Raum-Produkt-Verknüpfungen (Junction-Tabelle seit Mig 038) in
+  // die neuen Räume kopieren. Frühere Versionen kopierten produkte.raum_id (Legacy)
+  // — seit Mig 038 hängen Produkte an raum_produkte, nicht an produkte.raum_id,
+  // wodurch praktisch NICHTS kopiert wurde (leere Räume). Wir verlinken jetzt auf
+  // dieselben Bibliotheksprodukte. Kundenspezifische Felder (Freigabe-/Bestellstatus,
+  // Termine, Favoriten, Gruppen/Bereiche) werden bewusst NICHT übernommen → frischer Start.
   const quellenRaumIds = quellenRaeume.map((r) => r.id)
-  const { data: quellenProdukte } = await supabase
-    .from('produkte')
-    .select('*')
+  const { data: quellRP } = await supabase
+    .from('raum_produkte')
+    .select('raum_id, produkt_id, menge, verkaufspreis_override, rabatt_prozent, reihenfolge, notizen, bundle_id')
     .in('raum_id', quellenRaumIds)
-    .is('deleted_at', null)
+    .eq('organisation_id', orgId)
     .order('reihenfolge')
 
-  if (quellenProdukte && quellenProdukte.length > 0) {
-    const neueProdukte = quellenProdukte
-      .filter((p) => raumIdMap[p.raum_id])
-      .map((p) => ({
-        raum_id:           raumIdMap[p.raum_id],
-        partner_id:        p.partner_id,
-        name:              p.name,
-        beschreibung:      p.beschreibung,
-        kategorie:         p.kategorie,
-        menge:             p.menge,
-        einheit:           p.einheit,
-        einkaufspreis:     p.einkaufspreis,
-        marge_prozent:     p.marge_prozent,
-        provision_prozent: p.provision_prozent,
-        notizen_intern:    p.notizen_intern,
-        verkaufspreis:     p.verkaufspreis,
-        bild_url:          p.bild_url,
-        produkt_url:       p.produkt_url,
-        reihenfolge:       p.reihenfolge,
-        bestellstatus:     'ausstehend' as const,
-        organisation_id:   orgId,
+  if (quellRP && quellRP.length > 0) {
+    const neueRP = quellRP
+      .filter((rp) => raumIdMap[rp.raum_id])
+      .map((rp) => ({
+        organisation_id:        orgId,
+        raum_id:                raumIdMap[rp.raum_id],
+        produkt_id:             rp.produkt_id,
+        menge:                  rp.menge,
+        verkaufspreis_override: rp.verkaufspreis_override,
+        rabatt_prozent:         rp.rabatt_prozent,
+        reihenfolge:            rp.reihenfolge,
+        notizen:                rp.notizen,
+        bundle_id:              rp.bundle_id,
       }))
-    await supabase.from('produkte').insert(neueProdukte)
+    if (neueRP.length > 0) await supabase.from('raum_produkte').insert(neueRP)
   }
 
   revalidatePath('/dashboard/projekte')
