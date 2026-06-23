@@ -158,13 +158,13 @@ export async function GET(req: NextRequest, { params }: Params) {
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
-    head: [['Pos.', 'Produkt', 'Hersteller', 'Menge']],
+    head: [['Pos', 'Produkt', 'Hersteller', 'Menge']],
     body,
     styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, overflow: 'linebreak', textColor: GRAY_900, valign: 'middle', lineWidth: 0 },
     headStyles: { fillColor: WB_GREEN, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'left', cellPadding: { top: 3, bottom: 3, left: 3, right: 3 } },
     alternateRowStyles: { fillColor: [250, 251, 250] },
     columnStyles: {
-      0: { cellWidth: 11, halign: 'center', textColor: GRAY_400 },
+      0: { cellWidth: 12, halign: 'center', textColor: GRAY_400 },
       1: { cellWidth: 'auto' },
       2: { cellWidth: 40, textColor: GRAY_600 },
       3: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },

@@ -181,7 +181,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
-    head: [['Pos.', 'Bezeichnung', 'Menge', 'Einzelpreis', 'Gesamtpreis']],
+    head: [['Pos', 'Bezeichnung', 'Menge', 'Einzelpreis', 'Gesamtpreis']],
     body: tableRows,
     styles: {
       font: 'helvetica',
@@ -199,7 +199,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     },
     alternateRowStyles: { fillColor: [249, 250, 251] },
     columnStyles: {
-      0: { cellWidth: 10,  halign: 'center' },
+      0: { cellWidth: 12,  halign: 'center' },
       1: { cellWidth: 'auto' },
       2: { cellWidth: 25,  halign: 'center' },
       3: { cellWidth: 32,  halign: 'right' },

@@ -200,13 +200,13 @@ export async function GET(req: NextRequest, { params }: Params) {
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
-    head: [['Pos.', 'Artikel', 'Menge', 'Einzelpreis', 'Gesamt']],
+    head: [['Pos', 'Artikel', 'Menge', 'Einzelpreis', 'Gesamt']],
     body: tableRows,
     styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, overflow: 'linebreak', textColor: GRAY_900 },
     headStyles: { fillColor: WB_GREEN, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'left' },
     alternateRowStyles: { fillColor: [249, 250, 251] },
     columnStyles: {
-      0: { cellWidth: 10,  halign: 'center' },
+      0: { cellWidth: 12,  halign: 'center' },
       1: { cellWidth: 'auto' },
       2: { cellWidth: 25,  halign: 'center' },
       3: { cellWidth: 32,  halign: 'right' },

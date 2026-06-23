@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-23
 
+### PDFs – Kleinigkeit
+- In allen PDF-Tabellen wird der Spaltenkopf **„Pos"** jetzt sauber einzeilig dargestellt (vorher rutschte bei „Pos." der Punkt in eine zweite Zeile).
+
 ### Freigaben – interne Kostenübersicht als PDF
 - Neuer Button **„Interne Übersicht (PDF)"** im Freigaben-Tab eines Projekts: erstellt eine **interne** PDF aller **freigegebenen** Produkte, **gruppiert nach Partner** (von wem wird was bestellt) — je Produkt **Einkauf netto · Verkauf brutto · Marge**, mit Zwischensumme pro Partner und **Gesamtkosten in Brutto**. Nur intern sichtbar (enthält EK-/Margen­angaben, nicht für den Kunden).
 

@@ -328,7 +328,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     autoTable(doc, {
       startY: y + 2,
       margin: { left: MARGIN, right: MARGIN },
-      head: [['Pos.', 'Produkt', 'Menge', 'Basis', 'Rabatt', 'VP/Stk', 'Gesamt']],
+      head: [['Pos', 'Produkt', 'Menge', 'Basis', 'Rabatt', 'VP/Stk', 'Gesamt']],
       body: tableRows,
       styles: {
         font: 'helvetica',
@@ -341,7 +341,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       headStyles: { fillColor: WB_GREEN, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'left' },
       alternateRowStyles: { fillColor: [249, 250, 251] },
       columnStyles: {
-        0: { cellWidth: 10,  halign: 'center' },
+        0: { cellWidth: 12,  halign: 'center' },
         1: { cellWidth: 'auto' },
         2: { cellWidth: 20,  halign: 'center' },
         3: { cellWidth: 22,  halign: 'right' },
