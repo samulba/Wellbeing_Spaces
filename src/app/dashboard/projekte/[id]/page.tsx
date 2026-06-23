@@ -763,7 +763,7 @@ export default async function ProjektDetailPage({
               raeume={raeume.map((r) => ({ id: r.id, name: r.name }))}
               initialHatPin={!!projekt.freigabe_pin && projekt.freigabe_pin.toString().trim().length >= 4}
             />
-            <EingereichteFreigaben einreichungen={freigabeEinreichungen} />
+            <EingereichteFreigaben einreichungen={freigabeEinreichungen} projektId={projekt.id} />
             <FreigabeUebersicht projektId={projekt.id} initialTokens={alleTokens} />
             <ProjektEntscheidungenReset projektId={projekt.id} />
             {raeume.length > 0 && (

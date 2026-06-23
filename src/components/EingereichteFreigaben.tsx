@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, FileText, ShieldCheck, Download, CheckCircle2 } from 'lucide-react'
+import { X, FileText, ShieldCheck, Download, CheckCircle2, Coins } from 'lucide-react'
 import { useModal } from '@/lib/hooks/useModal'
 import { formatEuro } from '@/lib/geld'
 import type { FreigabeEinreichung, FreigabeEinreichungPosition } from '@/lib/supabase/types'
@@ -119,7 +119,7 @@ function BelegModal({ beleg, onClose }: { beleg: FreigabeEinreichung; onClose: (
   )
 }
 
-export default function EingereichteFreigaben({ einreichungen }: { einreichungen: FreigabeEinreichung[] }) {
+export default function EingereichteFreigaben({ einreichungen, projektId }: { einreichungen: FreigabeEinreichung[]; projektId: string }) {
   const [offen, setOffen] = useState<FreigabeEinreichung | null>(null)
 
   return (
@@ -128,6 +128,16 @@ export default function EingereichteFreigaben({ einreichungen }: { einreichungen
         <FileText className="w-4 h-4 text-wellbeing-green" />
         <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Eingereichte Freigaben</h3>
         <span className="ml-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[11px] font-semibold tabular-nums">{einreichungen.length}</span>
+        {/* Interne Kostenübersicht (freigegebene Produkte nach Partner, EK/VK/Marge) */}
+        <a
+          href={`/api/freigaben/projekt/${projektId}/intern/pdf`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Interne Kostenübersicht (freigegebene Produkte nach Partner, mit Preisen) als PDF"
+          className="ml-auto shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-wellbeing-green border border-wellbeing-green/30 rounded-lg hover:bg-wellbeing-green/5 transition-colors"
+        >
+          <Coins className="w-3.5 h-3.5" /> Interne Übersicht (PDF)
+        </a>
       </div>
 
       {einreichungen.length === 0 ? (

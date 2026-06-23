@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-23
 
+### Freigaben – interne Kostenübersicht als PDF
+- Neuer Button **„Interne Übersicht (PDF)"** im Freigaben-Tab eines Projekts: erstellt eine **interne** PDF aller **freigegebenen** Produkte, **gruppiert nach Partner** (von wem wird was bestellt) — je Produkt **Einkauf netto · Verkauf brutto · Marge**, mit Zwischensumme pro Partner und **Gesamtkosten in Brutto**. Nur intern sichtbar (enthält EK-/Margen­angaben, nicht für den Kunden).
+
 ### Freigabe-Link für Kunden – Bedienung verbessert
 - **Automatisches Hochscrollen:** Beim Wechsel zu „Nächster Raum" / „Weiter" springt die Ansicht jetzt wieder nach oben — vorher landete man manchmal mitten/unten auf der Seite und hat Produkte übersehen.
 - **Klarere Status-Kacheln:** Ein freigegebenes/abgelehntes Einzelprodukt ist jetzt deutlich erkennbar — farbiger Rahmen + ein gut sichtbares Status-Banner („Freigegeben" / „Abgelehnt" / „Überarbeitung") auf dem Produktbild.
