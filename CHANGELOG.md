@@ -9,7 +9,7 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - In allen PDF-Tabellen wird der Spaltenkopf **„Pos"** jetzt sauber einzeilig dargestellt (vorher rutschte bei „Pos." der Punkt in eine zweite Zeile).
 
 ### Freigaben – interne Kostenübersicht als PDF
-- Neuer Button **„Interne Übersicht (PDF)"** im Freigaben-Tab eines Projekts: erstellt eine **interne** PDF aller **freigegebenen** Produkte, **gruppiert nach Partner** (von wem wird was bestellt) — je Produkt **Einkauf netto · Verkauf brutto · Marge**, mit Zwischensumme pro Partner und **Gesamtkosten in Brutto**. Nur intern sichtbar (enthält EK-/Margen­angaben, nicht für den Kunden).
+- Neuer Button **„Interne Übersicht (PDF)"** im Freigaben-Tab eines Projekts: erstellt eine **interne** PDF aller Produkte, **gruppiert nach Partner** (von wem wird was bestellt) — je Produkt **Einkauf netto · Verkauf brutto · Marge** und eine **Status-Spalte** (Freigegeben/Abgelehnt/Überarbeitung/Ausstehend). Die **Zwischensummen pro Partner** und die **Gesamtkosten in Brutto** zählen nur die **freigegebenen** Produkte (= echter Bestellwert). Nur intern (enthält EK-/Margen­angaben, nicht für den Kunden).
 
 ### Freigabe-Link für Kunden – Bedienung verbessert
 - **Automatisches Hochscrollen:** Beim Wechsel zu „Nächster Raum" / „Weiter" springt die Ansicht jetzt wieder nach oben — vorher landete man manchmal mitten/unten auf der Seite und hat Produkte übersehen.

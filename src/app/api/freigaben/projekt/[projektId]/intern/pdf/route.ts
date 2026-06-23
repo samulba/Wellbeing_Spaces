@@ -15,11 +15,19 @@ type Params = { params: Promise<{ projektId: string }> }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 
+const STATUS_LABEL: Record<string, string> = {
+  freigegeben: 'Freigegeben', abgelehnt: 'Abgelehnt', ueberarbeitung: 'Überarbeitung', ausstehend: 'Ausstehend',
+}
+const statusLabel = (s: string | null) => STATUS_LABEL[s ?? 'ausstehend'] ?? 'Ausstehend'
+const statusFarbe = (s: string | null): [number, number, number] =>
+  s === 'freigegeben' ? [5, 150, 105] : s === 'abgelehnt' ? [220, 38, 38] : s === 'ueberarbeitung' ? [217, 119, 6] : [156, 163, 175]
+
 type RpRow = {
   menge: number
   verkaufspreis_override: number | null
   rabatt_prozent: number | null
   reihenfolge: number
+  freigabe_status: string | null
   produkte: {
     id: string
     name: string
@@ -66,12 +74,11 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { data: rpData } = await supabase
     .from('raum_produkte')
     .select(
-      'menge, verkaufspreis_override, rabatt_prozent, reihenfolge, ' +
+      'menge, verkaufspreis_override, rabatt_prozent, reihenfolge, freigabe_status, ' +
       'produkte!inner(id, name, artikelnummer, einheit, verkaufspreis, einkaufspreis, einkaufsrabatt_prozent, deleted_at, partner(id, name)), ' +
       'raeume!inner(name, projekt_id)',
     )
     .eq('organisation_id', orgId)
-    .eq('freigabe_status', 'freigegeben')
     .eq('raeume.projekt_id', projektId)
 
   // Soft-gelöschte Bibliotheksprodukte raus (produkte.deleted_at; raum_produkte
@@ -84,6 +91,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     artikelnummer: string | null
     einheit: string
     raumName: string | null
+    status: string
     menge: number
     reihenfolge: number
     ekGesamt: number
@@ -93,11 +101,15 @@ export async function GET(req: NextRequest, { params }: Params) {
   type Gruppe = { partnerName: string; ohnePartner: boolean; positionen: Position[]; ekΣ: number; vkBruttoΣ: number; margeΣ: number }
 
   const gruppen = new Map<string, Gruppe>()
-  let gesamtEk = 0, gesamtVkBrutto = 0, gesamtMarge = 0, gesamtPositionen = 0
+  // Summen zählen NUR freigegebene Positionen (= echter Bestellwert); die Liste
+  // zeigt aber alle Produkte mit ihrem Status.
+  let gesamtEk = 0, gesamtVkBrutto = 0, gesamtMarge = 0, gesamtPositionen = 0, freigegebenCount = 0
 
   for (const r of rows) {
     const p = r.produkte!
     const menge = Number(r.menge) || 0
+    const status = r.freigabe_status ?? 'ausstehend'
+    const istFrei = status === 'freigegeben'
     const vpNetto   = effektiverVpNetto({ verkaufspreis_override: r.verkaufspreis_override, rabatt_prozent: r.rabatt_prozent }, p.verkaufspreis)
     const vpBrutto  = r2(vpNetto * (1 + mwst))
     const ekNetto   = einkaufNettoNachRabatt(p.einkaufspreis, p.einkaufsrabatt_prozent ?? null)
@@ -114,12 +126,16 @@ export async function GET(req: NextRequest, { params }: Params) {
       artikelnummer: p.artikelnummer,
       einheit: p.einheit ?? 'Stk',
       raumName: r.raeume?.name ?? null,
+      status,
       menge,
       reihenfolge: r.reihenfolge ?? 0,
       ekGesamt, vkBruttoGesamt, margeGesamt,
     })
-    g.ekΣ = r2(g.ekΣ + ekGesamt); g.vkBruttoΣ = r2(g.vkBruttoΣ + vkBruttoGesamt); g.margeΣ = r2(g.margeΣ + margeGesamt)
-    gesamtEk = r2(gesamtEk + ekGesamt); gesamtVkBrutto = r2(gesamtVkBrutto + vkBruttoGesamt); gesamtMarge = r2(gesamtMarge + margeGesamt)
+    if (istFrei) {
+      g.ekΣ = r2(g.ekΣ + ekGesamt); g.vkBruttoΣ = r2(g.vkBruttoΣ + vkBruttoGesamt); g.margeΣ = r2(g.margeΣ + margeGesamt)
+      gesamtEk = r2(gesamtEk + ekGesamt); gesamtVkBrutto = r2(gesamtVkBrutto + vkBruttoGesamt); gesamtMarge = r2(gesamtMarge + margeGesamt)
+      freigegebenCount++
+    }
     gesamtPositionen++
   }
 
@@ -169,13 +185,13 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   if (gesamtPositionen === 0) {
     doc.setFontSize(10); doc.setTextColor(...GRAY_400)
-    doc.text('Noch keine freigegebenen Produkte in diesem Projekt.', MARGIN, y + 18)
+    doc.text('Noch keine Produkte in diesem Projekt.', MARGIN, y + 18)
   } else {
     doc.setFontSize(8.5); doc.setTextColor(...GRAY_400)
-    doc.text(`Nur freigegebene Produkte · ${gesamtPositionen} Position${gesamtPositionen === 1 ? '' : 'en'} · ${gruppenSortiert.length} Partner`, MARGIN, y + 10.5)
-    // Headline-Brutto prominent
+    doc.text(`${gesamtPositionen} Produkt${gesamtPositionen === 1 ? '' : 'e'} · ${gruppenSortiert.length} Partner · ${freigegebenCount} freigegeben`, MARGIN, y + 10.5)
+    // Headline-Brutto prominent (nur freigegebene Positionen)
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...WB_GREEN)
-    doc.text(`Gesamtkosten (brutto): ${pdfEur(gesamtVkBrutto)}`, MARGIN, y + 17)
+    doc.text(`Gesamtkosten freigegeben (brutto): ${pdfEur(gesamtVkBrutto)}`, MARGIN, y + 17)
     y += 24
 
     // ── EINE Tabelle: Partner-Kopf → Positionen → Zwischensumme ──
@@ -184,7 +200,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     for (const g of gruppenSortiert) {
       body.push([{
         content: `${g.partnerName}   (${g.positionen.length})`,
-        colSpan: 6,
+        colSpan: 7,
         styles: { fillColor: GRAY_100, textColor: WB_GREEN, fontStyle: 'bold', fontSize: 9, cellPadding: { top: 2.6, bottom: 2.6, left: 3, right: 3 } },
       }])
       for (const it of g.positionen) {
@@ -196,6 +212,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         body.push([
           String(pos),
           produkt,
+          { content: statusLabel(it.status), styles: { textColor: statusFarbe(it.status), fontStyle: 'bold', halign: 'center' } },
           `${it.menge} ${it.einheit}`,
           pdfEur(it.ekGesamt),
           pdfEur(it.vkBruttoGesamt),
@@ -204,7 +221,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       }
       const sub = { fillColor: [245, 247, 245] as [number, number, number], fontStyle: 'bold' as const, textColor: GRAY_900 }
       body.push([
-        { content: `Summe ${g.partnerName}`, colSpan: 3, styles: { ...sub, halign: 'right' } },
+        { content: `Summe ${g.partnerName} (freigegeben)`, colSpan: 4, styles: { ...sub, halign: 'right' } },
         { content: pdfEur(g.ekΣ),       styles: { ...sub, halign: 'right' } },
         { content: pdfEur(g.vkBruttoΣ), styles: { ...sub, halign: 'right' } },
         { content: pdfEur(g.margeΣ),    styles: { ...sub, halign: 'right' } },
@@ -214,7 +231,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     autoTable(doc, {
       startY: y,
       margin: { left: MARGIN, right: MARGIN },
-      head: [['Pos', 'Produkt', 'Menge', 'EK netto', 'VK brutto', 'Marge']],
+      head: [['Pos', 'Produkt', 'Status', 'Menge', 'EK netto', 'VK brutto', 'Marge']],
       body,
       styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, overflow: 'linebreak', textColor: GRAY_900, valign: 'middle', lineWidth: 0 },
       headStyles: { fillColor: WB_GREEN, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'left' },
@@ -222,14 +239,18 @@ export async function GET(req: NextRequest, { params }: Params) {
       columnStyles: {
         0: { cellWidth: 12, halign: 'center', textColor: GRAY_400 },
         1: { cellWidth: 'auto' },
-        2: { cellWidth: 18, halign: 'center' },
-        3: { cellWidth: 27, halign: 'right', textColor: GRAY_600 },
-        4: { cellWidth: 29, halign: 'right' },
-        5: { cellWidth: 25, halign: 'right' },
+        2: { cellWidth: 25, halign: 'center' },
+        3: { cellWidth: 15, halign: 'center' },
+        4: { cellWidth: 25, halign: 'right', textColor: GRAY_600 },
+        5: { cellWidth: 27, halign: 'right' },
+        6: { cellWidth: 23, halign: 'right' },
       },
       didParseCell: (data: CellHookData) => {
-        // Spaltenköpfe EK/VK/Marge rechtsbündig
-        if (data.section === 'head' && data.column.index >= 3) data.cell.styles.halign = 'right'
+        // Kopf-Ausrichtung: Pos/Status/Menge zentriert, EK/VK/Marge rechtsbündig
+        if (data.section === 'head') {
+          if (data.column.index >= 4) data.cell.styles.halign = 'right'
+          else if (data.column.index === 0 || data.column.index === 2 || data.column.index === 3) data.cell.styles.halign = 'center'
+        }
       },
     })
 
@@ -237,9 +258,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 7
     if (y > PAGE_H - 40) { doc.addPage(); y = MARGIN + 6 }
     const summen: { label: string; wert: string; gross?: boolean }[] = [
-      { label: 'Einkauf (netto):',  wert: pdfEur(gesamtEk) },
-      { label: 'Marge (netto):',    wert: pdfEur(gesamtMarge) },
-      { label: 'Verkauf (brutto):', wert: pdfEur(gesamtVkBrutto), gross: true },
+      { label: 'Einkauf netto (freigegeben):',  wert: pdfEur(gesamtEk) },
+      { label: 'Marge netto (freigegeben):',    wert: pdfEur(gesamtMarge) },
+      { label: 'Verkauf brutto (freigegeben):', wert: pdfEur(gesamtVkBrutto), gross: true },
     ]
     const sumW = 85
     const sumX = PAGE_W - MARGIN - sumW
@@ -260,7 +281,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     y += 4
     if (y > PAGE_H - 24) { doc.addPage(); y = MARGIN + 6 }
     doc.setFont('helvetica', 'italic'); doc.setFontSize(7.5); doc.setTextColor(...GRAY_400)
-    doc.text('Interne Übersicht – enthält Einkaufs- und Margenangaben. Nicht für den Kunden bestimmt.', MARGIN, y)
+    doc.text('Interne Übersicht – enthält Einkaufs-/Margenangaben, nicht für den Kunden. Summen zählen nur freigegebene Positionen.', MARGIN, y)
   }
 
   // Footer
