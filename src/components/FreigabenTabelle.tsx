@@ -6,15 +6,16 @@ import Link from 'next/link'
 import {
   CheckCircle2, X, Clock, XCircle, RotateCcw, BarChart2, Layers, Table2,
   Search, ChevronDown, ChevronRight, Undo2, ArrowUpRight, Star,
-  AlertTriangle, MessageSquareQuote, Home,
+  AlertTriangle, MessageSquareQuote, Home, Trash2,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
-import { freigabeZuruecksetzenAdmin, freigabeBulkStatusAendernAdmin } from '@/app/actions/freigabe'
+import { freigabeZuruecksetzenAdmin, freigabeBulkStatusAendernAdmin, freigabeProdukteEntfernenAdmin } from '@/app/actions/freigabe'
 import { stempelText } from '@/lib/freigabe-stempel'
 import Checkbox from '@/components/Checkbox'
+import ConfirmModal from '@/components/ConfirmModal'
 import StickyPageHeader from '@/components/StickyPageHeader'
 
 // ── Typen ─────────────────────────────────────────────────────
@@ -162,10 +163,11 @@ const STATUS_CFG = [
 ] as const
 
 // ── Detail Modal ──────────────────────────────────────────────
-function DetailModal({ eintrag, onClose, onReset, isPending }: {
+function DetailModal({ eintrag, onClose, onReset, onDelete, isPending }: {
   eintrag: FreigabeEintrag
   onClose: () => void
   onReset: () => void
+  onDelete: () => void
   isPending: boolean
 }) {
   const status    = eintrag.produktstatus?.status ?? 'ausstehend'
@@ -244,13 +246,19 @@ function DetailModal({ eintrag, onClose, onReset, isPending }: {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-          {status !== 'ausstehend' ? (
-            <button type="button" onClick={onReset} disabled={isPending}
-              className="text-xs px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg font-medium transition-colors disabled:opacity-50">
-              {isPending ? 'Wird zurückgesetzt…' : 'Freigabe zurücksetzen'}
+        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+          <div className="flex items-center gap-2">
+            {status !== 'ausstehend' && (
+              <button type="button" onClick={onReset} disabled={isPending}
+                className="text-xs px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg font-medium transition-colors disabled:opacity-50">
+                {isPending ? 'Wird zurückgesetzt…' : 'Zurücksetzen'}
+              </button>
+            )}
+            <button type="button" onClick={onDelete} disabled={isPending}
+              className="inline-flex items-center gap-1.5 text-xs px-3.5 py-2 bg-white hover:bg-red-50 text-red-700 border border-red-200 rounded-lg font-medium transition-colors disabled:opacity-50">
+              <Trash2 className="w-3.5 h-3.5" /> Entfernen
             </button>
-          ) : <span />}
+          </div>
           <button type="button" onClick={onClose}
             className="text-xs px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg font-medium transition-colors">
             Schließen
@@ -424,6 +432,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
   const [selectedIds, setSelectedIds]    = useState<Set<string>>(new Set())
   const [bulkToast, setBulkToast]        = useState<string | null>(null)
   const [feedOffen, setFeedOffen]        = useState(true)
+  const [loeschTarget, setLoeschTarget]  = useState<{ ids: string[]; single: boolean } | null>(null)
   const [isPending, startTransition]     = useTransition()
   const router                           = useRouter()
 
@@ -497,6 +506,25 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
     startTransition(async () => {
       await freigabeZuruecksetzenAdmin(raumProduktId)
       setSelected(null)
+      router.refresh()
+    })
+  }
+
+  // Endgültiges Entfernen der Produkt-Verknüpfung(en) aus dem Raum (für Test-
+  // Aufräumen, wenn „Zurücksetzen" auf ausstehend nicht reicht).
+  function handleLoeschen() {
+    const ids = loeschTarget?.ids ?? []
+    if (ids.length === 0) { setLoeschTarget(null); return }
+    startTransition(async () => {
+      const res = await freigabeProdukteEntfernenAdmin(ids)
+      if (res.erfolg) {
+        showBulkToast(`${res.anzahl} Produkt${res.anzahl === 1 ? '' : 'e'} entfernt`)
+        setSelectedIds((prev) => { const n = new Set(prev); ids.forEach((id) => n.delete(id)); return n })
+        setSelected(null)
+      } else {
+        showBulkToast(res.fehler ?? 'Löschen fehlgeschlagen')
+      }
+      setLoeschTarget(null)
       router.refresh()
     })
   }
@@ -685,6 +713,16 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                 >
                   <ArrowUpRight className="w-3.5 h-3.5" />
                 </Link>
+                <button
+                  type="button"
+                  onClick={(ev) => { ev.stopPropagation(); setLoeschTarget({ ids: [e.id], single: true }) }}
+                  disabled={isPending}
+                  title="Produkt entfernen"
+                  aria-label="Produkt aus dem Raum entfernen"
+                  className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
 
@@ -1074,9 +1112,22 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
             eintrag={selectedEintrag}
             onClose={() => setSelected(null)}
             onReset={() => handleReset(selectedEintrag.id)}
+            onDelete={() => setLoeschTarget({ ids: [selectedEintrag.id], single: true })}
             isPending={isPending}
           />
         )}
+
+        {/* Löschen-Bestätigung (entfernt Produkte endgültig aus den Räumen) */}
+        <ConfirmModal
+          isOpen={!!loeschTarget}
+          onClose={() => setLoeschTarget(null)}
+          onConfirm={handleLoeschen}
+          variant="danger"
+          title={loeschTarget?.single ? 'Produkt entfernen?' : `${loeschTarget?.ids.length ?? 0} Produkte entfernen?`}
+          message="Die Produkt-Verknüpfung wird endgültig aus dem Raum entfernt (das Produkt bleibt in der Bibliothek). Freigabe-Status und -Verlauf dieser Einträge gehen dabei verloren."
+          confirmText="Entfernen"
+          isLoading={isPending}
+        />
       </div>
 
       {/* ── Floating Bulk-Action-Bar ────────────────────────── */}
@@ -1104,6 +1155,16 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
             >
               <XCircle className="w-3.5 h-3.5" />
               Ablehnen
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoeschTarget({ ids: Array.from(selectedIds), single: false })}
+              disabled={isPending}
+              title="Produkte endgültig aus den Räumen entfernen"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-white border border-red-300 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Löschen
             </button>
             <button
               type="button"

@@ -173,6 +173,15 @@ export default function FreigabeClient({
   const [aktiverBereichIndex, setAktiverBereichIndex] = useState(0)
   useEffect(() => { setAktiverBereichIndex(0) }, [aktiverRaumIndex])
 
+  // Beim Wechsel von Raum/Bereich nach oben scrollen — sonst landet man bei
+  // „Weiter"/„Nächster Raum" mitten/unten auf der Seite und übersieht Produkte.
+  const navTopRef = useRef<HTMLDivElement>(null)
+  const navMountRef = useRef(false)
+  useEffect(() => {
+    if (!navMountRef.current) { navMountRef.current = true; return }
+    navTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [aktiverRaumIndex, aktiverBereichIndex])
+
   // ── Entwurf: Klicks schreiben NICHT mehr live, nur lokal (localStorage).
   //    Erst beim finalen Absenden (freigabeAbsenden) wird committet. ──────
   const bearbeitungMarkiertRef = useRef(false)
@@ -826,6 +835,9 @@ export default function FreigabeClient({
           </div>
         )}
 
+        {/* Scroll-Anker: bei Raum-/Bereich-Wechsel hierher hochscrollen */}
+        <div ref={navTopRef} className="scroll-mt-24" aria-hidden />
+
         {/* ── Raum-Navigation (pro Raum eine Ansicht) ─────────── */}
         {sichtbareRaeume.length > 1 && (
           <div className="flex gap-1.5 overflow-x-auto pb-2 mb-4 -mx-1 px-1">
@@ -1069,15 +1081,17 @@ function ProduktKarte({
   const gesamtBrutto  = r2(vpBrutto * menge)
 
   const statusCfg = {
-    ausstehend:     { rand: 'border-gray-200',    bg: 'bg-white',         badgeCls: 'bg-gray-100 text-gray-500',        label: 'Ausstehend' },
-    freigegeben:    { rand: 'border-emerald-200', bg: 'bg-emerald-50/40', badgeCls: 'bg-emerald-100 text-emerald-700',  label: 'Freigegeben' },
-    abgelehnt:      { rand: 'border-red-200',     bg: 'bg-red-50/40',     badgeCls: 'bg-red-100 text-red-600',          label: 'Abgelehnt' },
-    ueberarbeitung: { rand: 'border-amber-200',   bg: 'bg-amber-50/40',   badgeCls: 'bg-amber-100 text-amber-700',      label: 'Überarbeitung' },
+    ausstehend:     { rand: 'border-gray-200',    bg: 'bg-white',      badgeCls: 'bg-gray-100 text-gray-500',       ribbon: 'bg-gray-500',    label: 'Ausstehend' },
+    freigegeben:    { rand: 'border-emerald-300', bg: 'bg-emerald-50', badgeCls: 'bg-emerald-100 text-emerald-700', ribbon: 'bg-emerald-600', label: 'Freigegeben' },
+    abgelehnt:      { rand: 'border-red-300',     bg: 'bg-red-50',     badgeCls: 'bg-red-100 text-red-600',         ribbon: 'bg-red-600',     label: 'Abgelehnt' },
+    ueberarbeitung: { rand: 'border-amber-300',   bg: 'bg-amber-50',   badgeCls: 'bg-amber-100 text-amber-700',     ribbon: 'bg-amber-500',   label: 'Überarbeitung' },
   }
   const cfg = statusCfg[status] ?? statusCfg.ausstehend
+  const entschieden = status !== 'ausstehend'
+  const RibbonIcon = status === 'freigegeben' ? Check : status === 'abgelehnt' ? X : RefreshCw
 
   return (
-    <div className={`border ${cfg.rand} ${cfg.bg} rounded-2xl overflow-hidden shadow-sm transition-all`}>
+    <div className={`${entschieden ? 'border-2 shadow-md' : 'border shadow-sm'} ${cfg.rand} ${cfg.bg} rounded-2xl overflow-hidden transition-all`}>
 
       {/* ── Produktbild (groß, oben — klickbar für Vorschau) ── */}
       <button
@@ -1087,6 +1101,13 @@ function ProduktKarte({
         aria-label="Bild vergrößern"
         className="group relative w-full aspect-[16/9] sm:aspect-[2/1] overflow-hidden bg-gray-100 block cursor-zoom-in disabled:cursor-default"
       >
+        {/* Status-Banner (deutlich sichtbar, sobald entschieden) */}
+        {entschieden && (
+          <span className={`pointer-events-none absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-md ${cfg.ribbon}`}>
+            <RibbonIcon className="w-3.5 h-3.5" />
+            {cfg.label}
+          </span>
+        )}
         {produkt.bild_url ? (
           <>
             <Image

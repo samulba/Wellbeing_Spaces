@@ -5,6 +5,13 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-23
 
+### Freigabe-Link für Kunden – Bedienung verbessert
+- **Automatisches Hochscrollen:** Beim Wechsel zu „Nächster Raum" / „Weiter" springt die Ansicht jetzt wieder nach oben — vorher landete man manchmal mitten/unten auf der Seite und hat Produkte übersehen.
+- **Klarere Status-Kacheln:** Ein freigegebenes/abgelehntes Einzelprodukt ist jetzt deutlich erkennbar — farbiger Rahmen + ein gut sichtbares Status-Banner („Freigegeben" / „Abgelehnt" / „Überarbeitung") auf dem Produktbild.
+
+### Freigaben-Übersicht – Einträge löschen
+- Neuer **„Löschen"-Button** (einzeln per Mülleimer-Symbol, in der Mehrfachauswahl neben „Ablehnen" und im Detail-Fenster): entfernt ein Produkt endgültig aus dem Raum — praktisch zum Aufräumen von Test-/Fehleinträgen, wenn „Zurücksetzen" nicht reicht. Das Produkt bleibt in der Bibliothek erhalten.
+
 ### Raum-PDF „Produktübersicht" – übersichtlicher
 - **Gruppen als Abschnitts-Überschriften** statt wiederholter „Gruppe"-Spalte → ruhigeres, klareres Layout, mehr Platz für den Produktnamen.
 - **Produktnamen sind jetzt anklickbar** und führen direkt zum jeweiligen Produkt-Link (Shop/Quelle) – praktisch für den Lieferanten.

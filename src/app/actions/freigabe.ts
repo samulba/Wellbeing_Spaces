@@ -337,3 +337,30 @@ export async function freigabeBulkStatusAendernAdmin(
   revalidatePath('/dashboard/freigaben')
   return { erfolg: true, anzahl: vorher.length }
 }
+
+/**
+ * Admin-Action: entfernt ein oder mehrere raum_produkte endgültig aus ihren
+ * Räumen (Hard-Delete der Verknüpfung; das Produkt bleibt in der Bibliothek).
+ * Genutzt aus der Freigaben-Übersicht, um Test-/Fehleinträge zu bereinigen, wenn
+ * „Zurücksetzen" (zurück auf ausstehend) nicht reicht. Org-scoped. Abhängige
+ * Zeilen (Audit/Bestellpositionen) räumt die DB per ON DELETE CASCADE/SET NULL ab.
+ */
+export async function freigabeProdukteEntfernenAdmin(
+  raumProduktIds: string[],
+): Promise<{ erfolg: boolean; anzahl: number; fehler?: string }> {
+  if (raumProduktIds.length === 0) return { erfolg: true, anzahl: 0 }
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { error, count } = await supabase
+    .from('raum_produkte')
+    .delete({ count: 'exact' })
+    .in('id', raumProduktIds)
+    .eq('organisation_id', orgId)
+
+  if (error) return { erfolg: false, anzahl: 0, fehler: 'Löschen fehlgeschlagen: ' + error.message }
+
+  revalidatePath('/dashboard/freigaben')
+  return { erfolg: true, anzahl: count ?? raumProduktIds.length }
+}
