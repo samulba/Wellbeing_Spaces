@@ -3,6 +3,11 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-06-23
+
+### Freigabe – Abschluss klemmte trotz „alles entschieden"
+- Eine Freigabe ließ sich nicht abschließen („Noch X Produkte offen"), obwohl die Übersicht **alle Produkte als entschieden** anzeigte. Ursache: Aus der Bibliothek **gelöschte Produkte**, die noch in einem Raum lagen, wurden dem Kunden zwar (richtig) nicht angezeigt, blockierten aber im Hintergrund den Abschluss. Diese unsichtbaren Geister-Positionen werden jetzt auch beim Abschluss ignoriert — die Freigabe lässt sich wieder normal absenden. Der Beleg enthält ebenfalls keine gelöschten Produkte mehr.
+
 ## 2026-06-22
 
 ### Kundenportal – Produkte werden wieder angezeigt

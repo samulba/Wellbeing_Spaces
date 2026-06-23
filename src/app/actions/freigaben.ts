@@ -554,8 +554,8 @@ async function ladeItemsImScope(
     .from('raum_produkte')
     .select(
       auswahlMitBereich
-        ? 'id, freigabe_status, produkt_gruppe_id, bereich_id, produkte(name)'
-        : 'id, freigabe_status, produkt_gruppe_id, produkte(name)',
+        ? 'id, freigabe_status, produkt_gruppe_id, bereich_id, produkte(name, deleted_at)'
+        : 'id, freigabe_status, produkt_gruppe_id, produkte(name, deleted_at)',
     )
     .in('raum_id', raumIds)
 
@@ -568,8 +568,14 @@ async function ladeItemsImScope(
     freigabe_status: string
     produkt_gruppe_id: string | null
     bereich_id?: string | null
-    produkte: { name: string } | null
+    produkte: { name: string; deleted_at: string | null } | null
   }>)
+
+  // Soft-gelöschte Bibliotheksprodukte ausblenden — exakt wie die Kundenseite
+  // (page.tsx). Sonst zählen unsichtbare, gelöschte raum_produkte-Zeilen als
+  // „offen" und blockieren den Abschluss dauerhaft. Hinweis: produkte.deleted_at
+  // (JOIN), NICHT raum_produkte.deleted_at (Spalte existiert nicht).
+  rows = rows.filter((r) => r.produkte != null && r.produkte.deleted_at == null)
 
   if (auswahlMitBereich) {
     // Block→Bereich-Map (Bereich eines Blocks liegt auf produkt_gruppen)
