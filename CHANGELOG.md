@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-23
 
+### Raum-PDF „Produktübersicht" – übersichtlicher
+- **Gruppen als Abschnitts-Überschriften** statt wiederholter „Gruppe"-Spalte → ruhigeres, klareres Layout, mehr Platz für den Produktnamen.
+- **Produktnamen sind jetzt anklickbar** und führen direkt zum jeweiligen Produkt-Link (Shop/Quelle) – praktisch für den Lieferanten.
+- Neue Übersicht **„Gesamtmenge je Produkt"**: Produkte, die im Raum mehrfach (auch über verschiedene Gruppen) vorkommen, werden mit ihrer **Gesamtstückzahl** und den betroffenen Gruppen zusammengefasst.
+
 ### Freigabe – Abschluss klemmte trotz „alles entschieden"
 - Eine Freigabe ließ sich nicht abschließen („Noch X Produkte offen"), obwohl die Übersicht **alle Produkte als entschieden** anzeigte. Ursache: Aus der Bibliothek **gelöschte Produkte**, die noch in einem Raum lagen, wurden dem Kunden zwar (richtig) nicht angezeigt, blockierten aber im Hintergrund den Abschluss. Diese unsichtbaren Geister-Positionen werden jetzt auch beim Abschluss ignoriert — die Freigabe lässt sich wieder normal absenden. Der Beleg enthält ebenfalls keine gelöschten Produkte mehr.
 

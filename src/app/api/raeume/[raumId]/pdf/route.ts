@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type { RowInput, CellHookData } from 'jspdf-autotable'
 import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import {
   pdfHeute,
   logoAlsBase64,
   pdfLegalFooterZeilen,
-  WB_GREEN, GRAY_900, GRAY_600, GRAY_400, WHITE,
+  WB_GREEN, GRAY_900, GRAY_600, GRAY_400, GRAY_100, WHITE,
   MARGIN, PAGE_W, PAGE_H,
 } from '@/lib/pdf-helpers'
 
@@ -17,12 +18,20 @@ type RpRow = {
   bereich_id: string | null
   produkt_gruppe_id: string | null
   produkte: {
+    id: string
     name: string
     artikelnummer: string | null
     kategorie: string | null
     deleted_at: string | null
+    produkt_url: string | null
     partner: { name: string } | null
   } | null
+}
+
+/** Externe Produkt-URL absichern (Protokoll ergänzen) — für klickbare Links im PDF. */
+function safeProduktUrl(u: string | null): string | null {
+  if (!u) return null
+  return /^https?:\/\//i.test(u) ? u : `https://${u}`
 }
 
 /**
@@ -55,7 +64,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const [{ data: rpData }, { data: bereiche }, { data: gruppen }] = await Promise.all([
     supabase
       .from('raum_produkte')
-      .select('menge, notizen, reihenfolge, bereich_id, produkt_gruppe_id, produkte(name, artikelnummer, kategorie, deleted_at, partner(name))')
+      .select('menge, notizen, reihenfolge, bereich_id, produkt_gruppe_id, produkte(id, name, artikelnummer, kategorie, deleted_at, produkt_url, partner(name))')
       .eq('raum_id', raumId)
       .eq('organisation_id', orgId),
     supabase.from('produkt_bereiche').select('id, name').eq('raum_id', raumId).eq('organisation_id', orgId),
@@ -119,43 +128,131 @@ export async function GET(req: NextRequest, { params }: Params) {
   doc.text(meta, MARGIN, y + 12)
   y += 18
 
-  // ── Tabelle (ohne Preise) ─────────────────────────────────
-  const body = rows.map((r, i) => {
+  // ── Tabelle (ohne Preise), nach Gruppen gegliedert ────────────
+  // Gruppen erscheinen als Abschnitts-Kopfzeilen (statt einer wiederholten
+  // „Gruppe"-Spalte) → übersichtlicher. Produktname ist klickbar (produkt_url).
+  const body: RowInput[] = []
+  const rowUrl: (string | null)[] = []   // parallel zu body — Link je Zeile (null = Gruppen-Kopf)
+  let pos = 0
+  let letzteGruppe: string | null = null
+  for (const r of rows) {
+    if (r.gruppenName !== letzteGruppe) {
+      letzteGruppe = r.gruppenName
+      body.push([{
+        content: r.gruppenName === '—' ? 'Ohne Gruppe' : r.gruppenName,
+        colSpan: 4,
+        styles: {
+          fillColor: GRAY_100, textColor: WB_GREEN, fontStyle: 'bold', fontSize: 8.5,
+          cellPadding: { top: 2.6, bottom: 2.6, left: 3, right: 3 },
+        },
+      }])
+      rowUrl.push(null)
+    }
+    pos++
     const p = r.produkte!
     const artikel = p.artikelnummer ? `${p.name}\nArt.-Nr. ${p.artikelnummer}` : p.name
-    return [
-      String(i + 1),
-      artikel,
-      p.partner?.name ?? (p.kategorie ?? '—'),
-      r.gruppenName,
-      `${r.menge}`,
-    ]
-  })
+    body.push([String(pos), artikel, p.partner?.name ?? (p.kategorie ?? '—'), `${r.menge}`])
+    rowUrl.push(safeProduktUrl(p.produkt_url))
+  }
 
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
-    head: [['Pos.', 'Produkt', 'Hersteller', 'Gruppe', 'Menge']],
+    head: [['Pos.', 'Produkt', 'Hersteller', 'Menge']],
     body,
-    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, overflow: 'linebreak', textColor: GRAY_900 },
-    headStyles: { fillColor: WB_GREEN, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'left' },
-    alternateRowStyles: { fillColor: [249, 250, 251] },
+    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, overflow: 'linebreak', textColor: GRAY_900, valign: 'middle', lineWidth: 0 },
+    headStyles: { fillColor: WB_GREEN, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'left', cellPadding: { top: 3, bottom: 3, left: 3, right: 3 } },
+    alternateRowStyles: { fillColor: [250, 251, 250] },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
+      0: { cellWidth: 11, halign: 'center', textColor: GRAY_400 },
       1: { cellWidth: 'auto' },
-      2: { cellWidth: 34 },
-      3: { cellWidth: 30 },
-      4: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
+      2: { cellWidth: 40, textColor: GRAY_600 },
+      3: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
+    },
+    didParseCell: (data: CellHookData) => {
+      // Produktname grün einfärben, wenn ein klickbarer Link vorhanden ist.
+      if (data.section === 'body' && data.column.index === 1 && rowUrl[data.row.index]) {
+        data.cell.styles.textColor = WB_GREEN
+      }
+    },
+    didDrawCell: (data: CellHookData) => {
+      if (data.section === 'body' && data.column.index === 1) {
+        const url = rowUrl[data.row.index]
+        if (url) doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url })
+      }
     },
   })
 
   y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...GRAY_600)
-  const gesamtMenge = rows.reduce((s, r) => s + (Number(r.menge) || 0), 0)
-  doc.text(`${rows.length} Positionen · Gesamtmenge ${gesamtMenge}`, MARGIN, y)
+
   if (rows.length === 0) {
-    doc.setTextColor(...GRAY_400)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...GRAY_400)
     doc.text('Keine Produkte in diesem Raum.', MARGIN, y)
+  } else {
+    const gesamtMenge = rows.reduce((s, r) => s + (Number(r.menge) || 0), 0)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...GRAY_600)
+    doc.text(`${rows.length} Positionen · Gesamtmenge ${gesamtMenge}`, MARGIN, y)
+
+    // ── Gesamtmenge je Produkt (im Raum mehrfach verwendet) ─────
+    // Summiert dasselbe Produkt über alle Gruppen/Positionen — zeigt auf einen
+    // Blick, wie viele Stück eines Artikels der Raum insgesamt braucht.
+    const agg = new Map<string, { name: string; artikelnummer: string | null; url: string | null; menge: number; count: number; gruppen: Set<string> }>()
+    for (const r of rows) {
+      const p = r.produkte!
+      const e = agg.get(p.id) ?? { name: p.name, artikelnummer: p.artikelnummer, url: safeProduktUrl(p.produkt_url), menge: 0, count: 0, gruppen: new Set<string>() }
+      e.menge += Number(r.menge) || 0
+      e.count += 1
+      e.gruppen.add(r.gruppenName === '—' ? 'Ohne Gruppe' : r.gruppenName)
+      agg.set(p.id, e)
+    }
+    const mehrfach = Array.from(agg.values())
+      .filter((e) => e.count >= 2)
+      .sort((a, b) => b.menge - a.menge || a.name.localeCompare(b.name, 'de'))
+
+    if (mehrfach.length > 0) {
+      y += 11
+      if (y > PAGE_H - 50) { doc.addPage(); y = MARGIN }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...WB_GREEN)
+      doc.text('Gesamtmenge je Produkt', MARGIN, y)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GRAY_400)
+      doc.text('im Raum mehrfach verwendet', MARGIN, y + 4.5)
+      y += 9
+
+      const sumBody: RowInput[] = []
+      const sumUrl: (string | null)[] = []
+      for (const e of mehrfach) {
+        sumBody.push([e.name, e.artikelnummer ?? '—', Array.from(e.gruppen).join(', '), `${e.menge}`])
+        sumUrl.push(e.url)
+      }
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: MARGIN, right: MARGIN },
+        head: [['Produkt', 'Art.-Nr.', 'Gruppen', 'Gesamt']],
+        body: sumBody,
+        styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, overflow: 'linebreak', textColor: GRAY_900, valign: 'middle', lineWidth: 0 },
+        headStyles: { fillColor: WB_GREEN, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'left' },
+        alternateRowStyles: { fillColor: [250, 251, 250] },
+        columnStyles: {
+          0: { cellWidth: 'auto' },
+          1: { cellWidth: 28, textColor: GRAY_600 },
+          2: { cellWidth: 46, textColor: GRAY_600 },
+          3: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
+        },
+        didParseCell: (data: CellHookData) => {
+          if (data.section === 'body' && data.column.index === 0 && sumUrl[data.row.index]) {
+            data.cell.styles.textColor = WB_GREEN
+          }
+        },
+        didDrawCell: (data: CellHookData) => {
+          if (data.section === 'body' && data.column.index === 0) {
+            const url = sumUrl[data.row.index]
+            if (url) doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url })
+          }
+        },
+      })
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+    }
   }
 
   // ── Footer ────────────────────────────────────────────────
