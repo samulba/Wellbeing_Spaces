@@ -2,12 +2,11 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getOrganisationIdOrNull } from '@/lib/supabase/server'
 import { getMwstSatz } from '@/app/actions/einstellungen'
 import { brandingFuerToken } from '@/app/actions/branding'
-import { effektiverVpNetto } from '@/lib/preise'
 import FreigabeClient from './FreigabeClient'
 import FreigabePinGate from './FreigabePinGate'
 import { pinCookieGueltig } from '@/lib/freigabe-pin-cookie'
-import { bereichVonRaumProdukt, istImAuswahlScope } from '@/lib/freigabe-scope'
-import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus } from '@/lib/supabase/types'
+import { baueFreigabeRaeume, type FreigabeRpZeile } from '@/lib/freigabe-baum'
+import type { FreigabeRaum } from '@/lib/supabase/types'
 
 // Öffentliche, datengetriebene Seite — niemals cachen, damit Admin-Status-Änderungen
 // (z. B. Freigabe auf „offen" zurücksetzen) sofort sichtbar sind.
@@ -22,11 +21,12 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   const supabase = createAdminClient()
 
   // 1. Token validieren — inkl. Scope + Abschluss + Soft-Delete (Mig 081)
-  const { data: tokenData } = await supabase
+  const { data: tokenData, error: tokenErr } = await supabase
     .from('freigabe_tokens')
     .select('id, organisation_id, projekt_id, gueltig_bis, aktiv, scope_typ, scope_ids, abgeschlossen_am, abgeschlossen_durch, deleted_at, created_at')
     .eq('token', params.token)
     .maybeSingle()
+  if (tokenErr) console.error('[freigabe:token]', params.token, tokenErr.message)
 
   if (!tokenData) {
     return <Fehlerseite meldung="Dieser Freigabe-Link ist ungültig oder wurde zurückgezogen." />
@@ -55,12 +55,13 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   }
 
   // 2. Projektdaten laden (inkl. PIN-Status – PIN selbst NICHT an Client weitergeben!)
-  const { data: projektRaw } = await supabase
+  const { data: projektRaw, error: projektErr } = await supabase
     .from('projekte')
     .select('id, name, freigabe_pin, kunden(name)')
     .eq('id', tokenData.projekt_id)
     .is('deleted_at', null)
     .maybeSingle()
+  if (projektErr) console.error('[freigabe:projekt]', params.token, projektErr.message)
   const projekt = projektRaw as typeof projektRaw & { kunden: { name: string } | null; freigabe_pin: string | null } | null
 
   if (!projekt) {
@@ -76,13 +77,14 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   }
 
   // 3. Räume laden
-  const { data: raeumeDaten } = await supabase
+  const { data: raeumeDaten, error: raeumeErr } = await supabase
     .from('raeume')
     .select('id, name, reihenfolge')
     .eq('projekt_id', tokenData.projekt_id)
     .is('deleted_at', null)
     .order('reihenfolge')
     .order('created_at')
+  if (raeumeErr) console.error('[freigabe:raeume]', params.token, raeumeErr.message)
 
   if (!raeumeDaten || raeumeDaten.length === 0) {
     return <Fehlerseite meldung="Für dieses Projekt wurden noch keine Räume oder Produkte angelegt." />
@@ -139,36 +141,20 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   }
 
   // Konkreter Zeilentyp (der dynamische .select(string) liefert sonst GenericStringError).
-  // Gruppierungsfelder optional → auf dem Fallback-Pfad (Minimal-Select) fehlen sie.
-  type RpZeile = {
-    id: string
-    raum_id: string
-    menge: number
-    verkaufspreis_override: number | null
-    rabatt_prozent: number | null
-    reihenfolge: number
-    freigabe_status: string | null
-    freigabe_kommentar: string | null
-    produkt_gruppe_id?: string | null
-    bereich_id?: string | null
-    admin_favorit?: boolean | null
-    kunde_favorit?: boolean | null
-    kunde_menge?: number | null
-    produkte: {
-      id: string; name: string; beschreibung: string | null; kategorie: string | null
-      einheit: string; verkaufspreis: number | null; bild_url: string | null
-      produkt_url: string | null; deleted_at: string | null
-      hinweis_extern: string | null; hinweis_extern_sichtbar: boolean
-    } | null
-  }
+  // Definiert in der reinen Baum-Logik (freigabe-baum.ts), die ihn ebenfalls konsumiert.
+  type RpZeile = FreigabeRpZeile
 
   let gruppenInline = true
   const rpRich = await baueRpQuery(`${RP_BASIS}, ${RP_GRUPPE}, ${RP_PRODUKT}`)
   let rpDaten = rpRich.data as unknown as RpZeile[] | null
   if (rpRich.error) {
     // Migrations-Spalte fehlt → Minimal-Select; Gruppierung kommt aus Backfill-Maps.
+    // Sichtbar loggen: ein Fehler hier deutet auf fehlende Migration / Schema-Drift.
+    console.error('[freigabe:rp-rich]', params.token, rpRich.error.message)
     gruppenInline = false
-    rpDaten = (await baueRpQuery(`${RP_BASIS}, ${RP_PRODUKT}`)).data as unknown as RpZeile[] | null
+    const fallback = await baueRpQuery(`${RP_BASIS}, ${RP_PRODUKT}`)
+    if (fallback.error) console.error('[freigabe:rp-fallback]', params.token, fallback.error.message)
+    rpDaten = fallback.data as unknown as RpZeile[] | null
   }
 
   // 4b. Auswahl-Gruppen der in-scope Räume laden (Migration 114).
@@ -176,12 +162,13 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   // Ist eine Block-Zeile (fälschlich) als gelöscht markiert, ihre Produkte aber noch
   // zugeordnet, müssen sie trotzdem als Block erscheinen. Leere (echt gelöschte) Blöcke
   // werden weiter unten ohnehin herausgefiltert (kein Mitglied im Scope).
-  const { data: gruppenDaten } = await supabase
+  const { data: gruppenDaten, error: gruppenErr } = await supabase
     .from('produkt_gruppen')
     .select('id, raum_id, name, beschreibung, reihenfolge')
     .in('raum_id', raumFilter)
     .order('reihenfolge')
     .order('created_at')
+  if (gruppenErr) console.error('[freigabe:produkt_gruppen]', params.token, gruppenErr.message)
 
   const gruppenProRaum = new Map<string, { id: string; name: string; beschreibung: string | null }[]>()
   for (const g of (gruppenDaten ?? []) as { id: string; raum_id: string; name: string; beschreibung: string | null }[]) {
@@ -222,13 +209,14 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   // 4d. Bereiche/"Gruppen" der in-scope Räume laden (Migration 116) — fail-safe.
   const bereicheProRaum = new Map<string, { id: string; name: string; beschreibung: string | null }[]>()
   {
-    const { data: bereicheDaten } = await supabase
+    const { data: bereicheDaten, error: bereicheErr } = await supabase
       .from('produkt_bereiche')
       .select('id, raum_id, name, beschreibung, reihenfolge')
       .in('raum_id', raumFilter)
       .is('deleted_at', null)
       .order('reihenfolge')
       .order('created_at')
+    if (bereicheErr) console.error('[freigabe:produkt_bereiche]', params.token, bereicheErr.message)
     for (const b of (bereicheDaten ?? []) as { id: string; raum_id: string; name: string; beschreibung: string | null }[]) {
       const arr = bereicheProRaum.get(b.raum_id) ?? []
       arr.push({ id: b.id, name: b.name, beschreibung: b.beschreibung })
@@ -266,7 +254,8 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   const bundleIdMap = new Map<string, string | null>()
   if (rpIds.length > 0) {
     const { data: bData, error: bErr } = await supabase.from('raum_produkte').select('id, bundle_id').in('id', rpIds)
-    if (!bErr) for (const r of (bData ?? []) as { id: string; bundle_id: string | null }[]) bundleIdMap.set(r.id, r.bundle_id ?? null)
+    if (bErr) console.error('[freigabe:bundle_id]', params.token, bErr.message)
+    else for (const r of (bData ?? []) as { id: string; bundle_id: string | null }[]) bundleIdMap.set(r.id, r.bundle_id ?? null)
   }
 
   // Namen der Set-Köpfe (für die Set-Karte) — Admin-Client (anon-safe), einmal vorab.
@@ -292,139 +281,28 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     gruppenInline ? !!rp.kunde_favorit : (favMap.get(rp.id)?.kunde_favorit ?? false)
   const rpBundleId = (rp: RpZeile): string | null => bundleIdMap.get(rp.id) ?? null
 
-  // 5. Struktur aufbauen: Räume mit Bereichen → Auswahl-Blöcke + Einzelprodukte
-  const raeume: FreigabeRaum[] = raeumeDaten
-    .map((raum) => {
-      const alleProdukte = (rpDaten ?? [])
-        .filter((rp) => {
-          if (rp.raum_id !== raum.id) return false
-          // Gelöschte Produkte ausblenden
-          const p = rp.produkte as unknown as { deleted_at: string | null }
-          if (p?.deleted_at) return false
-          // „auswahl"-Scope mit ganzen Gruppen: dynamisch auflösen (Migration 116).
-          if (auswahlMitBereich) {
-            const rpId = rp.id as string
-            return istImAuswahlScope(
-              { id: rpId, produkt_gruppe_id: rpGruppeId(rp), bereich_id: rpBereichId(rp) },
-              scopeIds, scopeBereichIds, blockBereich,
-            )
-          }
-          return true
-        })
-        .map((rp): FreigabeProdukt => {
-          type ProdRaw = {
-            id: string; name: string; beschreibung: string | null; kategorie: string | null
-            einheit: string; verkaufspreis: number | null; bild_url: string | null
-            produkt_url: string | null
-            hinweis_extern: string | null; hinweis_extern_sichtbar: boolean
-          }
-          const p = rp.produkte as unknown as ProdRaw
-          // Endpreis über zentralen Helper: Override → Rabatt → gerundet
-          const vp = effektiverVpNetto(
-            {
-              verkaufspreis_override: (rp.verkaufspreis_override as number | null) ?? null,
-              rabatt_prozent: (rp.rabatt_prozent as number | null) ?? null,
-            },
-            p.verkaufspreis,
-          )
-          return {
-            id: rp.id as string,           // raum_produkte.id — Key für Freigabe-Aktionen
-            produkt_id: p.id,              // globale Produkt-ID für Bilder/Links
-            name: p.name,
-            beschreibung: p.beschreibung,
-            kategorie: p.kategorie,
-            menge: rp.menge,
-            einheit: p.einheit,
-            verkaufspreis: vp,
-            bild_url: p.bild_url,
-            produkt_url: p.produkt_url,
-            status: ((rp.freigabe_status as ProduktStatus) ?? 'ausstehend'),
-            kommentar: (rp.freigabe_kommentar as string | null) ?? null,
-            kunde_menge: rpKundeMenge(rp),
-            hinweis: p.hinweis_extern_sichtbar ? p.hinweis_extern : null,
-            rabatt_prozent: (rp.rabatt_prozent as number | null) ?? null,
-            // Auswahl-Gruppe + Favoriten (Mig 114) + Bereich (Mig 116) — atomar aus
-            // rpDaten (Normalpfad) bzw. Backfill-Maps (Fallback), via Accessoren.
-            produkt_gruppe_id: rpGruppeId(rp),
-            admin_favorit: rpAdminFavorit(rp),
-            kunde_favorit: rpKundeFavorit(rp),
-            bereich_id: rpBereichId(rp),
-            bundle_id: rpBundleId(rp),
-          }
-        })
-
-      // In Auswahl-Gruppen (mehrere Alternativen) + lose Produkte partitionieren.
-      // Eine Gruppe ist erst ab 2 Mitgliedern sinnvoll — 1-Produkt-Gruppen werden als
-      // normales Einzelprodukt (lose, mit Freigeben/Ablehnen) gerendert.
-      const gruppenDefs = gruppenProRaum.get(raum.id) ?? []
-      const gruppen: FreigabeProduktGruppe[] = gruppenDefs
-        .map((g) => ({
-          id: g.id,
-          name: g.name,
-          beschreibung: g.beschreibung,
-          kunde_notiz: gruppenNotizMap.get(g.id) ?? null,
-          produkte: alleProdukte.filter((p) => p.produkt_gruppe_id === g.id),
-        }))
-        // Block behalten, wenn er ≥2 Produkte hat ODER einem Bereich/„Gruppe" zugeordnet
-        // ist — dann ist auch ein 1-Produkt-Block bewusste Struktur und bleibt als Block
-        // sichtbar (Produkt landet NICHT lose). Ohne Bereich gilt weiter: 1-Produkt-Block
-        // → loses Einzelprodukt (S75).
-        .filter((grp) => grp.produkte.length >= 2 || (grp.produkte.length >= 1 && (blockBereich.get(grp.id) ?? null) !== null))
-      const echteGruppenIds = new Set(gruppen.map((g) => g.id))
-      let lose = alleProdukte.filter((p) => !p.produkt_gruppe_id || !echteGruppenIds.has(p.produkt_gruppe_id))
-
-      // Set/Bundle (Mig 128, Phase 2): lose Produkte mit gleicher bundle_id zu EINER
-      // synthetischen Set-Gruppe bündeln (AND-Semantik, kein 1-von-N). Die Gruppe
-      // reitet auf der bestehenden Block-Pipeline mit (ist_bundle=true).
-      const bundleMap = new Map<string, FreigabeProdukt[]>()
-      const loseOhneBundle: FreigabeProdukt[] = []
-      for (const p of lose) {
-        if (p.bundle_id) {
-          const arr = bundleMap.get(p.bundle_id) ?? []
-          arr.push(p)
-          bundleMap.set(p.bundle_id, arr)
-        } else {
-          loseOhneBundle.push(p)
-        }
-      }
-      for (const [bid, komponenten] of Array.from(bundleMap.entries())) {
-        gruppen.push({
-          id: bid,
-          name: bundleNamen.get(bid) ?? 'Set',
-          beschreibung: null,
-          ist_bundle: true,
-          bundle_set_preis_netto: komponenten.reduce((s, p) => s + (p.verkaufspreis ?? 0) * p.menge, 0),
-          produkte: komponenten,
-        })
-      }
-      lose = loseOhneBundle
-
-      // Bereiche/"Gruppen" bauen (Migration 116): je Bereich seine Auswahl-Blöcke
-      // (Block-bereich_id == Bereich) + Einzelprodukte (resolveBereich == Bereich).
-      // Nicht zugeordnete Items → synthetischer Trailing-Bereich „Ohne Gruppe".
-      // Jedes Item liegt in genau EINEM Bereich (kein Doppelzählen).
-      const resolveBereich = (p: FreigabeProdukt) =>
-        bereichVonRaumProdukt({ produkt_gruppe_id: p.produkt_gruppe_id, bereich_id: p.bereich_id }, blockBereich)
-      const bereichDefs = bereicheProRaum.get(raum.id) ?? []
-      const bereichIdSet = new Set(bereichDefs.map((b) => b.id))
-      const bereiche: FreigabeBereich[] = []
-      for (const b of bereichDefs) {
-        const bloecke = gruppen.filter((g) => (blockBereich.get(g.id) ?? null) === b.id)
-        const produkte = lose.filter((p) => resolveBereich(p) === b.id)
-        // Leere Bereiche NICHT rendern — sonst „hat Inhalt", obwohl 0 Produkte (→ „0 von 0").
-        if (bloecke.length > 0 || produkte.length > 0) {
-          bereiche.push({ id: b.id, name: b.name, beschreibung: b.beschreibung, bloecke, produkte })
-        }
-      }
-      const ohneBloecke = gruppen.filter((g) => { const bb = blockBereich.get(g.id) ?? null; return !bb || !bereichIdSet.has(bb) })
-      const ohneProdukte = lose.filter((p) => { const bb = resolveBereich(p); return !bb || !bereichIdSet.has(bb) })
-      if (ohneBloecke.length > 0 || ohneProdukte.length > 0) {
-        bereiche.push({ id: '__ohne__', name: 'Ohne Gruppe', beschreibung: null, bloecke: ohneBloecke, produkte: ohneProdukte })
-      }
-
-      return { id: raum.id, name: raum.name, bereiche, gruppen, produkte: lose }
-    })
-    .filter((r) => r.produkte.length > 0 || (r.gruppen?.length ?? 0) > 0 || (r.bereiche?.length ?? 0) > 0)
+  // 5. Struktur aufbauen — reine, getestete Logik (src/lib/freigabe-baum.ts):
+  //    Räume → Bereiche → Auswahl-Blöcke/Sets → Einzelprodukte. Die fragile
+  //    Gruppierung (inkl. Set-Dedupe bei mehrfach hinzugefügtem Set, Migration 134)
+  //    ist dort isoliert und unit-getestet → kann bei Updates nicht still brechen.
+  const raeume: FreigabeRaum[] = baueFreigabeRaeume({
+    raeume: raeumeDaten,
+    rpDaten: rpDaten ?? [],
+    gruppenProRaum,
+    bereicheProRaum,
+    blockBereich,
+    gruppenNotizMap,
+    bundleNamen,
+    rpGruppeId,
+    rpBereichId,
+    rpKundeMenge,
+    rpAdminFavorit,
+    rpKundeFavorit,
+    rpBundleId,
+    auswahlMitBereich,
+    scopeIds,
+    scopeBereichIds,
+  })
 
   if (raeume.length === 0) {
     // Auswahl-Link, der (aktuell) auf nichts auflöst → klare Meldung statt „keine Produkte".

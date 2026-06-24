@@ -449,12 +449,26 @@ export interface FreigabeProdukt {
   bundle_id?: string | null
 }
 
+// Aggregierte Anzeige-Zeile einer Set-Komponente (Migration 128) — über alle
+// Set-Instanzen im Raum nach produkt_id zusammengefasst (menge summiert). Reine
+// Darstellung; der Status/Submit läuft weiter über FreigabeProduktGruppe.produkte.
+export interface FreigabeProduktKomponente {
+  produkt_id: string
+  name: string
+  bild_url: string | null
+  einheit: string
+  verkaufspreis: number | null // pro Einheit, Rabatt bereits berücksichtigt
+  menge: number                // Σ menge über alle Instanzen dieser produkt_id im Set
+}
+
 // Auswahl-Set innerhalb eines Raums (Migration 114) — mehrere Alternativen,
 // eine davon Favorit. Die Favorit-Flags liegen auf jedem FreigabeProdukt.
 export interface FreigabeProduktGruppe {
   id: string
   name: string
   beschreibung: string | null
+  // ALLE zugrunde liegenden raum_produkte-Zeilen (Quelle für Submit/Zähler/Abschluss-
+  // Gate — jede raum_produkte.id MUSS hier auftauchen, sonst bleibt sie 'ausstehend').
   produkte: FreigabeProdukt[]
   // Sammelnotiz des Kunden für diesen Block (Migration 119). Optional/fail-safe.
   kunde_notiz?: string | null
@@ -462,6 +476,12 @@ export interface FreigabeProduktGruppe {
   // AND-Semantik (alle Komponenten gehören zusammen), NICHT 1-von-N.
   ist_bundle?: boolean
   bundle_set_preis_netto?: number | null
+  // Set-Komponenten für die ANZEIGE — nach produkt_id dedupliziert, menge summiert.
+  // Seit Migration 134 kann dasselbe Set mehrfach im Raum liegen; ohne diese
+  // Zusammenfassung würden die Komponenten in der Set-Karte doppelt erscheinen.
+  bundle_komponenten_anzeige?: FreigabeProduktKomponente[]
+  // Anzahl Set-Instanzen im Raum (1 = normal, >1 = mehrfach hinzugefügt).
+  bundle_instanz_anzahl?: number
 }
 
 // Bereich/"Gruppe" (Migration 116) — organisatorischer Abschnitt im Raum.

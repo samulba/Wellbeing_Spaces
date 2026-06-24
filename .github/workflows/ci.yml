@@ -1,0 +1,31 @@
+name: CI
+
+# Qualitäts-Gate vor/unabhängig vom Vercel-Auto-Deploy (main → Production).
+# Fängt genau die Bug-Klasse ab, die den Freigabe-Link wiederholt brach:
+# eine Regression in der Produkt-/Set-Gruppierung wird vom Unit-Test (npm run test)
+# rot, bevor sie live geht. Bei Pull Requests blockiert ein rotes Gate den Merge
+# (sofern Branch-Protection auf main den Check „CI / build" erforderlich macht).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Unit-Tests (Freigabe-Gruppierung u. a.)
+        run: npm run test
+      - name: Build
+        run: npm run build

@@ -3,7 +3,11 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
-## 2026-06-23
+## 2026-06-24
+
+### Freigabe-Link – doppelte Set-Produkte behoben
+- Im Freigabe-Link wurden die Bestandteile eines **Sets/Bundles doppelt (oder mehrfach) angezeigt**, wenn dasselbe Set mehrmals in einen Raum gelegt wurde (möglich seit der Funktion „gleiches Produkt mehrfach pro Raum"). Das Set erscheint jetzt wieder als **eine saubere Karte**: jede Komponente nur **einmal**, mit korrekt **summierter Menge** und richtigem Set-Preis. Wurde das Set mehrfach hinzugefügt, steht das jetzt klar dran (z. B. „· 2× hinzugefügt"). Freigeben/Ablehnen funktioniert unverändert für das ganze Set.
+- **Damit das nicht wieder passiert:** Die fragile Logik, die im Freigabe-Link Räume, Gruppen, Blöcke und Sets zusammenbaut, ist jetzt durch **automatische Tests** abgesichert und läuft bei jeder Änderung in einer **Prüf-Pipeline** mit — ein solcher Anzeigefehler wird künftig automatisch erkannt, **bevor** er live geht.
 
 ### PDFs – Kleinigkeit
 - In allen PDF-Tabellen wird der Spaltenkopf **„Pos"** jetzt sauber einzeilig dargestellt (vorher rutschte bei „Pos." der Punkt in eine zweite Zeile).

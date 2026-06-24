@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft, Plus, Minus, StickyNote, Maximize2, Boxes } from 'lucide-react'
 import { freigabeBearbeitungMarkieren, type FreigabeEntscheidung, type FreigabeBlockNotiz } from '@/app/actions/freigaben'
 import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus, Branding } from '@/lib/supabase/types'
+import { dedupeBundleKomponenten } from '@/lib/freigabe-baum'
 import HinweisBanner from '@/components/HinweisBanner'
 import FreigabeAbschlussModal from '@/components/FreigabeAbschlussModal'
 
@@ -568,7 +569,7 @@ export default function FreigabeClient({
                                   <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0"><Boxes className="w-5 h-5" style={{ color: prim }} /></div>
                                     <div className="min-w-0 flex-1">
-                                      <p className="text-sm font-medium text-gray-900 truncate">{g.produkte.length} Komponenten</p>
+                                      <p className="text-sm font-medium text-gray-900 truncate">{(g.bundle_komponenten_anzeige ?? dedupeBundleKomponenten(g.produkte)).length} Komponenten</p>
                                     </div>
                                     <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 ${pill}`}>{label}</span>
                                   </div>
@@ -1316,11 +1317,16 @@ function BundleKarte({
   const [kommentarEingabe, setKommentarEingabe] = useState('')
 
   const statusOf = (id: string): ProduktStatus => states[id]?.status ?? 'ausstehend'
+  // `komp` = ALLE zugrunde liegenden raum_produkte-Zeilen → Status/Submit (all-or-nothing).
   const komp = bundle.produkte
   const alleFrei = komp.length > 0 && komp.every((p) => statusOf(p.id) === 'freigegeben')
   const anyAbl   = komp.some((p) => statusOf(p.id) === 'abgelehnt')
   const anyAend  = komp.some((p) => statusOf(p.id) === 'ueberarbeitung')
   const setStatus: ProduktStatus = alleFrei ? 'freigegeben' : anyAbl ? 'abgelehnt' : anyAend ? 'ueberarbeitung' : 'ausstehend'
+  // `anzeige` = pro produkt_id zusammengefasste Komponenten (Set kann seit Mig 134
+  // mehrfach im Raum liegen) → NUR Darstellung (Liste/Anzahl/Preis), nicht der Status.
+  const anzeige = bundle.bundle_komponenten_anzeige ?? dedupeBundleKomponenten(bundle.produkte)
+  const instanzen = bundle.bundle_instanz_anzahl ?? 1
 
   const statusCfg = {
     ausstehend:     { rand: 'border-gray-200',    bg: 'bg-white',         badgeCls: 'bg-gray-100 text-gray-500',       label: 'Ausstehend' },
@@ -1330,7 +1336,7 @@ function BundleKarte({
   }
   const cfg = statusCfg[setStatus] ?? statusCfg.ausstehend
 
-  const setNetto  = bundle.bundle_set_preis_netto ?? komp.reduce((s, p) => s + (p.verkaufspreis ?? 0) * p.menge, 0)
+  const setNetto  = bundle.bundle_set_preis_netto ?? anzeige.reduce((s, k) => s + (k.verkaufspreis ?? 0) * k.menge, 0)
   const setBrutto = r2(setNetto * (1 + mwst))
   const vorhandenerKommentar = states[komp[0]?.id]?.kommentar || null
 
@@ -1352,7 +1358,7 @@ function BundleKarte({
               </span>
               <h3 className="text-base font-semibold text-gray-900 leading-snug">{bundle.name}</h3>
             </div>
-            <p className="text-xs text-gray-500 mt-1.5">{komp.length} Komponenten · komplett als Set</p>
+            <p className="text-xs text-gray-500 mt-1.5">{anzeige.length} Komponenten · komplett als Set{instanzen > 1 ? ` · ${instanzen}× hinzugefügt` : ''}</p>
           </div>
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${cfg.badgeCls}`}>{cfg.label}</span>
         </div>
@@ -1370,16 +1376,16 @@ function BundleKarte({
         </button>
         {offen && (
           <ul className="mb-4 divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
-            {komp.map((p) => {
-              const zeileBrutto = r2((p.verkaufspreis ?? 0) * (1 + mwst) * p.menge)
+            {anzeige.map((k) => {
+              const zeileBrutto = r2((k.verkaufspreis ?? 0) * (1 + mwst) * k.menge)
               return (
-                <li key={p.id} className="flex items-center gap-3 px-4 py-2.5 bg-white">
+                <li key={k.produkt_id} className="flex items-center gap-3 px-4 py-2.5 bg-white">
                   <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-                    {p.bild_url && <Image src={p.bild_url} alt="" width={40} height={40} className="w-full h-full object-cover" unoptimized />}
+                    {k.bild_url && <Image src={k.bild_url} alt="" width={40} height={40} className="w-full h-full object-cover" unoptimized />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800 truncate">{p.name}</p>
-                    <p className="text-[11px] text-gray-400">{p.menge} {p.einheit}</p>
+                    <p className="text-sm text-gray-800 truncate">{k.name}</p>
+                    <p className="text-[11px] text-gray-400">{k.menge} {k.einheit}</p>
                   </div>
                   <span className="text-xs font-mono text-gray-600">{eur(zeileBrutto)}</span>
                 </li>
