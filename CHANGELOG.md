@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-24
 
+### Freigabe-Link – Raum-Link zeigte „keine Produkte"
+- Ein Freigabe-Link für einen **ganzen Raum** konnte beim Öffnen **„keine Produkte / nicht verfügbar"** zeigen, obwohl der Raum klar gefüllt war. Ursache: Die geladenen Produkte wurden nur dann angezeigt, wenn ihr Raum in einer separaten Raumliste auftauchte — passte das nicht exakt zusammen (z. B. weil der Link auf eine ältere/umbenannte Raum-Version zeigte), verschwanden die Produkte still. Jetzt gilt: **sind Produkte geladen, werden sie auch angezeigt** — der Raum wird direkt aus seinen Produkten aufgebaut. Abgesichert mit zusätzlichen automatischen Tests.
+- Für den Notfall gibt es jetzt eine **Admin-Diagnose**: Hängt man `?vorschau=1&debug=1` an einen Link, der trotzdem leer bleibt, zeigt die Seite (nur für eingeloggte Admins) sofort den genauen Grund an.
+
 ### Freigabe-Link – doppelte Set-Produkte behoben
 - Im Freigabe-Link wurden die Bestandteile eines **Sets/Bundles doppelt (oder mehrfach) angezeigt**, wenn dasselbe Set mehrmals in einen Raum gelegt wurde (möglich seit der Funktion „gleiches Produkt mehrfach pro Raum"). Das Set erscheint jetzt wieder als **eine saubere Karte**: jede Komponente nur **einmal**, mit korrekt **summierter Menge** und richtigem Set-Preis. Wurde das Set mehrfach hinzugefügt, steht das jetzt klar dran (z. B. „· 2× hinzugefügt"). Freigeben/Ablehnen funktioniert unverändert für das ganze Set.
 - **Damit das nicht wieder passiert:** Die fragile Logik, die im Freigabe-Link Räume, Gruppen, Blöcke und Sets zusammenbaut, ist jetzt durch **automatische Tests** abgesichert und läuft bei jeder Änderung in einer **Prüf-Pipeline** mit — ein solcher Anzeigefehler wird künftig automatisch erkannt, **bevor** er live geht.

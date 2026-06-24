@@ -68,6 +68,7 @@ function makeInput(opts: {
   auswahlMitBereich?: boolean
   scopeIds?: string[]
   scopeBereichIds?: string[]
+  raumNameById?: Map<string, string>
 }): BaueFreigabeRaeumeInput {
   // bundleIdMap exakt wie in page.tsx: bundle_id wird separat geladen, nicht von der Zeile.
   const bundleIdMap = new Map<string, string | null>()
@@ -88,6 +89,7 @@ function makeInput(opts: {
   }
   return {
     raeume: opts.raeume,
+    raumNameById: opts.raumNameById,
     rpDaten: opts.rows,
     gruppenProRaum,
     bereicheProRaum,
@@ -293,6 +295,51 @@ describe('baueFreigabeRaeume', () => {
       }),
     )
     expect(out.map((r) => r.id)).toEqual(['r1'])
+  })
+
+  it('10: Raum-Scope — gescopter Raum NICHT in der Eingabeliste, aber Produkte vorhanden → Raum rendert trotzdem', () => {
+    // Reproduziert den Bug: ein Raum-Link lädt Produkte über raum_id, der Raum steht aber
+    // nicht in raeumeDaten (z. B. veraltete/umbenannte/soft-gelöschte Raum-ID). Früher
+    // verschwanden die Produkte still → „keine Produkte". Jetzt MÜSSEN sie erscheinen.
+    const out = baueFreigabeRaeume(
+      makeInput({
+        raeume: [],
+        rows: [
+          makeRp({ id: 'rp-1', raum_id: 'r-scoped', name: 'A' }),
+          makeRp({ id: 'rp-2', raum_id: 'r-scoped', name: 'B' }),
+        ],
+      }),
+    )
+    expect(out).toHaveLength(1)
+    expect(out[0].id).toBe('r-scoped')
+    expect(out[0].produkte).toHaveLength(2) // Produkte gehen NICHT verloren
+    expect(out[0].name).toBe('Raum') // Fallback-Name ohne Map
+  })
+
+  it('10b: Raum außerhalb der Liste erhält echten Namen aus raumNameById', () => {
+    const out = baueFreigabeRaeume(
+      makeInput({
+        raeume: [],
+        rows: [makeRp({ id: 'rp-1', raum_id: 'r-scoped', name: 'A' })],
+        raumNameById: new Map([['r-scoped', 'Lichtkonzept Garten']]),
+      }),
+    )
+    expect(out).toHaveLength(1)
+    expect(out[0].name).toBe('Lichtkonzept Garten')
+    expect(out[0].produkte).toHaveLength(1)
+  })
+
+  it('10c: bekannte Räume behalten Reihenfolge, Extra-Raum wird hinten angehängt', () => {
+    const out = baueFreigabeRaeume(
+      makeInput({
+        raeume: [{ id: 'r1', name: 'Raum 1' }],
+        rows: [
+          makeRp({ id: 'rp-1', raum_id: 'r1', name: 'A' }),
+          makeRp({ id: 'rp-2', raum_id: 'r-extra', name: 'B' }),
+        ],
+      }),
+    )
+    expect(out.map((r) => r.id)).toEqual(['r1', 'r-extra'])
   })
 })
 

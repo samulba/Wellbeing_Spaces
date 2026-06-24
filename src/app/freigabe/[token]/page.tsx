@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params: { token: string }
-  searchParams?: { vorschau?: string }
+  searchParams?: { vorschau?: string; debug?: string }
 }
 
 export default async function FreigabePage({ params, searchParams }: Props) {
@@ -281,12 +281,25 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     gruppenInline ? !!rp.kunde_favorit : (favMap.get(rp.id)?.kunde_favorit ?? false)
   const rpBundleId = (rp: RpZeile): string | null => bundleIdMap.get(rp.id) ?? null
 
+  // Raumnamen-Lookup — auch für Räume, die NICHT in raeumeDaten stehen. Ein Raum-Scope-Link
+  // lädt Produkte direkt über raum_id; steht der Raum nicht in der (nicht-gelöschten) Liste,
+  // rendert baueFreigabeRaeume ihn trotzdem aus den Produkten. Hier holen wir den echten Namen.
+  const raumNameById = new Map<string, string>(
+    raeumeDaten.map((r) => [r.id as string, r.name as string]),
+  )
+  if (scopeTyp === 'raum' && scopeIds[0] && !raumNameById.has(scopeIds[0])) {
+    const { data: scopedRaum } = await supabase
+      .from('raeume').select('id, name').eq('id', scopeIds[0]).maybeSingle()
+    if (scopedRaum?.name) raumNameById.set(scopedRaum.id as string, scopedRaum.name as string)
+  }
+
   // 5. Struktur aufbauen — reine, getestete Logik (src/lib/freigabe-baum.ts):
   //    Räume → Bereiche → Auswahl-Blöcke/Sets → Einzelprodukte. Die fragile
   //    Gruppierung (inkl. Set-Dedupe bei mehrfach hinzugefügtem Set, Migration 134)
   //    ist dort isoliert und unit-getestet → kann bei Updates nicht still brechen.
   const raeume: FreigabeRaum[] = baueFreigabeRaeume({
     raeume: raeumeDaten,
+    raumNameById,
     rpDaten: rpDaten ?? [],
     gruppenProRaum,
     bereicheProRaum,
@@ -305,6 +318,22 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   })
 
   if (raeume.length === 0) {
+    // Diagnose: WARUM ist die Liste leer? In Vercel-Logs sichtbar; für eingeloggte Admins
+    // zusätzlich on-screen via ?vorschau=1&debug=1 (zeigt den exakten Grund, kein Rätselraten).
+    const diagnose = {
+      scopeTyp,
+      scopeIds,
+      raumFilter,
+      rpAnzahl: (rpDaten ?? []).length,
+      raeumeAnzahl: raeumeDaten.length,
+      raeumeIds: raeumeDaten.map((r) => r.id),
+      scopeBereichIds,
+      gruppenInline,
+    }
+    console.error('[freigabe:leer]', params.token, JSON.stringify(diagnose))
+    if (vorschau && searchParams?.debug === '1') {
+      return <FreigabeLeerDiagnose token={params.token} diagnose={diagnose} />
+    }
     // Auswahl-Link, der (aktuell) auf nichts auflöst → klare Meldung statt „keine Produkte".
     const istAuswahlMitInhalt = scopeTyp === 'auswahl' && (scopeIds.length > 0 || scopeBereichIds.length > 0)
     return (
@@ -358,6 +387,58 @@ function Fehlerseite({ meldung }: { meldung: string }) {
         </div>
         <h1 className="text-xl font-semibold text-gray-900 mb-2">Link nicht verfügbar</h1>
         <p className="text-sm text-gray-500 leading-relaxed">{meldung}</p>
+      </div>
+    </div>
+  )
+}
+
+// ── Admin-Diagnose (nur Vorschau + ?debug=1) ──────────────────
+// Zeigt, WARUM ein Link „keine Produkte" liefert, damit die Ursache in einem Klick
+// feststeht (Token-Scope, geladene Produkte, Raumliste). Temporär — nach Klärung entfernen.
+function FreigabeLeerDiagnose({
+  token,
+  diagnose,
+}: {
+  token: string
+  diagnose: {
+    scopeTyp: string
+    scopeIds: string[]
+    raumFilter: string[]
+    rpAnzahl: number
+    raeumeAnzahl: number
+    raeumeIds: string[]
+    scopeBereichIds: string[]
+    gruppenInline: boolean
+  }
+}) {
+  const zeilen: [string, string][] = [
+    ['Scope-Typ', diagnose.scopeTyp],
+    ['scope_ids', JSON.stringify(diagnose.scopeIds)],
+    ['Raum-Filter (geladen für)', JSON.stringify(diagnose.raumFilter)],
+    ['Geladene Produkte (rpDaten)', String(diagnose.rpAnzahl)],
+    ['Räume im Projekt (nicht gelöscht)', `${diagnose.raeumeAnzahl} → ${JSON.stringify(diagnose.raeumeIds)}`],
+    ['scope_bereich_ids', JSON.stringify(diagnose.scopeBereichIds)],
+    ['Gruppierung inline?', String(diagnose.gruppenInline)],
+  ]
+  const hinweis =
+    diagnose.rpAnzahl === 0
+      ? 'rpDaten = 0 → für die gescopte Raum-ID wurden KEINE Produkte gefunden. Wahrscheinlich zeigt der Link auf eine veraltete/umbenannte Raum-ID (scope_ids stimmt nicht mit dem aktuellen Raum überein). Lösung: Link löschen und neu erstellen.'
+      : 'Produkte WURDEN geladen — sie sollten jetzt (nach dem Fix) gerendert werden. Wird das hier trotzdem angezeigt, bitte diese Werte an die Entwicklung geben.'
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-10">
+      <div className="max-w-lg w-full bg-white border border-amber-200 rounded-2xl shadow-sm p-6">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-600 mb-1">Admin-Diagnose · nur Vorschau</p>
+        <h1 className="text-lg font-semibold text-gray-900 mb-1">Freigabe-Link liefert keine Produkte</h1>
+        <p className="text-xs text-gray-400 mb-4 break-all">Token: {token}</p>
+        <dl className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden mb-4">
+          {zeilen.map(([k, v]) => (
+            <div key={k} className="flex items-start gap-3 px-3 py-2 bg-white">
+              <dt className="text-xs font-medium text-gray-500 w-44 shrink-0">{k}</dt>
+              <dd className="text-xs font-mono text-gray-800 break-all">{v}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="text-xs text-gray-600 leading-relaxed bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">{hinweis}</p>
       </div>
     </div>
   )

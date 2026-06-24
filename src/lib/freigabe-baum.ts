@@ -52,6 +52,10 @@ export interface BaueFreigabeRaeumeInput {
   /** Räume in Anzeigereihenfolge (page.tsx raeumeDaten). */
   raeume: { id: string; name: string }[]
   rpDaten: FreigabeRpZeile[]
+  // Optionaler Namens-Lookup für Räume, die NICHT in `raeume` stehen, aber Produkte in
+  // rpDaten haben (z. B. ein gescopter Raum-Link auf eine Raum-ID außerhalb der Liste).
+  // Ohne Treffer wird ein generischer Fallback-Name verwendet (Produkte gehen NIE verloren).
+  raumNameById?: Map<string, string>
   // In page.tsx bereits aufgebaute Lookup-Maps:
   gruppenProRaum: Map<string, { id: string; name: string; beschreibung: string | null }[]>
   bereicheProRaum: Map<string, { id: string; name: string; beschreibung: string | null }[]>
@@ -116,9 +120,27 @@ export function baueFreigabeRaeume(input: BaueFreigabeRaeumeInput): FreigabeRaum
     auswahlMitBereich,
     scopeIds,
     scopeBereichIds,
+    raumNameById,
   } = input
 
-  return raeumeDaten
+  // Räume aus den VORHANDENEN Produkten ableiten — nicht nur aus der Eingabeliste.
+  // Ein gescopter Raum-Link (scope_typ='raum') lädt Produkte über raum_id, auch wenn der
+  // Raum nicht in `raeume` steht (z. B. Link auf eine umbenannte/duplizierte/soft-gelöschte
+  // Raum-ID oder verschobene scope_ids). Ohne diese Ergänzung würden die geladenen Produkte
+  // STILL verschwinden → „keine Produkte". Bekannte Räume behalten Reihenfolge + Namen;
+  // Räume nur aus rpDaten werden hinten angehängt (Name aus raumNameById, sonst Fallback).
+  const bekannteRaumIds = new Set(raeumeDaten.map((r) => r.id))
+  const extraRaeume: { id: string; name: string }[] = []
+  const extraGesehen = new Set<string>()
+  for (const rp of rpDaten ?? []) {
+    const rid = rp.raum_id
+    if (bekannteRaumIds.has(rid) || extraGesehen.has(rid)) continue
+    extraGesehen.add(rid)
+    extraRaeume.push({ id: rid, name: raumNameById?.get(rid) ?? 'Raum' })
+  }
+  const alleRaeume = extraRaeume.length > 0 ? [...raeumeDaten, ...extraRaeume] : raeumeDaten
+
+  return alleRaeume
     .map((raum) => {
       const alleProdukte = (rpDaten ?? [])
         .filter((rp) => {
