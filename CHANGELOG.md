@@ -5,6 +5,16 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-25
 
+### Freigabelink – Nachricht an den Kunden
+- Beim Erstellen eines Freigabelinks lässt sich jetzt eine **optionale Nachricht an den Kunden** hinterlegen (wie eine Bemerkung in einer E-Mail, z. B. „Bitte achtet besonders auf die Couch-Farbe"). Sie erscheint dem Kunden als ruhiger Hinweis-Banner oben im Link. Die Nachricht ist auch **nachträglich änderbar** (Button „Nachricht" bei jedem aktiven Link).
+
+### Freigabelink – einheitliche, übersichtliche Darstellung
+- Im Freigabelink werden jetzt **alle Produkte einheitlich kompakt** angezeigt (statt große Karten mit drei Buttons): **anhaken = freigeben**, „Ablehnen" und „Alternative" bleiben als kleine Aktion direkt an der Zeile (mit Kommentarfeld). Auch **Sets** erscheinen kompakt (ein Haken fürs ganze Set, Inhalt aufklappbar).
+- **Gruppen und Auswahl-Blöcke** bleiben klar unterscheidbar: Auswahl-Blöcke (eine von mehreren Alternativen) tragen ein „Auswahl"-Etikett, normale Produkte stehen in einer „Produkte"-Liste mit dem Hinweis „bitte einzeln freigeben oder ablehnen".
+
+### Räume umbenennen
+- Räume lassen sich jetzt **direkt in der Raumliste umbenennen** (Stift-Symbol beim Überfahren) — vorher ging das gar nicht.
+
 ### Freigaben – Kundennotiz löschen
 - Die **Kundennotiz** zu einem Auswahl-Block (die Sammelnotiz, die der Kunde im Freigabe-Link schreibt) lässt sich jetzt **gezielt löschen** – über einen Papierkorb direkt an der Notiz, sowohl in der Raum-Produktliste als auch in der Freigaben-Übersicht. Vorher blieb sie beim Zurücksetzen einer Entscheidung stehen und konnte nicht entfernt werden.
 - **„Alle Kundenentscheidungen zurücksetzen"** löscht ab jetzt auch diese Block-Notizen mit – so ist nach dem Zurücksetzen wirklich alles vom Kunden leer.
