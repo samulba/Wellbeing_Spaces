@@ -82,10 +82,11 @@ async function getAktiveTokens(projektId: string) {
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
   const basis = 'id, token, gueltig_bis, scope_typ, scope_ids, created_at'
-  // scope_bereich_ids (Migration 116) mitladen — sonst zeigt der Admin bei
-  // „ganze Gruppen"-Links fälschlich „0 Produkte" + die rote Leer-Warnung.
-  // Fail-safe: fehlt die Spalte, ohne sie laden.
-  let res = await lade(`${basis}, scope_bereich_ids`)
+  // scope_bereich_ids (Mig 116) + begleit_nachricht (Mig 136) mitladen. Fail-safe in
+  // Stufen: fehlt eine Spalte, fällt die Query auf die jeweils ärmere Variante zurück
+  // (sonst zeigt der Admin bei „ganze Gruppen"-Links fälschlich „0 Produkte").
+  let res = await lade(`${basis}, scope_bereich_ids, begleit_nachricht`)
+  if (res.error) res = await lade(`${basis}, scope_bereich_ids`)
   if (res.error) res = await lade(basis)
   return (res.data ?? []) as unknown as {
     id: string
@@ -94,6 +95,7 @@ async function getAktiveTokens(projektId: string) {
     scope_typ: 'projekt' | 'raum' | 'auswahl' | null
     scope_ids: string[] | null
     scope_bereich_ids: string[] | null
+    begleit_nachricht: string | null
     created_at: string
   }[]
 }

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft, Plus, Minus, StickyNote, Maximize2, Boxes } from 'lucide-react'
+import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft, Plus, Minus, StickyNote, Maximize2, Boxes, MessageSquare } from 'lucide-react'
 import { freigabeBearbeitungMarkieren, type FreigabeEntscheidung, type FreigabeBlockNotiz } from '@/app/actions/freigaben'
 import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus, Branding } from '@/lib/supabase/types'
 import { dedupeBundleKomponenten } from '@/lib/freigabe-baum'
@@ -79,6 +79,8 @@ interface Props {
   branding?: Branding | null
   // Pflicht-Abschluss (Migration 081)
   scopeBeschreibung?: string
+  /** Optionale Nachricht des Admins an den Kunden (Migration 136). */
+  begleitNachricht?: string | null
   bereitsAbgeschlossen?: boolean
   abgeschlossenDurch?: string | null
   /** Admin-Vorschau zum Testen: kein Live-Schreiben, kein Absenden, kein Entwurf. */
@@ -132,6 +134,7 @@ export default function FreigabeClient({
   mwst = MWST_DEFAULT,
   branding,
   scopeBeschreibung,
+  begleitNachricht = null,
   bereitsAbgeschlossen = false,
   abgeschlossenDurch = null,
   vorschau = false,
@@ -805,6 +808,22 @@ export default function FreigabeClient({
 
       {/* ── Inhalt ────────────────────────────────────────────── */}
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
+
+        {/* Nachricht des Designers an den Kunden (Admin→Kunde, Migration 136) */}
+        {begleitNachricht && begleitNachricht.trim() && (
+          <div
+            className="flex items-start gap-2.5 rounded-2xl px-5 py-4 mb-5 shadow-sm"
+            style={{ backgroundColor: `${prim}14`, border: `1px solid ${prim}33` }}
+          >
+            <MessageSquare className="w-4 h-4 shrink-0 mt-0.5" style={{ color: prim }} />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: prim }}>
+                Nachricht von {firmenname}
+              </p>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line break-words">{begleitNachricht}</p>
+            </div>
+          </div>
+        )}
 
         {/* Entwurf-Hinweis: nichts wird gesendet, bis final abgesendet wird */}
         <div className="flex items-start gap-2 bg-amber-50/70 border border-amber-200 text-amber-800 rounded-xl px-4 py-2.5 mb-5 text-xs leading-relaxed">

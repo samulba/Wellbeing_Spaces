@@ -86,6 +86,7 @@ export async function freigabeTokenErstellen(
   scopeTyp: FreigabeScopeTyp = 'projekt',
   scopeIds: string[] = [],
   bereichIds: string[] = [],
+  begleitNachricht?: string,
 ): Promise<{ token: string } | { fehler: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
@@ -121,12 +122,21 @@ export async function freigabeTokenErstellen(
     scope_ids: finaleScopeIds,
   }
   if (bereichIds.length > 0) insertData.scope_bereich_ids = bereichIds
+  const msg = begleitNachricht?.trim()
+  if (msg) insertData.begleit_nachricht = msg
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('freigabe_tokens')
     .insert(insertData)
     .select('token')
     .single()
+  // Fail-safe: fehlt die Spalte begleit_nachricht (Mig 136 nicht eingespielt),
+  // den Link OHNE die Nachricht erneut anlegen — Link-Erstellung darf NIE blockieren.
+  if (error && 'begleit_nachricht' in insertData &&
+      (error.code === '42703' || error.message?.includes('begleit_nachricht'))) {
+    delete insertData.begleit_nachricht
+    ;({ data, error } = await supabase.from('freigabe_tokens').insert(insertData).select('token').single())
+  }
 
   if (error || !data) {
     if (error?.code === '23505') {
@@ -151,6 +161,33 @@ export async function freigabeTokenErstellen(
   try { await autoProjektStatusVorwaerts(projektId, 'freigegeben') } catch {}
 
   return { token: data.token }
+}
+
+/**
+ * Ändert die Begleit-Nachricht (Admin→Kunde) eines bestehenden Freigabe-Links.
+ * Leerer Text → NULL (Nachricht entfernen). org-scoped.
+ */
+export async function freigabeNachrichtAktualisieren(
+  tokenId: string,
+  projektId: string,
+  text: string,
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const wert = text.trim() || null
+  const { error } = await supabase
+    .from('freigabe_tokens')
+    .update({ begleit_nachricht: wert })
+    .eq('id', tokenId)
+    .eq('organisation_id', orgId)
+  if (error) {
+    if (error.code === '42703' || error.message?.includes('begleit_nachricht')) {
+      return { fehler: 'Migration 136 scheint zu fehlen (begleit_nachricht-Spalte). Bitte im Supabase SQL-Editor ausführen.' }
+    }
+    return { fehler: error.message }
+  }
+  revalidatePath(`/dashboard/projekte/${projektId}`)
+  return {}
 }
 
 /**

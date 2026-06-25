@@ -108,6 +108,18 @@ export default async function FreigabePage({ params, searchParams }: Props) {
       .maybeSingle()
     scopeBereichIds = ((sbData?.scope_bereich_ids as string[] | null) ?? [])
   }
+  // Begleit-Nachricht (Admin→Kunde, Migration 136) separat fail-safe nachladen — NICHT in
+  // die Kern-Token-Query (die hat keinen Fallback und würde bei fehlender Spalte die ganze
+  // Seite brechen).
+  let begleitNachricht: string | null = null
+  {
+    const { data: bnData } = await supabase
+      .from('freigabe_tokens')
+      .select('begleit_nachricht')
+      .eq('id', tokenData.id)
+      .maybeSingle()
+    begleitNachricht = ((bnData?.begleit_nachricht as string | null) ?? null)
+  }
   // Auswahl-Links sind beim Erstellen EINGEFROREN: scope_ids ist die feste,
   // selbsttragende Produktliste → es wird IMMER der stabile .in('id', scopeIds)-Pfad
   // genutzt, sobald scope_ids gesetzt ist. Die dynamische Bereich-Auflösung greift nur
@@ -370,6 +382,7 @@ export default async function FreigabePage({ params, searchParams }: Props) {
       mwst={mwst}
       branding={branding}
       scopeBeschreibung={scopeBeschreibung}
+      begleitNachricht={begleitNachricht}
       bereitsAbgeschlossen={vorschau ? false : tokenData.abgeschlossen_am != null}
       abgeschlossenDurch={tokenData.abgeschlossen_durch}
       vorschau={vorschau}

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { tokenDeaktivieren, tokenErneuern } from '@/app/actions/freigabe-token'
 import {
   freigabeTokenErstellen,
+  freigabeNachrichtAktualisieren,
   freigabeScopeOptionenLaden,
   freigabeTokenLoeschen,
   type ScopeOptionenRaum,
@@ -11,7 +12,7 @@ import {
 import { pinSetzen } from '@/app/actions/projekte'
 import {
   RefreshCw, Clock, Lock, LockOpen, Copy, Check, Eye, EyeOff,
-  Share2, Layers, Home, ListChecks, Plus, Trash2, AlertTriangle,
+  Share2, Layers, Home, ListChecks, Plus, Trash2, AlertTriangle, MessageSquare,
 } from 'lucide-react'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import type { FreigabeScopeTyp } from '@/lib/supabase/types'
@@ -23,6 +24,7 @@ type TokenData = {
   scope_typ:   FreigabeScopeTyp | null
   scope_ids:   string[] | null
   scope_bereich_ids?: string[] | null
+  begleit_nachricht?: string | null
   created_at:  string
 }
 
@@ -100,6 +102,12 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
   const [scopeOptionen, setScopeOptionen]       = useState<ScopeOptionenRaum[] | null>(null)
   const [scopeFehler, setScopeFehler]           = useState<string | null>(null)
   const [erstellenFehler, setErstellenFehler]   = useState<string | null>(null)
+  const [begleitNachricht, setBegleitNachricht] = useState('')
+  const [nachrichtOffen, setNachrichtOffen]     = useState(false)
+
+  // Nachträgliches Bearbeiten der Nachricht eines bestehenden Links
+  const [nachrichtEditId, setNachrichtEditId]   = useState<string | null>(null)
+  const [nachrichtEntwurf, setNachrichtEntwurf] = useState('')
 
   async function scopeOptionenLadenWennNoetig(neuerTyp: FreigabeScopeTyp) {
     if (neuerTyp === 'projekt' || scopeOptionen !== null) return
@@ -144,8 +152,9 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
     }
     setScopeFehler(null)
 
+    const nachricht = begleitNachricht.trim()
     startTransition(async () => {
-      const result = await freigabeTokenErstellen(projektId, scopeTyp, scopeIds, bereichIds)
+      const result = await freigabeTokenErstellen(projektId, scopeTyp, scopeIds, bereichIds, nachricht || undefined)
       if ('token' in result) {
         const neu: TokenData = {
           id:          '',
@@ -154,6 +163,7 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
           scope_typ:   scopeTyp,
           scope_ids:   scopeIds,
           scope_bereich_ids: bereichIds,
+          begleit_nachricht: nachricht || null,
           created_at:  new Date().toISOString(),
         }
         setTokens((prev) => [neu, ...prev])
@@ -161,10 +171,24 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
         setScopeRaumId('')
         setScopeItemIds([])
         setScopeBereichIds([])
+        setBegleitNachricht('')
+        setNachrichtOffen(false)
         showToast('✓ Freigabelink erstellt')
       } else {
         setErstellenFehler(result.fehler)
       }
+    })
+  }
+
+  function handleNachrichtSpeichern(t: TokenData) {
+    const text = nachrichtEntwurf
+    const vorher = tokens
+    setTokens((prev) => prev.map((x) => (x.id === t.id ? { ...x, begleit_nachricht: text.trim() || null } : x)))
+    setNachrichtEditId(null)
+    startTransition(async () => {
+      const res = await freigabeNachrichtAktualisieren(t.id, projektId, text)
+      if (res?.fehler) { setTokens(vorher); showToast(res.fehler) }
+      else showToast('✓ Nachricht gespeichert')
     })
   }
 
@@ -318,6 +342,12 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
                       </span>
                     )}
                   </div>
+                  {t.begleit_nachricht && nachrichtEditId !== t.id && (
+                    <p className="flex items-start gap-1.5 mb-2 text-[11px] text-gray-500">
+                      <MessageSquare className="w-3 h-3 shrink-0 mt-0.5 text-wellbeing-green" />
+                      <span className="line-clamp-2 whitespace-pre-line">{t.begleit_nachricht}</span>
+                    </p>
+                  )}
                   {t.scope_typ === 'auswahl' && (t.scope_ids?.length ?? 0) === 0 && (t.scope_bereich_ids?.length ?? 0) === 0 && (
                     <div className="flex items-start gap-1.5 mb-2 text-[11px] text-red-600 bg-red-50 border border-red-100 rounded-md px-2 py-1.5">
                       <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
@@ -361,6 +391,14 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
                           Erneuern
                         </button>
                         <button
+                          onClick={() => { setNachrichtEditId(t.id); setNachrichtEntwurf(t.begleit_nachricht ?? '') }}
+                          disabled={isPending}
+                          className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-wellbeing-green transition-colors"
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                          {t.begleit_nachricht ? 'Nachricht ändern' : 'Nachricht'}
+                        </button>
+                        <button
                           onClick={() => setConfirmDeaktivId(t.id)}
                           disabled={isPending}
                           title="Link ungültig machen (bleibt im Archiv)"
@@ -381,6 +419,37 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
                       </>
                     )}
                   </div>
+                  {/* Inline-Editor für die Kunden-Nachricht */}
+                  {nachrichtEditId === t.id && (
+                    <div className="mt-2.5 border-t border-gray-100 pt-2.5">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                        <MessageSquare className="w-3 h-3" /> Nachricht an den Kunden
+                      </label>
+                      <textarea
+                        autoFocus
+                        rows={3}
+                        value={nachrichtEntwurf}
+                        onChange={(e) => setNachrichtEntwurf(e.target.value)}
+                        placeholder="z. B. „Bitte achtet besonders auf die Couch-Farbe…“"
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none"
+                      />
+                      <div className="flex items-center gap-2 mt-2">
+                        <button
+                          onClick={() => handleNachrichtSpeichern(t)}
+                          disabled={isPending}
+                          className="px-3 py-1.5 text-[11px] font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          Speichern
+                        </button>
+                        <button
+                          onClick={() => setNachrichtEditId(null)}
+                          className="px-3 py-1.5 text-[11px] font-medium text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg transition-colors"
+                        >
+                          Abbrechen
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </li>
               )
             })}
@@ -507,6 +576,33 @@ export default function FreigabeLinkKarte({ projektId, initialTokens, raeume, in
 
           {scopeFehler && <p className="text-xs text-red-500 mb-3">{scopeFehler}</p>}
           {erstellenFehler && <p className="text-xs text-red-500 mb-3">{erstellenFehler}</p>}
+
+          {/* Optionale Nachricht an den Kunden (Admin→Kunde) */}
+          <div className="mb-4">
+            {!nachrichtOffen && !begleitNachricht ? (
+              <button
+                type="button"
+                onClick={() => setNachrichtOffen(true)}
+                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-gray-500 hover:text-wellbeing-green transition-colors"
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> Nachricht an den Kunden hinzufügen (optional)
+              </button>
+            ) : (
+              <>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <MessageSquare className="w-3 h-3" /> Nachricht an den Kunden <span className="font-normal normal-case tracking-normal">(optional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={begleitNachricht}
+                  onChange={(e) => setBegleitNachricht(e.target.value)}
+                  placeholder="z. B. „Bitte achtet besonders auf die Couch-Farbe und gebt uns Bescheid, ob die Maße passen.“"
+                  className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Wird dem Kunden oben im Freigabelink angezeigt.</p>
+              </>
+            )}
+          </div>
 
           <button
             onClick={handleGenerieren}
