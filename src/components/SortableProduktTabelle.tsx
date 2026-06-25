@@ -40,6 +40,7 @@ import {
   produktGruppeAnlegen,
   produktGruppeUmbenennen,
   produktGruppeLoeschen,
+  produktGruppeKundennotizLoeschen,
   raumProduktZuGruppeZuordnen,
 } from '@/app/actions/produkt-gruppen'
 import {
@@ -985,6 +986,7 @@ function ProduktGruppeHeader({
   hatFavorit,
   onRename,
   onDelete,
+  onKundennotizLoeschen,
   bereiche,
   onBereichChange,
   alleMarkiert,
@@ -996,6 +998,7 @@ function ProduktGruppeHeader({
   hatFavorit: boolean
   onRename: (name: string) => void
   onDelete: () => void
+  onKundennotizLoeschen: () => void
   bereiche: ProduktBereich[]
   onBereichChange: (bereichId: string | null) => void
   alleMarkiert: boolean
@@ -1005,6 +1008,7 @@ function ProduktGruppeHeader({
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(gruppe.name)
   const [confirm, setConfirm] = useState(false)
+  const [confirmNotiz, setConfirmNotiz] = useState(false)
 
   function commit() {
     setEditing(false)
@@ -1083,6 +1087,15 @@ function ProduktGruppeHeader({
               <p className="text-[10px] font-semibold uppercase tracking-widest text-wellbeing-terracotta/80 mb-0.5">Kundennotiz</p>
               <p className="text-[12px] leading-snug text-wellbeing-green-dark whitespace-pre-line break-words">{gruppe.kunde_notiz}</p>
             </div>
+            <button
+              type="button"
+              onClick={() => setConfirmNotiz(true)}
+              aria-label="Kundennotiz löschen"
+              title="Kundennotiz löschen"
+              className="ml-auto shrink-0 p-1 text-wellbeing-terracotta/50 hover:text-red-500 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
         <ConfirmModal
@@ -1092,6 +1105,15 @@ function ProduktGruppeHeader({
           title="Auswahl-Block löschen?"
           message={`Der Auswahl-Block „${gruppe.name}" wird gelöscht. Die Produkte bleiben im Raum, verlieren aber ihre Block- und Favoriten-Markierung.`}
           confirmText="Löschen"
+        />
+        <ConfirmModal
+          isOpen={confirmNotiz}
+          onClose={() => setConfirmNotiz(false)}
+          onConfirm={() => { setConfirmNotiz(false); onKundennotizLoeschen() }}
+          title="Kundennotiz löschen?"
+          message="Die Notiz des Kunden zu diesem Auswahl-Block wird entfernt. Die Produkte und ihr Freigabe-Status bleiben unverändert."
+          confirmText="Löschen"
+          variant="danger"
         />
       </td>
     </tr>
@@ -1617,6 +1639,15 @@ export default function SortableProduktTabelle({
     })
   }
 
+  function gruppeKundennotizLoeschen(gruppeId: string) {
+    const vorher = gruppen
+    setGruppen((prev) => prev.map((g) => (g.id === gruppeId ? { ...g, kunde_notiz: null } : g)))
+    startTransition(async () => {
+      const res = await produktGruppeKundennotizLoeschen(gruppeId, projektId, raumId)
+      if (res?.fehler) { setGruppen(vorher); setFehlerToast('Notiz löschen fehlgeschlagen.'); setTimeout(() => setFehlerToast(null), 4000) }
+    })
+  }
+
   // ── Bereiche / "Gruppen" (Migration 116) ──────────────────────
   async function handleBlockBereichChange(gruppeId: string, bereichId: string | null) {
     const vorher = gruppen
@@ -1807,6 +1838,7 @@ export default function SortableProduktTabelle({
             hatFavorit={rows.some((r) => r.admin_favorit)}
             onRename={(n) => gruppeUmbenennen(g.id, n)}
             onDelete={() => gruppeLoeschen(g.id)}
+            onKundennotizLoeschen={() => gruppeKundennotizLoeschen(g.id)}
             bereiche={sortierteBereiche}
             onBereichChange={(bid) => handleBlockBereichChange(g.id, bid)}
             alleMarkiert={alle}

@@ -13,6 +13,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 import { freigabeZuruecksetzenAdmin, freigabeBulkStatusAendernAdmin, freigabeProdukteEntfernenAdmin } from '@/app/actions/freigabe'
+import { produktGruppeKundennotizLoeschen } from '@/app/actions/produkt-gruppen'
 import { stempelText } from '@/lib/freigabe-stempel'
 import Checkbox from '@/components/Checkbox'
 import ConfirmModal from '@/components/ConfirmModal'
@@ -279,7 +280,7 @@ function InfoZeile({ label, children }: { label: string; children: React.ReactNo
 }
 
 // ── Kundennotiz/-wunsch Karte (geteilter Stil mit SortableProduktTabelle) ──
-function KundenNotizKarte({ label, text }: { label: string; text: string }) {
+function KundenNotizKarte({ label, text, onDelete }: { label: string; text: string; onDelete?: () => void }) {
   return (
     <div className="mt-1.5 flex items-start gap-2 rounded-lg border border-wellbeing-terracotta/25 bg-wellbeing-cream/60 px-2.5 py-1.5" role="note">
       <MessageSquareQuote className="w-3.5 h-3.5 text-wellbeing-terracotta shrink-0 mt-0.5" />
@@ -287,6 +288,17 @@ function KundenNotizKarte({ label, text }: { label: string; text: string }) {
         <p className="text-[10px] font-semibold uppercase tracking-widest text-wellbeing-terracotta/80">{label}</p>
         <p className="text-[12px] leading-snug text-wellbeing-green-dark whitespace-pre-line break-words">{text}</p>
       </div>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={`${label} löschen`}
+          title={`${label} löschen`}
+          className="ml-auto shrink-0 p-1 text-wellbeing-terracotta/50 hover:text-red-500 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   )
 }
@@ -433,6 +445,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
   const [bulkToast, setBulkToast]        = useState<string | null>(null)
   const [feedOffen, setFeedOffen]        = useState(true)
   const [loeschTarget, setLoeschTarget]  = useState<{ ids: string[]; single: boolean } | null>(null)
+  const [notizTarget, setNotizTarget]    = useState<{ blockId: string; blockName: string } | null>(null)
   const [isPending, startTransition]     = useTransition()
   const router                           = useRouter()
 
@@ -525,6 +538,18 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
         showBulkToast(res.fehler ?? 'Löschen fehlgeschlagen')
       }
       setLoeschTarget(null)
+      router.refresh()
+    })
+  }
+
+  // Nur die Kunden-Sammelnotiz eines Auswahl-Blocks löschen (Status/Produkte bleiben).
+  function handleNotizLoeschen() {
+    const t = notizTarget
+    if (!t) return
+    startTransition(async () => {
+      const res = await produktGruppeKundennotizLoeschen(t.blockId)
+      showBulkToast(res.fehler ?? 'Kundennotiz gelöscht')
+      setNotizTarget(null)
       router.refresh()
     })
   }
@@ -756,7 +781,11 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
           </span>
         </div>
         {bl.kundeNotiz && bl.kundeNotiz.trim() && (
-          <KundenNotizKarte label="Kundennotiz" text={bl.kundeNotiz} />
+          <KundenNotizKarte
+            label="Kundennotiz"
+            text={bl.kundeNotiz}
+            onDelete={() => setNotizTarget({ blockId: bl.blockId, blockName: bl.blockName })}
+          />
         )}
         <ul className="mt-1.5 bg-white rounded-lg border border-gray-100 divide-y divide-gray-50 overflow-hidden">
           {bl.members.map((e) => produktZeile(e, false))}
@@ -1126,6 +1155,16 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
           title={loeschTarget?.single ? 'Produkt entfernen?' : `${loeschTarget?.ids.length ?? 0} Produkte entfernen?`}
           message="Die Produkt-Verknüpfung wird endgültig aus dem Raum entfernt (das Produkt bleibt in der Bibliothek). Freigabe-Status und -Verlauf dieser Einträge gehen dabei verloren."
           confirmText="Entfernen"
+          isLoading={isPending}
+        />
+        <ConfirmModal
+          isOpen={!!notizTarget}
+          onClose={() => setNotizTarget(null)}
+          onConfirm={handleNotizLoeschen}
+          variant="danger"
+          title="Kundennotiz löschen?"
+          message={`Die Notiz des Kunden zum Block „${notizTarget?.blockName ?? ''}" wird entfernt. Die Produkte und ihr Freigabe-Status bleiben unverändert.`}
+          confirmText="Löschen"
           isLoading={isPending}
         />
       </div>

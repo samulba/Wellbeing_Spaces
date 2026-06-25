@@ -251,6 +251,14 @@ export async function projektKundenEntscheidungenZuruecksetzen(
     .in('raum_id', raumIds)
     .eq('organisation_id', orgId)
   if (error) return { fehler: 'Zurücksetzen fehlgeschlagen. Bitte erneut versuchen.' }
+  // Block-Sammelnotizen des Kunden gehören zur „Entscheidung" → ebenfalls leeren.
+  // Fehler bewusst ignorieren: fehlt die kunde_notiz-Spalte (vor Mig 119), bleibt der
+  // raum_produkte-Reset gültig.
+  await supabase
+    .from('produkt_gruppen')
+    .update({ kunde_notiz: null })
+    .in('raum_id', raumIds)
+    .eq('organisation_id', orgId)
   revalidatePath(`/dashboard/projekte/${projektId}`)
   return {}
 }

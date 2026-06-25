@@ -109,6 +109,30 @@ export async function produktGruppeLoeschen(
   return {}
 }
 
+/**
+ * Löscht NUR die Kunden-Sammelnotiz eines Auswahl-Blocks (`produkt_gruppen.kunde_notiz`).
+ * Block + Produkt-Entscheidungen bleiben unangetastet — für „Notiz auf Wunsch entfernen",
+ * unabhängig vom Freigabe-Status. org-scoped. projektId/raumId optional (für die Revalidierung
+ * der Raum-Tabelle); aus der Freigaben-Übersicht genügt der Pfad + Client-`router.refresh()`.
+ */
+export async function produktGruppeKundennotizLoeschen(
+  gruppeId: string,
+  projektId?: string,
+  raumId?: string,
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('produkt_gruppen')
+    .update({ kunde_notiz: null })
+    .eq('id', gruppeId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: error.message }
+  revalidatePath('/dashboard/freigaben')
+  if (projektId && raumId) revalidatePath(pfad(projektId, raumId))
+  return {}
+}
+
 /** Produkt einer Gruppe zuordnen (oder mit null entfernen). Gruppenwechsel
  *  setzt die Favoriten-Flags der Zeile zurück. Beim Zuordnen zu einem Block
  *  übernimmt das Produkt den Bereich des Blocks (Single Source of Truth) —

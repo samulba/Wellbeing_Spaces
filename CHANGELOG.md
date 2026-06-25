@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-06-25
+
+### Freigaben – Kundennotiz löschen
+- Die **Kundennotiz** zu einem Auswahl-Block (die Sammelnotiz, die der Kunde im Freigabe-Link schreibt) lässt sich jetzt **gezielt löschen** – über einen Papierkorb direkt an der Notiz, sowohl in der Raum-Produktliste als auch in der Freigaben-Übersicht. Vorher blieb sie beim Zurücksetzen einer Entscheidung stehen und konnte nicht entfernt werden.
+- **„Alle Kundenentscheidungen zurücksetzen"** löscht ab jetzt auch diese Block-Notizen mit – so ist nach dem Zurücksetzen wirklich alles vom Kunden leer.
+
 ## 2026-06-24
 
 ### Freigabe-Link – Raum-Link zeigte „keine Produkte"
