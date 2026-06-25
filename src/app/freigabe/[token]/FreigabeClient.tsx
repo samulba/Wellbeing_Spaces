@@ -946,10 +946,12 @@ export default function FreigabeClient({
                     den Auswahl-Blöcken („mehrere möglich") als Gruppe abgegrenzt. */}
                 {aktiveProdukte.length > 0 && (
                   <div className="border border-gray-200 bg-white rounded-2xl overflow-hidden shadow-sm">
-                    <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/60 flex items-center gap-2">
-                      <Package className="w-4 h-4 shrink-0" style={{ color: prim }} />
-                      <h3 className="text-sm font-semibold text-gray-900">Produkte</h3>
-                      <span className="text-[11px] text-gray-400 ml-auto hidden sm:inline">Bitte einzeln freigeben oder ablehnen</span>
+                    <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/60">
+                      <div className="flex items-center gap-2">
+                        <Package className="w-4 h-4 shrink-0 text-gray-400" />
+                        <h3 className="text-sm font-semibold text-gray-900">Einzelne Produkte</h3>
+                      </div>
+                      <p className="text-[12px] text-gray-500 mt-0.5">Bitte jedes Produkt einzeln freigeben oder ablehnen.</p>
                     </div>
                     <div className="divide-y divide-gray-100">
                       {aktiveProdukte.map((p) => (
@@ -1160,13 +1162,14 @@ function ProduktZeile({
           title={istFrei ? 'Freigabe zurücknehmen' : 'Freigeben'}
           className="flex items-start gap-2.5 flex-1 min-w-0 text-left disabled:opacity-60"
         >
-          <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${istFrei ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'}`}>
-            {istFrei && <Check className="w-3 h-3 text-white" />}
+          <span className={`inline-flex items-center gap-1 shrink-0 mt-0.5 px-2 py-1 rounded-lg border text-[11px] font-semibold transition-colors ${istFrei ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 text-gray-600 bg-white hover:border-emerald-300'}`}>
+            {istFrei && <Check className="w-3 h-3" />}
+            {istFrei ? 'Freigegeben' : 'Freigeben'}
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-sm font-semibold text-gray-900">{produkt.name}</span>
-              {statusBadge && (
+              {statusBadge && status !== 'freigegeben' && (
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${statusBadge.cls}`}>{statusBadge.label}</span>
               )}
             </div>
@@ -1517,20 +1520,23 @@ function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onTo
   const [lightboxBild, setLightboxBild] = useState<{ src: string; alt: string } | null>(null)
 
   return (
-    <div className="border border-gray-200 bg-white rounded-2xl overflow-hidden shadow-sm">
-      <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60">
-        <div className="flex items-start justify-between gap-3">
+    <div className="border border-gray-200 bg-white rounded-2xl overflow-hidden shadow-sm" style={{ borderLeftWidth: '4px', borderLeftColor: prim }}>
+      <div className="px-5 py-3" style={{ backgroundColor: `${prim}0d`, borderBottom: `1px solid ${prim}22` }}>
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full mb-1" style={{ backgroundColor: `${prim}1a`, color: prim }}>
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: prim }}>
               <ListChecks className="w-3 h-3" /> Auswahl
             </span>
-            <h3 className="text-sm font-semibold text-gray-900">{gruppe.name}</h3>
-            {gruppe.beschreibung && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{gruppe.beschreibung}</p>}
+            <h3 className="text-sm font-semibold text-gray-900 mt-1">{gruppe.name}</h3>
           </div>
           {gruppe.produkte.length > 1 && (
             <span className="text-[11px] font-medium shrink-0 mt-0.5" style={{ color: prim }}>Mehrere möglich</span>
           )}
         </div>
+        <p className="text-[12px] font-medium mt-1" style={{ color: prim }}>
+          {gruppe.produkte.length > 1 ? 'Bitte wählen Sie eine oder mehrere Varianten.' : 'Bitte bestätigen Sie Ihre Wahl.'}
+        </p>
+        {gruppe.beschreibung && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{gruppe.beschreibung}</p>}
       </div>
 
       <div className="divide-y divide-gray-100">

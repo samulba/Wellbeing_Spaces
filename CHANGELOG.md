@@ -10,7 +10,7 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ### Freigabelink – einheitliche, übersichtliche Darstellung
 - Im Freigabelink werden jetzt **alle Produkte einheitlich kompakt** angezeigt (statt große Karten mit drei Buttons): **anhaken = freigeben**, „Ablehnen" und „Alternative" bleiben als kleine Aktion direkt an der Zeile (mit Kommentarfeld). Auch **Sets** erscheinen kompakt (ein Haken fürs ganze Set, Inhalt aufklappbar).
-- **Gruppen und Auswahl-Blöcke** bleiben klar unterscheidbar: Auswahl-Blöcke (eine von mehreren Alternativen) tragen ein „Auswahl"-Etikett, normale Produkte stehen in einer „Produkte"-Liste mit dem Hinweis „bitte einzeln freigeben oder ablehnen".
+- **Auswahl-Blöcke** (wo der Kunde zwischen Varianten **wählt**) heben sich jetzt **deutlich** ab: markenfarbener Kopf, Akzent-Rahmen und die klare Anweisung „Bitte wählen Sie eine oder mehrere Varianten". **Einzelne Produkte** (nur freigeben/ablehnen) stehen schlicht/neutral in einer „Einzelne Produkte"-Liste mit „Bitte jedes Produkt einzeln freigeben oder ablehnen" — und der Haken trägt jetzt das Label „Freigeben"/„Freigegeben". So ist auf einen Blick klar, wo man wählt und wo es nur Ja/Nein ist.
 
 ### Räume umbenennen
 - Räume lassen sich jetzt **direkt in der Raumliste umbenennen** (Stift-Symbol beim Überfahren) — vorher ging das gar nicht.
