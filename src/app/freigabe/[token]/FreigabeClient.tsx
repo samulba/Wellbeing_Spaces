@@ -942,21 +942,34 @@ export default function FreigabeClient({
                     onNotiz={(t) => setBlockNotiz(g.id, t)}
                   />
                 ))}
-                {aktiveProdukte.map((p) => (
-                  <ProduktKarte
-                    key={p.id}
-                    produkt={p}
-                    produktState={state[p.id]}
-                    isPending={isPending}
-                    mwst={mwst}
-                    onFreigeben={() => speichereStatus(p.id, 'freigegeben')}
-                    onAktionWaehlen={(a) => setAktion(p.id, a)}
-                    onKommentarChange={(t) => setKommentarEingabe(p.id, t)}
-                    onSpeichern={(s) => speichereStatus(p.id, s, state[p.id].kommentarEingabe)}
-                    onAbbrechen={() => setAktion(p.id, null)}
-                    onMengeChange={(n) => setMenge(p.id, n)}
-                  />
-                ))}
+                {/* Lose Produkte einer Gruppe: EINE kompakte Liste (Checkbox-Stil), klar von
+                    den Auswahl-Blöcken („mehrere möglich") als Gruppe abgegrenzt. */}
+                {aktiveProdukte.length > 0 && (
+                  <div className="border border-gray-200 bg-white rounded-2xl overflow-hidden shadow-sm">
+                    <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/60 flex items-center gap-2">
+                      <Package className="w-4 h-4 shrink-0" style={{ color: prim }} />
+                      <h3 className="text-sm font-semibold text-gray-900">Produkte</h3>
+                      <span className="text-[11px] text-gray-400 ml-auto hidden sm:inline">Bitte einzeln freigeben oder ablehnen</span>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {aktiveProdukte.map((p) => (
+                        <ProduktZeile
+                          key={p.id}
+                          produkt={p}
+                          produktState={state[p.id]}
+                          isPending={isPending}
+                          mwst={mwst}
+                          onFreigeben={() => speichereStatus(p.id, 'freigegeben')}
+                          onAktionWaehlen={(a) => setAktion(p.id, a)}
+                          onKommentarChange={(t) => setKommentarEingabe(p.id, t)}
+                          onSpeichern={(s) => speichereStatus(p.id, s, state[p.id].kommentarEingabe)}
+                          onAbbrechen={() => setAktion(p.id, null)}
+                          onMengeChange={(n) => setMenge(p.id, n)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               {/* Bereich-Pager (innerhalb des Raums) */}
               {sichtbareBereiche.length > 1 && (
@@ -1088,234 +1101,188 @@ interface ProduktKarteProps {
   onMengeChange: (n: number) => void
 }
 
-function ProduktKarte({
+// Kompakte Produktzeile (lose Produkte / Gruppen). Checkbox = freigeben;
+// „Ablehnen"/„Alternative" bleiben als kompakte Aktion pro Zeile mit Kommentarfeld.
+// Props + Handler IDENTISCH zur früheren ProduktKarte → Status-/Gate-/Review-Logik unverändert.
+function ProduktZeile({
   produkt, produktState, isPending, mwst,
   onFreigeben, onAktionWaehlen, onKommentarChange, onSpeichern, onAbbrechen, onMengeChange,
 }: ProduktKarteProps) {
   const { status, aktiveAktion, kommentarEingabe, kommentar } = produktState
   const menge = produktState.menge ?? produkt.menge
-  const [detailOffen, setDetailOffen] = useState(false)
   const [bildGross, setBildGross] = useState(false)
+  const [detailOffen, setDetailOffen] = useState(false)
 
-  const vpBrutto      = r2((produkt.verkaufspreis ?? 0) * (1 + mwst))
-  const gesamtBrutto  = r2(vpBrutto * menge)
+  const vpBrutto     = r2((produkt.verkaufspreis ?? 0) * (1 + mwst))
+  const gesamtBrutto = r2(vpBrutto * menge)
+  const istFrei = status === 'freigegeben'
 
-  const statusCfg = {
-    ausstehend:     { rand: 'border-gray-200',    bg: 'bg-white',      badgeCls: 'bg-gray-100 text-gray-500',       ribbon: 'bg-gray-500',    label: 'Ausstehend' },
-    freigegeben:    { rand: 'border-emerald-300', bg: 'bg-emerald-50', badgeCls: 'bg-emerald-100 text-emerald-700', ribbon: 'bg-emerald-600', label: 'Freigegeben' },
-    abgelehnt:      { rand: 'border-red-300',     bg: 'bg-red-50',     badgeCls: 'bg-red-100 text-red-600',         ribbon: 'bg-red-600',     label: 'Abgelehnt' },
-    ueberarbeitung: { rand: 'border-amber-300',   bg: 'bg-amber-50',   badgeCls: 'bg-amber-100 text-amber-700',     ribbon: 'bg-amber-500',   label: 'Überarbeitung' },
-  }
-  const cfg = statusCfg[status] ?? statusCfg.ausstehend
-  const entschieden = status !== 'ausstehend'
-  const RibbonIcon = status === 'freigegeben' ? Check : status === 'abgelehnt' ? X : RefreshCw
+  const tint =
+    status === 'freigegeben'    ? 'bg-emerald-50/50'
+      : status === 'abgelehnt'      ? 'bg-red-50/40'
+      : status === 'ueberarbeitung' ? 'bg-amber-50/40'
+      : ''
+  const statusBadge =
+    status === 'freigegeben'    ? { cls: 'bg-emerald-100 text-emerald-700', label: 'Freigegeben' }
+      : status === 'abgelehnt'      ? { cls: 'bg-red-100 text-red-600',         label: 'Abgelehnt' }
+      : status === 'ueberarbeitung' ? { cls: 'bg-amber-100 text-amber-700',     label: 'Änderung gewünscht' }
+      : null
 
   return (
-    <div className={`${entschieden ? 'border-2 shadow-md' : 'border shadow-sm'} ${cfg.rand} ${cfg.bg} rounded-2xl overflow-hidden transition-all`}>
+    <div className={`px-4 py-3.5 transition-colors ${tint}`}>
+      <div className="flex items-start gap-3">
+        {/* Thumbnail (klickbar → Vorschau) */}
+        <button
+          type="button"
+          disabled={!produkt.bild_url}
+          onClick={() => produkt.bild_url && setBildGross(true)}
+          aria-label="Bild vergrößern"
+          className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 shrink-0 relative group cursor-zoom-in disabled:cursor-default"
+        >
+          {produkt.bild_url ? (
+            <>
+              <Image src={produkt.bild_url} alt={produkt.name} width={64} height={64} className="w-full h-full object-cover" unoptimized />
+              <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-colors">
+                <Maximize2 className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </span>
+            </>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-gray-300" /></div>
+          )}
+        </button>
 
-      {/* ── Produktbild (groß, oben — klickbar für Vorschau) ── */}
-      <button
-        type="button"
-        onClick={() => produkt.bild_url && setBildGross(true)}
-        disabled={!produkt.bild_url}
-        aria-label="Bild vergrößern"
-        className="group relative w-full aspect-[16/9] sm:aspect-[2/1] overflow-hidden bg-gray-100 block cursor-zoom-in disabled:cursor-default"
-      >
-        {/* Status-Banner (deutlich sichtbar, sobald entschieden) */}
-        {entschieden && (
-          <span className={`pointer-events-none absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-md ${cfg.ribbon}`}>
-            <RibbonIcon className="w-3.5 h-3.5" />
-            {cfg.label}
+        {/* Checkbox (= freigeben) + Infos */}
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => (istFrei ? onSpeichern('ausstehend') : onFreigeben())}
+          aria-pressed={istFrei}
+          title={istFrei ? 'Freigabe zurücknehmen' : 'Freigeben'}
+          className="flex items-start gap-2.5 flex-1 min-w-0 text-left disabled:opacity-60"
+        >
+          <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${istFrei ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'}`}>
+            {istFrei && <Check className="w-3 h-3 text-white" />}
           </span>
-        )}
-        {produkt.bild_url ? (
-          <>
-            <Image
-              src={produkt.bild_url}
-              alt={produkt.name}
-              width={800}
-              height={400}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-              unoptimized
-            />
-            <span className="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1 text-[11px] font-medium text-white bg-black/45 backdrop-blur px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-              <Maximize2 className="w-3 h-3" /> Vergrößern
-            </span>
-          </>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Package className="w-10 h-10 text-gray-300" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-sm font-semibold text-gray-900">{produkt.name}</span>
+              {statusBadge && (
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${statusBadge.cls}`}>{statusBadge.label}</span>
+              )}
+            </div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              {produkt.kategorie ? `${produkt.kategorie} · ` : ''}Geplant: <span className="font-medium text-gray-600">{produkt.menge} {produkt.einheit}</span>
+            </div>
           </div>
-        )}
-      </button>
+        </button>
+
+        {/* Preis */}
+        <div className="text-right shrink-0">
+          {produkt.verkaufspreis != null ? (
+            <>
+              <p className="text-sm font-mono font-semibold text-gray-900">{eur(gesamtBrutto)}</p>
+              <p className="text-[10px] text-gray-400">{menge > 1 ? `${menge}× · ` : ''}inkl. MwSt</p>
+            </>
+          ) : (
+            <p className="text-xs text-gray-400">auf Anfrage</p>
+          )}
+        </div>
+      </div>
+
+      {/* Hinweis vom Designer */}
+      {produkt.hinweis && (
+        <div className="mt-2 pl-8"><HinweisBanner text={produkt.hinweis} /></div>
+      )}
+
+      {/* Beschreibung (einklappbar, kompakt) */}
+      {produkt.beschreibung && (
+        <button type="button" onClick={() => setDetailOffen((v) => !v)} className="w-full text-left mt-2 pl-8">
+          <div className={`text-xs text-gray-500 leading-relaxed overflow-hidden ${detailOffen ? '' : 'line-clamp-2'}`}>{produkt.beschreibung}</div>
+          {produkt.beschreibung.length > 120 && (
+            <span className="text-[11px] text-wellbeing-green inline-flex items-center gap-0.5 mt-0.5">
+              {detailOffen ? 'Weniger' : 'Mehr'}
+              <ChevronDown className={`w-3 h-3 transition-transform ${detailOffen ? 'rotate-180' : ''}`} />
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* Untere Zeile: Produktlink + Menge (wenn freigegeben) */}
+      {(produkt.produkt_url || istFrei) && (
+        <div className="flex items-center justify-between gap-3 mt-2.5 pl-8">
+          {produkt.produkt_url ? (
+            <a href={produkt.produkt_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-wellbeing-green hover:underline">
+              <ExternalLink className="w-3 h-3" /> Produktlink
+            </a>
+          ) : <span />}
+          {istFrei && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-gray-500">Menge</span>
+              <MengeStepper menge={menge} disabled={isPending} onChange={onMengeChange} />
+              <span className="text-[11px] text-gray-400">{produkt.einheit}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Aktionen: Ablehnen / Alternative (kompakt) ODER Kommentarfeld */}
+      {!aktiveAktion ? (
+        <div className="flex items-center gap-4 mt-2.5 pl-8 flex-wrap">
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => onAktionWaehlen('ablehnen')}
+            className={`inline-flex items-center gap-1 text-[11px] font-medium transition-colors ${status === 'abgelehnt' ? 'text-red-600' : 'text-gray-400 hover:text-red-600'}`}
+          >
+            <X className="w-3 h-3" /> Ablehnen
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => onAktionWaehlen('alternative')}
+            className={`inline-flex items-center gap-1 text-[11px] font-medium transition-colors ${status === 'ueberarbeitung' ? 'text-amber-600' : 'text-gray-400 hover:text-amber-600'}`}
+          >
+            <RefreshCw className="w-3 h-3" /> Alternative
+          </button>
+          {kommentar && (status === 'abgelehnt' || status === 'ueberarbeitung') && (
+            <span className="text-[11px] text-gray-500 italic truncate min-w-0">„{kommentar}“</span>
+          )}
+        </div>
+      ) : (
+        <div className="mt-2.5 pl-8 space-y-2">
+          <label className="block text-[11px] font-semibold text-gray-600">
+            {aktiveAktion === 'ablehnen' ? 'Grund für Ablehnung (optional)' : 'Was wünschen Sie stattdessen?'}
+          </label>
+          <textarea
+            autoFocus
+            rows={2}
+            value={kommentarEingabe}
+            onChange={(e) => onKommentarChange(e.target.value)}
+            placeholder={aktiveAktion === 'ablehnen' ? 'z. B. Farbe passt nicht…' : 'z. B. Bitte Alternative in Weiß…'}
+            className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => onSpeichern(aktiveAktion === 'ablehnen' ? 'abgelehnt' : 'ueberarbeitung')}
+              disabled={isPending}
+              className="px-3 py-1.5 text-[11px] font-semibold bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white rounded-lg transition-colors"
+            >
+              {isPending ? 'Speichern…' : 'Bestätigen'}
+            </button>
+            <button
+              onClick={onAbbrechen}
+              disabled={isPending}
+              className="px-3 py-1.5 text-[11px] font-medium text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg transition-colors"
+            >
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      )}
+
       {bildGross && produkt.bild_url && (
         <BildLightbox src={produkt.bild_url} alt={produkt.name} onClose={() => setBildGross(false)} />
       )}
-
-      <div className="p-5">
-        {/* ── Kopf: Name + Status ───────────────────────── */}
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-gray-900 leading-snug">{produkt.name}</h3>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
-              {produkt.kategorie && (
-                <span className="text-xs text-gray-500">{produkt.kategorie}</span>
-              )}
-              <span className="text-xs text-gray-500">{produkt.menge} {produkt.einheit}</span>
-              {produkt.produkt_url && (
-                <a href={produkt.produkt_url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors">
-                  <ExternalLink className="w-3 h-3" />
-                  Produktlink
-                </a>
-              )}
-            </div>
-          </div>
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${cfg.badgeCls}`}>
-            {cfg.label}
-          </span>
-        </div>
-
-        {/* ── Vermerk/Hinweis (nur wenn vom Designer freigegeben) ── */}
-        {produkt.hinweis && (
-          <div className="mb-3">
-            <HinweisBanner text={produkt.hinweis} />
-          </div>
-        )}
-
-        {/* ── Beschreibung (einklappbar) ────────────────── */}
-        {produkt.beschreibung && (
-          <button
-            type="button"
-            onClick={() => setDetailOffen((v) => !v)}
-            className="w-full text-left mb-3"
-          >
-            <div className={`text-sm text-gray-600 leading-relaxed overflow-hidden transition-all ${detailOffen ? '' : 'line-clamp-2'}`}>
-              {produkt.beschreibung}
-            </div>
-            {produkt.beschreibung.length > 120 && (
-              <span className="text-xs text-wellbeing-green flex items-center gap-0.5 mt-0.5">
-                {detailOffen ? 'Weniger' : 'Mehr'}
-                <ChevronDown className={`w-3 h-3 transition-transform ${detailOffen ? 'rotate-180' : ''}`} />
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* ── Preise ────────────────────────────────────── */}
-        {produkt.verkaufspreis != null ? (
-          <div className="grid grid-cols-3 gap-2 mb-3 bg-gray-50 rounded-xl px-4 py-3">
-            <PreisZeile label="Netto" wert={eur(produkt.verkaufspreis)} />
-            <PreisZeile label="Brutto" wert={eur(vpBrutto)} />
-            <PreisZeile label={menge > 1 ? `${menge}× Gesamt` : 'Gesamt'} wert={eur(gesamtBrutto)} hervorheben />
-          </div>
-        ) : (
-          <p className="text-sm text-gray-400 mb-3">Preis auf Anfrage</p>
-        )}
-
-        {/* ── Menge: geplant (von WBC) + gewünscht (Kunde) ── */}
-        <div className="flex items-center justify-between gap-3 mb-4 px-4 py-3 bg-gray-50 rounded-xl">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-gray-600">Gewünschte Menge</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">
-              Geplant: <span className="font-semibold text-gray-700">{produkt.menge} {produkt.einheit}</span>
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <MengeStepper menge={menge} disabled={isPending} onChange={onMengeChange} />
-            <span className="text-xs text-gray-400">{produkt.einheit}</span>
-          </div>
-        </div>
-
-        {/* ── Kommentar anzeigen ────────────────────────── */}
-        {kommentar && !aktiveAktion && (
-          <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl">
-            <p className="text-xs font-semibold text-amber-700 mb-0.5">Ihr Kommentar</p>
-            <p className="text-sm text-amber-900 leading-relaxed">{kommentar}</p>
-          </div>
-        )}
-
-        {/* ── Aktions-Buttons ───────────────────────────── */}
-        {!aktiveAktion && (
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <button
-              onClick={onFreigeben}
-              disabled={isPending}
-              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${
-                status === 'freigegeben'
-                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
-                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-              }`}
-            >
-              <Check className="w-4 h-4" />
-              Freigeben
-            </button>
-            <button
-              onClick={() => onAktionWaehlen('ablehnen')}
-              disabled={isPending}
-              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${
-                status === 'abgelehnt'
-                  ? 'bg-red-600 text-white shadow-sm shadow-red-200'
-                  : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
-              }`}
-            >
-              <X className="w-4 h-4" />
-              Ablehnen
-            </button>
-            <button
-              onClick={() => onAktionWaehlen('alternative')}
-              disabled={isPending}
-              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${
-                status === 'ueberarbeitung'
-                  ? 'bg-amber-500 text-white shadow-sm shadow-amber-200'
-                  : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
-              }`}
-            >
-              <RefreshCw className="w-4 h-4" />
-              Alternative
-            </button>
-          </div>
-        )}
-
-        {/* ── Kommentarfeld ─────────────────────────────── */}
-        {aktiveAktion && (
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
-                {aktiveAktion === 'ablehnen' ? 'Grund für Ablehnung (optional)' : 'Was wünschen Sie stattdessen?'}
-              </label>
-              <textarea
-                autoFocus
-                rows={3}
-                value={kommentarEingabe}
-                onChange={(e) => onKommentarChange(e.target.value)}
-                placeholder={
-                  aktiveAktion === 'ablehnen'
-                    ? 'z. B. Farbe passt nicht, anderes Modell gewünscht…'
-                    : 'z. B. Bitte Alternative in Weiß…'
-                }
-                className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none"
-              />
-            </div>
-            <div className="flex gap-2.5">
-              <button
-                onClick={() => onSpeichern(aktiveAktion === 'ablehnen' ? 'abgelehnt' : 'ueberarbeitung')}
-                disabled={isPending}
-                className="flex-1 py-3.5 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all active:scale-[0.98]"
-              >
-                {isPending ? 'Wird gespeichert…' : 'Bestätigen'}
-              </button>
-              <button
-                onClick={onAbbrechen}
-                disabled={isPending}
-                className="px-5 py-3.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl bg-white transition-colors"
-              >
-                Abbrechen
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   )
 }
@@ -1365,98 +1332,117 @@ function BundleKarte({
     setKommentarEingabe('')
   }
 
-  return (
-    <div className={`border ${cfg.rand} ${cfg.bg} rounded-2xl overflow-hidden shadow-sm transition-all`}>
-      <div className="p-5">
-        {/* Kopf */}
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: prim }}>
-                <Boxes className="w-3.5 h-3.5" /> Set
-              </span>
-              <h3 className="text-base font-semibold text-gray-900 leading-snug">{bundle.name}</h3>
-            </div>
-            <p className="text-xs text-gray-500 mt-1.5">{anzeige.length} Komponenten · komplett als Set{instanzen > 1 ? ` · ${instanzen}× hinzugefügt` : ''}</p>
-          </div>
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${cfg.badgeCls}`}>{cfg.label}</span>
-        </div>
+  const tint =
+    setStatus === 'freigegeben'    ? 'bg-emerald-50/50'
+      : setStatus === 'abgelehnt'      ? 'bg-red-50/40'
+      : setStatus === 'ueberarbeitung' ? 'bg-amber-50/40'
+      : ''
 
-        {/* Set-Preis */}
-        <div className="grid grid-cols-2 gap-2 mb-3 bg-gray-50 rounded-xl px-4 py-3">
-          <PreisZeile label="Set netto" wert={eur(setNetto)} />
-          <PreisZeile label="Set brutto" wert={eur(setBrutto)} hervorheben />
+  return (
+    <div className="border border-gray-200 bg-white rounded-2xl overflow-hidden shadow-sm">
+      <div className={`px-4 py-3.5 transition-colors ${tint}`}>
+        {/* Kopf: Checkbox (= Set freigeben, all-or-nothing) + Set-Badge + Name + Status + Preis */}
+        <div className="flex items-start gap-3">
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => (alleFrei ? onSetStatus('ausstehend', '') : onSetStatus('freigegeben', ''))}
+            aria-pressed={alleFrei}
+            title={alleFrei ? 'Set-Freigabe zurücknehmen' : 'Set freigeben'}
+            className="flex items-start gap-2.5 flex-1 min-w-0 text-left disabled:opacity-60"
+          >
+            <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${alleFrei ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'}`}>
+              {alleFrei && <Check className="w-3 h-3 text-white" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: prim }}>
+                  <Boxes className="w-3 h-3" /> Set
+                </span>
+                <span className="text-sm font-semibold text-gray-900">{bundle.name}</span>
+                {setStatus !== 'ausstehend' && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.badgeCls}`}>{cfg.label}</span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">{anzeige.length} Komponenten · komplett als Set{instanzen > 1 ? ` · ${instanzen}× hinzugefügt` : ''}</p>
+            </div>
+          </button>
+          <div className="text-right shrink-0">
+            <p className="text-sm font-mono font-semibold text-gray-900">{eur(setBrutto)}</p>
+            <p className="text-[10px] text-gray-400">Set · inkl. MwSt</p>
+          </div>
         </div>
 
         {/* Komponenten (ausklappbar) */}
-        <button type="button" onClick={() => setOffen((v) => !v)} className="w-full flex items-center justify-between gap-2 mb-3 text-left">
-          <span className="text-sm font-medium text-gray-700">Was ist enthalten?</span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${offen ? 'rotate-180' : ''}`} />
-        </button>
-        {offen && (
-          <ul className="mb-4 divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
-            {anzeige.map((k) => {
-              const zeileBrutto = r2((k.verkaufspreis ?? 0) * (1 + mwst) * k.menge)
-              return (
-                <li key={k.produkt_id} className="flex items-center gap-3 px-4 py-2.5 bg-white">
-                  <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-                    {k.bild_url && <Image src={k.bild_url} alt="" width={40} height={40} className="w-full h-full object-cover" unoptimized />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800 truncate">{k.name}</p>
-                    <p className="text-[11px] text-gray-400">{k.menge} {k.einheit}</p>
-                  </div>
-                  <span className="text-xs font-mono text-gray-600">{eur(zeileBrutto)}</span>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+        <div className="mt-2.5 pl-8">
+          <button type="button" onClick={() => setOffen((v) => !v)} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-gray-500 hover:text-gray-700">
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${offen ? 'rotate-180' : ''}`} /> Was ist enthalten? ({anzeige.length})
+          </button>
+          {offen && (
+            <>
+              <div className="grid grid-cols-2 gap-2 mt-2 bg-gray-50 rounded-xl px-3 py-2">
+                <PreisZeile label="Set netto" wert={eur(setNetto)} />
+                <PreisZeile label="Set brutto" wert={eur(setBrutto)} hervorheben />
+              </div>
+              <ul className="mt-2 divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
+                {anzeige.map((k) => {
+                  const zeileBrutto = r2((k.verkaufspreis ?? 0) * (1 + mwst) * k.menge)
+                  return (
+                    <li key={k.produkt_id} className="flex items-center gap-3 px-3 py-2 bg-white">
+                      <div className="w-9 h-9 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                        {k.bild_url && <Image src={k.bild_url} alt="" width={36} height={36} className="w-full h-full object-cover" unoptimized />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-800 truncate">{k.name}</p>
+                        <p className="text-[10px] text-gray-400">{k.menge} {k.einheit}</p>
+                      </div>
+                      <span className="text-[11px] font-mono text-gray-600">{eur(zeileBrutto)}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )}
+        </div>
 
-        {/* vorhandener Kommentar */}
-        {vorhandenerKommentar && !aktiveAktion && (
-          <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl">
-            <p className="text-xs font-semibold text-amber-700 mb-0.5">Ihr Kommentar</p>
-            <p className="text-sm text-amber-900 leading-relaxed">{vorhandenerKommentar}</p>
+        {/* Aktionen: Ablehnen / Alternative (kompakt) ODER Kommentarfeld */}
+        {!aktiveAktion ? (
+          <div className="flex items-center gap-4 mt-2.5 pl-8 flex-wrap">
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => { setAktiveAktion('ablehnen'); setKommentarEingabe(vorhandenerKommentar ?? '') }}
+              className={`inline-flex items-center gap-1 text-[11px] font-medium transition-colors ${setStatus === 'abgelehnt' ? 'text-red-600' : 'text-gray-400 hover:text-red-600'}`}
+            >
+              <X className="w-3 h-3" /> Ablehnen
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => { setAktiveAktion('alternative'); setKommentarEingabe(vorhandenerKommentar ?? '') }}
+              className={`inline-flex items-center gap-1 text-[11px] font-medium transition-colors ${setStatus === 'ueberarbeitung' ? 'text-amber-600' : 'text-gray-400 hover:text-amber-600'}`}
+            >
+              <RefreshCw className="w-3 h-3" /> Alternative
+            </button>
+            {vorhandenerKommentar && (setStatus === 'abgelehnt' || setStatus === 'ueberarbeitung') && (
+              <span className="text-[11px] text-gray-500 italic truncate min-w-0">„{vorhandenerKommentar}“</span>
+            )}
           </div>
-        )}
-
-        {/* Aktions-Buttons (für das ganze Set) */}
-        {!aktiveAktion && (
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <button onClick={() => onSetStatus('freigegeben', '')} disabled={isPending}
-              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${setStatus === 'freigegeben' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'}`}>
-              <Check className="w-4 h-4" /> Set freigeben
-            </button>
-            <button onClick={() => { setAktiveAktion('ablehnen'); setKommentarEingabe(vorhandenerKommentar ?? '') }} disabled={isPending}
-              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${setStatus === 'abgelehnt' ? 'bg-red-600 text-white shadow-sm shadow-red-200' : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'}`}>
-              <X className="w-4 h-4" /> Ablehnen
-            </button>
-            <button onClick={() => { setAktiveAktion('alternative'); setKommentarEingabe(vorhandenerKommentar ?? '') }} disabled={isPending}
-              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${setStatus === 'ueberarbeitung' ? 'bg-amber-500 text-white shadow-sm shadow-amber-200' : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'}`}>
-              <RefreshCw className="w-4 h-4" /> Alternative
-            </button>
-          </div>
-        )}
-
-        {/* Kommentar-Eingabe */}
-        {aktiveAktion && (
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
-                {aktiveAktion === 'ablehnen' ? 'Grund für Ablehnung (optional)' : 'Was wünschen Sie stattdessen?'}
-              </label>
-              <textarea autoFocus rows={3} value={kommentarEingabe} onChange={(e) => setKommentarEingabe(e.target.value)}
-                placeholder={aktiveAktion === 'ablehnen' ? 'z. B. Set passt nicht…' : 'z. B. Bitte andere Komponenten…'}
-                className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none" />
-            </div>
-            <div className="flex gap-2.5">
+        ) : (
+          <div className="mt-2.5 pl-8 space-y-2">
+            <label className="block text-[11px] font-semibold text-gray-600">
+              {aktiveAktion === 'ablehnen' ? 'Grund für Ablehnung (optional)' : 'Was wünschen Sie stattdessen?'}
+            </label>
+            <textarea autoFocus rows={2} value={kommentarEingabe} onChange={(e) => setKommentarEingabe(e.target.value)}
+              placeholder={aktiveAktion === 'ablehnen' ? 'z. B. Set passt nicht…' : 'z. B. Bitte andere Komponenten…'}
+              className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none" />
+            <div className="flex gap-2">
               <button onClick={bestaetigeKommentar} disabled={isPending}
-                className="flex-1 py-3.5 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all active:scale-[0.98]">
-                {isPending ? 'Wird gespeichert…' : 'Bestätigen'}
+                className="px-3 py-1.5 text-[11px] font-semibold bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white rounded-lg transition-colors">
+                {isPending ? 'Speichern…' : 'Bestätigen'}
               </button>
               <button onClick={() => { setAktiveAktion(null); setKommentarEingabe('') }} disabled={isPending}
-                className="px-5 py-3.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl bg-white transition-colors">
+                className="px-3 py-1.5 text-[11px] font-medium text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg transition-colors">
                 Abbrechen
               </button>
             </div>
@@ -1535,6 +1521,9 @@ function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onTo
       <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full mb-1" style={{ backgroundColor: `${prim}1a`, color: prim }}>
+              <ListChecks className="w-3 h-3" /> Auswahl
+            </span>
             <h3 className="text-sm font-semibold text-gray-900">{gruppe.name}</h3>
             {gruppe.beschreibung && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{gruppe.beschreibung}</p>}
           </div>
