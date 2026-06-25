@@ -128,6 +128,25 @@ export async function raumAnlegen(
   return null
 }
 
+export async function raumUmbenennen(
+  raumId: string,
+  projektId: string,
+  name: string,
+): Promise<{ fehler?: string }> {
+  const trimmed = name.trim()
+  if (!trimmed) return { fehler: 'Raumname darf nicht leer sein.' }
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('raeume')
+    .update({ name: trimmed })
+    .eq('id', raumId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: error.message }
+  revalidatePath(`/dashboard/projekte/${projektId}`)
+  return {}
+}
+
 export async function raumSoftDelete(
   raumId: string,
   projektId: string

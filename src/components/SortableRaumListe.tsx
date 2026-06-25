@@ -33,7 +33,7 @@ import {
 import Link from 'next/link'
 import ConfirmDeleteButton from './ConfirmDeleteButton'
 import { ConfirmModal } from './ConfirmModal'
-import { raumSoftDelete, updateRaumPositionen } from '@/app/actions/raeume'
+import { raumSoftDelete, updateRaumPositionen, raumUmbenennen } from '@/app/actions/raeume'
 import {
   raumGruppeAnlegen,
   raumGruppeUmbenennen,
@@ -82,12 +82,14 @@ function SortableRaumItem({
   stat,
   gruppen,
   onMove,
+  onRename,
 }: {
   raum: Raum
   projektId: string
   stat?: RaumStat
   gruppen: RaumGruppe[]
   onMove: (raumId: string, gruppeId: string | null) => void
+  onRename: (name: string) => void
 }) {
   const {
     attributes,
@@ -100,6 +102,15 @@ function SortableRaumItem({
 
   const deleteAction = raumSoftDelete.bind(null, raum.id, projektId)
   const Icon = getIcon(raum.icon)
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(raum.name)
+
+  function commit() {
+    setEditing(false)
+    const t = name.trim()
+    if (t && t !== raum.name) onRename(t)
+    else setName(raum.name)
+  }
 
   return (
     <li
@@ -129,7 +140,23 @@ function SortableRaumItem({
         <Icon className="w-4 h-4 text-wellbeing-green" />
       </div>
 
-      {/* Info – clickable */}
+      {/* Info – clickable (oder Inline-Umbenennen) */}
+      {editing ? (
+        <div className="flex-1 min-w-0">
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commit()
+              if (e.key === 'Escape') { setEditing(false); setName(raum.name) }
+            }}
+            aria-label="Raumname"
+            className="w-full max-w-[18rem] text-sm font-semibold text-gray-900 px-1.5 py-0.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20"
+          />
+        </div>
+      ) : (
       <Link
         href={`/dashboard/projekte/${projektId}/raeume/${raum.id}`}
         className="flex-1 min-w-0"
@@ -169,9 +196,18 @@ function SortableRaumItem({
           <p className="text-xs text-gray-400 mt-0.5">Noch keine Produkte</p>
         )}
       </Link>
+      )}
 
       {/* Actions (hover) */}
       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <button
+          type="button"
+          onClick={() => { setName(raum.name); setEditing(true) }}
+          aria-label="Raum umbenennen"
+          className="p-1 text-gray-400 hover:text-wellbeing-green transition-colors"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
         {gruppen.length > 0 && (
           <div className="relative inline-block">
             <select
@@ -361,6 +397,15 @@ export default function SortableRaumListe({ projektId, raeume: initialRaeume, ra
     })
   }
 
+  function handleRaumUmbenennen(raumId: string, name: string) {
+    const vorher = raeume
+    setRaeume((prev) => prev.map((r) => (r.id === raumId ? { ...r, name } : r)))
+    startTransition(async () => {
+      const res = await raumUmbenennen(raumId, projektId, name)
+      if (res?.fehler) { setRaeume(vorher); zeigeToast('Umbenennen fehlgeschlagen.', true) }
+    })
+  }
+
   function gruppeAnlegen() {
     const name = neuerName.trim()
     if (!name) return
@@ -424,6 +469,7 @@ export default function SortableRaumListe({ projektId, raeume: initialRaeume, ra
                 stat={raumStats?.[raum.id]}
                 gruppen={sortierteGruppen}
                 onMove={moveRoom}
+                onRename={(n) => handleRaumUmbenennen(raum.id, n)}
               />
             ))}
           </ul>
