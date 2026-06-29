@@ -23,6 +23,7 @@ import { syncAutoEvent } from './timeline'
 import { autoProjektStatusVorwaerts } from './projekte'
 import { bereichVonRaumProdukt, istImAuswahlScope } from '@/lib/freigabe-scope'
 import { effektiverVpNetto } from '@/lib/preise'
+import { ladeAlleSeiten } from '@/lib/supabase-paginate'
 import { createHash } from 'crypto'
 import type {
   FreigabeAudit,
@@ -67,8 +68,14 @@ async function aufgeloesteAuswahlProduktIds(
       .from('produkt_gruppen').select('id, bereich_id').in('raum_id', raumIds).is('deleted_at', null)
     for (const row of (g ?? []) as { id: string; bereich_id: string | null }[]) blockBereich.set(row.id, row.bereich_id ?? null)
   }
-  const { data: rps } = await supabase
-    .from('raum_produkte').select('id, produkt_gruppe_id, bereich_id').in('raum_id', raumIds)
+  // Vollständig laden (Pagination) — sonst cappt PostgREST bei sehr vielen
+  // Produkten und zuletzt hinzugefügte Produkte/Blöcke fielen aus dem Scope.
+  type RpScope = { id: string; produkt_gruppe_id: string | null; bereich_id: string | null }
+  const { data: rps } = await ladeAlleSeiten<RpScope>(async (von, bis) => {
+    const r = await supabase
+      .from('raum_produkte').select('id, produkt_gruppe_id, bereich_id').in('raum_id', raumIds).order('id').range(von, bis)
+    return { data: r.data as unknown as RpScope[] | null, error: r.error }
+  })
   const bset = new Set(bereichIds)
   for (const rp of (rps ?? []) as { id: string; produkt_gruppe_id: string | null; bereich_id: string | null }[]) {
     const b = bereichVonRaumProdukt({ produkt_gruppe_id: rp.produkt_gruppe_id, bereich_id: rp.bereich_id }, blockBereich)
@@ -376,18 +383,25 @@ export async function freigabeScopeOptionenLaden(
 
   if (!raeume || raeume.length === 0) return []
 
-  const { data: rps } = await supabase
-    .from('raum_produkte')
-    .select('id, raum_id, menge, produkte(name, einheit)')
-    .in('raum_id', raeume.map((r) => r.id))
-    .order('reihenfolge')
-
   type RpRow = {
     id: string
     raum_id: string
     menge: number
     produkte: { name: string; einheit: string | null } | null
   }
+
+  // Vollständig laden (Pagination) — sonst cappt der Picker bei sehr vielen
+  // Produkten und zeigt zuletzt hinzugefügte Produkte/Gruppen-Zähler falsch.
+  const { data: rps } = await ladeAlleSeiten<RpRow>(async (von, bis) => {
+    const r = await supabase
+      .from('raum_produkte')
+      .select('id, raum_id, menge, produkte(name, einheit)')
+      .in('raum_id', raeume.map((r) => r.id))
+      .order('reihenfolge')
+      .order('id')
+      .range(von, bis)
+    return { data: r.data as unknown as RpRow[] | null, error: r.error }
+  })
 
   const rpsByRaum: Record<string, ScopeOptionenRaum['items']> = {}
   for (const rp of ((rps ?? []) as unknown as RpRow[])) {
@@ -411,10 +425,16 @@ export async function freigabeScopeOptionenLaden(
     // siehe Migration 101). Ein .is('deleted_at', null) hier liefert einen
     // PostgREST-Fehler → die Maps blieben leer → jede Gruppe wurde fälschlich als
     // „leer" angezeigt. Ohne den Filter (wie getRaumProdukte/Kunden-View) korrekt.
-    const { data: rg, error } = await supabase
-      .from('raum_produkte')
-      .select('id, produkt_gruppe_id, bereich_id')
-      .in('raum_id', raumIds)
+    type RpEff = { id: string; produkt_gruppe_id: string | null; bereich_id: string | null }
+    const { data: rg, error } = await ladeAlleSeiten<RpEff>(async (von, bis) => {
+      const r = await supabase
+        .from('raum_produkte')
+        .select('id, produkt_gruppe_id, bereich_id')
+        .in('raum_id', raumIds)
+        .order('id')
+        .range(von, bis)
+      return { data: r.data as unknown as RpEff[] | null, error: r.error }
+    })
     if (!error) for (const r of (rg ?? []) as { id: string; produkt_gruppe_id: string | null; bereich_id: string | null }[]) {
       ownBereich.set(r.id, r.bereich_id ?? null)
       blockOf.set(r.id, r.produkt_gruppe_id ?? null)
@@ -1118,10 +1138,19 @@ export async function getFreigabeBaum(projektId: string): Promise<Record<string,
     // raum_produkte — Stempel-Spalten fail-safe (fehlen vor Mig 135 → Fallback-Select)
     const RP_VOLL = 'id, raum_id, produkt_gruppe_id, bereich_id, freigabe_status, kunde_favorit, freigegeben_am, freigegeben_von, produkte(name, bild_url, deleted_at)'
     const RP_BASIS = 'id, raum_id, produkt_gruppe_id, bereich_id, freigabe_status, kunde_favorit, produkte(name, bild_url, deleted_at)'
+    // Vollständig laden (Pagination + stabiler Tiebreaker) — sonst cappt PostgREST
+    // bei sehr vielen Produkten und der Projekt-Tab-Baum verlöre zuletzt
+    // hinzugefügte Produkte/Blöcke (gleicher Row-Cap wie die Kundenseite).
     let rpData: unknown
-    const richRp = await supabase.from('raum_produkte').select(RP_VOLL).in('raum_id', raumIds).order('reihenfolge')
+    const richRp = await ladeAlleSeiten<RpBaumRow>(async (von, bis) => {
+      const r = await supabase.from('raum_produkte').select(RP_VOLL).in('raum_id', raumIds).order('reihenfolge').order('id').range(von, bis)
+      return { data: r.data as unknown as RpBaumRow[] | null, error: r.error }
+    })
     if (richRp.error) {
-      rpData = (await supabase.from('raum_produkte').select(RP_BASIS).in('raum_id', raumIds).order('reihenfolge')).data
+      rpData = (await ladeAlleSeiten<RpBaumRow>(async (von, bis) => {
+        const r = await supabase.from('raum_produkte').select(RP_BASIS).in('raum_id', raumIds).order('reihenfolge').order('id').range(von, bis)
+        return { data: r.data as unknown as RpBaumRow[] | null, error: r.error }
+      })).data
     } else {
       rpData = richRp.data
     }
