@@ -134,7 +134,6 @@ export async function kundeBestellungBenachrichtigen(
     }
 
     revalidatePath(`/portal/projekte/${projektId}`)
-    revalidatePath('/dashboard/chats')
   } catch {
     // Nie werfen — die Bestellung darf an der Benachrichtigung nie scheitern.
   }

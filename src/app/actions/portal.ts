@@ -832,7 +832,6 @@ export async function teamNachrichtSenden(
   }
 
   revalidatePath(`/dashboard/projekte/${projektId}`)
-  revalidatePath('/dashboard/chats')
   return {}
 }
 

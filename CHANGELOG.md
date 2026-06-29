@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-29
 
+### „Chats"-Bereich entfernt
+- Der **„Chats"-Bereich** in der Seitenleiste (die Übersicht aller Projekt-Chats) wurde **komplett entfernt**, da er nicht genutzt wurde. Die Kunden-Kommunikation bleibt davon **unberührt**: der **Chat direkt im Projekt** (Projekt-Detailseite) und der **Chat im Kundenportal** funktionieren unverändert weiter.
+
 ### Freigabelink – „Freigeben"-Knopf aufgeräumt
 - Bei einzelnen Produkten saß der „Freigeben"-Knopf bisher etwas unaufgeräumt **mittig zwischen Bild und Produktname**. Jetzt steht die Entscheidung **klar gruppiert in einer Aktionsleiste unter dem Produkt**: ein deutlicher **„Freigeben"-Button** (wird nach dem Anklicken grün **„Freigegeben"**), daneben **„Ablehnen"** und **„Alternative"**. Der Produktname steht sauber neben dem Bild – insgesamt ruhiger und übersichtlicher.
 

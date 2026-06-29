@@ -18,7 +18,6 @@ import {
   LogOut,
   ClipboardList,
   ShoppingCart,
-  MessageCircle,
   ListChecks,
 } from 'lucide-react'
 import type { Rolle } from '@/lib/supabase/types'
@@ -58,7 +57,6 @@ export default function NavSidebar({
   userRolle = 'admin',
   offeneFreigaben = 0,
   offeneAnfragen = 0,
-  offeneNachrichten = 0,
   offeneAufgaben = 0,
   offeneBestellungen = 0,
   neuestesChangelogDatum = null,
@@ -69,7 +67,6 @@ export default function NavSidebar({
   userRolle?: Rolle
   offeneFreigaben?: number
   offeneAnfragen?: number
-  offeneNachrichten?: number
   offeneReklamationen?: number
   offeneAufgaben?: number
   offeneBestellungen?: number
@@ -102,7 +99,6 @@ export default function NavSidebar({
     { label: 'Produkte',   href: '/dashboard/produkte',   icon: Package,         badge: 0 },
     { label: 'Bestellungen', href: '/dashboard/bestellungen', icon: ShoppingCart,   badge: offeneBestellungen },
     { label: 'Aufgaben',   href: '/dashboard/aufgaben',   icon: ListChecks,      badge: offeneAufgaben },
-    { label: 'Chats',      href: '/dashboard/chats',      icon: MessageCircle,   badge: offeneNachrichten },
     { label: 'Freigaben',  href: '/dashboard/freigaben',  icon: CheckSquare,     badge: offeneFreigaben },
     { label: 'Onboarding', href: '/dashboard/onboarding', icon: ClipboardList,   badge: offeneAnfragen },
     { label: 'Kategorien', href: '/dashboard/kategorien', icon: Tag,             badge: 0 },

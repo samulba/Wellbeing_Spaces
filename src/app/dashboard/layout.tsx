@@ -6,7 +6,6 @@ import { RolleProvider } from '@/lib/RolleContext'
 import { meineRolleAbrufen } from '@/app/actions/team'
 import type { Rolle } from '@/lib/supabase/types'
 import { getChangelog } from '@/lib/changelog'
-import { getGlobalUnreadCount } from '@/app/actions/nachrichten'
 
 export default async function DashboardLayout({
   children,
@@ -21,7 +20,6 @@ export default async function DashboardLayout({
   // ── Sekundäre Daten – nie crashen ────────────────────────────
   let freigabenCount = 0
   let anfragenCount  = 0
-  let nachrichtenCount = 0
   let reklamationenCount = 0
   let aufgabenCount = 0
   let zuBestellenCount = 0
@@ -32,7 +30,7 @@ export default async function DashboardLayout({
 
   try {
     const heuteIso = new Date().toISOString().slice(0, 10)
-    const [freigabenRes, anfragenRes, rolleRes, meRes, nachrichtenRes, reklamationenRes, aufgabenRes, bestellungenRes] = await Promise.allSettled([
+    const [freigabenRes, anfragenRes, rolleRes, meRes, reklamationenRes, aufgabenRes, bestellungenRes] = await Promise.allSettled([
       // Freigaben-Badge: zaehlt PROJEKTE mit mind. einer ausstehenden Freigabe,
       // nicht jede einzelne Position (sonst wird die Zahl viel zu schnell gross).
       supabase
@@ -52,7 +50,6 @@ export default async function DashboardLayout({
         .eq('user_id', user.id)
         .limit(1)
         .maybeSingle(),
-      getGlobalUnreadCount(),
       supabase
         .from('produkt_reklamationen')
         .select('*', { count: 'exact', head: true })
@@ -88,7 +85,6 @@ export default async function DashboardLayout({
     }
     anfragenCount      = anfragenRes.status      === 'fulfilled' ? (anfragenRes.value.count      ?? 0) : 0
     rolle              = rolleRes.status         === 'fulfilled' ? rolleRes.value : 'viewer'
-    nachrichtenCount   = nachrichtenRes.status   === 'fulfilled' ? nachrichtenRes.value : 0
     reklamationenCount = reklamationenRes.status === 'fulfilled' ? (reklamationenRes.value.count ?? 0) : 0
     aufgabenCount      = aufgabenRes.status      === 'fulfilled' ? (aufgabenRes.value.count      ?? 0) : 0
     zuBestellenCount   = bestellungenRes.status  === 'fulfilled' ? (bestellungenRes.value.count  ?? 0) : 0
@@ -122,7 +118,6 @@ export default async function DashboardLayout({
           userRolle={rolle}
           offeneFreigaben={freigabenCount}
           offeneAnfragen={anfragenCount}
-          offeneNachrichten={nachrichtenCount}
           offeneReklamationen={reklamationenCount}
           offeneAufgaben={aufgabenCount}
           offeneBestellungen={zuBestellenCount}
