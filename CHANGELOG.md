@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-29
 
+### Freigabelink – „Freigeben"-Knopf aufgeräumt
+- Bei einzelnen Produkten saß der „Freigeben"-Knopf bisher etwas unaufgeräumt **mittig zwischen Bild und Produktname**. Jetzt steht die Entscheidung **klar gruppiert in einer Aktionsleiste unter dem Produkt**: ein deutlicher **„Freigeben"-Button** (wird nach dem Anklicken grün **„Freigegeben"**), daneben **„Ablehnen"** und **„Alternative"**. Der Produktname steht sauber neben dem Bild – insgesamt ruhiger und übersichtlicher.
+
 ### Freigabelink – fehlende Produkte/Blöcke bei sehr vielen Produkten behoben
 - In Räumen/Projekten mit **sehr vielen Produkten** konnten im Freigabelink zuletzt hinzugefügte Produkte und ein **frisch angelegter Auswahl-Block komplett fehlen** — obwohl im Raum selbst alles normal sichtbar war. Ursache war eine technische Lade-Obergrenze (rund 1000 Zeilen pro Abruf), die genau die zuletzt hinzugefügten Einträge still abschnitt. Jetzt werden **immer alle Produkte vollständig geladen** (auch über 1000), sodass nichts mehr verschwindet – im Kunden-Link, beim Auswahl-Picker und im Projekt-Tab „Freigaben".
 

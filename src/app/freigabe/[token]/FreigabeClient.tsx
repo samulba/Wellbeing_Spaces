@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Check, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft, Plus, Minus, StickyNote, Maximize2, Boxes, MessageSquare } from 'lucide-react'
+import { Check, CheckCircle2, X, RefreshCw, ExternalLink, ChevronDown, Package, Star, Clock, Eye, ListChecks, ArrowRight, ArrowLeft, Plus, Minus, StickyNote, Maximize2, Boxes, MessageSquare } from 'lucide-react'
 import { freigabeBearbeitungMarkieren, type FreigabeEntscheidung, type FreigabeBlockNotiz } from '@/app/actions/freigaben'
 import type { FreigabeRaum, FreigabeProdukt, FreigabeProduktGruppe, FreigabeBereich, ProduktStatus, Branding } from '@/lib/supabase/types'
 import { dedupeBundleKomponenten } from '@/lib/freigabe-baum'
@@ -1153,31 +1153,18 @@ function ProduktZeile({
           )}
         </button>
 
-        {/* Checkbox (= freigeben) + Infos */}
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={() => (istFrei ? onSpeichern('ausstehend') : onFreigeben())}
-          aria-pressed={istFrei}
-          title={istFrei ? 'Freigabe zurücknehmen' : 'Freigeben'}
-          className="flex items-start gap-2.5 flex-1 min-w-0 text-left disabled:opacity-60"
-        >
-          <span className={`inline-flex items-center gap-1 shrink-0 mt-0.5 px-2 py-1 rounded-lg border text-[11px] font-semibold transition-colors ${istFrei ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 text-gray-600 bg-white hover:border-emerald-300'}`}>
-            {istFrei && <Check className="w-3 h-3" />}
-            {istFrei ? 'Freigegeben' : 'Freigeben'}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-sm font-semibold text-gray-900">{produkt.name}</span>
-              {statusBadge && status !== 'freigegeben' && (
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${statusBadge.cls}`}>{statusBadge.label}</span>
-              )}
-            </div>
-            <div className="text-xs text-gray-500 mt-0.5">
-              {produkt.kategorie ? `${produkt.kategorie} · ` : ''}Geplant: <span className="font-medium text-gray-600">{produkt.menge} {produkt.einheit}</span>
-            </div>
+        {/* Produkt-Infos (Entscheidung erfolgt unten über die Aktionsleiste) */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-sm font-semibold text-gray-900">{produkt.name}</span>
+            {statusBadge && status !== 'freigegeben' && (
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${statusBadge.cls}`}>{statusBadge.label}</span>
+            )}
           </div>
-        </button>
+          <div className="text-xs text-gray-500 mt-0.5">
+            {produkt.kategorie ? `${produkt.kategorie} · ` : ''}Geplant: <span className="font-medium text-gray-600">{produkt.menge} {produkt.einheit}</span>
+          </div>
+        </div>
 
         {/* Preis */}
         <div className="text-right shrink-0">
@@ -1230,7 +1217,27 @@ function ProduktZeile({
 
       {/* Aktionen: Ablehnen / Alternative (kompakt) ODER Kommentarfeld */}
       {!aktiveAktion ? (
-        <div className="flex items-center gap-4 mt-2.5 pl-8 flex-wrap">
+        <div className="flex items-center gap-3 mt-3 pl-8 flex-wrap">
+          {/* Freigeben — primäre Entscheidung (Ja) */}
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => (istFrei ? onSpeichern('ausstehend') : onFreigeben())}
+            aria-pressed={istFrei}
+            title={istFrei ? 'Freigabe zurücknehmen' : 'Produkt freigeben'}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-60 ${
+              istFrei
+                ? 'bg-emerald-500 text-white shadow-sm hover:bg-emerald-600'
+                : 'border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50 hover:border-emerald-400'
+            }`}
+          >
+            {istFrei ? <Check className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+            {istFrei ? 'Freigegeben' : 'Freigeben'}
+          </button>
+
+          <span className="h-5 w-px bg-gray-200" aria-hidden />
+
+          {/* Ablehnen / Alternative — sekundär */}
           <button
             type="button"
             disabled={isPending}
