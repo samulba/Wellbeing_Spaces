@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-29
 
+### Freigabelink – Blöcke der letzten Gruppe fehlten (Nachzug zum Lade-Limit-Fix)
+- Nach dem Lade-Fix wurden zwar alle Produkte angezeigt, aber bei der **letzten Gruppe** erschienen die **Auswahl-Blöcke** nicht mehr als Block – die Produkte standen dort einzeln. Ursache: dasselbe ~1000-Zeilen-Ladelimit galt noch fürs Laden der **Blöcke und Gruppen** selbst, sodass die zuletzt angelegten wegfielen. Jetzt werden auch **Blöcke und Gruppen vollständig geladen** – die letzte Gruppe zeigt ihre Blöcke wieder korrekt.
+
 ### „Chats"-Bereich entfernt
 - Der **„Chats"-Bereich** in der Seitenleiste (die Übersicht aller Projekt-Chats) wurde **komplett entfernt**, da er nicht genutzt wurde. Die Kunden-Kommunikation bleibt davon **unberührt**: der **Chat direkt im Projekt** (Projekt-Detailseite) und der **Chat im Kundenportal** funktionieren unverändert weiter.
 

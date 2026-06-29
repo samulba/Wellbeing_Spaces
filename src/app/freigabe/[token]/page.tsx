@@ -185,12 +185,21 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   // Ist eine Block-Zeile (fälschlich) als gelöscht markiert, ihre Produkte aber noch
   // zugeordnet, müssen sie trotzdem als Block erscheinen. Leere (echt gelöschte) Blöcke
   // werden weiter unten ohnehin herausgefiltert (kein Mitglied im Scope).
-  const { data: gruppenDaten, error: gruppenErr } = await supabase
-    .from('produkt_gruppen')
-    .select('id, raum_id, name, beschreibung, reihenfolge')
-    .in('raum_id', raumFilter)
-    .order('reihenfolge')
-    .order('created_at')
+  // Vollständig laden (Pagination + stabiler Tiebreaker) — sonst cappt PostgREST bei sehr
+  // vielen Blöcken still auf ~1000; die zuletzt angelegten Blöcke (Ende der Sortierung) fielen
+  // raus → ihre (paginiert geladenen) Produkte erschienen als lose Einzelprodukte statt als Block.
+  type GruppeRow = { id: string; raum_id: string; name: string; beschreibung: string | null; reihenfolge: number }
+  const { data: gruppenDaten, error: gruppenErr } = await ladeAlleSeiten<GruppeRow>(async (von, bis) => {
+    const r = await supabase
+      .from('produkt_gruppen')
+      .select('id, raum_id, name, beschreibung, reihenfolge')
+      .in('raum_id', raumFilter)
+      .order('reihenfolge')
+      .order('created_at')
+      .order('id')
+      .range(von, bis)
+    return { data: r.data as unknown as GruppeRow[] | null, error: r.error }
+  })
   if (gruppenErr) console.error('[freigabe:produkt_gruppen]', params.token, gruppenErr.message)
 
   const gruppenProRaum = new Map<string, { id: string; name: string; beschreibung: string | null }[]>()
@@ -205,7 +214,10 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   {
     const gIds = (gruppenDaten ?? []).map((g) => (g as { id: string }).id)
     if (gIds.length > 0) {
-      const { data: gnData } = await supabase.from('produkt_gruppen').select('id, kunde_notiz').in('id', gIds)
+      const { data: gnData } = await ladeNachIds<{ id: string; kunde_notiz: string | null }>(gIds, async (idChunk) => {
+        const r = await supabase.from('produkt_gruppen').select('id, kunde_notiz').in('id', idChunk)
+        return { data: r.data as unknown as { id: string; kunde_notiz: string | null }[] | null, error: r.error }
+      })
       for (const g of (gnData ?? []) as { id: string; kunde_notiz: string | null }[]) gruppenNotizMap.set(g.id, g.kunde_notiz ?? null)
     }
   }
@@ -238,13 +250,22 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   // 4d. Bereiche/"Gruppen" der in-scope Räume laden (Migration 116) — fail-safe.
   const bereicheProRaum = new Map<string, { id: string; name: string; beschreibung: string | null }[]>()
   {
-    const { data: bereicheDaten, error: bereicheErr } = await supabase
-      .from('produkt_bereiche')
-      .select('id, raum_id, name, beschreibung, reihenfolge')
-      .in('raum_id', raumFilter)
-      .is('deleted_at', null)
-      .order('reihenfolge')
-      .order('created_at')
+    // Vollständig laden (Pagination + stabiler Tiebreaker) — sonst cappt PostgREST bei sehr
+    // vielen Bereichen still auf ~1000; der zuletzt angelegte Bereich fiele raus → seine Blöcke
+    // landeten in „Ohne Gruppe" statt unter dem Bereich.
+    type BereichRow = { id: string; raum_id: string; name: string; beschreibung: string | null; reihenfolge: number }
+    const { data: bereicheDaten, error: bereicheErr } = await ladeAlleSeiten<BereichRow>(async (von, bis) => {
+      const r = await supabase
+        .from('produkt_bereiche')
+        .select('id, raum_id, name, beschreibung, reihenfolge')
+        .in('raum_id', raumFilter)
+        .is('deleted_at', null)
+        .order('reihenfolge')
+        .order('created_at')
+        .order('id')
+        .range(von, bis)
+      return { data: r.data as unknown as BereichRow[] | null, error: r.error }
+    })
     if (bereicheErr) console.error('[freigabe:produkt_bereiche]', params.token, bereicheErr.message)
     for (const b of (bereicheDaten ?? []) as { id: string; raum_id: string; name: string; beschreibung: string | null }[]) {
       const arr = bereicheProRaum.get(b.raum_id) ?? []
@@ -260,7 +281,10 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     if (gIds.length > 0) {
       // Kein deleted_at-Filter — Block-Bereich muss auch für (fälschlich) als gelöscht
       // markierte Blöcke mit noch zugeordneten Produkten verfügbar sein (siehe oben).
-      const { data: gbData } = await supabase.from('produkt_gruppen').select('id, bereich_id').in('id', gIds)
+      const { data: gbData } = await ladeNachIds<{ id: string; bereich_id: string | null }>(gIds, async (idChunk) => {
+        const r = await supabase.from('produkt_gruppen').select('id, bereich_id').in('id', idChunk)
+        return { data: r.data as unknown as { id: string; bereich_id: string | null }[] | null, error: r.error }
+      })
       for (const g of (gbData ?? []) as { id: string; bereich_id: string | null }[]) blockBereich.set(g.id, g.bereich_id ?? null)
     }
   }
@@ -291,7 +315,10 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   const bundleNamen = new Map<string, string>()
   const alleBundleIds = Array.from(new Set(Array.from(bundleIdMap.values()).filter(Boolean) as string[]))
   if (alleBundleIds.length > 0) {
-    const { data: bnData } = await supabase.from('produkte').select('id, name').in('id', alleBundleIds)
+    const { data: bnData } = await ladeNachIds<{ id: string; name: string }>(alleBundleIds, async (idChunk) => {
+      const r = await supabase.from('produkte').select('id, name').in('id', idChunk)
+      return { data: r.data as unknown as { id: string; name: string }[] | null, error: r.error }
+    })
     for (const b of (bnData ?? []) as { id: string; name: string }[]) bundleNamen.set(b.id, b.name)
   }
 
@@ -351,6 +378,7 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   const geladenDiagnose = {
     rp: (rpDaten ?? []).length,
     bloecke: (gruppenDaten ?? []).length,
+    bereiche: Array.from(bereicheProRaum.values()).reduce((s, a) => s + a.length, 0),
     raeume: raeume.length,
     scopeTyp,
   }
@@ -404,7 +432,7 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     <>
       {vorschau && searchParams?.debug === '1' && (
         <div className="fixed top-0 inset-x-0 z-[100] bg-amber-100 text-amber-900 text-[11px] font-medium px-3 py-1 text-center shadow">
-          Diagnose · geladen: {geladenDiagnose.rp} Produkte · {geladenDiagnose.bloecke} Blöcke · {geladenDiagnose.raeume} Räume · scope={geladenDiagnose.scopeTyp}
+          Diagnose · geladen: {geladenDiagnose.rp} Produkte · {geladenDiagnose.bloecke} Blöcke · {geladenDiagnose.bereiche} Gruppen · {geladenDiagnose.raeume} Räume · scope={geladenDiagnose.scopeTyp}
         </div>
       )}
       <FreigabeClient
