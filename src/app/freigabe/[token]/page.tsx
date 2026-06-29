@@ -6,6 +6,7 @@ import FreigabeClient from './FreigabeClient'
 import FreigabePinGate from './FreigabePinGate'
 import { pinCookieGueltig } from '@/lib/freigabe-pin-cookie'
 import { baueFreigabeRaeume, type FreigabeRpZeile } from '@/lib/freigabe-baum'
+import { ladeAlleSeiten, ladeNachIds } from '@/lib/supabase-paginate'
 import type { FreigabeRaum } from '@/lib/supabase/types'
 
 // Öffentliche, datengetriebene Seite — niemals cachen, damit Admin-Status-Änderungen
@@ -146,6 +147,7 @@ export default async function FreigabePage({ params, searchParams }: Props) {
       .in('raum_id', raumFilter)
       .order('reihenfolge')
       .order('created_at')
+      .order('id') // eindeutiger Tiebreaker → stabile, lücken-/duplikatfreie Pagination
     if (scopeTyp === 'auswahl' && scopeIds.length > 0 && !auswahlMitBereich) {
       q = q.in('id', scopeIds)
     }
@@ -156,17 +158,26 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   // Definiert in der reinen Baum-Logik (freigabe-baum.ts), die ihn ebenfalls konsumiert.
   type RpZeile = FreigabeRpZeile
 
+  // ALLE Seiten laden (paginiert) — sonst cappt PostgREST bei großen Räumen still auf ~1000
+  // Zeilen und zuletzt hinzugefügte Produkte/Blöcke verschwinden im Link. Bei ≤1000 identisch
+  // zu vorher (eine Seite). Stabile Ordnung via .order('id') in baueRpQuery (Pflicht für Pagination).
   let gruppenInline = true
-  const rpRich = await baueRpQuery(`${RP_BASIS}, ${RP_GRUPPE}, ${RP_PRODUKT}`)
-  let rpDaten = rpRich.data as unknown as RpZeile[] | null
+  const rpRich = await ladeAlleSeiten<RpZeile>(async (von, bis) => {
+    const r = await baueRpQuery(`${RP_BASIS}, ${RP_GRUPPE}, ${RP_PRODUKT}`).range(von, bis)
+    return { data: r.data as unknown as RpZeile[] | null, error: r.error }
+  })
+  let rpDaten = rpRich.data
   if (rpRich.error) {
     // Migrations-Spalte fehlt → Minimal-Select; Gruppierung kommt aus Backfill-Maps.
     // Sichtbar loggen: ein Fehler hier deutet auf fehlende Migration / Schema-Drift.
     console.error('[freigabe:rp-rich]', params.token, rpRich.error.message)
     gruppenInline = false
-    const fallback = await baueRpQuery(`${RP_BASIS}, ${RP_PRODUKT}`)
+    const fallback = await ladeAlleSeiten<RpZeile>(async (von, bis) => {
+      const r = await baueRpQuery(`${RP_BASIS}, ${RP_PRODUKT}`).range(von, bis)
+      return { data: r.data as unknown as RpZeile[] | null, error: r.error }
+    })
     if (fallback.error) console.error('[freigabe:rp-fallback]', params.token, fallback.error.message)
-    rpDaten = fallback.data as unknown as RpZeile[] | null
+    rpDaten = fallback.data
   }
 
   // 4b. Auswahl-Gruppen der in-scope Räume laden (Migration 114).
@@ -204,12 +215,18 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   //     rpDaten → kein separater Roundtrip, kein Desync/Row-Cap.
   const favMap = new Map<string, { produkt_gruppe_id: string | null; admin_favorit: boolean; kunde_favorit: boolean }>()
   const rpIds = (rpDaten ?? []).map((rp) => rp.id as string)
+  // Lädt raum_produkte-Folgefelder für (potenziell >1000) rpIds vollständig, gechunkt —
+  // sonst cappt auch `.in('id', …)` bei großen Räumen still auf ~1000 Treffer.
+  const ladeRpNachIds = <T,>(felder: string) =>
+    ladeNachIds<T>(rpIds, async (idChunk) => {
+      const r = await supabase.from('raum_produkte').select(felder).in('id', idChunk)
+      return { data: r.data as unknown as T[] | null, error: r.error }
+    })
   if (!gruppenInline && rpIds.length > 0) {
-    const { data: favData } = await supabase
-      .from('raum_produkte')
-      .select('id, produkt_gruppe_id, admin_favorit, kunde_favorit')
-      .in('id', rpIds)
-    for (const f of (favData ?? []) as { id: string; produkt_gruppe_id: string | null; admin_favorit: boolean | null; kunde_favorit: boolean | null }[]) {
+    const { data: favData } = await ladeRpNachIds<{ id: string; produkt_gruppe_id: string | null; admin_favorit: boolean | null; kunde_favorit: boolean | null }>(
+      'id, produkt_gruppe_id, admin_favorit, kunde_favorit',
+    )
+    for (const f of favData ?? []) {
       favMap.set(f.id, {
         produkt_gruppe_id: f.produkt_gruppe_id ?? null,
         admin_favorit: !!f.admin_favorit,
@@ -249,15 +266,15 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   }
   const produktBereichMap = new Map<string, string | null>()
   if (!gruppenInline && rpIds.length > 0) {
-    const { data: pbData } = await supabase.from('raum_produkte').select('id, bereich_id').in('id', rpIds)
-    for (const r of (pbData ?? []) as { id: string; bereich_id: string | null }[]) produktBereichMap.set(r.id, r.bereich_id ?? null)
+    const { data: pbData } = await ladeRpNachIds<{ id: string; bereich_id: string | null }>('id, bereich_id')
+    for (const r of pbData ?? []) produktBereichMap.set(r.id, r.bereich_id ?? null)
   }
 
   // 4f. Wunsch-Menge des Kunden je Produkt (Migration 119) — nur im Fallback.
   const kundeMengeMap = new Map<string, number | null>()
   if (!gruppenInline && rpIds.length > 0) {
-    const { data: kmData } = await supabase.from('raum_produkte').select('id, kunde_menge').in('id', rpIds)
-    for (const r of (kmData ?? []) as { id: string; kunde_menge: number | null }[]) kundeMengeMap.set(r.id, r.kunde_menge ?? null)
+    const { data: kmData } = await ladeRpNachIds<{ id: string; kunde_menge: number | null }>('id, kunde_menge')
+    for (const r of kmData ?? []) kundeMengeMap.set(r.id, r.kunde_menge ?? null)
   }
 
   // 4g. Bundle-Instanz je Produkt (Migration 128) — EIGENE fail-safe Query (nicht
@@ -265,9 +282,9 @@ export default async function FreigabePage({ params, searchParams }: Props) {
   // Fehlt die Spalte → bErr → leere Map → keine Sets, alles andere unberührt.
   const bundleIdMap = new Map<string, string | null>()
   if (rpIds.length > 0) {
-    const { data: bData, error: bErr } = await supabase.from('raum_produkte').select('id, bundle_id').in('id', rpIds)
+    const { data: bData, error: bErr } = await ladeRpNachIds<{ id: string; bundle_id: string | null }>('id, bundle_id')
     if (bErr) console.error('[freigabe:bundle_id]', params.token, bErr.message)
-    else for (const r of (bData ?? []) as { id: string; bundle_id: string | null }[]) bundleIdMap.set(r.id, r.bundle_id ?? null)
+    else for (const r of bData ?? []) bundleIdMap.set(r.id, r.bundle_id ?? null)
   }
 
   // Namen der Set-Köpfe (für die Set-Karte) — Admin-Client (anon-safe), einmal vorab.
@@ -329,6 +346,16 @@ export default async function FreigabePage({ params, searchParams }: Props) {
     scopeBereichIds,
   })
 
+  // Diagnose (immer, billig): wie viele Produkt-Zeilen wirklich geladen wurden. Vor dem
+  // Pagination-Fix hätte ein stiller Row-Cap hier ~1000 angezeigt (statt der echten Anzahl).
+  const geladenDiagnose = {
+    rp: (rpDaten ?? []).length,
+    bloecke: (gruppenDaten ?? []).length,
+    raeume: raeume.length,
+    scopeTyp,
+  }
+  console.error('[freigabe:geladen]', params.token, JSON.stringify(geladenDiagnose))
+
   if (raeume.length === 0) {
     // Diagnose: WARUM ist die Liste leer? In Vercel-Logs sichtbar; für eingeloggte Admins
     // zusätzlich on-screen via ?vorschau=1&debug=1 (zeigt den exakten Grund, kein Rätselraten).
@@ -374,19 +401,26 @@ export default async function FreigabePage({ params, searchParams }: Props) {
                               (scopeBereichIds.length > 0 ? ` · ${scopeBereichIds.length} Gruppe${scopeBereichIds.length === 1 ? '' : 'n'}` : '')
 
   return (
-    <FreigabeClient
-      token={params.token}
-      projektName={projekt.name}
-      kundeName={kundeName}
-      raeume={raeume}
-      mwst={mwst}
-      branding={branding}
-      scopeBeschreibung={scopeBeschreibung}
-      begleitNachricht={begleitNachricht}
-      bereitsAbgeschlossen={vorschau ? false : tokenData.abgeschlossen_am != null}
-      abgeschlossenDurch={tokenData.abgeschlossen_durch}
-      vorschau={vorschau}
-    />
+    <>
+      {vorschau && searchParams?.debug === '1' && (
+        <div className="fixed top-0 inset-x-0 z-[100] bg-amber-100 text-amber-900 text-[11px] font-medium px-3 py-1 text-center shadow">
+          Diagnose · geladen: {geladenDiagnose.rp} Produkte · {geladenDiagnose.bloecke} Blöcke · {geladenDiagnose.raeume} Räume · scope={geladenDiagnose.scopeTyp}
+        </div>
+      )}
+      <FreigabeClient
+        token={params.token}
+        projektName={projekt.name}
+        kundeName={kundeName}
+        raeume={raeume}
+        mwst={mwst}
+        branding={branding}
+        scopeBeschreibung={scopeBeschreibung}
+        begleitNachricht={begleitNachricht}
+        bereitsAbgeschlossen={vorschau ? false : tokenData.abgeschlossen_am != null}
+        abgeschlossenDurch={tokenData.abgeschlossen_durch}
+        vorschau={vorschau}
+      />
+    </>
   )
 }
 
