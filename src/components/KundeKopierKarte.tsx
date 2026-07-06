@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Copy, Check } from 'lucide-react'
+import { parseAdresse } from '@/lib/adresse'
 
 // ── Clipboard-Helfer (mit Fallback für ältere/unsichere Kontexte) ──
 async function copyText(text: string): Promise<boolean> {
@@ -112,14 +113,28 @@ export default function KundeKopierKarte({
   const firmaExtra    = firma && firma !== name ? firma : null
   const ansprechExtra = ansprechpartner && ansprechpartner !== name ? ansprechpartner : null
 
+  // Adress-Komponenten (einzeln kopierbar): strukturierte Felder bevorzugt; sonst wird
+  // die Legacy-Freitextadresse zerlegt (getesteter Parser). Straße & Hausnummer bleiben
+  // zusammen, PLZ und Ort sind einzeln — genau wie in Bestellformularen gebraucht.
+  const geparst   = !hatStruktur ? parseAdresse(adresseLegacy) : null
+  const adrStrasse = hatStruktur ? strasse : (geparst?.strasse ?? null)
+  const adrPlz     = hatStruktur ? plz     : (geparst?.plz ?? null)
+  const adrOrt     = hatStruktur ? ort     : (geparst?.ort ?? null)
+  const hatTeile   = !!(adrStrasse || adrPlz || adrOrt)
+  // Komplette Adresse (eine Zeile) — für Formulare mit nur EINEM Adressfeld.
+  const adresseKomplett =
+    adresseLegacy?.trim()
+    || [adrStrasse, [adrPlz, adrOrt].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+    || null
+
   // Block für Bestellformulare (Name → Firma → Adresse → Telefon → E-Mail)
-  const ortZeile = [plz, ort].filter(Boolean).join(' ')
+  const ortZeile = [adrPlz, adrOrt].filter(Boolean).join(' ')
   const allesZeilen = [
     name,
     firmaExtra,
     ansprechExtra,
-    hatStruktur ? strasse : adresseLegacy,
-    hatStruktur ? (ortZeile || null) : null,
+    hatTeile ? adrStrasse : adresseLegacy,
+    hatTeile ? (ortZeile || null) : null,
     telefon,
     email,
   ].filter(Boolean) as string[]
@@ -138,14 +153,15 @@ export default function KundeKopierKarte({
         {ansprechExtra  && <Zeile label="Ansprechpartner" value={ansprechExtra} />}
         <Zeile label="E-Mail"         value={email} />
         <Zeile label="Telefon"        value={telefon} />
-        {hatStruktur ? (
+        {hatTeile ? (
           <>
-            <Zeile label="Straße & Nr." value={strasse} />
-            <Zeile label="PLZ"          value={plz} />
-            <Zeile label="Ort"          value={ort} />
+            <Zeile label="Straße & Nr."       value={adrStrasse} />
+            <Zeile label="PLZ"                value={adrPlz} />
+            <Zeile label="Ort"                value={adrOrt} />
+            <Zeile label="Adresse (komplett)" value={adresseKomplett} />
           </>
         ) : (
-          <Zeile label="Adresse"        value={adresseLegacy} />
+          <Zeile label="Adresse"              value={adresseLegacy} />
         )}
         <Zeile label="Website"        value={website} />
       </div>

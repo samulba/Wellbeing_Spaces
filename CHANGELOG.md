@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-29
 
+### Kunden – Adresse in Teilen kopierbar
+- Auf der Kunden-Seite lässt sich die Adresse jetzt **in ihren Bestandteilen einzeln kopieren**: „Straße & Nr." (zusammen), „PLZ" und „Ort" jeweils mit eigenem Kopier-Knopf – zusätzlich „Adresse (komplett)" für Formulare mit nur einem Adressfeld. Das funktioniert auch bei **Bestandskunden**, deren Adresse noch als ein Freitext gespeichert ist (sie wird automatisch zerlegt); ist keine Zerlegung möglich, bleibt die bisherige Komplett-Zeile.
+
 ### Freigabelink – Auswahl-Blöcke nicht mehr Pflicht
 - Bisher musste der Kunde im Freigabelink in **jedem** Auswahl-Block mindestens eine Variante anhaken, sonst ließ sich nichts absenden – auch bei Blöcken, die ihn gar nicht interessieren. Das war unpraktisch. Jetzt sind **Auswahl-Blöcke optional**: man kann einen Block einfach leer lassen und trotzdem absenden. **Einzelne Produkte** (Freigeben/Ablehnen) und **Sets** brauchen weiterhin eine Entscheidung.
 
