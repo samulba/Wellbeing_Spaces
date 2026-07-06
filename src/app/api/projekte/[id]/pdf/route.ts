@@ -3,10 +3,12 @@ import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import {
   pdfEur, pdfHeute,
   logoAlsBase64,
-  WB_GREEN, GRAY_900, GRAY_600, GRAY_400, GRAY_100, WHITE,
-  MARGIN, PAGE_W, PAGE_H, COL_W,
+  pdfKopf, pdfFusszeilen, pdfFirmenname, pdfSummenBlock,
+  TABLE_STYLES, TABLE_HEAD_STYLES, ALT_ROW, CREAM, PDF_ROT,
+  WB_GREEN, GRAY_900, GRAY_600, GRAY_400, GRAY_100,
+  MARGIN, PAGE_W, COL_W,
 } from '@/lib/pdf-helpers'
-import { effektiverVpNetto } from '@/lib/preise'
+import { effektiverVpNetto, bruttoVon, r2 } from '@/lib/preise'
 import { getMwstSatz } from '@/app/actions/einstellungen'
 import { getRaumBudgetDetails } from '@/app/actions/raeume'
 
@@ -41,18 +43,34 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const orgId = await getOrganisationId()
 
-  const [{ data: projekt }, { data: branding }, mwstSatz] = await Promise.all([
+  // ── Auswahl-Parameter (Export-Dialog) — OHNE Parameter identisch zu vorher ──
+  //   raeume=<id,id>            nur diese Räume (Teilmenge; unbekannte IDs ignoriert)
+  //   preise=netto|brutto|keine Preismodus (fehlt/netto = bisheriges Netto-Layout;
+  //                             brutto = Kundenpreise inkl. MwSt je Zeile;
+  //                             keine = komplett ohne €-Angaben)
+  //   inline=1                  Vorschau im Browser statt Download
+  const sp = req.nextUrl.searchParams
+  const preiseParam = sp.get('preise')
+  const preise: 'netto' | 'brutto' | 'keine' =
+    preiseParam === 'brutto' ? 'brutto' : preiseParam === 'keine' ? 'keine' : 'netto'
+  const raeumeParamRoh = (sp.get('raeume') ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+  const inline = sp.get('inline') === '1'
+
+  const [{ data: projekt }, { data: branding }, { data: org }, mwstSatz] = await Promise.all([
     supabase
       .from('projekte')
       .select('*, kunden(name, email, adresse, ansprechpartner)')
       .eq('id', id).eq('organisation_id', orgId).single(),
     supabase.from('branding').select('*').maybeSingle(),
+    supabase.from('organisationen').select(
+      'name, rechtsform, handelsregister_nr, registergericht, geschaeftsfuehrer, ust_id, steuernummer, bank_name, bank_iban, bank_bic',
+    ).eq('id', orgId).maybeSingle(),
     getMwstSatz(),
   ])
 
   if (!projekt) return NextResponse.json({ error: 'Projekt nicht gefunden' }, { status: 404 })
 
-  const { data: raeume } = await supabase
+  const { data: raeumeAlle } = await supabase
     .from('raeume')
     .select('id, name, budget, reihenfolge')
     .eq('projekt_id', id)
@@ -60,7 +78,15 @@ export async function GET(req: NextRequest, { params }: Params) {
     .order('reihenfolge')
     .order('created_at')
 
-  const raumIds = (raeume ?? []).map((r) => r.id)
+  // Räume-Filter: nur gültige (geladene) IDs zählen; leer/nur-unbekannt → alle.
+  const bekannteIds = new Set((raeumeAlle ?? []).map((r) => r.id as string))
+  const raeumeFilter = raeumeParamRoh.filter((rid) => bekannteIds.has(rid))
+  const raeumeGefiltert = raeumeFilter.length > 0 && raeumeFilter.length < bekannteIds.size
+  const raeume = raeumeGefiltert
+    ? (raeumeAlle ?? []).filter((r) => raeumeFilter.includes(r.id as string))
+    : (raeumeAlle ?? [])
+
+  const raumIds = raeume.map((r) => r.id)
   const { data: rpsRaw } = raumIds.length > 0
     ? await supabase
         .from('raum_produkte')
@@ -111,8 +137,10 @@ export async function GET(req: NextRequest, { params }: Params) {
     zkByRaum.set(zk.raum_id, list)
   }
 
-  // Service-Pauschale + Modell aus Projekt
-  const servicePauschale = (projekt as { service_pauschale: number | null }).service_pauschale ?? 0
+  // Service-Pauschale + Modell aus Projekt. Bei Räume-Teilauswahl wird die
+  // PROJEKT-Pauschale bewusst NICHT eingerechnet (Teilmenge + volle Pauschale
+  // wäre irreführend) — dito der Zahlungsplan.
+  const servicePauschale = raeumeGefiltert ? 0 : ((projekt as { service_pauschale: number | null }).service_pauschale ?? 0)
   const serviceModell    = (projekt as { service_modell: string | null }).service_modell ?? null
 
   // Gesamtsummen
@@ -133,42 +161,12 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { default: autoTable } = await import('jspdf-autotable')
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const firmenname = branding?.firmenname ?? 'Wellbeing Spaces'
+  const firmenname = pdfFirmenname(branding)
   const logo = await logoAlsBase64(branding?.logo_url ?? null)
-
-  // ── Wiederverwendbarer Firmen-Header ──────────────────────
-  function drawHeader(y0: number): number {
-    const logoH = 14
-    const logoY = y0
-    if (logo) doc.addImage(logo.data, logo.format, MARGIN, logoY, 36, logoH)
-
-    const colRight = PAGE_W - MARGIN
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    doc.setTextColor(...GRAY_900)
-    doc.text(firmenname, colRight, y0 + 4, { align: 'right' })
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...GRAY_600)
-    const firmLines: string[] = []
-    if (branding?.adresse) firmLines.push(branding.adresse)
-    const kontakt: string[] = []
-    if (branding?.telefon) kontakt.push(`Tel: ${branding.telefon}`)
-    if (branding?.email)   kontakt.push(branding.email)
-    if (kontakt.length) firmLines.push(kontakt.join('  ·  '))
-    firmLines.forEach((line, i) => {
-      doc.text(line, colRight, y0 + 9 + i * 4.2, { align: 'right' })
-    })
-
-    const lineY = Math.max(logoY + logoH, y0 + 9 + firmLines.length * 4.2) + 3
-    doc.setFillColor(...WB_GREEN)
-    doc.rect(MARGIN, lineY, PAGE_W - MARGIN * 2, 0.6, 'F')
-    return lineY + 8
-  }
+  const kopf = () => pdfKopf(doc, { logo, branding, org: org ?? null })
 
   // ── COVER-PAGE ─────────────────────────────────────────────
-  let y = drawHeader(MARGIN)
+  let y = kopf()
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
@@ -213,21 +211,20 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (kunde?.email) { doc.text(kunde.email, MARGIN, ky); ky += 4.5 }
   y = Math.max(ky, y + 15) + 10
 
-  // Projekt-KPI-Box (Produkte · Räume · Summen)
-  const boxW = (COL_W - 10) / 3
-  const boxY = y
-  const boxH = 22
-  // Cover-Boxen: Summe brutto = Produkte + Zusatzkosten + Service (gesamtBrutto wird unten berechnet).
-  // Wir nehmen die Variante mit allem drin, damit die Zahl auf der Coverseite mit dem Gesamtbetrag der letzten Seite uebereinstimmt.
-  const coverSummeBruttoEinfach = (sumNetto + zkSumNetto + (serviceModell === 'pauschale' ? servicePauschale : 0)) * (1 + mwstSatz)
+  // Projekt-KPI-Box (Produkte · Räume · Summe) — Summe nur, wenn Preise gezeigt werden.
+  // Cover-Summe brutto = Produkte + Zusatzkosten + Service (stimmt mit der Gesamt-Seite überein).
+  const coverSummeBruttoEinfach = bruttoVon(sumNetto + zkSumNetto + (serviceModell === 'pauschale' ? servicePauschale : 0), mwstSatz)
   const boxes: [string, string][] = [
     ['Produkte', String(produkteGesamt)],
-    ['Räume', String(raeume?.length ?? 0)],
-    ['Summe brutto', pdfEur(coverSummeBruttoEinfach)],
+    ['Räume', String(raeume.length)],
+    ...(preise !== 'keine' ? [['Summe brutto', pdfEur(coverSummeBruttoEinfach)] as [string, string]] : []),
   ]
+  const boxW = (COL_W - (boxes.length - 1) * 5) / boxes.length
+  const boxY = y
+  const boxH = 22
   boxes.forEach(([label, wert], i) => {
     const x = MARGIN + i * (boxW + 5)
-    doc.setFillColor(246, 237, 226) // wellbeing-cream
+    doc.setFillColor(...CREAM)
     doc.setDrawColor(...GRAY_100)
     doc.roundedRect(x, boxY, boxW, boxH, 2, 2, 'FD')
     doc.setFont('helvetica', 'normal')
@@ -241,16 +238,29 @@ export async function GET(req: NextRequest, { params }: Params) {
   })
   y = boxY + boxH + 8
 
-  // Netto-Summe kleiner
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.setTextColor(...GRAY_600)
-  doc.text(`Summe netto: ${pdfEur(sumNetto)}  ·  MwSt. ${Math.round(mwstSatz * 100)}%`, MARGIN, y)
+  // Netto-Summe kleiner (entfällt im Modus „ohne Preise")
+  if (preise !== 'keine') {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    doc.setTextColor(...GRAY_600)
+    doc.text(`Summe netto: ${pdfEur(sumNetto)}  ·  MwSt. ${Math.round(mwstSatz * 100)}%`, MARGIN, y)
+    y += 5
+  }
+
+  // Aktive Auswahl sichtbar machen (Teilmenge der Räume)
+  if (raeumeGefiltert) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    doc.setTextColor(...GRAY_600)
+    const namen = raeume.map((r) => r.name as string).join(', ')
+    const zeilen = doc.splitTextToSize(`Auswahl:  Räume: ${namen}`, COL_W) as string[]
+    doc.text(zeilen, MARGIN, y)
+  }
 
   // ── PRO RAUM eine Seite ───────────────────────────────────
-  for (const raum of (raeume ?? [])) {
+  for (const raum of raeume) {
     doc.addPage()
-    y = drawHeader(MARGIN)
+    y = kopf()
 
     // Raum-Header
     doc.setFont('helvetica', 'bold')
@@ -264,16 +274,16 @@ export async function GET(req: NextRequest, { params }: Params) {
     doc.text(raum.name, MARGIN, y + 8)
     y += 14
 
-    // Budget-Progress (falls Budget)
+    // Budget-Progress (falls Budget) — entfällt im Modus „ohne Preise" (€-Angaben)
     const bd = budgetByRaum.get(raum.id)
-    if (bd && bd.budget != null && bd.budget > 0) {
+    if (preise !== 'keine' && bd && bd.budget != null && bd.budget > 0) {
       const barW = 70
       const barH = 3
       const pct = Math.min(1, bd.verbraucht / bd.budget)
       doc.setFillColor(...GRAY_100)
       doc.rect(MARGIN, y, barW, barH, 'F')
       const ueber = bd.verbraucht > bd.budget
-      doc.setFillColor(...(ueber ? ([239, 68, 68] as [number, number, number]) : WB_GREEN))
+      doc.setFillColor(...(ueber ? PDF_ROT : WB_GREEN))
       doc.rect(MARGIN, y, barW * pct, barH, 'F')
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8)
@@ -298,7 +308,10 @@ export async function GET(req: NextRequest, { params }: Params) {
       continue
     }
 
-    // Tabelle
+    // Tabelle — Spalten je Preismodus:
+    //   netto  (Standard) → Pos | Produkt | Menge | Basis | Rabatt | VP/Stk | Gesamt (wie bisher)
+    //   brutto            → Pos | Produkt | Menge | Preis/Stk brutto | Gesamt brutto
+    //   keine             → Pos | Produkt | Menge
     let raumNetto = 0
     const linkPositions: { page: number; x: number; y: number; w: number; h: number; url: string }[] = []
 
@@ -314,10 +327,14 @@ export async function GET(req: NextRequest, { params }: Params) {
       let nameCell = p.name
       if (p.kategorie) nameCell += `\n${p.kategorie}`
       if (p.hinweis_extern) nameCell += `\nHinweis: ${p.hinweis_extern}`
+      const basisZellen = [String(i + 1), nameCell, `${rp.menge} ${p.einheit}`]
+      if (preise === 'keine') return basisZellen
+      if (preise === 'brutto') {
+        const stkBrutto = bruttoVon(vp, mwstSatz)
+        return [...basisZellen, pdfEur(stkBrutto), pdfEur(r2(stkBrutto * rp.menge))]
+      }
       return [
-        String(i + 1),
-        nameCell,
-        `${rp.menge} ${p.einheit}`,
+        ...basisZellen,
         pdfEur(basis),
         rp.rabatt_prozent != null ? `−${rp.rabatt_prozent}%` : '–',
         pdfEur(vp),
@@ -325,29 +342,37 @@ export async function GET(req: NextRequest, { params }: Params) {
       ]
     })
 
+    const kopfZeile =
+      preise === 'keine'  ? ['Pos', 'Produkt', 'Menge'] :
+      preise === 'brutto' ? ['Pos', 'Produkt', 'Menge', 'Preis/Stk brutto', 'Gesamt brutto'] :
+                            ['Pos', 'Produkt', 'Menge', 'Basis', 'Rabatt', 'VP/Stk', 'Gesamt']
+    const spaltenStile: Record<number, { cellWidth?: number | 'auto'; halign?: 'left' | 'center' | 'right'; fontStyle?: 'bold' }> = {
+      0: { cellWidth: 12, halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 20, halign: 'center' },
+    }
+    if (preise === 'brutto') {
+      spaltenStile[3] = { cellWidth: 32, halign: 'right' }
+      spaltenStile[4] = { cellWidth: 32, halign: 'right', fontStyle: 'bold' }
+    } else if (preise === 'netto') {
+      spaltenStile[3] = { cellWidth: 22, halign: 'right' }
+      spaltenStile[4] = { cellWidth: 18, halign: 'right' }
+      spaltenStile[5] = { cellWidth: 22, halign: 'right' }
+      spaltenStile[6] = { cellWidth: 26, halign: 'right', fontStyle: 'bold' }
+    }
+
     autoTable(doc, {
       startY: y + 2,
       margin: { left: MARGIN, right: MARGIN },
-      head: [['Pos', 'Produkt', 'Menge', 'Basis', 'Rabatt', 'VP/Stk', 'Gesamt']],
+      head: [kopfZeile],
       body: tableRows,
-      styles: {
-        font: 'helvetica',
-        fontSize: 8.5,
-        cellPadding: 3,
-        overflow: 'linebreak',
-        textColor: GRAY_900,
-        valign: 'middle',
-      },
-      headStyles: { fillColor: WB_GREEN, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'left' },
-      alternateRowStyles: { fillColor: [249, 250, 251] },
-      columnStyles: {
-        0: { cellWidth: 12,  halign: 'center' },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 20,  halign: 'center' },
-        3: { cellWidth: 22,  halign: 'right' },
-        4: { cellWidth: 18,  halign: 'right' },
-        5: { cellWidth: 22,  halign: 'right' },
-        6: { cellWidth: 26,  halign: 'right', fontStyle: 'bold' },
+      styles: TABLE_STYLES,
+      headStyles: TABLE_HEAD_STYLES,
+      alternateRowStyles: { fillColor: ALT_ROW },
+      columnStyles: spaltenStile,
+      didParseCell: (data) => {
+        // Preis-Spaltenköpfe rechtsbündig (wie die Werte darunter)
+        if (data.section === 'head' && data.column.index >= 3) data.cell.styles.halign = 'right'
       },
       didDrawCell: (data) => {
         if (data.section !== 'body' || data.column.index !== 1) return
@@ -375,37 +400,44 @@ export async function GET(req: NextRequest, { params }: Params) {
     }
     doc.setPage(currentPage)
 
-    // Raum-Zusatzkosten (Lieferung, Handwerker, etc.) — falls vorhanden
-    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4
-    let raumY = finalY
-    const raumZk = zkByRaum.get(raum.id) ?? []
-    let raumZkNetto = 0
-    if (raumZk.length > 0) {
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8)
-      doc.setTextColor(...GRAY_600)
-      doc.text('Zusatzkosten:', MARGIN, raumY + 4)
-      raumY += 6
-      doc.setFont('helvetica', 'normal')
-      for (const zk of raumZk) {
-        raumZkNetto += zk.betrag_netto
-        doc.text(`• ${zk.titel} (${zk.kategorie})`, MARGIN + 4, raumY)
-        doc.text(pdfEur(zk.betrag_netto), PAGE_W - MARGIN, raumY, { align: 'right' })
-        raumY += 4
+    // Raum-Zusatzkosten + Raum-Summe — entfallen komplett im Modus „ohne Preise"
+    if (preise !== 'keine') {
+      const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4
+      let raumY = finalY
+      const raumZk = zkByRaum.get(raum.id) ?? []
+      let raumZkNetto = 0
+      if (raumZk.length > 0) {
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(8)
+        doc.setTextColor(...GRAY_600)
+        doc.text('Zusatzkosten:', MARGIN, raumY + 4)
+        raumY += 6
+        doc.setFont('helvetica', 'normal')
+        for (const zk of raumZk) {
+          raumZkNetto += zk.betrag_netto
+          const betrag = preise === 'brutto' ? bruttoVon(zk.betrag_netto, mwstSatz) : zk.betrag_netto
+          doc.text(`• ${zk.titel} (${zk.kategorie})`, MARGIN + 4, raumY)
+          doc.text(pdfEur(betrag), PAGE_W - MARGIN, raumY, { align: 'right' })
+          raumY += 4
+        }
       }
-    }
 
-    // Raum-Summe (Produkte + Zusatzkosten)
-    const raumSummeNetto = raumNetto + raumZkNetto
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.setTextColor(...WB_GREEN)
-    doc.text(`Raum-Summe netto: ${pdfEur(raumSummeNetto)}`, PAGE_W - MARGIN, raumY + 4, { align: 'right' })
+      // Raum-Summe (Produkte + Zusatzkosten) — im Brutto-Modus als Brutto-Summe
+      const raumSummeNetto = raumNetto + raumZkNetto
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      doc.setTextColor(...WB_GREEN)
+      const raumSummeText = preise === 'brutto'
+        ? `Raum-Summe brutto: ${pdfEur(bruttoVon(raumSummeNetto, mwstSatz))}`
+        : `Raum-Summe netto: ${pdfEur(raumSummeNetto)}`
+      doc.text(raumSummeText, PAGE_W - MARGIN, raumY + 4, { align: 'right' })
+    }
   }
 
-  // ── GESAMT-SEITE ──────────────────────────────────────────
+  // ── GESAMT-SEITE (entfällt im Modus „ohne Preise") ────────
+  if (preise !== 'keine') {
   doc.addPage()
-  y = drawHeader(MARGIN)
+  y = kopf()
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(18)
@@ -417,7 +449,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const budgetVerbrauchtNetto  = sumNetto + zkSumNetto                           // Produkte + Zusatzkosten
   const serviceNetto           = serviceModell === 'pauschale' ? servicePauschale : 0
   const gesamtNetto            = budgetVerbrauchtNetto + serviceNetto
-  const gesamtBrutto           = gesamtNetto * (1 + mwstSatz)
+  const gesamtBrutto           = bruttoVon(gesamtNetto, mwstSatz)
 
   const summenLines: { label: string; wert: string; bold?: boolean; gross?: boolean }[] = [
     { label: 'Produkte netto:', wert: pdfEur(sumNetto) },
@@ -430,30 +462,14 @@ export async function GET(req: NextRequest, { params }: Params) {
     summenLines.push({ label: 'Service-Pauschale netto:', wert: pdfEur(serviceNetto) })
   }
   summenLines.push(
-    { label: `MwSt. (${Math.round(mwstSatz * 100)}%):`, wert: pdfEur(gesamtNetto * mwstSatz) },
+    { label: `MwSt. (${Math.round(mwstSatz * 100)}%):`, wert: pdfEur(r2(gesamtNetto * mwstSatz)) },
     { label: 'Gesamtbetrag brutto:', wert: pdfEur(gesamtBrutto), bold: true, gross: true },
   )
 
-  const sumW  = 100
-  const sumX  = PAGE_W - MARGIN - sumW
-  const lineH = 6
+  y = pdfSummenBlock(doc, y, summenLines)
 
-  summenLines.forEach((s) => {
-    if (s.gross) {
-      doc.setDrawColor(...GRAY_100)
-      doc.setLineWidth(0.3)
-      doc.line(sumX, y - 2, PAGE_W - MARGIN, y - 2)
-    }
-    doc.setFont('helvetica', s.bold ? 'bold' : 'normal')
-    doc.setFontSize(s.gross ? 11 : 9.5)
-    doc.setTextColor(...(s.gross ? WB_GREEN : GRAY_600))
-    doc.text(s.label, sumX, y)
-    doc.text(s.wert, PAGE_W - MARGIN, y, { align: 'right' })
-    y += lineH
-  })
-
-  // ── Service-Raten-Plan (falls vorhanden) ───────────────────
-  const aktiveRaten = serviceRaten.filter((r) => r.status !== 'storniert')
+  // ── Service-Raten-Plan (nur ohne Räume-Teilauswahl — Projekt-Ebene) ──
+  const aktiveRaten = raeumeGefiltert ? [] : serviceRaten.filter((r) => r.status !== 'storniert')
   if (aktiveRaten.length > 0) {
     y += 8
     doc.setFont('helvetica', 'bold')
@@ -486,16 +502,10 @@ export async function GET(req: NextRequest, { params }: Params) {
       y += 4.5
     }
   }
-
-  // ── Footer mit Seitenzahlen ────────────────────────────────
-  const pageCount = (doc.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages()
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-    doc.setTextColor(...GRAY_400)
-    doc.text(`${firmenname}  ·  Seite ${i} / ${pageCount}`, PAGE_W / 2, PAGE_H - 8, { align: 'center' })
   }
+
+  // ── Footer: Legal (inkl. Rechtsträger) + Seitenzahlen ─────
+  pdfFusszeilen(doc, { firmenname, org: org ?? null, includeBank: false })
 
   const pdfBytes = doc.output('arraybuffer')
   const safeName = (projekt.name as string).replace(/[^\w\s\-]/g, '_').slice(0, 40)
@@ -504,7 +514,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   return new Response(pdfBytes, {
     headers: {
       'Content-Type':        'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="${filename}"`,
       'Cache-Control':       'no-store',
     },
   })

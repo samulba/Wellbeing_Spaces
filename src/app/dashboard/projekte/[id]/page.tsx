@@ -26,7 +26,7 @@ import {
 import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
 import ProjektStatusButtons from '@/components/ProjektStatusButtons'
 import SortableRaumListe, { type RaumStat } from '@/components/SortableRaumListe'
-import PdfExportButton from '@/components/PdfExportButton'
+import ProjektPdfExportModal from '@/components/ProjektPdfExportModal'
 import ZeiterfassungBlock from '@/components/ZeiterfassungBlock'
 import { getKategorien } from '@/app/actions/einstellungen'
 import { getZeiterfassung, getZeitSumme } from '@/app/actions/zeiterfassung'
@@ -428,7 +428,7 @@ export default async function ProjektDetailPage({
               >
                 <Download className="w-4 h-4" />
               </a>
-              <PdfExportButton projektId={projekt.id} />
+              <ProjektPdfExportModal projektId={projekt.id} raeume={raeume.map((r) => ({ id: r.id, name: r.name }))} />
               <Link
                 href={`/dashboard/projekte/${projekt.id}/bearbeiten`}
                 title="Projekt bearbeiten"
