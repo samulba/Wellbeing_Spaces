@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
-import { FileText } from 'lucide-react'
+import RaumPdfExportModal from '@/components/RaumPdfExportModal'
 
 // Muss dynamisch sein — sonst werden die Raum-Produkte und Timeline-Events
 // zwischen Sync-Aufrufen gecacht und Änderungen sind erst nach Hard-Refresh sichtbar.
@@ -127,6 +127,18 @@ export default async function RaumDetailPage({
     .filter((p) => verwendetePartnerIds.has(p.id))
     .map((p) => ({ id: p.id, name: p.name }))
 
+  // Optionen für den PDF-Export (Auswahl-Modal): Gruppen = effektiver Bereich je
+  // Eintrag (block-first, exakt wie die PDF-Route auflöst) + „Ohne …"-Flags.
+  const blockZuBereich = new Map(produktGruppen.map((g) => [g.id, g.bereich_id ?? null]))
+  const effektiverBereich = (e: RaumProduktMitDetails): string | null =>
+    (e.produkt_gruppe_id ? (blockZuBereich.get(e.produkt_gruppe_id) ?? null) : null) ?? e.bereich_id ?? null
+  const verwendeteBereichIds = new Set(alleEintraege.map(effektiverBereich))
+  const pdfGruppen = produktBereiche
+    .filter((b) => verwendeteBereichIds.has(b.id))
+    .map((b) => ({ id: b.id, name: b.name }))
+  const pdfHatOhneGruppe  = alleEintraege.length > 0 && verwendeteBereichIds.has(null)
+  const pdfHatOhnePartner = alleEintraege.some((e) => !e.produkte.partner_id)
+
   // Effektiver VP pro Eintrag (inkl. Override + Rabatt — Single Source of Truth)
   const effVP = (e: RaumProduktMitDetails) =>
     effektiverVpNetto(
@@ -169,15 +181,13 @@ export default async function RaumDetailPage({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <a
-            href={`/api/raeume/${params.raumId}/pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
-            title="Produkt-Übersicht als PDF (Proof für Lieferant — ohne Preise)"
-          >
-            <FileText className="w-4 h-4" /> PDF
-          </a>
+          <RaumPdfExportModal
+            raumId={params.raumId}
+            gruppen={pdfGruppen}
+            hatOhneGruppe={pdfHatOhneGruppe}
+            partner={partnerFuerFilter}
+            hatOhnePartner={pdfHatOhnePartner}
+          />
           <ProduktHinzufuegenModal raumId={params.raumId} projektId={params.id} />
         </div>
       </div>

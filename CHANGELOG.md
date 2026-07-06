@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-29
 
+### Räume – PDF-Export mit Auswahl & Vorschau
+- Der **PDF-Knopf** auf der Raum-Seite öffnet jetzt einen **Auswahl-Dialog mit Live-Vorschau**: Man wählt, was in die PDF soll — **Gruppen**, **Partner/Lieferant** und optional **Preise** (EK netto und/oder Kundenpreis brutto) — sieht rechts sofort die Vorschau und lädt dann herunter. So lässt sich z. B. **nur Paulmann mit Artikelnummern + EK netto** als PDF für den Lieferanten erzeugen. Ohne Preis-Häkchen bleibt die PDF wie bisher ohne Preise (sicher zum Weiterleiten). Die gewählte Auswahl steht sichtbar im PDF-Kopf; bei genau einem gewählten Partner steht dessen Name mit im Dateinamen.
+- Die **„Gesamtmenge je Produkt"-Tabelle** unten in der PDF wurde **entfernt** (verwirrend, da sie nur mehrfach vorkommende Produkte zeigte). Die Summenzeile zeigt jetzt zusätzlich die Preissummen, wenn Preis-Spalten gewählt sind.
+
 ### Kunden – Adresse in Teilen kopierbar
 - Auf der Kunden-Seite lässt sich die Adresse jetzt **in ihren Bestandteilen einzeln kopieren**: „Straße & Nr." (zusammen), „PLZ" und „Ort" jeweils mit eigenem Kopier-Knopf – zusätzlich „Adresse (komplett)" für Formulare mit nur einem Adressfeld. Das funktioniert auch bei **Bestandskunden**, deren Adresse noch als ein Freitext gespeichert ist (sie wird automatisch zerlegt); ist keine Zerlegung möglich, bleibt die bisherige Komplett-Zeile.
 
