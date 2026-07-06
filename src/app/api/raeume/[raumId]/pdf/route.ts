@@ -7,9 +7,10 @@ import {
   pdfHeute,
   pdfEur,
   logoAlsBase64,
-  pdfLegalFooterZeilen,
-  WB_GREEN, GRAY_900, GRAY_600, GRAY_400, GRAY_100, WHITE,
-  MARGIN, PAGE_W, PAGE_H,
+  pdfKopf, pdfTitel, pdfFusszeilen, pdfFirmenname, pdfGruppenKopfZeile,
+  TABLE_STYLES, TABLE_HEAD_STYLES, ALT_ROW,
+  WB_GREEN, GRAY_600, GRAY_400,
+  MARGIN,
 } from '@/lib/pdf-helpers'
 
 type Params = { params: Promise<{ raumId: string }> }
@@ -135,41 +136,12 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { default: autoTable } = await import('jspdf-autotable')
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const firmenname = branding?.firmenname ?? 'Wellbeing Spaces'
+  const firmenname = pdfFirmenname(branding)
   const logo = await logoAlsBase64(branding?.logo_url ?? null)
 
-  // ── Header ────────────────────────────────────────────────
-  const logoH = 14
-  const logoY = MARGIN - 4
-  if (logo) doc.addImage(logo.data, logo.format, MARGIN, logoY, 36, logoH)
-
-  const colRight = PAGE_W - MARGIN
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...GRAY_900)
-  doc.text(firmenname, colRight, MARGIN, { align: 'right' })
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...GRAY_600)
-  const firmLines: string[] = []
-  if (branding?.adresse) firmLines.push(branding.adresse)
-  const kontakt: string[] = []
-  if (branding?.telefon) kontakt.push(`Tel: ${branding.telefon}`)
-  if (branding?.email)   kontakt.push(branding.email)
-  if (branding?.website) kontakt.push(branding.website)
-  if (kontakt.length) firmLines.push(kontakt.join('  ·  '))
-  firmLines.forEach((line, i) => doc.text(line, colRight, MARGIN + 5 + i * 4.2, { align: 'right' }))
-
-  const lineY = Math.max(logoY + logoH, MARGIN + 5 + firmLines.length * 4.2) + 3
-  doc.setFillColor(...WB_GREEN)
-  doc.rect(MARGIN, lineY, PAGE_W - MARGIN * 2, 0.6, 'F')
-
-  // ── Titel ─────────────────────────────────────────────────
+  // ── Kopf + Titel (Design-System) ──────────────────────────
   const projektRaw = raum.projekte as unknown as { name: string; kunden: { name: string } | null } | null
-  let y = lineY + 10
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...WB_GREEN)
-  doc.text('PRODUKTÜBERSICHT', MARGIN, y)
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...GRAY_900)
-  doc.text(`Raum: ${raum.name as string}`, MARGIN, y + 7)
-  doc.setFontSize(8.5); doc.setTextColor(...GRAY_400)
   const meta = [projektRaw?.name ? `Projekt: ${projektRaw.name}` : null, projektRaw?.kunden?.name ? `Kunde: ${projektRaw.kunden.name}` : null, `Stand: ${pdfHeute()}`].filter(Boolean).join('   ·   ')
-  doc.text(meta, MARGIN, y + 12)
   // Aktive Auswahl sichtbar machen — der Empfänger sieht, dass es ein Ausschnitt ist.
   const auswahlTeile: string[] = []
   if (partnerFilter) {
@@ -180,12 +152,13 @@ export async function GET(req: NextRequest, { params }: Params) {
     const namen = Array.from(gruppenFilter).map((id) => (id === 'ohne' ? 'Ohne Gruppe' : (bereichName.get(id) ?? 'Gruppe'))).sort((a, b) => a.localeCompare(b, 'de'))
     auswahlTeile.push(`Gruppen: ${namen.join(', ')}`)
   }
-  if (auswahlTeile.length > 0) {
-    doc.setTextColor(...GRAY_600)
-    doc.text(`Auswahl:  ${auswahlTeile.join('   ·   ')}`, MARGIN, y + 16.5)
-    y += 4.5
-  }
-  y += 18
+  let y = pdfKopf(doc, { logo, branding, org: org ?? null })
+  y = pdfTitel(doc, y, {
+    keyword: 'PRODUKTÜBERSICHT',
+    untertitel: `Raum: ${raum.name as string}`,
+    meta,
+    auswahl: auswahlTeile.length > 0 ? `Auswahl:  ${auswahlTeile.join('   ·   ')}` : null,
+  })
 
   // ── Tabelle, nach Gruppen gegliedert ─────────────────────────
   // Gruppen erscheinen als Abschnitts-Kopfzeilen (statt einer wiederholten
@@ -205,14 +178,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   for (const r of rows) {
     if (r.gruppenName !== letzteGruppe) {
       letzteGruppe = r.gruppenName
-      body.push([{
-        content: r.gruppenName === '—' ? 'Ohne Gruppe' : r.gruppenName,
-        colSpan: spalten,
-        styles: {
-          fillColor: GRAY_100, textColor: WB_GREEN, fontStyle: 'bold', fontSize: 8.5,
-          cellPadding: { top: 2.6, bottom: 2.6, left: 3, right: 3 },
-        },
-      }])
+      body.push(pdfGruppenKopfZeile(r.gruppenName === '—' ? 'Ohne Gruppe' : r.gruppenName, spalten))
       rowUrl.push(null)
     }
     pos++
@@ -254,9 +220,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     margin: { left: MARGIN, right: MARGIN },
     head: [head],
     body,
-    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, overflow: 'linebreak', textColor: GRAY_900, valign: 'middle', lineWidth: 0 },
-    headStyles: { fillColor: WB_GREEN, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'left', cellPadding: { top: 3, bottom: 3, left: 3, right: 3 } },
-    alternateRowStyles: { fillColor: [250, 251, 250] },
+    styles: TABLE_STYLES,
+    headStyles: TABLE_HEAD_STYLES,
+    alternateRowStyles: { fillColor: ALT_ROW },
     columnStyles,
     didParseCell: (data: CellHookData) => {
       // Produktname grün einfärben, wenn ein klickbarer Link vorhanden ist.
@@ -293,17 +259,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     doc.text(summenTeile.join('  ·  '), MARGIN, y)
   }
 
-  // ── Footer ────────────────────────────────────────────────
-  const legalZeilen = pdfLegalFooterZeilen(org ?? null, { includeBank: false })
-  const pageCount = (doc.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages()
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i)
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...GRAY_400)
-    const legalStartY = PAGE_H - 14 - (legalZeilen.length - 1) * 3
-    legalZeilen.forEach((zeile, idx) => doc.text(zeile, PAGE_W / 2, legalStartY + idx * 3, { align: 'center' }))
-    doc.setFontSize(7)
-    doc.text(`${firmenname}  ·  Seite ${i} / ${pageCount}`, PAGE_W / 2, PAGE_H - 8, { align: 'center' })
-  }
+  // ── Footer: Legal (inkl. Rechtsträger) + Seitenzahl ───────
+  pdfFusszeilen(doc, { firmenname, org: org ?? null, includeBank: false })
 
   const pdfBytes = doc.output('arraybuffer')
   let safe = String(raum.name ?? 'Raum').replace(/[^\w\s\-]/g, '_')

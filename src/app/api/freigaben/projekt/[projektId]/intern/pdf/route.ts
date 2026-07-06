@@ -2,25 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { RowInput, CellHookData } from 'jspdf-autotable'
 import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { getMwstSatz } from '@/app/actions/einstellungen'
-import { effektiverVpNetto, einkaufNettoNachRabatt } from '@/lib/preise'
+import { effektiverVpNetto, einkaufNettoNachRabatt, r2 } from '@/lib/preise'
 import {
   pdfEur, pdfHeute,
   logoAlsBase64,
-  pdfLegalFooterZeilen,
-  WB_GREEN, GRAY_900, GRAY_600, GRAY_400, GRAY_100, WHITE,
-  MARGIN, PAGE_W, PAGE_H,
+  pdfKopf, pdfTitel, pdfFusszeilen, pdfFirmenname, pdfSummenBlock, pdfGruppenKopfZeile,
+  TABLE_STYLES, TABLE_HEAD_STYLES, ALT_ROW, STATUS_FARBEN, SUBTOTAL_STYLE,
+  WB_GREEN, GRAY_600, GRAY_400,
+  MARGIN, PAGE_H,
 } from '@/lib/pdf-helpers'
 
 type Params = { params: Promise<{ projektId: string }> }
-
-const r2 = (n: number) => Math.round(n * 100) / 100
 
 const STATUS_LABEL: Record<string, string> = {
   freigegeben: 'Freigegeben', abgelehnt: 'Abgelehnt', ueberarbeitung: 'Überarbeitung', ausstehend: 'Ausstehend',
 }
 const statusLabel = (s: string | null) => STATUS_LABEL[s ?? 'ausstehend'] ?? 'Ausstehend'
 const statusFarbe = (s: string | null): [number, number, number] =>
-  s === 'freigegeben' ? [5, 150, 105] : s === 'abgelehnt' ? [220, 38, 38] : s === 'ueberarbeitung' ? [217, 119, 6] : [156, 163, 175]
+  STATUS_FARBEN[(s ?? 'ausstehend') as keyof typeof STATUS_FARBEN] ?? STATUS_FARBEN.ausstehend
 
 type RpRow = {
   menge: number
@@ -150,59 +149,31 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { default: autoTable } = await import('jspdf-autotable')
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const firmenname = branding?.firmenname ?? 'Wellbeing Spaces'
+  const firmenname = pdfFirmenname(branding)
   const logo = await logoAlsBase64(branding?.logo_url ?? null)
 
-  // Header
-  const logoH = 14
-  const logoY = MARGIN - 4
-  if (logo) doc.addImage(logo.data, logo.format, MARGIN, logoY, 36, logoH)
-  const colRight = PAGE_W - MARGIN
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...GRAY_900)
-  doc.text(firmenname, colRight, MARGIN, { align: 'right' })
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...GRAY_600)
-  const firmLines: string[] = []
-  if (branding?.adresse) firmLines.push(branding.adresse)
-  const kontakt: string[] = []
-  if (branding?.telefon) kontakt.push(`Tel: ${branding.telefon}`)
-  if (branding?.email)   kontakt.push(branding.email)
-  if (branding?.website) kontakt.push(branding.website)
-  if (kontakt.length) firmLines.push(kontakt.join('  ·  '))
-  firmLines.forEach((line, i) => doc.text(line, colRight, MARGIN + 5 + i * 4.2, { align: 'right' }))
-
-  const lineY = Math.max(logoY + logoH, MARGIN + 5 + firmLines.length * 4.2) + 3
-  doc.setFillColor(...WB_GREEN)
-  doc.rect(MARGIN, lineY, PAGE_W - MARGIN * 2, 0.6, 'F')
-
-  // Titel + Meta
+  // ── Kopf + Titel (Design-System) ──────────────────────────
   const kundeName = (projekt.kunden as unknown as { name: string } | null)?.name ?? null
-  let y = lineY + 10
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...WB_GREEN)
-  doc.text('FREIGABE – INTERNE ÜBERSICHT', MARGIN, y)
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...GRAY_400)
   const meta = [`Projekt: ${projekt.name as string}`, kundeName ? `Kunde: ${kundeName}` : null, `Stand: ${pdfHeute()}`].filter(Boolean).join('   ·   ')
-  doc.text(meta, MARGIN, y + 6)
+  let y = pdfKopf(doc, { logo, branding, org: org ?? null })
+  y = pdfTitel(doc, y, { keyword: 'FREIGABE – INTERNE ÜBERSICHT', meta })
 
   if (gesamtPositionen === 0) {
-    doc.setFontSize(10); doc.setTextColor(...GRAY_400)
-    doc.text('Noch keine Produkte in diesem Projekt.', MARGIN, y + 18)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...GRAY_400)
+    doc.text('Noch keine Produkte in diesem Projekt.', MARGIN, y)
   } else {
-    doc.setFontSize(8.5); doc.setTextColor(...GRAY_400)
-    doc.text(`${gesamtPositionen} Produkt${gesamtPositionen === 1 ? '' : 'e'} · ${gruppenSortiert.length} Partner · ${freigegebenCount} freigegeben`, MARGIN, y + 10.5)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...GRAY_400)
+    doc.text(`${gesamtPositionen} Produkt${gesamtPositionen === 1 ? '' : 'e'} · ${gruppenSortiert.length} Partner · ${freigegebenCount} freigegeben`, MARGIN, y - 4)
     // Headline-Brutto prominent (nur freigegebene Positionen)
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...WB_GREEN)
-    doc.text(`Gesamtkosten freigegeben (brutto): ${pdfEur(gesamtVkBrutto)}`, MARGIN, y + 17)
-    y += 24
+    doc.text(`Gesamtkosten freigegeben (brutto): ${pdfEur(gesamtVkBrutto)}`, MARGIN, y + 2.5)
+    y += 9
 
     // ── EINE Tabelle: Partner-Kopf → Positionen → Zwischensumme ──
     const body: RowInput[] = []
     let pos = 0
     for (const g of gruppenSortiert) {
-      body.push([{
-        content: `${g.partnerName}   (${g.positionen.length})`,
-        colSpan: 7,
-        styles: { fillColor: GRAY_100, textColor: WB_GREEN, fontStyle: 'bold', fontSize: 9, cellPadding: { top: 2.6, bottom: 2.6, left: 3, right: 3 } },
-      }])
+      body.push(pdfGruppenKopfZeile(`${g.partnerName}   (${g.positionen.length})`, 7))
       for (const it of g.positionen) {
         pos++
         const ctx: string[] = []
@@ -219,7 +190,7 @@ export async function GET(req: NextRequest, { params }: Params) {
           pdfEur(it.margeGesamt),
         ])
       }
-      const sub = { fillColor: [245, 247, 245] as [number, number, number], fontStyle: 'bold' as const, textColor: GRAY_900 }
+      const sub = SUBTOTAL_STYLE
       body.push([
         { content: `Summe ${g.partnerName} (freigegeben)`, colSpan: 4, styles: { ...sub, halign: 'right' } },
         { content: pdfEur(g.ekΣ),       styles: { ...sub, halign: 'right' } },
@@ -233,9 +204,9 @@ export async function GET(req: NextRequest, { params }: Params) {
       margin: { left: MARGIN, right: MARGIN },
       head: [['Pos', 'Produkt', 'Status', 'Menge', 'EK netto', 'VK brutto', 'Marge']],
       body,
-      styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, overflow: 'linebreak', textColor: GRAY_900, valign: 'middle', lineWidth: 0 },
-      headStyles: { fillColor: WB_GREEN, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'left' },
-      alternateRowStyles: { fillColor: [250, 251, 250] },
+      styles: TABLE_STYLES,
+      headStyles: TABLE_HEAD_STYLES,
+      alternateRowStyles: { fillColor: ALT_ROW },
       columnStyles: {
         0: { cellWidth: 12, halign: 'center', textColor: GRAY_400 },
         1: { cellWidth: 'auto' },
@@ -257,25 +228,11 @@ export async function GET(req: NextRequest, { params }: Params) {
     // ── Grand-Total (rechts) ──────────────────────────────────
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 7
     if (y > PAGE_H - 40) { doc.addPage(); y = MARGIN + 6 }
-    const summen: { label: string; wert: string; gross?: boolean }[] = [
+    y = pdfSummenBlock(doc, y, [
       { label: 'Einkauf netto (freigegeben):',  wert: pdfEur(gesamtEk) },
       { label: 'Marge netto (freigegeben):',    wert: pdfEur(gesamtMarge) },
-      { label: 'Verkauf brutto (freigegeben):', wert: pdfEur(gesamtVkBrutto), gross: true },
-    ]
-    const sumW = 85
-    const sumX = PAGE_W - MARGIN - sumW
-    for (const s of summen) {
-      if (s.gross) {
-        doc.setDrawColor(...GRAY_100); doc.setLineWidth(0.3)
-        doc.line(sumX, y - 1, PAGE_W - MARGIN, y - 1)
-      }
-      doc.setFont('helvetica', s.gross ? 'bold' : 'normal')
-      doc.setFontSize(s.gross ? 10 : 8.5)
-      doc.setTextColor(...(s.gross ? WB_GREEN : GRAY_600))
-      doc.text(s.label, sumX, y)
-      doc.text(s.wert, PAGE_W - MARGIN, y, { align: 'right' })
-      y += s.gross ? 6 : 5.5
-    }
+      { label: 'Verkauf brutto (freigegeben):', wert: pdfEur(gesamtVkBrutto), bold: true, gross: true },
+    ])
 
     // Intern-Hinweis
     y += 4
@@ -284,17 +241,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     doc.text('Interne Übersicht – enthält Einkaufs-/Margenangaben, nicht für den Kunden. Summen zählen nur freigegebene Positionen.', MARGIN, y)
   }
 
-  // Footer
-  const legalZeilen = pdfLegalFooterZeilen(org ?? null, { includeBank: false })
-  const pageCount = (doc.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages()
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i)
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...GRAY_400)
-    const legalStartY = PAGE_H - 14 - (legalZeilen.length - 1) * 3
-    legalZeilen.forEach((zeile, idx) => doc.text(zeile, PAGE_W / 2, legalStartY + idx * 3, { align: 'center' }))
-    doc.setFontSize(7)
-    doc.text(`${firmenname}  ·  Seite ${i} / ${pageCount}`, PAGE_W / 2, PAGE_H - 8, { align: 'center' })
-  }
+  // ── Footer: Legal (inkl. Rechtsträger) + Seitenzahl ───────
+  pdfFusszeilen(doc, { firmenname, org: org ?? null, includeBank: false })
 
   const pdfBytes = doc.output('arraybuffer')
   const safe = String(projekt.name ?? 'Projekt').replace(/[^\w\s\-]/g, '_')

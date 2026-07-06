@@ -308,10 +308,13 @@ export function pdfTitel(
   doc.text(opts.keyword, MARGIN, y)
 
   let offset = 7
+  let zusatzZeilen = 0
   if (opts.untertitel) {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...GRAY_900)
-    doc.text(opts.untertitel, MARGIN, y + offset)
-    offset += 5
+    const zeilen = doc.splitTextToSize(opts.untertitel, PAGE_W - MARGIN * 2) as string[]
+    doc.text(zeilen, MARGIN, y + offset)
+    offset += 5 + (zeilen.length - 1) * 5
+    zusatzZeilen = (zeilen.length - 1) * 5
   }
   if (opts.meta) {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...GRAY_400)
@@ -324,7 +327,7 @@ export function pdfTitel(
     doc.text(opts.auswahl, MARGIN, y + offset)
     extra = 4.5
   }
-  return y + 18 + extra
+  return y + 18 + extra + zusatzZeilen
 }
 
 /**

@@ -4,7 +4,7 @@ import {
   pdfDatum, pdfHeute,
   logoAlsBase64,
   htmlZuBloecke,
-  pdfLegalFooterZeilen,
+  pdfKopf, pdfTitel, pdfFusszeilen, pdfFirmenname,
   WB_GREEN, GRAY_900, GRAY_600, GRAY_400, GRAY_100,
   MARGIN, PAGE_W, PAGE_H,
 } from '@/lib/pdf-helpers'
@@ -46,70 +46,14 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { default: jsPDF } = await import('jspdf')
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const firmenname = branding?.firmenname ?? 'Wellbeing Spaces'
+  const firmenname = pdfFirmenname(branding)
   const logo = await logoAlsBase64(branding?.logo_url ?? null)
 
-  // ── Header ────────────────────────────────────────────────
-  let logoW = 0
-  const logoH = 14
-  const logoY = MARGIN - 4
-
-  if (logo) {
-    logoW = 36
-    doc.addImage(logo.data, logo.format, MARGIN, logoY, logoW, logoH)
-  }
-
-  const colRight = PAGE_W - MARGIN
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...GRAY_900)
-  doc.text(firmenname, colRight, MARGIN, { align: 'right' })
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7.5)
-  doc.setTextColor(...GRAY_600)
-
-  const firmLines: string[] = []
-  if (branding?.adresse) firmLines.push(branding.adresse)
-  const kontakt: string[] = []
-  if (branding?.telefon) kontakt.push(`Tel: ${branding.telefon}`)
-  if (branding?.email)   kontakt.push(branding.email)
-  if (branding?.website) kontakt.push(branding.website)
-  if (kontakt.length) firmLines.push(kontakt.join('  ·  '))
-  if (org?.ust_id)       firmLines.push(`USt-IdNr. ${org.ust_id}`)
-
-  firmLines.forEach((line, i) => {
-    doc.text(line, colRight, MARGIN + 5 + i * 4.2, { align: 'right' })
-  })
-
-  const lineY = Math.max(logoY + logoH, MARGIN + 5 + firmLines.length * 4.2) + 3
-  doc.setFillColor(...WB_GREEN)
-  doc.rect(MARGIN, lineY, PAGE_W - MARGIN * 2, 0.6, 'F')
-
-  // ── Titel-Block ───────────────────────────────────────────
-  let y = lineY + 10
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
-  doc.setTextColor(...GRAY_400)
-  doc.text('VERTRAG', MARGIN, y)
-  y += 6
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(16)
-  doc.setTextColor(...GRAY_900)
-  const titelLines = doc.splitTextToSize(vertrag.titel, PAGE_W - MARGIN * 2) as string[]
-  doc.text(titelLines, MARGIN, y)
-  y += titelLines.length * 8 + 3
-
-  // Datum + Status
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(...GRAY_400)
+  // ── Kopf + Titel (Design-System) ──────────────────────────
   const metaZeilen: string[] = [`Datum: ${pdfHeute()}`]
   if (vertrag.gueltig_bis) metaZeilen.push(`Gültig bis: ${pdfDatum(vertrag.gueltig_bis)}`)
-  doc.text(metaZeilen.join('   ·   '), MARGIN, y)
-  y += 10
+  let y = pdfKopf(doc, { logo, branding, org: org ?? null })
+  y = pdfTitel(doc, y, { keyword: 'VERTRAG', untertitel: vertrag.titel, meta: metaZeilen.join('   ·   ') })
 
   // ── Vertragsinhalt ────────────────────────────────────────
   const bloecke = htmlZuBloecke(vertrag.inhalt_html)
@@ -229,30 +173,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   doc.text('Unterschrift', colL, y + 4)
   doc.text('Unterschrift', colR, y + 4)
 
-  // ── Footer: Legal + Seitenzahl ────────────────────────────
-  // Legal-Footer auf jeder Seite, ohne Bank-Daten (bei Verträgen
-  // nicht relevant), darunter die Seitenzahl.
-  const legalZeilen = pdfLegalFooterZeilen(org ?? null, { includeBank: false })
-  const pageCount = (doc.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages()
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6.5)
-    doc.setTextColor(...GRAY_400)
-
-    const legalStartY = PAGE_H - 14 - (legalZeilen.length - 1) * 3
-    legalZeilen.forEach((zeile, idx) => {
-      doc.text(zeile, PAGE_W / 2, legalStartY + idx * 3, { align: 'center' })
-    })
-
-    doc.setFontSize(7)
-    doc.text(
-      `${firmenname}  ·  ${vertrag.titel}  ·  Seite ${i} / ${pageCount}`,
-      PAGE_W / 2,
-      PAGE_H - 8,
-      { align: 'center' }
-    )
-  }
+  // ── Footer: Legal (inkl. Rechtsträger, ohne Bank) + Seitenzahl ──
+  pdfFusszeilen(doc, { firmenname, org: org ?? null, includeBank: false, zusatz: vertrag.titel })
 
   // ── Als Response zurückgeben ──────────────────────────────
   const pdfBytes = doc.output('arraybuffer')
