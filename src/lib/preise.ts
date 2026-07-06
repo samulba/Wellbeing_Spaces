@@ -72,3 +72,17 @@ export function einkaufNettoNachRabatt(
   const rabatt = rabattProzent ?? 0
   return Math.round(basis * (1 - rabatt / 100) * 100) / 100
 }
+
+/** Cent-sicheres Runden auf 2 Nachkommastellen (geteilt statt je Datei neu definiert). */
+export function r2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+/**
+ * Brutto aus Netto — `mwstSatz` als DEZIMALBRUCH (0.19 = 19 %), exakt wie
+ * `getMwstSatz()` ihn liefert. Ersetzt die pro Route inlinete Rechnung
+ * `Math.round(netto * (1 + mwst) * 100) / 100`.
+ */
+export function bruttoVon(nettoBetrag: number, mwstSatz: number): number {
+  return r2(nettoBetrag * (1 + mwstSatz))
+}
