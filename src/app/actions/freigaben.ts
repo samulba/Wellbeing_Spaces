@@ -22,7 +22,7 @@ import { freigabeAbgeschlossenMail } from '@/lib/mail-templates'
 import { syncAutoEvent } from './timeline'
 import { autoProjektStatusVorwaerts } from './projekte'
 import { bereichVonRaumProdukt, istImAuswahlScope } from '@/lib/freigabe-scope'
-import { effektiverVpNetto } from '@/lib/preise'
+import { effektiverVpNetto, bruttoVon, r2 } from '@/lib/preise'
 import { ladeAlleSeiten } from '@/lib/supabase-paginate'
 import { createHash } from 'crypto'
 import type {
@@ -978,22 +978,40 @@ export async function freigabeAbsenden(
       const { data } = await supabase.from('produkt_bereiche').select('id, name').in('id', bereichIds)
       for (const b of (data ?? []) as { id: string; name: string }[]) bereichName.set(b.id, b.name)
     }
-    const positionen = rows.map((r) => ({
-      raum_produkt_id: r.id,
-      produkt_name: r.produkte?.name ?? '',
-      einheit: r.produkte?.einheit ?? null,
-      raum_name: r.raeume?.name ?? null,
-      bereich_name: r.bereich_id ? (bereichName.get(r.bereich_id) ?? null) : null,
-      block_name: r.produkt_gruppe_id ? (blockName.get(r.produkt_gruppe_id) ?? null) : null,
-      status: r.freigabe_status,
-      kommentar: r.freigabe_kommentar,
-      ist_kundenwahl: !!r.kunde_favorit,
-      menge: r.kunde_menge ?? r.menge,
-      einzelpreis_netto: effektiverVpNetto(
+    // MwSt-Satz für die Brutto-Felder im Snapshot. WICHTIG: NICHT getMwstSatz()
+    // — diese Action läuft auf dem Admin-Client OHNE User-Session. Direkte,
+    // org-scoped Query mit Fallback ohne Org-Filter (Legacy: einstellungen
+    // upsertet mit onConflict:'key') + Fail-safe 0.19.
+    let mwstSatz = 0.19
+    try {
+      const { data: mw } = await supabase
+        .from('einstellungen').select('value').eq('key', 'mwst_satz')
+        .eq('organisation_id', tok.organisation_id).maybeSingle()
+      const roh = mw ?? (await supabase.from('einstellungen').select('value').eq('key', 'mwst_satz').maybeSingle()).data
+      const pct = parseFloat((roh as { value?: string } | null)?.value ?? '19')
+      if (!isNaN(pct)) mwstSatz = pct / 100
+    } catch { /* 0.19 bleibt */ }
+
+    const positionen = rows.map((r) => {
+      const einzelNetto = effektiverVpNetto(
         { verkaufspreis_override: r.verkaufspreis_override, rabatt_prozent: r.rabatt_prozent ?? null },
         r.produkte?.verkaufspreis ?? null,
-      ),
-    }))
+      )
+      return {
+        raum_produkt_id: r.id,
+        produkt_name: r.produkte?.name ?? '',
+        einheit: r.produkte?.einheit ?? null,
+        raum_name: r.raeume?.name ?? null,
+        bereich_name: r.bereich_id ? (bereichName.get(r.bereich_id) ?? null) : null,
+        block_name: r.produkt_gruppe_id ? (blockName.get(r.produkt_gruppe_id) ?? null) : null,
+        status: r.freigabe_status,
+        kommentar: r.freigabe_kommentar,
+        ist_kundenwahl: !!r.kunde_favorit,
+        menge: r.kunde_menge ?? r.menge,
+        einzelpreis_netto: einzelNetto,
+        einzelpreis_brutto: bruttoVon(einzelNetto, mwstSatz),
+      }
+    })
     const summen = {
       gesamt: positionen.length,
       freigegeben: positionen.filter((p) => p.status === 'freigegeben').length,
@@ -1003,6 +1021,10 @@ export async function freigabeAbsenden(
       summe_freigegeben_netto: positionen
         .filter((p) => p.status === 'freigegeben')
         .reduce((s, p) => s + (p.einzelpreis_netto ?? 0) * (p.menge || 1), 0),
+      summe_freigegeben_brutto: r2(positionen
+        .filter((p) => p.status === 'freigegeben')
+        .reduce((s, p) => s + (p.einzelpreis_brutto ?? 0) * (p.menge || 1), 0)),
+      mwst_satz: mwstSatz, // Dezimalbruch (0.19 = 19 %)
     }
     const { count } = await supabase
       .from('freigabe_einreichungen')

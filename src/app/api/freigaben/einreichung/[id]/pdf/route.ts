@@ -88,6 +88,10 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
 
   // ── Positions-Tabelle ─────────────────────────────────────
+  // Brutto-Spalte NUR wenn der (unveränderliche) Snapshot sie enthält —
+  // neue Belege speichern einzelpreis_brutto, alte rendern exakt wie bisher.
+  const hatBrutto = positionen.some((p) => p.einzelpreis_brutto != null)
+
   const tableRows = positionen.map((p, i) => {
     const meta: string[] = []
     if (p.raum_name) meta.push(p.raum_name)
@@ -97,30 +101,37 @@ export async function GET(req: NextRequest, { params }: Params) {
     if (meta.length) bez += `\n${meta.join(' · ')}`
     if (p.ist_kundenwahl) bez += `\n[Kundenwahl]`
     if (p.kommentar && p.kommentar.trim()) bez += `\nKundenwunsch: ${p.kommentar.trim()}`
-    return [
+    const zeile = [
       String(i + 1),
       bez,
       statusLabel(p.status),
       `${p.menge}${p.einheit ? ' ' + p.einheit : ''}`,
       p.einzelpreis_netto != null ? pdfEur(p.einzelpreis_netto) : '—',
     ]
+    if (hatBrutto) zeile.push(p.einzelpreis_brutto != null ? pdfEur(p.einzelpreis_brutto) : '—')
+    return zeile
   })
+
+  const kopfZeile = ['Pos', 'Produkt', 'Status', 'Menge', 'Einzelpreis netto']
+  if (hatBrutto) kopfZeile.push('Einzelpreis brutto')
+  const spaltenStile: Record<number, { cellWidth?: number | 'auto'; halign?: 'left' | 'center' | 'right'; fontStyle?: 'bold' }> = {
+    0: { cellWidth: 12, halign: 'center' },
+    1: { cellWidth: 'auto' },
+    2: { cellWidth: 26, halign: 'center', fontStyle: 'bold' },
+    3: { cellWidth: hatBrutto ? 16 : 20, halign: 'center' },
+    4: { cellWidth: hatBrutto ? 26 : 28, halign: 'right' },
+  }
+  if (hatBrutto) spaltenStile[5] = { cellWidth: 26, halign: 'right', fontStyle: 'bold' }
 
   autoTable(doc, {
     startY: y,
     margin: { left: MARGIN, right: MARGIN },
-    head: [['Pos', 'Produkt', 'Status', 'Menge', 'Einzelpreis netto']],
+    head: [kopfZeile],
     body: tableRows,
     styles: TABLE_STYLES,
     headStyles: TABLE_HEAD_STYLES,
     alternateRowStyles: { fillColor: ALT_ROW },
-    columnStyles: {
-      0: { cellWidth: 12, halign: 'center' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 26, halign: 'center', fontStyle: 'bold' },
-      3: { cellWidth: 20, halign: 'center' },
-      4: { cellWidth: 28, halign: 'right' },
-    },
+    columnStyles: spaltenStile,
     didParseCell: (data) => {
       if (data.section === 'body' && data.column.index === 2) {
         const v = String(data.cell.raw)
@@ -129,6 +140,8 @@ export async function GET(req: NextRequest, { params }: Params) {
         else if (v === 'Überarbeitung') data.cell.styles.textColor = STATUS_FARBEN.ueberarbeitung
         else data.cell.styles.textColor = STATUS_FARBEN.ausstehend
       }
+      // Preis-Spaltenköpfe rechtsbündig (wie die Werte darunter)
+      if (data.section === 'head' && data.column.index >= 4) data.cell.styles.halign = 'right'
     },
   })
 
@@ -142,9 +155,22 @@ export async function GET(req: NextRequest, { params }: Params) {
     MARGIN, y,
   )
   y += 7
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...WB_GREEN)
-  doc.text(`Freigegeben (netto): ${pdfEur(summen?.summe_freigegeben_netto ?? 0)}`, PAGE_W - MARGIN, y, { align: 'right' })
-  y += 10
+  // Brutto-Zeile nur bei neuen Belegen (Snapshot enthält die Felder)
+  if (summen?.summe_freigegeben_brutto != null) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...GRAY_600)
+    doc.text(`Freigegeben (netto): ${pdfEur(summen?.summe_freigegeben_netto ?? 0)}`, PAGE_W - MARGIN, y, { align: 'right' })
+    y += 6
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...WB_GREEN)
+    doc.text(
+      `Freigegeben (brutto, inkl. ${Math.round((summen.mwst_satz ?? 0.19) * 100)} % MwSt.): ${pdfEur(summen.summe_freigegeben_brutto)}`,
+      PAGE_W - MARGIN, y, { align: 'right' },
+    )
+    y += 10
+  } else {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...WB_GREEN)
+    doc.text(`Freigegeben (netto): ${pdfEur(summen?.summe_freigegeben_netto ?? 0)}`, PAGE_W - MARGIN, y, { align: 'right' })
+    y += 10
+  }
 
   // ── Unveränderlichkeits-Hinweis + Prüfsumme ───────────────
   doc.setDrawColor(...GRAY_100); doc.setLineWidth(0.3); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 4

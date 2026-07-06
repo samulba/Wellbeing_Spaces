@@ -763,6 +763,8 @@ export interface FreigabeEinreichungPosition {
   ist_kundenwahl: boolean
   menge: number
   einzelpreis_netto: number | null
+  /** Brutto je Einheit — nur in NEUEN Belegen (seit S139), alte Belege haben das Feld nicht. */
+  einzelpreis_brutto?: number | null
 }
 
 export interface FreigabeEinreichungSummen {
@@ -772,6 +774,10 @@ export interface FreigabeEinreichungSummen {
   ueberarbeitung: number
   ausstehend: number
   summe_freigegeben_netto: number
+  /** Nur in NEUEN Belegen (seit S139). */
+  summe_freigegeben_brutto?: number
+  /** MwSt-Satz als DEZIMALBRUCH (0.19 = 19 %) zum Absende-Zeitpunkt — nur in neuen Belegen. */
+  mwst_satz?: number
 }
 
 export interface FreigabeEinreichung {
