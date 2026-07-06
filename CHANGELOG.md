@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-29
 
+### Freigabelink – Auswahl-Blöcke nicht mehr Pflicht
+- Bisher musste der Kunde im Freigabelink in **jedem** Auswahl-Block mindestens eine Variante anhaken, sonst ließ sich nichts absenden – auch bei Blöcken, die ihn gar nicht interessieren. Das war unpraktisch. Jetzt sind **Auswahl-Blöcke optional**: man kann einen Block einfach leer lassen und trotzdem absenden. **Einzelne Produkte** (Freigeben/Ablehnen) und **Sets** brauchen weiterhin eine Entscheidung.
+
 ### Freigabelink – Blöcke der letzten Gruppe fehlten (Nachzug zum Lade-Limit-Fix)
 - Nach dem Lade-Fix wurden zwar alle Produkte angezeigt, aber bei der **letzten Gruppe** erschienen die **Auswahl-Blöcke** nicht mehr als Block – die Produkte standen dort einzeln. Ursache: dasselbe ~1000-Zeilen-Ladelimit galt noch fürs Laden der **Blöcke und Gruppen** selbst, sodass die zuletzt angelegten wegfielen. Jetzt werden auch **Blöcke und Gruppen vollständig geladen** – die letzte Gruppe zeigt ihre Blöcke wieder korrekt.
 

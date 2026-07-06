@@ -285,7 +285,9 @@ export default function FreigabeClient({
           else offenCount++
         } else if (members.some((p) => state[p.id]?.status === 'freigegeben')) {
           freigegebenCount++
-        } else offenCount++
+        }
+        // Auswahl-Block ohne gewählte Variante = OPTIONAL → NICHT als offen zählen
+        // (der Kunde muss nicht in jedem Block etwas auswählen, um absenden zu können).
       }
     }
   }
@@ -320,8 +322,14 @@ export default function FreigabeClient({
     for (const b of raumBuckets(r)) {
       for (const p of b.produkte) if (state[p.id] && state[p.id].status === 'ausstehend') offen++
       for (const g of b.bloecke) {
+        // Auswahl-Blöcke sind optional → blockieren nicht. Nur Sets (all-or-nothing)
+        // zählen als offen, solange sie weder komplett freigegeben noch abgelehnt sind.
+        if (!g.ist_bundle) continue
         const members = g.produkte.filter((p) => state[p.id])
-        if (members.length > 0 && !members.some((p) => state[p.id]?.status === 'freigegeben')) offen++
+        if (members.length === 0) continue
+        const alleFrei = members.every((p) => state[p.id]?.status === 'freigegeben')
+        const einAbgelehnt = members.some((p) => state[p.id]?.status === 'abgelehnt' || state[p.id]?.status === 'ueberarbeitung')
+        if (!alleFrei && !einAbgelehnt) offen++
       }
     }
     return offen

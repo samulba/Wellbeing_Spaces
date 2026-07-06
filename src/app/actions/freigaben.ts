@@ -702,13 +702,11 @@ export async function freigabeAbschliessen(
   const items = await ladeItemsImScope(supabase, tok.projekt_id, scopeTyp, scopeIds, scopeBereichIds)
 
   if (items.length === 0) return { fehler: 'Keine Produkte im Freigabe-Umfang.' }
-  // Gruppen-aware: eine Auswahl-Gruppe gilt als entschieden, sobald EIN Mitglied
-  // freigegeben ist. Nicht-gewählte Alternativen (ausstehend) blockieren NICHT.
-  const erfuellteGruppen = new Set(
-    items.filter((i) => i.produkt_gruppe_id && i.freigabe_status === 'freigegeben').map((i) => i.produkt_gruppe_id),
-  )
+  // Auswahl-Blöcke sind OPTIONAL: Block-Mitglieder (produkt_gruppe_id gesetzt) blockieren
+  // das Absenden NIE — der Kunde muss nicht in jedem Block etwas auswählen. Nur lose
+  // Einzelprodukte + Set-Komponenten (ohne produkt_gruppe_id) müssen entschieden sein.
   const offen = items.filter(
-    (i) => i.freigabe_status === 'ausstehend' && (!i.produkt_gruppe_id || !erfuellteGruppen.has(i.produkt_gruppe_id)),
+    (i) => i.freigabe_status === 'ausstehend' && !i.produkt_gruppe_id,
   ).length
   if (offen > 0) {
     return { fehler: `Noch ${offen} Produkt${offen === 1 ? '' : 'e'} offen — bitte erst alle entscheiden.` }
@@ -895,13 +893,12 @@ export async function freigabeAbsenden(
   const desired = new Map<string, string>()
   for (const e of gewaehlt) desired.set(e.raumProduktId, e.status)
 
-  // Vollständigkeit VOR dem Schreiben prüfen (gruppen-aware) — kein Teil-Commit
-  const erfuellteGruppen = new Set(
-    items.filter((i) => i.produkt_gruppe_id && (desired.get(i.id) ?? i.freigabe_status) === 'freigegeben').map((i) => i.produkt_gruppe_id),
-  )
+  // Vollständigkeit VOR dem Schreiben prüfen — kein Teil-Commit. Auswahl-Blöcke sind
+  // OPTIONAL: Block-Mitglieder (produkt_gruppe_id gesetzt) blockieren NIE. Nur lose
+  // Einzelprodukte + Set-Komponenten (ohne produkt_gruppe_id) müssen entschieden sein.
   const offen = items.filter((i) => {
     const st = desired.get(i.id) ?? i.freigabe_status
-    return st === 'ausstehend' && (!i.produkt_gruppe_id || !erfuellteGruppen.has(i.produkt_gruppe_id))
+    return st === 'ausstehend' && !i.produkt_gruppe_id
   }).length
   if (offen > 0) {
     return { fehler: `Noch ${offen} Produkt${offen === 1 ? '' : 'e'} offen — bitte erst alle entscheiden.` }
