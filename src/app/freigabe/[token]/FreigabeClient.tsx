@@ -285,6 +285,9 @@ export default function FreigabeClient({
           else offenCount++
         } else if (members.some((p) => state[p.id]?.status === 'freigegeben')) {
           freigegebenCount++
+        } else if (members.every((p) => state[p.id]?.status === 'abgelehnt')) {
+          // Block explizit abgelehnt („Keine der Varianten") → bewusste Entscheidung.
+          abgelehntCount++
         }
         // Auswahl-Block ohne gewählte Variante = OPTIONAL → NICHT als offen zählen
         // (der Kunde muss nicht in jedem Block etwas auswählen, um absenden zu können).
@@ -348,17 +351,42 @@ export default function FreigabeClient({
 
   // Mehrfachauswahl (Migration 119): Kunde schaltet ein Produkt eines Auswahl-
   // Blocks an/aus. Gewählt = freigegeben + kunde_favorit; mehrere möglich.
-  function toggleBlockMember(produktId: string) {
+  function toggleBlockMember(produktId: string, gruppe?: FreigabeProduktGruppe) {
     markiereBearbeitung()
     const istGewaehlt = !!state[produktId]?.kundeFavorit
-    const next = {
-      ...state,
-      [produktId]: {
-        ...state[produktId],
-        status: (istGewaehlt ? 'ausstehend' : 'freigegeben') as ProduktStatus,
-        kundeFavorit: !istGewaehlt,
-        aktiveAktion: null,
-      },
+    const next = { ...state }
+    // War der Block komplett abgelehnt („Keine der Varianten") und der Kunde wählt
+    // jetzt doch eine Variante → Ablehnung zuerst aufheben: Geschwister zurück auf
+    // ausstehend + Ablehnungs-Kommentar weg (sonst blieben sie fälschlich „abgelehnt").
+    if (!istGewaehlt && gruppe) {
+      const warAbgelehnt = gruppe.produkte.length > 0 && gruppe.produkte.every((p) => state[p.id]?.status === 'abgelehnt')
+      if (warAbgelehnt) {
+        for (const p of gruppe.produkte) {
+          next[p.id] = { ...next[p.id], status: 'ausstehend' as ProduktStatus, kommentar: '', kommentarEingabe: '', kundeFavorit: false, aktiveAktion: null }
+        }
+      }
+    }
+    next[produktId] = {
+      ...next[produktId],
+      status: (istGewaehlt ? 'ausstehend' : 'freigegeben') as ProduktStatus,
+      kundeFavorit: !istGewaehlt,
+      aktiveAktion: null,
+    }
+    setState(next)
+    persistDraft(next, blockNotizen)
+  }
+
+  // Ganzen Auswahl-Block ablehnen („Keine der Varianten") bzw. wieder zurücknehmen.
+  // Setzt ALLE Mitglieder auf abgelehnt (mit optionalem Grund als Kommentar) — der
+  // Admin sieht so eine BEWUSSTE Entscheidung statt eines stummen Überspringens.
+  function setBlockAbgelehnt(gruppe: FreigabeProduktGruppe, abgelehnt: boolean, kommentar = '') {
+    markiereBearbeitung()
+    const text = kommentar.trim()
+    const next = { ...state }
+    for (const p of gruppe.produkte) {
+      next[p.id] = abgelehnt
+        ? { ...next[p.id], status: 'abgelehnt' as ProduktStatus, kommentar: text, kommentarEingabe: text, kundeFavorit: false, aktiveAktion: null }
+        : { ...next[p.id], status: 'ausstehend' as ProduktStatus, kommentar: '', kommentarEingabe: '', kundeFavorit: false, aktiveAktion: null }
     }
     setState(next)
     persistDraft(next, blockNotizen)
@@ -432,6 +460,8 @@ export default function FreigabeClient({
           else if (members.some((p) => state[p.id]?.status === 'ueberarbeitung')) revAend++
         } else if (members.some((p) => state[p.id]?.status === 'freigegeben')) {
           revFrei++
+        } else if (members.every((p) => state[p.id]?.status === 'abgelehnt')) {
+          revAbl++
         }
       }
     }
@@ -595,6 +625,8 @@ export default function FreigabeClient({
                             }
                             const gewaehlte = g.produkte.filter((p) => state[p.id]?.kundeFavorit)
                             const notiz = (blockNotizen[g.id] ?? '').trim()
+                            const blockAbgelehnt = g.produkte.length > 0 && g.produkte.every((p) => state[p.id]?.status === 'abgelehnt')
+                            const ablGrund = blockAbgelehnt ? (state[g.produkte[0]?.id]?.kommentar ?? '').trim() : ''
                             return (
                               <div key={g.id} className="py-2">
                                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">{g.name}</p>
@@ -615,6 +647,17 @@ export default function FreigabeClient({
                                         </div>
                                       )
                                     })}
+                                  </div>
+                                ) : blockAbgelehnt ? (
+                                  <div>
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-600 ring-1 ring-red-200">
+                                      <X className="w-3 h-3" /> Abgelehnt — keine der Varianten
+                                    </span>
+                                    {ablGrund && (
+                                      <div className="mt-1.5 pl-3 border-l-2 border-red-200">
+                                        <p className="text-xs text-gray-500 italic leading-relaxed">&bdquo;{ablGrund}&ldquo;</p>
+                                      </div>
+                                    )}
                                   </div>
                                 ) : (
                                   <div className="flex items-center gap-2 text-[13px] text-amber-700">
@@ -945,9 +988,10 @@ export default function FreigabeClient({
                     mwst={mwst}
                     prim={prim}
                     notiz={blockNotizen[g.id] ?? ''}
-                    onToggle={(id) => toggleBlockMember(id)}
+                    onToggle={(id) => toggleBlockMember(id, g)}
                     onMenge={(id, n) => setMenge(id, n)}
                     onNotiz={(t) => setBlockNotiz(g.id, t)}
+                    onBlockAblehnen={(abgelehnt, kommentar) => setBlockAbgelehnt(g, abgelehnt, kommentar)}
                   />
                 ))}
                 {/* Lose Produkte einer Gruppe: EINE kompakte Liste (Checkbox-Stil), klar von
@@ -1528,14 +1572,20 @@ interface ProduktGruppeKarteProps {
   onToggle: (id: string) => void
   onMenge: (id: string, n: number) => void
   onNotiz: (text: string) => void
+  onBlockAblehnen: (abgelehnt: boolean, kommentar: string) => void
 }
 
-function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onToggle, onMenge, onNotiz }: ProduktGruppeKarteProps) {
+function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onToggle, onMenge, onNotiz, onBlockAblehnen }: ProduktGruppeKarteProps) {
   const gewaehlteCount = gruppe.produkte.filter((p) => states[p.id]?.kundeFavorit).length
   const [lightboxBild, setLightboxBild] = useState<{ src: string; alt: string } | null>(null)
+  // Block komplett abgelehnt („Keine der Varianten")? → Banner + gedimmte Zeilen.
+  const alleAbgelehnt = gruppe.produkte.length > 0 && gruppe.produkte.every((p) => states[p.id]?.status === 'abgelehnt')
+  const ablehnGrund = alleAbgelehnt ? (states[gruppe.produkte[0]?.id]?.kommentar ?? '').trim() : ''
+  const [ablehnenOffen, setAblehnenOffen] = useState(false)
+  const [ablehnenText, setAblehnenText] = useState('')
 
   return (
-    <div className="border border-gray-200 bg-white rounded-2xl overflow-hidden shadow-sm" style={{ borderLeftWidth: '4px', borderLeftColor: prim }}>
+    <div className="border border-gray-200 bg-white rounded-2xl overflow-hidden shadow-sm" style={{ borderLeftWidth: '4px', borderLeftColor: alleAbgelehnt ? '#dc2626' : prim }}>
       <div className="px-5 py-3" style={{ backgroundColor: `${prim}0d`, borderBottom: `1px solid ${prim}22` }}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -1544,17 +1594,40 @@ function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onTo
             </span>
             <h3 className="text-sm font-semibold text-gray-900 mt-1">{gruppe.name}</h3>
           </div>
-          {gruppe.produkte.length > 1 && (
+          {gruppe.produkte.length > 1 && !alleAbgelehnt && (
             <span className="text-[11px] font-medium shrink-0 mt-0.5" style={{ color: prim }}>Mehrere möglich</span>
           )}
         </div>
-        <p className="text-[12px] font-medium mt-1" style={{ color: prim }}>
-          {gruppe.produkte.length > 1 ? 'Bitte wählen Sie eine oder mehrere Varianten.' : 'Bitte bestätigen Sie Ihre Wahl.'}
-        </p>
+        {!alleAbgelehnt && (
+          <p className="text-[12px] font-medium mt-1" style={{ color: prim }}>
+            {gruppe.produkte.length > 1 ? 'Bitte wählen Sie eine oder mehrere Varianten.' : 'Bitte bestätigen Sie Ihre Wahl.'}
+          </p>
+        )}
         {gruppe.beschreibung && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{gruppe.beschreibung}</p>}
       </div>
 
-      <div className="divide-y divide-gray-100">
+      {/* Abgelehnt-Banner (Block bewusst abgelehnt — Varianten bleiben anklickbar) */}
+      {alleAbgelehnt && (
+        <div className="px-5 py-3 bg-red-50 border-b border-red-100 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-red-700 inline-flex items-center gap-1.5">
+              <X className="w-4 h-4 shrink-0" /> Keine der Varianten gewünscht
+            </p>
+            {ablehnGrund && <p className="text-xs text-red-600/80 italic mt-0.5">&bdquo;{ablehnGrund}&ldquo;</p>}
+            <p className="text-[11px] text-red-600/70 mt-0.5">Sie können jederzeit doch eine Variante anklicken.</p>
+          </div>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => onBlockAblehnen(false, '')}
+            className="text-[11px] font-medium text-red-600 hover:text-red-800 underline shrink-0 mt-0.5"
+          >
+            Rückgängig
+          </button>
+        </div>
+      )}
+
+      <div className={`divide-y divide-gray-100 ${alleAbgelehnt ? 'opacity-55' : ''}`}>
         {gruppe.produkte.map((p) => {
           const istGewaehlt = !!states[p.id]?.kundeFavorit
           const menge = states[p.id]?.menge ?? p.menge
@@ -1662,15 +1735,55 @@ function ProduktGruppeKarte({ gruppe, states, isPending, mwst, prim, notiz, onTo
         />
       </div>
 
-      <div className={`px-5 py-2.5 border-t text-xs ${gewaehlteCount > 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
-        {gewaehlteCount > 0
-          ? (gruppe.produkte.length > 1
-              ? <>{gewaehlteCount} von {gruppe.produkte.length} gewählt. Sie können mehrere wählen und die Mengen anpassen.</>
-              : <>Gewählt. Menge bei Bedarf anpassen.</>)
-          : (gruppe.produkte.length > 1
-              ? <>Noch nichts gewählt — bitte mindestens eine Option auswählen.</>
-              : <>Noch nicht gewählt — bitte bestätigen.</>)}
-      </div>
+      {alleAbgelehnt ? null : gewaehlteCount > 0 ? (
+        <div className="px-5 py-2.5 border-t text-xs bg-emerald-50 border-emerald-100 text-emerald-700">
+          {gruppe.produkte.length > 1
+            ? <>{gewaehlteCount} von {gruppe.produkte.length} gewählt. Sie können mehrere wählen und die Mengen anpassen.</>
+            : <>Gewählt. Menge bei Bedarf anpassen.</>}
+        </div>
+      ) : !ablehnenOffen ? (
+        <div className="px-5 py-2.5 border-t text-xs bg-amber-50 border-amber-100 text-amber-700 flex items-center justify-between gap-3 flex-wrap">
+          <span>{gruppe.produkte.length > 1 ? 'Noch nichts gewählt — Sie können auch alle Varianten ablehnen.' : 'Noch nicht gewählt — Sie können auch ablehnen.'}</span>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => setAblehnenOffen(true)}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:text-red-700 shrink-0"
+          >
+            <X className="w-3 h-3" /> Keine der Varianten
+          </button>
+        </div>
+      ) : (
+        <div className="px-5 py-3 border-t border-red-100 bg-red-50/60 space-y-2">
+          <label className="block text-[11px] font-semibold text-red-700">Warum passt keine der Varianten? (optional)</label>
+          <textarea
+            autoFocus
+            rows={2}
+            value={ablehnenText}
+            disabled={isPending}
+            onChange={(e) => setAblehnenText(e.target.value)}
+            placeholder="z. B. „Der Stil passt nicht — gern etwas Schlichteres.“"
+            className="w-full px-3 py-2 text-sm bg-white border border-red-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-red-200 transition resize-none"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => { onBlockAblehnen(true, ablehnenText); setAblehnenOffen(false); setAblehnenText('') }}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+            >
+              Auswahl ablehnen
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAblehnenOffen(false); setAblehnenText('') }}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg text-gray-500 border border-gray-200 hover:bg-gray-50"
+            >
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      )}
 
       {lightboxBild && (
         <BildLightbox src={lightboxBild.src} alt={lightboxBild.alt} onClose={() => setLightboxBild(null)} />

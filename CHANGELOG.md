@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-29
 
+### Freigabelink – Auswahl-Blöcke komplett ablehnbar
+- In Auswahl-Blöcken (Variante 1/2/…) kann der Kunde jetzt **den ganzen Block ablehnen**: Knopf **„Keine der Varianten"** direkt am Block, mit optionalem Grund (z. B. „Stil passt nicht"). Der Block wird sichtbar rot markiert („Keine der Varianten gewünscht") und zählt als **bewusste Entscheidung** — vorher konnte man einen Block nur wählen oder stumm überspringen. Ein Klick auf „Rückgängig" oder auf eine Variante hebt die Ablehnung wieder auf.
+- Ihr seht die Ablehnung wie gewohnt: alle Block-Produkte stehen auf „Abgelehnt", der Grund steht als Kundenwunsch dabei — auch in der Prüfen-Ansicht des Kunden und auf dem Freigabe-Beleg.
+
 ### Räume – PDF-Export mit Auswahl & Vorschau
 - Der **PDF-Knopf** auf der Raum-Seite öffnet jetzt einen **Auswahl-Dialog mit Live-Vorschau**: Man wählt, was in die PDF soll — **Gruppen**, **Partner/Lieferant** und optional **Preise** (EK netto und/oder Kundenpreis brutto) — sieht rechts sofort die Vorschau und lädt dann herunter. So lässt sich z. B. **nur Paulmann mit Artikelnummern + EK netto** als PDF für den Lieferanten erzeugen. Ohne Preis-Häkchen bleibt die PDF wie bisher ohne Preise (sicher zum Weiterleiten). Die gewählte Auswahl steht sichtbar im PDF-Kopf; bei genau einem gewählten Partner steht dessen Name mit im Dateinamen.
 - Die **„Gesamtmenge je Produkt"-Tabelle** unten in der PDF wurde **entfernt** (verwirrend, da sie nur mehrfach vorkommende Produkte zeigte). Die Summenzeile zeigt jetzt zusätzlich die Preissummen, wenn Preis-Spalten gewählt sind.
