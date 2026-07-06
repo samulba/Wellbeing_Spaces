@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-06-29
 
+### PDFs – einheitlicher Look, klare Absender-Identität, Preise überall wählbar
+- **Alle PDFs** (Angebot, Bestellung, Vertrag, Freigabe-Protokoll, Interne Übersicht, Projekt, Raum) haben jetzt **denselben cleanen Aufbau**: gleicher Briefkopf, gleiche Titelgröße, gleiche Tabellen und Summenblöcke, gleicher Seitenfuß.
+- **Absender endlich verständlich:** Oben rechts steht unter der Marke („Wellbeing Spaces") jetzt klein der **offizielle Firmenname aus dem Firma-Tab** (z. B. „Wellbeing Concepts GmbH") — und er erscheint zusätzlich in der Rechts-Fußzeile jeder Seite. Die Projekt-PDF hatte bisher gar keinen Rechts-Fuß — jetzt schon.
+- **Projekt-PDF mit Auswahl-Dialog** (wie die Raum-PDF): Räume wählbar, **Preismodus wählbar — Kundenpreise brutto ist der Standard**, Netto-Detail oder ganz ohne Preise ebenfalls möglich, mit Live-Vorschau vor dem Download.
+- **Freigabe-Protokoll:** Neue Belege enthalten ab jetzt zusätzlich die **Brutto-Preise** (inkl. MwSt-Satz) — alte Belege bleiben unverändert (Beweis-Sicherheit). Bestellungen an Lieferanten bleiben bewusst ohne Kundenpreise.
+
 ### Freigabelink – Auswahl-Blöcke komplett ablehnbar
 - In Auswahl-Blöcken (Variante 1/2/…) kann der Kunde jetzt **den ganzen Block ablehnen**: Knopf **„Keine der Varianten"** direkt am Block, mit optionalem Grund (z. B. „Stil passt nicht"). Der Block wird sichtbar rot markiert („Keine der Varianten gewünscht") und zählt als **bewusste Entscheidung** — vorher konnte man einen Block nur wählen oder stumm überspringen. Ein Klick auf „Rückgängig" oder auf eine Variante hebt die Ablehnung wieder auf.
 - Ihr seht die Ablehnung wie gewohnt: alle Block-Produkte stehen auf „Abgelehnt", der Grund steht als Kundenwunsch dabei — auch in der Prüfen-Ansicht des Kunden und auf dem Freigabe-Beleg.
