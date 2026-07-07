@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { dateiEintragen, dateiLoeschen } from '@/app/actions/dateien'
+import { dateiHochladen, dateiLoeschen, dateiSignierteUrl } from '@/app/actions/dateien'
 import { Upload, File, FileImage, Trash2, Loader2, ExternalLink, Eye } from 'lucide-react'
 import FilePreviewModal from '@/components/FilePreviewModal'
 import { kannInlineVorschau } from '@/lib/file-mime'
@@ -37,6 +36,7 @@ export default function DateiUpload({ projektId, initialDateien }: Props) {
   const [dragOver, setDragOver] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
   const [preview, setPreview] = useState<DateiItem | null>(null)
+  const [oeffneId, setOeffneId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const uploadDatei = useCallback(async (file: File) => {
@@ -53,40 +53,25 @@ export default function DateiUpload({ projektId, initialDateien }: Props) {
     setFehler(null)
     setUploading(true)
 
-    const supabase = createClient()
-    const ext = file.name.split('.').pop() ?? 'bin'
-    const pfad = `${projektId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('projektId', projektId)
 
-    const { data, error } = await supabase.storage
-      .from('projekt-dateien')
-      .upload(pfad, file, { contentType: file.type, upsert: false })
-
-    if (error || !data) {
-      setFehler('Upload fehlgeschlagen. Bitte erneut versuchen.')
+    const result = await dateiHochladen(fd)
+    if (!result.id) {
+      setFehler(result.fehler ?? 'Upload fehlgeschlagen. Bitte erneut versuchen.')
       setUploading(false)
       return
     }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('projekt-dateien')
-      .getPublicUrl(data.path)
-
-    const result = await dateiEintragen(projektId, file.name, publicUrl, file.type, file.size)
-    if (result.fehler) {
-      setFehler(result.fehler)
-    } else {
-      setDateien((prev) => [
-        ...prev,
-        {
-          id: data.path, // temporäre ID bis Revalidierung
-          datei_name: file.name,
-          datei_url: publicUrl,
-          datei_typ: file.type,
-          dateigroesse: file.size,
-          storage_pfad: data.path,
-        },
-      ])
+    const neu: DateiItem = {
+      id: result.id,
+      datei_name: file.name,
+      datei_url: result.storage_pfad ?? '',
+      datei_typ: file.type,
+      dateigroesse: file.size,
+      storage_pfad: result.storage_pfad,
     }
+    setDateien((prev) => [...prev, neu])
     setUploading(false)
   }, [projektId])
 
@@ -107,9 +92,16 @@ export default function DateiUpload({ projektId, initialDateien }: Props) {
 
   const handleLoeschen = useCallback(async (datei: DateiItem) => {
     setDateien((prev) => prev.filter((d) => d.id !== datei.id))
-    const pfad = datei.storage_pfad ?? datei.datei_url.split('/projekt-dateien/').pop() ?? ''
-    await dateiLoeschen(datei.id, projektId, pfad)
-  }, [projektId])
+    await dateiLoeschen(datei.id)
+  }, [])
+
+  const oeffnen = useCallback(async (datei: DateiItem) => {
+    setOeffneId(datei.id)
+    const res = await dateiSignierteUrl(datei.id)
+    setOeffneId(null)
+    if (res.url) window.open(res.url, '_blank', 'noopener,noreferrer')
+    else setFehler('Datei konnte nicht geöffnet werden.')
+  }, [])
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
@@ -194,16 +186,15 @@ export default function DateiUpload({ projektId, initialDateien }: Props) {
                     <Eye className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <a
-                  href={datei.datei_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-300 hover:text-wellbeing-green transition-colors shrink-0"
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  type="button"
+                  onClick={() => oeffnen(datei)}
+                  disabled={oeffneId === datei.id}
+                  className="text-gray-300 hover:text-wellbeing-green transition-colors shrink-0 disabled:opacity-50"
                   aria-label="In neuem Tab öffnen"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                </button>
                 <button
                   type="button"
                   onClick={() => handleLoeschen(datei)}
@@ -222,7 +213,7 @@ export default function DateiUpload({ projektId, initialDateien }: Props) {
         <FilePreviewModal
           dateiname={preview.datei_name}
           mimeType={preview.datei_typ}
-          url={preview.datei_url}
+          urlFetcher={() => dateiSignierteUrl(preview.id).then((r) => r.url ?? null)}
           groesse={preview.dateigroesse}
           onClose={() => setPreview(null)}
         />
