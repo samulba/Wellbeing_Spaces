@@ -3,7 +3,10 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
-## 2026-06-29
+## 2026-07-07
+
+### Projekt-Dateien – sicherer gespeichert (privat statt öffentlich)
+- Hochgeladene **Projekt-Dateien** werden jetzt **serverseitig mit Rechte-Prüfung** gespeichert und nur noch über **zeitlich begrenzte, signierte Links** (1 Stunde gültig) angezeigt/heruntergeladen. Vorher lag jede Datei unter einer **dauerhaft öffentlichen** Adresse – wer den Link kannte, kam ohne Login dran. Für dich in der Oberfläche unverändert: Hochladen, Vorschau, Öffnen und Löschen funktionieren genau wie bisher (auch für alte Dateien).
 
 ### PDFs – einheitlicher Look, klare Absender-Identität, Preise überall wählbar
 - **Alle PDFs** (Angebot, Bestellung, Vertrag, Freigabe-Protokoll, Interne Übersicht, Projekt, Raum) haben jetzt **denselben cleanen Aufbau**: gleicher Briefkopf, gleiche Titelgröße, gleiche Tabellen und Summenblöcke, gleicher Seitenfuß.
